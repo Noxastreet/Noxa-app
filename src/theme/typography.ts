@@ -1,4 +1,18 @@
+import { Platform } from 'react-native';
+
 export const typography = {
+  fontFamily: {
+    display: Platform.select({
+      ios: 'HelveticaNeue-CondensedBold',
+      android: 'sans-serif-condensed',
+      default: 'Arial Narrow',
+    }),
+    body: Platform.select({
+      ios: 'System',
+      android: 'sans-serif',
+      default: 'system-ui',
+    }),
+  },
   caption: 12,
   badge: 12,
   body: 16,

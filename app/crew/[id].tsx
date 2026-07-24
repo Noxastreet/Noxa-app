@@ -1,6 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,6 +15,7 @@ import {
   ImageBackground,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -63,6 +71,14 @@ type Vehicle = {
   color: string | null;
   cover_image_url: string | null;
   is_public: boolean | null;
+};
+type CrewEvent = {
+  id: string;
+  title: string;
+  location_name: string;
+  starts_at: string;
+  is_public: boolean;
+  status: string;
 };
 type Member = Membership & { profile: Profile | null };
 type PendingInvitation = {
@@ -123,7 +139,17 @@ function vehicleName(vehicle: Vehicle) {
   );
 }
 
-function Header() {
+function Header({
+  onRefresh,
+  onShare,
+  refreshing,
+  sharing,
+}: {
+  onRefresh: () => void;
+  onShare: () => void;
+  refreshing: boolean;
+  sharing: boolean;
+}) {
   return (
     <View style={styles.header}>
       <Pressable
@@ -137,8 +163,40 @@ function Header() {
       >
         <Ionicons name="chevron-back" size={22} color={colors.text} />
       </Pressable>
-      <Text style={styles.headerTitle}>CREW</Text>
-      <View style={styles.headerButtonPlaceholder} />
+      <View style={styles.headerCopy}>
+        <Text style={styles.headerTitle}>CREW PROFILE</Text>
+        <Text style={styles.headerSubtitle}>Community details</Text>
+      </View>
+      <View style={styles.headerActions}>
+        <Pressable
+          accessibilityLabel="Share crew"
+          accessibilityRole="button"
+          disabled={sharing}
+          onPress={onShare}
+          style={({ pressed }) => [
+            styles.headerButton,
+            pressed && styles.pressed,
+            sharing && styles.disabled,
+          ]}>
+          <Ionicons
+            name={sharing ? "checkmark" : "share-social-outline"}
+            size={19}
+            color={colors.textMuted}
+          />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Refresh crew"
+          accessibilityRole="button"
+          disabled={refreshing}
+          onPress={onRefresh}
+          style={({ pressed }) => [
+            styles.headerButton,
+            pressed && styles.pressed,
+            refreshing && styles.disabled,
+          ]}>
+          <Ionicons name="refresh" size={18} color={colors.textMuted} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -187,6 +245,843 @@ function ProfileAvatar({
   );
 }
 
+function joinPolicyLabel(policy: JoinPolicy) {
+  if (policy === "open") return "OPEN JOIN";
+  if (policy === "approval") return "BY APPROVAL";
+  return "INVITE ONLY";
+}
+
+function MembershipAction({
+  effectiveJoinPolicy,
+  isMember,
+  isOwner,
+  joining,
+  leaving,
+  onCancelRequest,
+  onJoin,
+  onLeave,
+  onRequestJoin,
+  pendingJoinRequest,
+}: {
+  effectiveJoinPolicy: JoinPolicy;
+  isMember: boolean;
+  isOwner: boolean;
+  joining: boolean;
+  leaving: boolean;
+  onCancelRequest: () => void;
+  onJoin: () => void;
+  onLeave: () => void;
+  onRequestJoin: () => void;
+  pendingJoinRequest: JoinRequest | null;
+}) {
+  if (isOwner) {
+    return (
+      <View style={styles.ownerStatus}>
+        <Ionicons name="shield-checkmark" size={18} color={colors.primaryHover} />
+        <View style={styles.ownerStatusCopy}>
+          <Text style={styles.ownerStatusTitle}>OWNER ACCESS</Text>
+          <Text style={styles.ownerStatusText}>You manage this crew.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (isMember) {
+    return (
+      <NoxaButton
+        disabled={leaving || joining}
+        fullWidth
+        onPress={onLeave}
+        title={leaving ? "Leaving…" : "Leave Crew"}
+        variant="danger"
+      />
+    );
+  }
+
+  if (pendingJoinRequest) {
+    return (
+      <NoxaButton
+        disabled={joining || leaving}
+        fullWidth
+        onPress={onCancelRequest}
+        title={joining ? "Cancelling…" : "Cancel Join Request"}
+        variant="secondary"
+      />
+    );
+  }
+
+  if (effectiveJoinPolicy === "open") {
+    return (
+      <NoxaButton
+        disabled={joining || leaving}
+        fullWidth
+        onPress={onJoin}
+        title={joining ? "Joining…" : "Join Crew"}
+      />
+    );
+  }
+
+  if (effectiveJoinPolicy === "approval") {
+    return (
+      <NoxaButton
+        disabled={joining || leaving}
+        fullWidth
+        onPress={onRequestJoin}
+        title={joining ? "Requesting…" : "Request to Join"}
+      />
+    );
+  }
+
+  return <NoxaButton disabled fullWidth title="Invite Only" variant="secondary" />;
+}
+
+function CrewOverview({
+  crew,
+  membersCount,
+  membershipAction,
+  onOpenOwner,
+  owner,
+  vehiclesCount,
+}: {
+  crew: Crew;
+  membersCount: number;
+  membershipAction: ReactNode;
+  onOpenOwner?: () => void;
+  owner: Profile | null;
+  vehiclesCount: number;
+}) {
+  return (
+    <View style={styles.heroCard}>
+      {crew.cover_image_url ? (
+        <ImageBackground
+          imageStyle={styles.coverRadius as ImageStyle}
+          resizeMode="cover"
+          source={{ uri: crew.cover_image_url }}
+          style={styles.cover}>
+          <View style={styles.coverShade} />
+        </ImageBackground>
+      ) : (
+        <View style={[styles.cover, styles.coverPlaceholder]}>
+          <View style={styles.coverGlowLarge} />
+          <View style={styles.coverGlowSmall} />
+          <Ionicons name="people" size={76} color={colors.primaryMuted} />
+          <View style={styles.coverShade} />
+        </View>
+      )}
+
+      <View style={styles.heroBadges}>
+        <NoxaBadge
+          label={crew.is_public ? "PUBLIC" : "PRIVATE"}
+          variant={crew.is_public ? "primary" : "default"}
+        />
+        <View style={styles.policyBadge}>
+          <Text style={styles.policyBadgeText}>
+            {joinPolicyLabel(crew.is_public ? crew.join_policy : "invite_only")}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.heroContent}>
+        <View style={styles.heroIdentityRow}>
+          <View style={styles.logoWrap}>
+            {crew.logo_url ? (
+              <Image source={{ uri: crew.logo_url }} style={styles.logo} />
+            ) : (
+              <Text style={styles.logoInitials}>{initials(crew.name)}</Text>
+            )}
+          </View>
+          <View style={styles.heroIdentityCopy}>
+            <Text style={styles.heroTitle}>{crew.name}</Text>
+            <View style={styles.heroMetaRow}>
+              <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.heroMeta}>{crew.city || "Global crew"}</Text>
+            </View>
+          </View>
+        </View>
+
+        {isPresent(crew.description) ? (
+          <Text style={styles.bodyText}>{crew.description}</Text>
+        ) : (
+          <Text style={styles.bodyText}>This crew has not added a description yet.</Text>
+        )}
+
+        <View style={styles.statsStrip}>
+          <View style={styles.statCell}>
+            <Text style={styles.statValue}>{membersCount}</Text>
+            <Text style={styles.statLabel}>DRIVERS</Text>
+          </View>
+          <View style={[styles.statCell, styles.statCellBorder]}>
+            <Text style={styles.statValue}>{vehiclesCount}</Text>
+            <Text style={styles.statLabel}>PUBLIC CARS</Text>
+          </View>
+          <View style={[styles.statCell, styles.statCellBorder]}>
+            <Ionicons
+              name={crew.is_public ? "earth-outline" : "lock-closed-outline"}
+              size={20}
+              color={colors.text}
+            />
+            <Text style={styles.statLabel}>{crew.is_public ? "VISIBLE" : "PRIVATE"}</Text>
+          </View>
+        </View>
+
+        {owner ? (
+          <Pressable
+            accessibilityLabel="Open owner driver profile"
+            accessibilityRole="button"
+            onPress={onOpenOwner}
+            style={({ pressed }) => [styles.ownerRow, pressed && styles.pressed]}>
+            <ProfileAvatar profile={owner} size={42} />
+            <View style={styles.personCopy}>
+              <Text style={styles.ownerLabel}>CREW OWNER</Text>
+              <Text style={styles.personName}>{displayName(owner)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+          </Pressable>
+        ) : null}
+
+        <View style={styles.membershipAction}>{membershipAction}</View>
+      </View>
+    </View>
+  );
+}
+
+function SectionHeading({
+  caption,
+  count,
+  title,
+}: {
+  caption: string;
+  count?: number;
+  title: string;
+}) {
+  return (
+    <View style={styles.sectionHeading}>
+      <View style={styles.sectionHeadingCopy}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionCaption}>{caption}</Text>
+      </View>
+      {typeof count === "number" ? (
+        <View style={styles.countPill}>
+          <Text style={styles.countPillText}>{count}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function CrewQuickActions({
+  enabled,
+  onCalendar,
+  onChat,
+  onConvoy,
+  onGallery,
+  onGarage,
+  onPolls,
+}: {
+  enabled: boolean;
+  onCalendar: () => void;
+  onChat: () => void;
+  onConvoy: () => void;
+  onGallery: () => void;
+  onGarage: () => void;
+  onPolls: () => void;
+}) {
+  const actions = [
+    { label: "CHAT", icon: "chatbubbles-outline" as const, onPress: onChat },
+    { label: "GALLERY", icon: "images-outline" as const, onPress: onGallery },
+    { label: "GARAGE", icon: "car-sport-outline" as const, onPress: onGarage },
+    { label: "CALENDAR", icon: "calendar-outline" as const, onPress: onCalendar },
+    { label: "POLLS", icon: "stats-chart-outline" as const, onPress: onPolls },
+    { label: "CONVOY", icon: "navigate-outline" as const, onPress: onConvoy },
+  ];
+
+  return (
+    <View style={styles.sectionBlock}>
+      <SectionHeading
+        caption="Private spaces for the crew"
+        title="QUICK ACTIONS"
+      />
+      <View style={styles.quickActionGrid}>
+        {actions.map((action) => (
+          <Pressable
+            accessibilityLabel={`Open crew ${action.label.toLowerCase()}`}
+            accessibilityRole="button"
+            disabled={!enabled}
+            key={action.label}
+            onPress={action.onPress}
+            style={({ pressed }) => [
+              styles.quickAction,
+              !enabled && styles.quickActionDisabled,
+              pressed && enabled && styles.pressed,
+            ]}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons
+                name={enabled ? action.icon : "lock-closed-outline"}
+                size={21}
+                color={enabled ? colors.primaryHover : colors.textSubtle}
+              />
+            </View>
+            <Text style={[styles.quickActionLabel, !enabled && styles.quickActionLabelDisabled]}>
+              {action.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {!enabled ? (
+        <Text style={styles.quickActionHint}>
+          Join the crew to unlock its private tools and shared spaces.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function CrewEvents({
+  canCreate,
+  error,
+  events,
+  onCreate,
+  onOpen,
+}: {
+  canCreate: boolean;
+  error: string | null;
+  events: CrewEvent[];
+  onCreate: () => void;
+  onOpen: (eventId: string) => void;
+}) {
+  return (
+    <View style={styles.sectionBlock}>
+      <View style={styles.eventsHeadingRow}>
+        <View style={styles.eventsHeadingContent}>
+          <SectionHeading
+            caption="Upcoming drives and meets"
+            count={events.length}
+            title="CREW EVENTS"
+          />
+        </View>
+        {canCreate ? (
+          <Pressable
+            accessibilityLabel="Create crew event"
+            accessibilityRole="button"
+            onPress={onCreate}
+            style={({ pressed }) => [styles.createEventButton, pressed && styles.pressed]}>
+            <Ionicons name="add" size={16} color={colors.text} />
+          </Pressable>
+        ) : null}
+      </View>
+      {error ? (
+        <View style={styles.emptyPanel}>
+          <Ionicons name="cloud-offline-outline" size={24} color={colors.primaryHover} />
+          <Text style={styles.emptyText}>{error}</Text>
+        </View>
+      ) : events.length ? (
+        <View style={styles.eventsCard}>
+          {events.map((event, index) => {
+            const date = new Date(event.starts_at);
+            return (
+              <Pressable
+                accessibilityLabel={`Open ${event.title}`}
+                accessibilityRole="button"
+                key={event.id}
+                onPress={() => onOpen(event.id)}
+                style={({ pressed }) => [
+                  styles.eventRow,
+                  index < events.length - 1 && styles.eventRowBorder,
+                  pressed && styles.pressed,
+                ]}>
+                <View style={styles.eventDateTile}>
+                  <Text style={styles.eventDateDay}>
+                    {new Intl.DateTimeFormat(undefined, { day: "2-digit" }).format(date)}
+                  </Text>
+                  <Text style={styles.eventDateMonth}>
+                    {new Intl.DateTimeFormat(undefined, { month: "short" }).format(date).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.eventCopy}>
+                  <View style={styles.eventTitleRow}>
+                    <Text numberOfLines={1} style={styles.eventTitle}>{event.title}</Text>
+                    {!event.is_public ? <Ionicons name="lock-closed" size={12} color={colors.textMuted} /> : null}
+                  </View>
+                  <Text numberOfLines={1} style={styles.eventMeta}>
+                    {new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(date)} · {event.location_name}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole={canCreate ? "button" : undefined}
+          disabled={!canCreate}
+          onPress={canCreate ? onCreate : undefined}
+          style={({ pressed }) => [styles.emptyPanel, pressed && canCreate && styles.pressed]}>
+          <Ionicons name="calendar-outline" size={24} color={colors.textSubtle} />
+          <Text style={styles.emptyText}>
+            {canCreate ? "Plan the first event for this crew." : "No upcoming crew events."}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function MemberRoster({
+  currentUserId,
+  isAdmin,
+  isOwner,
+  memberActionId,
+  members,
+  onOpenMember,
+  onRemoveMember,
+  onSetRole,
+}: {
+  currentUserId: string | null;
+  isAdmin: boolean;
+  isOwner: boolean;
+  memberActionId: string | null;
+  members: Member[];
+  onOpenMember: (memberId: string) => void;
+  onRemoveMember: (member: Member) => void;
+  onSetRole: (member: Member, role: "admin" | "member") => void;
+}) {
+  return (
+    <View style={styles.sectionBlock}>
+      <SectionHeading
+        caption="Drivers, roles, and permissions"
+        count={members.length}
+        title="CREW MEMBERS"
+      />
+      {members.length === 0 ? (
+        <View style={styles.emptyPanel}>
+          <Ionicons name="people-outline" size={24} color={colors.textSubtle} />
+          <Text style={styles.emptyText}>No visible members yet.</Text>
+        </View>
+      ) : (
+        <View style={styles.rosterCard}>
+          {members.map((member, index) => {
+            const canPromote = isOwner && member.role === "member";
+            const canDemote = isOwner && member.role === "admin";
+            const canRemove =
+              member.role !== "owner" &&
+              currentUserId !== member.user_id &&
+              (isOwner || (isAdmin && member.role === "member"));
+            const isBusy = memberActionId === member.user_id;
+
+            return (
+              <View
+                key={member.user_id}
+                style={[
+                  styles.memberItem,
+                  index < members.length - 1 && styles.memberItemBorder,
+                ]}>
+                <Pressable
+                  accessibilityLabel={`Open ${displayName(member.profile)} profile`}
+                  accessibilityRole="button"
+                  onPress={() => onOpenMember(member.user_id)}
+                  style={({ pressed }) => [styles.memberMainRow, pressed && styles.pressed]}>
+                  <ProfileAvatar profile={member.profile} size={46} />
+                  <View style={styles.personCopy}>
+                    <Text style={styles.personName}>{displayName(member.profile)}</Text>
+                    <Text style={styles.personMeta}>
+                      {member.profile?.username
+                        ? `@${member.profile.username}`
+                        : (member.profile?.city ?? "NOXA driver")}
+                    </Text>
+                  </View>
+                  <NoxaBadge
+                    label={
+                      member.role === "owner"
+                        ? "OWNER"
+                        : member.role === "admin"
+                          ? "ADMIN"
+                          : "MEMBER"
+                    }
+                    variant={
+                      member.role === "owner"
+                        ? "primary"
+                        : member.role === "admin"
+                          ? "warning"
+                          : "default"
+                    }
+                  />
+                </Pressable>
+
+                {canPromote || canDemote || canRemove ? (
+                  <View style={styles.memberActionBar}>
+                    {canPromote ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={isBusy}
+                        onPress={() => onSetRole(member, "admin")}
+                        style={({ pressed }) => [
+                          styles.roleAction,
+                          styles.promoteAction,
+                          pressed && styles.pressed,
+                          isBusy && styles.disabled,
+                        ]}>
+                        <Ionicons name="shield-outline" size={14} color={colors.primaryHover} />
+                        <Text style={styles.promoteActionText}>{isBusy ? "Working…" : "Make Admin"}</Text>
+                      </Pressable>
+                    ) : null}
+                    {canDemote ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={isBusy}
+                        onPress={() => onSetRole(member, "member")}
+                        style={({ pressed }) => [
+                          styles.roleAction,
+                          pressed && styles.pressed,
+                          isBusy && styles.disabled,
+                        ]}>
+                        <Text style={styles.roleActionText}>{isBusy ? "Working…" : "Make Member"}</Text>
+                      </Pressable>
+                    ) : null}
+                    {canRemove ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={isBusy}
+                        onPress={() => onRemoveMember(member)}
+                        style={({ pressed }) => [
+                          styles.roleAction,
+                          styles.removeAction,
+                          pressed && styles.pressed,
+                          isBusy && styles.disabled,
+                        ]}>
+                        <Ionicons name="person-remove-outline" size={14} color={colors.primaryHover} />
+                        <Text style={styles.removeActionText}>Remove</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CrewGarage({
+  onOpenVehicle,
+  ownerNamesById,
+  vehicles,
+}: {
+  onOpenVehicle: (vehicleId: string) => void;
+  ownerNamesById: Map<string, string>;
+  vehicles: Vehicle[];
+}) {
+  return (
+    <View style={styles.sectionBlock}>
+      <SectionHeading
+        caption="Public builds from the roster"
+        count={vehicles.length}
+        title="CREW GARAGE"
+      />
+      {vehicles.length === 0 ? (
+        <View style={styles.emptyPanel}>
+          <Ionicons name="car-sport-outline" size={26} color={colors.textSubtle} />
+          <Text style={styles.emptyText}>No public member cars yet.</Text>
+        </View>
+      ) : (
+        <ScrollView
+          horizontal
+          contentContainerStyle={styles.garageRail}
+          showsHorizontalScrollIndicator={false}>
+          {vehicles.map((vehicle) => (
+            <Pressable
+              key={vehicle.id}
+              accessibilityLabel={`Open ${vehicleName(vehicle)}`}
+              accessibilityRole="button"
+              onPress={() => onOpenVehicle(vehicle.id)}
+              style={({ pressed }) => [styles.garageCard, pressed && styles.pressed]}>
+              {vehicle.cover_image_url ? (
+                <Image source={{ uri: vehicle.cover_image_url }} style={styles.garageImage} />
+              ) : (
+                <View style={[styles.garageImage, styles.garagePlaceholder]}>
+                  <Ionicons name="car-sport" size={34} color={colors.primary} />
+                </View>
+              )}
+              <View style={styles.garageCardBody}>
+                <Text numberOfLines={1} style={styles.garageTitle}>
+                  {vehicleName(vehicle)}
+                </Text>
+                <Text numberOfLines={1} style={styles.garageOwner}>
+                  {ownerNamesById.get(vehicle.owner_id) ?? "NOXA driver"}
+                </Text>
+                <View style={styles.garageMetaRow}>
+                  {vehicle.horsepower ? (
+                    <Text style={styles.garageMeta}>{vehicle.horsepower} HP</Text>
+                  ) : null}
+                  {vehicle.color ? <Text style={styles.garageMeta}>{vehicle.color}</Text> : null}
+                </View>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+function JoinRequestsPanel({
+  actionId,
+  onOpenProfile,
+  onReview,
+  requests,
+}: {
+  actionId: string | null;
+  onOpenProfile: (profileId: string) => void;
+  onReview: (requestId: string, approve: boolean) => void;
+  requests: JoinRequest[];
+}) {
+  return (
+    <View style={styles.sectionBlock}>
+      <SectionHeading
+        caption="Approve or reject people who want to join"
+        count={requests.length}
+        title="JOIN REQUESTS"
+      />
+      {requests.length === 0 ? (
+        <View style={styles.managementEmpty}>
+          <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
+          <Text style={styles.managementEmptyText}>No pending requests.</Text>
+        </View>
+      ) : (
+        <View style={styles.managementCard}>
+          {requests.map((request, index) => {
+            const isBusy = actionId === request.id;
+            return (
+              <View
+                key={request.id}
+                style={[
+                  styles.managementRow,
+                  index < requests.length - 1 && styles.managementRowBorder,
+                ]}>
+                <Pressable
+                  accessibilityLabel={`Open ${displayName(request.profile)} profile`}
+                  accessibilityRole="button"
+                  onPress={() => onOpenProfile(request.user_id)}
+                  style={({ pressed }) => [styles.managementProfile, pressed && styles.pressed]}>
+                  <ProfileAvatar profile={request.profile} size={44} />
+                  <View style={styles.personCopy}>
+                    <Text style={styles.personName}>{displayName(request.profile)}</Text>
+                    <Text style={styles.personMeta}>
+                      {request.profile?.username
+                        ? `@${request.profile.username}`
+                        : (request.profile?.city ?? "NOXA driver")}
+                    </Text>
+                  </View>
+                </Pressable>
+                <View style={styles.requestActionBar}>
+                  <Pressable
+                    accessibilityLabel="Approve join request"
+                    accessibilityRole="button"
+                    disabled={isBusy}
+                    onPress={() => onReview(request.id, true)}
+                    style={({ pressed }) => [
+                      styles.iconDecisionButton,
+                      styles.approveButton,
+                      pressed && styles.pressed,
+                      isBusy && styles.disabled,
+                    ]}>
+                    <Ionicons name="checkmark" size={18} color={colors.text} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityLabel="Reject join request"
+                    accessibilityRole="button"
+                    disabled={isBusy}
+                    onPress={() => onReview(request.id, false)}
+                    style={({ pressed }) => [
+                      styles.iconDecisionButton,
+                      styles.rejectButton,
+                      pressed && styles.pressed,
+                      isBusy && styles.disabled,
+                    ]}>
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function InviteManager({
+  actionId,
+  hasSearched,
+  onCancelInvitation,
+  onChangeQuery,
+  onInvite,
+  onOpenProfile,
+  onSearch,
+  pendingInvitations,
+  query,
+  results,
+  searching,
+}: {
+  actionId: string | null;
+  hasSearched: boolean;
+  onCancelInvitation: (invitationId: string) => void;
+  onChangeQuery: (value: string) => void;
+  onInvite: (profileId: string) => void;
+  onOpenProfile: (profileId: string) => void;
+  onSearch: () => void;
+  pendingInvitations: PendingInvitation[];
+  query: string;
+  results: ProfileSearchResult[];
+  searching: boolean;
+}) {
+  return (
+    <View style={styles.sectionBlock}>
+      <SectionHeading
+        caption="Search by username and track pending invites"
+        count={pendingInvitations.length}
+        title="INVITE DRIVERS"
+      />
+      <View style={styles.inviteCard}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchInputShell}>
+            <Ionicons name="search" size={17} color={colors.textMuted} />
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={onChangeQuery}
+              onSubmitEditing={onSearch}
+              placeholder="Username"
+              placeholderTextColor={colors.textSubtle}
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={query}
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            disabled={searching}
+            onPress={onSearch}
+            style={({ pressed }) => [
+              styles.searchButton,
+              pressed && styles.pressed,
+              searching && styles.disabled,
+            ]}>
+            {searching ? (
+              <ActivityIndicator color={colors.text} size="small" />
+            ) : (
+              <Text style={styles.searchButtonText}>SEARCH</Text>
+            )}
+          </Pressable>
+        </View>
+
+        {hasSearched && results.length === 0 ? (
+          <View style={styles.searchEmpty}>
+            <Text style={styles.managementEmptyText}>No matching drivers found.</Text>
+          </View>
+        ) : null}
+
+        {results.length > 0 ? (
+          <View style={styles.inviteList}>
+            <Text style={styles.inviteListLabel}>SEARCH RESULTS</Text>
+            {results.map((profile, index) => {
+              const isBusy = actionId === profile.id;
+              const isUnavailable = profile.isMember || Boolean(profile.pendingInvitationId);
+              return (
+                <View
+                  key={profile.id}
+                  style={[
+                    styles.inviteRow,
+                    index < results.length - 1 && styles.managementRowBorder,
+                  ]}>
+                  <Pressable
+                    accessibilityLabel={`Open ${displayName(profile)} profile`}
+                    accessibilityRole="button"
+                    onPress={() => onOpenProfile(profile.id)}
+                    style={({ pressed }) => [styles.managementProfile, pressed && styles.pressed]}>
+                    <ProfileAvatar profile={profile} size={42} />
+                    <View style={styles.personCopy}>
+                      <Text style={styles.personName}>{displayName(profile)}</Text>
+                      <Text style={styles.personMeta}>
+                        {profile.username ? `@${profile.username}` : "NOXA driver"}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isUnavailable || isBusy}
+                    onPress={() => onInvite(profile.id)}
+                    style={({ pressed }) => [
+                      styles.inviteButton,
+                      isUnavailable && styles.inviteButtonDisabled,
+                      pressed && styles.pressed,
+                      isBusy && styles.disabled,
+                    ]}>
+                    <Text style={[styles.inviteButtonText, isUnavailable && styles.inviteButtonDisabledText]}>
+                      {profile.isMember
+                        ? "MEMBER"
+                        : profile.pendingInvitationId
+                          ? "PENDING"
+                          : isBusy
+                            ? "SENDING…"
+                            : "INVITE"}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {pendingInvitations.length > 0 ? (
+          <View style={styles.inviteList}>
+            <Text style={styles.inviteListLabel}>PENDING INVITATIONS</Text>
+            {pendingInvitations.map((invitation, index) => {
+              const isBusy = actionId === invitation.id;
+              return (
+                <View
+                  key={invitation.id}
+                  style={[
+                    styles.inviteRow,
+                    index < pendingInvitations.length - 1 && styles.managementRowBorder,
+                  ]}>
+                  <Pressable
+                    accessibilityLabel={`Open ${displayName(invitation.invitedProfile)} profile`}
+                    accessibilityRole="button"
+                    onPress={() => onOpenProfile(invitation.invited_user_id)}
+                    style={({ pressed }) => [styles.managementProfile, pressed && styles.pressed]}>
+                    <ProfileAvatar profile={invitation.invitedProfile} size={42} />
+                    <View style={styles.personCopy}>
+                      <Text style={styles.personName}>{displayName(invitation.invitedProfile)}</Text>
+                      <Text style={styles.personMeta}>
+                        Invited by {displayName(invitation.invitedByProfile)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isBusy}
+                    onPress={() => onCancelInvitation(invitation.id)}
+                    style={({ pressed }) => [
+                      styles.cancelInviteButton,
+                      pressed && styles.pressed,
+                      isBusy && styles.disabled,
+                    ]}>
+                    <Text style={styles.cancelInviteText}>{isBusy ? "…" : "CANCEL"}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export default function CrewDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const crewId = useMemo(() => normalizeId(id), [id]);
@@ -195,11 +1090,14 @@ export default function CrewDetailsScreen() {
   const [owner, setOwner] = useState<Profile | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [crewEvents, setCrewEvents] = useState<CrewEvent[]>([]);
+  const [crewEventsError, setCrewEventsError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [pendingInvitations, setPendingInvitations] = useState<
     PendingInvitation[]
   >([]);
@@ -211,6 +1109,7 @@ export default function CrewDetailsScreen() {
   const [inviteQuery, setInviteQuery] = useState("");
   const [inviteResults, setInviteResults] = useState<ProfileSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const requestId = useRef(0);
   const loadingRef = useRef(false);
 
@@ -224,6 +1123,8 @@ export default function CrewDetailsScreen() {
         setPendingJoinRequest(null);
         setJoinRequests([]);
         setVehicles([]);
+        setCrewEvents([]);
+        setCrewEventsError(null);
         setError("This crew link is invalid.");
         setLoading(false);
         return;
@@ -254,6 +1155,8 @@ export default function CrewDetailsScreen() {
         setPendingJoinRequest(null);
         setJoinRequests([]);
         setVehicles([]);
+        setCrewEvents([]);
+        setCrewEventsError(null);
         setError("Crew not found or unavailable.");
         setLoading(false);
         loadingRef.current = false;
@@ -350,6 +1253,8 @@ export default function CrewDetailsScreen() {
                   : (a.joined_at ?? "").localeCompare(b.joined_at ?? ""),
         );
       let vehicleRows: Vehicle[] = [];
+      let eventRows: CrewEvent[] = [];
+      let nextCrewEventsError: string | null = null;
       let nextPendingInvitations: PendingInvitation[] = [];
       let nextPendingJoinRequest: JoinRequest | null = null;
       let nextJoinRequests: JoinRequest[] = [];
@@ -522,6 +1427,20 @@ export default function CrewDetailsScreen() {
         }
         vehicleRows = (loadedVehicles ?? []) as Vehicle[];
       }
+      const { data: loadedEvents, error: eventsError } = await supabase
+        .from("events")
+        .select("id,title,location_name,starts_at,is_public,status")
+        .eq("crew_id", loadedCrew.id)
+        .eq("status", "scheduled")
+        .gte("starts_at", new Date().toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(10);
+      if (requestId.current !== token) {
+        loadingRef.current = false;
+        return;
+      }
+      if (eventsError) nextCrewEventsError = "Crew events are unavailable right now.";
+      else eventRows = (loadedEvents ?? []) as CrewEvent[];
       setCurrentUserId(userId);
       setCrew(loadedCrew);
       setOwner(
@@ -534,6 +1453,8 @@ export default function CrewDetailsScreen() {
       setPendingJoinRequest(nextPendingJoinRequest);
       setJoinRequests(nextJoinRequests);
       setVehicles(vehicleRows);
+      setCrewEvents(eventRows);
+      setCrewEventsError(nextCrewEventsError);
       setLoading(false);
       loadingRef.current = false;
     },
@@ -658,8 +1579,7 @@ export default function CrewDetailsScreen() {
               .from("crew_members")
               .delete()
               .eq("crew_id", crew.id)
-              .eq("user_id", currentUserId)
-              .eq("role", "member");
+              .eq("user_id", currentUserId);
             setLeaving(false);
             if (leaveError) {
               Alert.alert("Could not leave", "Please try again.");
@@ -707,6 +1627,7 @@ export default function CrewDetailsScreen() {
           pendingInvitationId: pendingByUser.get(profile.id) ?? null,
         })),
     );
+    setHasSearched(true);
   }, [
     crew,
     currentUserId,
@@ -732,6 +1653,7 @@ export default function CrewDetailsScreen() {
       }
       setInviteResults([]);
       setInviteQuery("");
+      setHasSearched(false);
       void loadCrew(false);
     },
     [crew, inviteActionId, loadCrew],
@@ -822,13 +1744,36 @@ export default function CrewDetailsScreen() {
     [crew, loadCrew, memberActionId],
   );
 
+  const shareCrew = useCallback(async () => {
+    if (!crew || sharing) return;
+
+    setSharing(true);
+    try {
+      const crewUrl = Linking.createURL(`/crew/${crew.id}`);
+      const location = crew.city ? ` · ${crew.city}` : "";
+      await Share.share({
+        message: `${crew.name}${location}\n${crew.description ?? "Join this crew on NOXA."}\n${crewUrl}`,
+        title: crew.name,
+      });
+    } catch {
+      Alert.alert("Unable to share crew", "Please try again.");
+    } finally {
+      setSharing(false);
+    }
+  }, [crew, sharing]);
+
   return (
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <Header />
+        <Header
+          onRefresh={() => void loadCrew()}
+          onShare={() => void shareCrew()}
+          refreshing={loading}
+          sharing={sharing}
+        />
         {loading ? <StateCard loading title="Loading crew..." /> : null}
         {!loading && error ? (
           <StateCard
@@ -838,461 +1783,133 @@ export default function CrewDetailsScreen() {
         ) : null}
         {!loading && !error && crew ? (
           <>
-            <View style={styles.heroCard}>
-              {crew.cover_image_url ? (
-                <ImageBackground
-                  source={{ uri: crew.cover_image_url }}
-                  resizeMode="cover"
-                  style={styles.cover}
-                  imageStyle={styles.coverRadius as ImageStyle}
-                >
-                  {null}
-                </ImageBackground>
-              ) : (
-                <View style={[styles.cover, styles.coverPlaceholder]}>
-                  <Ionicons
-                    name="people"
-                    size={72}
-                    color="rgba(255,45,45,0.34)"
-                  />
-                </View>
-              )}
-              <View style={styles.heroContent}>
-                <View style={styles.logoWrap}>
-                  {crew.logo_url ? (
-                    <Image
-                      source={{ uri: crew.logo_url }}
-                      style={styles.logo}
-                    />
-                  ) : (
-                    <Text style={styles.logoInitials}>
-                      {initials(crew.name)}
-                    </Text>
-                  )}
-                </View>
-                <Text style={styles.heroTitle}>{crew.name}</Text>
-                {crew.city ? (
-                  <Text style={styles.heroMeta}>{crew.city}</Text>
-                ) : null}
-                <NoxaBadge
-                  label={crew.is_public ? "PUBLIC" : "PRIVATE"}
-                  variant={crew.is_public ? "primary" : "default"}
+            <CrewOverview
+              crew={crew}
+              membersCount={members.length}
+              membershipAction={
+                <MembershipAction
+                  effectiveJoinPolicy={effectiveJoinPolicy}
+                  isMember={isMember}
+                  isOwner={isOwner}
+                  joining={joining}
+                  leaving={leaving}
+                  onCancelRequest={cancelJoinRequest}
+                  onJoin={joinCrew}
+                  onLeave={leaveCrew}
+                  onRequestJoin={requestJoinCrew}
+                  pendingJoinRequest={pendingJoinRequest}
                 />
-              </View>
-            </View>
-            <View style={styles.statsRow}>
-              <NoxaCard style={styles.statCard}>
-                <Text style={styles.statValue}>{members.length}</Text>
-                <Text style={styles.statLabel}>Drivers</Text>
-              </NoxaCard>
-              <NoxaCard style={styles.statCard}>
-                <Text style={styles.statValue}>{vehicles.length}</Text>
-                <Text style={styles.statLabel}>Cars</Text>
-              </NoxaCard>
-            </View>
-            {isPresent(crew.description) ? (
-              <NoxaCard>
-                <Text style={styles.cardTitle}>Description</Text>
-                <Text style={styles.bodyText}>{crew.description}</Text>
-              </NoxaCard>
-            ) : null}
-            <NoxaCard>
-              <Text style={styles.cardTitle}>Membership</Text>
-              {isOwner ? (
-                <NoxaButton title="Owner" disabled />
-              ) : isMember ? (
-                <NoxaButton
-                  title={leaving ? "Leaving..." : "Leave Crew"}
-                  variant="danger"
-                  disabled={leaving || joining}
-                  onPress={leaveCrew}
-                />
-              ) : pendingJoinRequest ? (
-                <NoxaButton
-                  title={joining ? "Cancelling..." : "Cancel Request"}
-                  variant="secondary"
-                  disabled={joining || leaving}
-                  onPress={cancelJoinRequest}
-                />
-              ) : effectiveJoinPolicy === "open" ? (
-                <NoxaButton
-                  title={joining ? "Joining..." : "Join Crew"}
-                  disabled={joining || leaving}
-                  onPress={joinCrew}
-                />
-              ) : effectiveJoinPolicy === "approval" ? (
-                <NoxaButton
-                  title={joining ? "Requesting..." : "Request to Join"}
-                  disabled={joining || leaving}
-                  onPress={requestJoinCrew}
-                />
-              ) : (
-                <NoxaButton title="Invite Only" disabled />
-              )}
-            </NoxaCard>
-            {owner ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open owner driver profile"
-                onPress={() =>
-                  router.push({
-                    pathname: "/driver-profile/[id]",
-                    params: { id: owner.id },
-                  })
-                }
-                style={({ pressed }) => [pressed && styles.pressed]}
-              >
-                <NoxaCard>
-                  <Text style={styles.cardTitle}>Owner</Text>
-                  <View style={styles.personRow}>
-                    <ProfileAvatar profile={owner} />
-                    <View style={styles.personCopy}>
-                      <Text style={styles.personName}>
-                        {displayName(owner)}
-                      </Text>
-                      <Text style={styles.personMeta}>
-                        {[
-                          owner.username ? `@${owner.username}` : null,
-                          owner.city,
-                        ]
-                          .filter(isPresent)
-                          .join(" • ")}
-                      </Text>
-                    </View>
-                  </View>
-                </NoxaCard>
-              </Pressable>
-            ) : null}
+              }
+              onOpenOwner={
+                owner
+                  ? () =>
+                      router.push({
+                        pathname: "/driver-profile/[id]",
+                        params: { id: owner.id },
+                      })
+                  : undefined
+              }
+              owner={owner}
+              vehiclesCount={vehicles.length}
+            />
+            <CrewQuickActions
+              enabled={isMember}
+              onCalendar={() =>
+                router.push({ pathname: "/crew-calendar", params: { id: crew.id } })
+              }
+              onChat={() =>
+                router.push({ pathname: "/crew-chat", params: { id: crew.id } })
+              }
+              onConvoy={() =>
+                router.push({ pathname: "/convoy-setup", params: { id: crew.id } })
+              }
+              onGallery={() =>
+                router.push({ pathname: "/crew-gallery", params: { id: crew.id } })
+              }
+              onGarage={() =>
+                router.push({ pathname: "/crew-garage", params: { id: crew.id } })
+              }
+              onPolls={() =>
+                router.push({ pathname: "/crew-polls", params: { id: crew.id } })
+              }
+            />
+            <CrewEvents
+              canCreate={canManageCrew}
+              error={crewEventsError}
+              events={crewEvents}
+              onCreate={() =>
+                router.push({ pathname: "/event-editor", params: { crewId: crew.id } })
+              }
+              onOpen={(eventId) =>
+                router.push({ pathname: "/event-details", params: { id: eventId } })
+              }
+            />
             {canManageCrew ? (
-              <NoxaCard>
-                <Text style={styles.cardTitle}>Join Requests</Text>
-                {joinRequests.length === 0 ? (
-                  <Text style={styles.emptyText}>
-                    No pending join requests.
-                  </Text>
-                ) : (
-                  <View style={styles.list}>
-                    {joinRequests.map((joinRequest) => (
-                      <View key={joinRequest.id} style={styles.personRow}>
-                        <ProfileAvatar profile={joinRequest.profile} />
-                        <View style={styles.personCopy}>
-                          <Text style={styles.personName}>
-                            {displayName(joinRequest.profile)}
-                          </Text>
-                          <Text style={styles.personMeta}>
-                            {joinRequest.profile?.username
-                              ? `@${joinRequest.profile.username}`
-                              : "NOXA driver"}
-                          </Text>
-                        </View>
-                        <View style={styles.requestActions}>
-                          <Pressable
-                            disabled={memberActionId === joinRequest.id}
-                            onPress={() =>
-                              void reviewJoinRequest(joinRequest.id, true)
-                            }
-                            style={({ pressed }) => [
-                              styles.miniAction,
-                              pressed && styles.pressed,
-                            ]}
-                          >
-                            <Text style={styles.miniActionText}>Approve</Text>
-                          </Pressable>
-                          <Pressable
-                            disabled={memberActionId === joinRequest.id}
-                            onPress={() =>
-                              void reviewJoinRequest(joinRequest.id, false)
-                            }
-                            style={({ pressed }) => [
-                              styles.miniAction,
-                              styles.miniActionDisabled,
-                              pressed && styles.pressed,
-                            ]}
-                          >
-                            <Text style={styles.miniActionText}>Reject</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </NoxaCard>
+              <>
+                <JoinRequestsPanel
+                  actionId={memberActionId}
+                  onOpenProfile={(profileId) =>
+                    router.push({
+                      pathname: "/driver-profile/[id]",
+                      params: { id: profileId },
+                    })
+                  }
+                  onReview={(requestId, approve) =>
+                    void reviewJoinRequest(requestId, approve)
+                  }
+                  requests={joinRequests}
+                />
+                <InviteManager
+                  actionId={inviteActionId}
+                  hasSearched={hasSearched}
+                  onCancelInvitation={(invitationId) =>
+                    void cancelInvitation(invitationId)
+                  }
+                  onChangeQuery={(value) => {
+                    setInviteQuery(value);
+                    setInviteResults([]);
+                    setHasSearched(false);
+                  }}
+                  onInvite={(profileId) => void inviteUser(profileId)}
+                  onOpenProfile={(profileId) =>
+                    router.push({
+                      pathname: "/driver-profile/[id]",
+                      params: { id: profileId },
+                    })
+                  }
+                  onSearch={() => void searchProfiles()}
+                  pendingInvitations={pendingInvitations}
+                  query={inviteQuery}
+                  results={inviteResults}
+                  searching={searching}
+                />
+              </>
             ) : null}
-            {canManageCrew ? (
-              <NoxaCard>
-                <Text style={styles.cardTitle}>Invite Member</Text>
-                <View style={styles.inlineRow}>
-                  <TextInput
-                    placeholder="Search username"
-                    placeholderTextColor={colors.textMuted}
-                    autoCapitalize="none"
-                    value={inviteQuery}
-                    onChangeText={setInviteQuery}
-                    style={styles.input}
-                  />
-                  <Pressable
-                    disabled={searching}
-                    onPress={() => void searchProfiles()}
-                    style={({ pressed }) => [
-                      styles.compactButton,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.compactButtonText}>
-                      {searching ? "..." : "Search"}
-                    </Text>
-                  </Pressable>
-                </View>
-                {inviteResults.length > 0 ? (
-                  <View style={styles.list}>
-                    {inviteResults.map((profile) => (
-                      <View key={profile.id} style={styles.personRow}>
-                        <ProfileAvatar profile={profile} />
-                        <View style={styles.personCopy}>
-                          <Text style={styles.personName}>
-                            {displayName(profile)}
-                          </Text>
-                          <Text style={styles.personMeta}>
-                            {profile.username
-                              ? `@${profile.username}`
-                              : "NOXA driver"}
-                          </Text>
-                        </View>
-                        <Pressable
-                          disabled={
-                            profile.isMember ||
-                            Boolean(profile.pendingInvitationId) ||
-                            inviteActionId === profile.id
-                          }
-                          onPress={() => void inviteUser(profile.id)}
-                          style={({ pressed }) => [
-                            styles.miniAction,
-                            (profile.isMember ||
-                              Boolean(profile.pendingInvitationId)) &&
-                              styles.miniActionDisabled,
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <Text style={styles.miniActionText}>
-                            {profile.isMember
-                              ? "Member"
-                              : profile.pendingInvitationId
-                                ? "Pending"
-                                : inviteActionId === profile.id
-                                  ? "Sending"
-                                  : "Invite"}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-                {pendingInvitations.length > 0 ? (
-                  <View style={styles.list}>
-                    <Text style={styles.subTitle}>Pending invitations</Text>
-                    {pendingInvitations.map((invite) => (
-                      <View key={invite.id} style={styles.personRow}>
-                        <ProfileAvatar profile={invite.invitedProfile} />
-                        <View style={styles.personCopy}>
-                          <Text style={styles.personName}>
-                            {displayName(invite.invitedProfile)}
-                          </Text>
-                          <Text style={styles.personMeta}>
-                            Pending
-                            {invite.invitedByProfile
-                              ? ` • by ${displayName(invite.invitedByProfile)}`
-                              : ""}
-                          </Text>
-                        </View>
-                        <Pressable
-                          disabled={inviteActionId === invite.id}
-                          onPress={() => void cancelInvitation(invite.id)}
-                          style={({ pressed }) => [
-                            styles.miniAction,
-                            styles.miniActionDisabled,
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <Text style={styles.miniActionText}>
-                            {inviteActionId === invite.id ? "..." : "Cancel"}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-              </NoxaCard>
-            ) : null}
-            <NoxaCard>
-              <Text style={styles.cardTitle}>Members</Text>
-              {members.length === 0 ? (
-                <Text style={styles.emptyText}>No visible members yet.</Text>
-              ) : (
-                <View style={styles.list}>
-                  {members.map((member) => {
-                    const canPromote = isOwner && member.role === "member";
-                    const canDemote = isOwner && member.role === "admin";
-                    const canRemove =
-                      member.role !== "owner" &&
-                      currentUserId !== member.user_id &&
-                      (isOwner || (isAdmin && member.role === "member"));
-                    return (
-                      <View key={member.user_id} style={styles.memberRow}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel="Open member driver profile"
-                          onPress={() =>
-                            router.push({
-                              pathname: "/driver-profile/[id]",
-                              params: { id: member.user_id },
-                            })
-                          }
-                          style={({ pressed }) => [
-                            styles.personRow,
-                            styles.memberProfilePress,
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <ProfileAvatar profile={member.profile} />
-                          <View style={styles.personCopy}>
-                            <Text style={styles.personName}>
-                              {displayName(member.profile)}
-                            </Text>
-                            <Text style={styles.personMeta}>
-                              {member.profile?.username
-                                ? `@${member.profile.username}`
-                                : (member.profile?.city ?? "NOXA driver")}
-                            </Text>
-                          </View>
-                          <NoxaBadge
-                            label={
-                              member.role === "owner"
-                                ? "Owner"
-                                : member.role === "admin"
-                                  ? "Admin"
-                                  : "Member"
-                            }
-                            variant={
-                              member.role === "owner" ? "primary" : "default"
-                            }
-                          />
-                        </Pressable>
-                        {canPromote || canDemote || canRemove ? (
-                          <View style={styles.memberControls}>
-                            {canPromote ? (
-                              <Pressable
-                                disabled={memberActionId === member.user_id}
-                                onPress={() => setMemberRole(member, "admin")}
-                                style={({ pressed }) => [
-                                  styles.miniAction,
-                                  pressed && styles.pressed,
-                                ]}
-                              >
-                                <Text style={styles.miniActionText}>
-                                  Promote
-                                </Text>
-                              </Pressable>
-                            ) : null}
-                            {canDemote ? (
-                              <Pressable
-                                disabled={memberActionId === member.user_id}
-                                onPress={() => setMemberRole(member, "member")}
-                                style={({ pressed }) => [
-                                  styles.miniAction,
-                                  styles.miniActionDisabled,
-                                  pressed && styles.pressed,
-                                ]}
-                              >
-                                <Text style={styles.miniActionText}>
-                                  Demote
-                                </Text>
-                              </Pressable>
-                            ) : null}
-                            {canRemove ? (
-                              <Pressable
-                                disabled={memberActionId === member.user_id}
-                                onPress={() => removeMember(member)}
-                                style={({ pressed }) => [
-                                  styles.miniAction,
-                                  styles.dangerMiniAction,
-                                  pressed && styles.pressed,
-                                ]}
-                              >
-                                <Text style={styles.miniActionText}>
-                                  Remove
-                                </Text>
-                              </Pressable>
-                            ) : null}
-                          </View>
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </NoxaCard>
-            <NoxaCard>
-              <Text style={styles.cardTitle}>Crew Garage</Text>
-              {vehicles.length === 0 ? (
-                <Text style={styles.emptyText}>No public member cars yet.</Text>
-              ) : (
-                <View style={styles.list}>
-                  {vehicles.map((vehicle) => (
-                    <Pressable
-                      key={vehicle.id}
-                      accessibilityRole="button"
-                      accessibilityLabel="Open vehicle details"
-                      onPress={() =>
-                        router.push({
-                          pathname: "/vehicle-details",
-                          params: { id: vehicle.id },
-                        })
-                      }
-                      style={({ pressed }) => [
-                        styles.vehicleRow,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      {vehicle.cover_image_url ? (
-                        <Image
-                          source={{ uri: vehicle.cover_image_url }}
-                          style={styles.vehicleImage}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            styles.vehicleImage,
-                            styles.vehiclePlaceholder,
-                          ]}
-                        >
-                          <Ionicons
-                            name="car-sport"
-                            size={28}
-                            color={colors.primary}
-                          />
-                        </View>
-                      )}
-                      <View style={styles.personCopy}>
-                        <Text style={styles.personName}>
-                          {vehicleName(vehicle)}
-                        </Text>
-                        <Text style={styles.personMeta}>
-                          {[
-                            ownerById.get(vehicle.owner_id),
-                            vehicle.horsepower
-                              ? `${vehicle.horsepower} HP`
-                              : null,
-                            vehicle.color,
-                          ]
-                            .filter(isPresent)
-                            .join(" • ")}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </NoxaCard>
+            <MemberRoster
+              currentUserId={currentUserId}
+              isAdmin={isAdmin}
+              isOwner={isOwner}
+              memberActionId={memberActionId}
+              members={members}
+              onOpenMember={(memberId) =>
+                router.push({
+                  pathname: "/driver-profile/[id]",
+                  params: { id: memberId },
+                })
+              }
+              onRemoveMember={removeMember}
+              onSetRole={setMemberRole}
+            />
+            <CrewGarage
+              onOpenVehicle={(vehicleId) =>
+                router.push({
+                  pathname: "/vehicle-details",
+                  params: { id: vehicleId },
+                })
+              }
+              ownerNamesById={ownerById}
+              vehicles={vehicles}
+            />
           </>
         ) : null}
       </ScrollView>
@@ -1308,10 +1925,10 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   header: {
-    minHeight: 48,
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: spacing.md,
   },
   headerButton: {
     width: 44,
@@ -1323,14 +1940,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  headerButtonPlaceholder: { width: 44, height: 44 },
+  headerCopy: { flex: 1 },
+  headerActions: { flexDirection: "row", gap: spacing.xs },
   headerTitle: {
     color: colors.text,
-    fontSize: typography.caption,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.sectionTitle,
     fontWeight: "900",
-    letterSpacing: 2.4,
+    letterSpacing: -0.3,
+    lineHeight: 28,
+  },
+  headerSubtitle: {
+    marginTop: spacing.xxs,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: "700",
   },
   pressed: { opacity: 0.86, transform: [{ translateY: 1 }, { scale: 0.98 }] },
+  disabled: { opacity: 0.5 },
   stateCard: { gap: spacing.md, alignItems: "center" },
   stateTitle: {
     color: colors.text,
@@ -1353,22 +1980,77 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     ...shadows.card,
   },
-  cover: { height: 180, justifyContent: "center", alignItems: "center" },
+  cover: {
+    height: 210,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
   coverRadius: {
     borderTopLeftRadius: radius.card,
     borderTopRightRadius: radius.card,
   },
   coverPlaceholder: { backgroundColor: colors.surfaceSoft },
-  heroContent: {
+  coverShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(6,6,10,0.34)",
+  },
+  coverGlowLarge: {
+    position: "absolute",
+    right: -42,
+    top: -76,
+    width: 230,
+    height: 230,
+    borderRadius: 115,
+    backgroundColor: colors.primaryMuted,
+  },
+  coverGlowSmall: {
+    position: "absolute",
+    left: 18,
+    bottom: -54,
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    borderWidth: 24,
+    borderColor: colors.primarySubtle,
+  },
+  heroBadges: {
+    position: "absolute",
+    top: spacing.sm,
+    right: spacing.sm,
+    flexDirection: "row",
+    gap: spacing.xs,
+  },
+  policyBadge: {
+    minHeight: 26,
     alignItems: "center",
-    gap: spacing.sm,
-    padding: spacing.lg,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(6,6,10,0.76)",
+  },
+  policyBadgeText: {
+    color: colors.textMuted,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  heroContent: {
+    gap: spacing.lg,
+    padding: spacing.md,
+  },
+  heroIdentityRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.md,
     marginTop: -46,
   },
   logoWrap: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+    width: 78,
+    height: 78,
+    borderRadius: radius.lg,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surfaceSoft,
@@ -1377,46 +2059,144 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   logo: { width: "100%", height: "100%" },
-  logoInitials: { color: colors.text, fontSize: 30, fontWeight: "900" },
+  logoInitials: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 28,
+    fontWeight: "900",
+  },
+  heroIdentityCopy: { flex: 1, minWidth: 0, paddingBottom: spacing.xxs },
   heroTitle: {
     color: colors.text,
-    fontSize: typography.h1,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.h2,
     fontWeight: "900",
-    textAlign: "center",
-    letterSpacing: -0.8,
+    letterSpacing: 0.2,
+    lineHeight: typography.lineHeight.h2,
+    textTransform: "uppercase",
+  },
+  heroMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xxs,
+    marginTop: 2,
   },
   heroMeta: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
-  statsRow: { flexDirection: "row", gap: spacing.md },
-  statCard: { flex: 1, alignItems: "center" },
-  statValue: { color: colors.text, fontSize: typography.h1, fontWeight: "900" },
-  statLabel: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: typography.cardTitle,
-    fontWeight: "900",
-    marginBottom: spacing.md,
-  },
-  bodyText: {
-    color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: 11,
     fontWeight: "700",
-    lineHeight: 23,
   },
-  list: { gap: spacing.md },
-  personRow: {
+  statsStrip: {
+    minHeight: 72,
+    flexDirection: "row",
+    overflow: "hidden",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  statCell: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+    paddingVertical: spacing.sm,
+  },
+  statCellBorder: { borderLeftWidth: 1, borderLeftColor: colors.divider },
+  statValue: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: "900",
+    lineHeight: 25,
+  },
+  statLabel: {
+    color: colors.textSubtle,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  ownerRow: {
+    minHeight: 62,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
+  },
+  ownerLabel: {
+    color: colors.primaryHover,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  membershipAction: { gap: spacing.sm },
+  quickActionGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  quickAction: {
+    width: "30%",
+    flexGrow: 1,
+    minHeight: 88,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  quickActionDisabled: { opacity: 0.56 },
+  quickActionIcon: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySubtle,
+  },
+  quickActionLabel: {
+    color: colors.text,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.9,
+  },
+  quickActionLabelDisabled: { color: colors.textSubtle },
+  quickActionHint: {
+    marginTop: spacing.sm,
+    color: colors.textSubtle,
+    fontSize: 10,
+    lineHeight: 15,
+    textAlign: "center",
+  },
+  ownerStatus: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
+  },
+  ownerStatusCopy: { flex: 1 },
+  ownerStatusTitle: {
+    color: colors.primaryHover,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  ownerStatusText: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  bodyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 20,
   },
   personCopy: { flex: 1, gap: 2 },
   personName: {
@@ -1429,87 +2209,323 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: "700",
   },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
+  sectionBlock: { gap: spacing.sm },
+  sectionHeading: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.md,
+  },
+  sectionHeadingCopy: { flex: 1 },
+  sectionTitle: {
     color: colors.text,
-    fontSize: typography.body,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  sectionCaption: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 10,
     fontWeight: "700",
   },
-  inlineRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  compactButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
+  countPill: {
+    minWidth: 30,
+    minHeight: 26,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.button,
-    backgroundColor: colors.primary,
-  },
-  compactButtonText: {
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "900",
-  },
-  subTitle: {
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "900",
-  },
-  memberRow: { gap: spacing.sm },
-  memberProfilePress: { flex: 1 },
-  memberControls: { flexDirection: "row", gap: spacing.sm, paddingLeft: 60 },
-  requestActions: { flexDirection: "row", gap: spacing.sm },
-  miniAction: {
-    minHeight: 32,
-    paddingHorizontal: spacing.md,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
-  miniActionDisabled: {
-    backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  dangerMiniAction: { backgroundColor: colors.primary },
-  miniActionText: {
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "900",
+  countPillText: { color: colors.textMuted, fontSize: 11, fontWeight: "900" },
+  emptyPanel: {
+    minHeight: 94,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
+  rosterCard: {
+    overflow: "hidden",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  memberItem: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  memberItemBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  memberMainRow: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderRadius: radius.md,
+  },
+  memberActionBar: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    paddingTop: spacing.xs,
+    paddingLeft: 58,
+  },
+  roleAction: {
+    minHeight: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+  },
+  promoteAction: {
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
+  },
+  removeAction: { borderColor: colors.borderAccent },
+  roleActionText: { color: colors.textMuted, fontSize: 10, fontWeight: "900" },
+  promoteActionText: { color: colors.primaryHover, fontSize: 10, fontWeight: "900" },
+  removeActionText: { color: colors.primaryHover, fontSize: 10, fontWeight: "900" },
   emptyText: {
     color: colors.textMuted,
     fontSize: typography.body,
     fontWeight: "700",
     lineHeight: 22,
   },
-  vehicleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    borderRadius: radius.button,
-  },
-  vehicleImage: {
-    width: 72,
-    height: 52,
-    borderRadius: radius.button,
-    backgroundColor: colors.surfaceSoft,
-  },
-  vehiclePlaceholder: {
+  eventsHeadingRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm },
+  eventsHeadingContent: { flex: 1 },
+  createEventButton: {
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  eventsCard: {
+    overflow: "hidden",
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  eventRow: {
+    minHeight: 78,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  eventRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  eventDateTile: {
+    width: 48,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
+  },
+  eventDateDay: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 21,
+    fontWeight: "900",
+    lineHeight: 23,
+  },
+  eventDateMonth: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  eventCopy: { flex: 1, minWidth: 0 },
+  eventTitleRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  eventTitle: { flex: 1, color: colors.text, fontSize: 13, fontWeight: "900" },
+  eventMeta: { marginTop: spacing.xxs, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
+  managementEmpty: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  managementEmptyText: { color: colors.textMuted, fontSize: 11, fontWeight: "700" },
+  managementCard: {
+    overflow: "hidden",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  managementRow: {
+    minHeight: 74,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  managementRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  managementProfile: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderRadius: radius.md,
+  },
+  requestActionBar: { flexDirection: "row", gap: spacing.xs },
+  iconDecisionButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  approveButton: { borderColor: colors.primary, backgroundColor: colors.primary },
+  rejectButton: { borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
+  inviteCard: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  searchRow: { flexDirection: "row", gap: spacing.xs },
+  searchInputShell: {
+    minHeight: 46,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.input,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 44,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  searchButton: {
+    minWidth: 82,
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.button,
+    backgroundColor: colors.primary,
+  },
+  searchButtonText: { color: colors.text, fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
+  searchEmpty: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
+  },
+  inviteList: {
+    overflow: "hidden",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  inviteListLabel: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    color: colors.textSubtle,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  inviteRow: {
+    minHeight: 68,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  inviteButton: {
+    minHeight: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  inviteButtonDisabled: { borderColor: colors.border, backgroundColor: colors.surfaceSoft },
+  inviteButtonText: { color: colors.text, fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
+  inviteButtonDisabledText: { color: colors.textMuted },
+  cancelInviteButton: {
+    minHeight: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
+  },
+  cancelInviteText: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
+  garageRail: { gap: spacing.md, paddingRight: spacing.lg },
+  garageCard: {
+    width: 224,
+    overflow: "hidden",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  garageImage: {
+    width: "100%",
+    height: 124,
+    backgroundColor: colors.surfaceSoft,
+  },
+  garagePlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  garageCardBody: { gap: 2, padding: spacing.md },
+  garageTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
+    fontWeight: "900",
+    lineHeight: typography.lineHeight.subtitle,
+    textTransform: "uppercase",
+  },
+  garageOwner: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
+  garageMetaRow: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs },
+  garageMeta: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
   },
 });

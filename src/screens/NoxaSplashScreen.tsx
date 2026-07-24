@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
-  Dimensions,
   Easing,
   StyleSheet,
+  useWindowDimensions,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
@@ -34,7 +34,7 @@ function NoxaLogo({ size }: { size: number }) {
 }
 
 export function NoxaSplashScreen({ onFinish, onLayoutReady }: NoxaSplashScreenProps) {
-  const { width, height } = Dimensions.get('window');
+  const { width, height } = useWindowDimensions();
   const lineWidth = Math.min(width * 0.54, 260);
   const logoSize = Math.min(Math.max(width * 0.18, 68), 92);
 

@@ -9,6 +9,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -71,9 +72,13 @@ function Header() {
 
 function SocialTabs({
   activeTab,
+  followersCount,
+  followingCount,
   onChange,
 }: {
   activeTab: SocialTab;
+  followersCount: number;
+  followingCount: number;
   onChange: (tab: SocialTab) => void;
 }) {
   return (
@@ -93,7 +98,9 @@ function SocialTabs({
             ]}
           >
             <Text style={[styles.tabText, isActive && styles.activeTabText]}>
-              {tab === "followers" ? "Followers" : "Following"}
+              {tab === "followers"
+                ? `Followers · ${followersCount}`
+                : `Following · ${followingCount}`}
             </Text>
           </Pressable>
         );
@@ -164,7 +171,9 @@ function SocialRow({ profile }: { profile: SocialProfile }) {
         <Text style={styles.username}>{username}</Text>
         <Text style={styles.city}>{profile.city || "NOXA community"}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      <View style={styles.viewPill}>
+        <Text style={styles.viewPillText}>VIEW</Text>
+      </View>
     </Pressable>
   );
 }
@@ -184,6 +193,9 @@ export default function SocialListScreen() {
   );
   const [targetUserId, setTargetUserId] = useState("");
   const [profiles, setProfiles] = useState<SocialProfile[]>([]);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -232,18 +244,35 @@ export default function SocialListScreen() {
 
       setTargetUserId(targetId);
 
-      const { data: followRows, error: followError } =
-        activeTab === "followers"
-          ? await supabase
-              .from("follows")
-              .select("follower_id, created_at")
-              .eq("following_id", targetId)
-              .order("created_at", { ascending: false })
-          : await supabase
-              .from("follows")
-              .select("following_id, created_at")
-              .eq("follower_id", targetId)
-              .order("created_at", { ascending: false });
+      const [followersResult, followingResult, followResult] =
+        await Promise.all([
+          supabase
+            .from("follows")
+            .select("follower_id", { count: "exact", head: true })
+            .eq("following_id", targetId),
+          supabase
+            .from("follows")
+            .select("following_id", { count: "exact", head: true })
+            .eq("follower_id", targetId),
+          activeTab === "followers"
+            ? supabase
+                .from("follows")
+                .select("follower_id, created_at")
+                .eq("following_id", targetId)
+                .order("created_at", { ascending: false })
+            : supabase
+                .from("follows")
+                .select("following_id, created_at")
+                .eq("follower_id", targetId)
+                .order("created_at", { ascending: false }),
+        ]);
+
+      setFollowersCount(followersResult.count ?? 0);
+      setFollowingCount(followingResult.count ?? 0);
+
+      const followRows = followResult.data;
+      const followError =
+        followersResult.error ?? followingResult.error ?? followResult.error;
 
       if (followError) {
         setProfiles([]);
@@ -303,17 +332,34 @@ export default function SocialListScreen() {
     void loadSocialList();
   }, [loadSocialList]);
 
+  const visibleProfiles = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return profiles;
+
+    return profiles.filter((profile) =>
+      [profile.display_name, profile.username, profile.city]
+        .filter(Boolean)
+        .some((value) => value?.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [profiles, searchQuery]);
+
   const emptyTitle =
-    activeTab === "followers" ? "No followers yet" : "Not following anyone yet";
+    searchQuery.trim().length > 0
+      ? "No matching drivers"
+      : activeTab === "followers"
+        ? "No followers yet"
+        : "Not following anyone yet";
   const emptyMessage =
-    activeTab === "followers"
-      ? "Real followers will appear here when drivers follow this profile."
-      : "Real following relationships will appear here when this driver follows others.";
+    searchQuery.trim().length > 0
+      ? `No one in this list matches “${searchQuery.trim()}”.`
+      : activeTab === "followers"
+        ? "Real followers will appear here when drivers follow this profile."
+        : "Real following relationships will appear here when this driver follows others.";
 
   return (
     <NoxaScreen padded={false}>
       <FlatList
-        data={profiles}
+        data={visibleProfiles}
         keyExtractor={(item) => `${activeTab}-${targetUserId}-${item.id}`}
         renderItem={({ item }) => <SocialRow profile={item} />}
         showsVerticalScrollIndicator={false}
@@ -326,10 +372,39 @@ export default function SocialListScreen() {
           />
         }
         ListHeaderComponent={
-          <>
+          <View style={styles.listHeader}>
             <Header />
-            <SocialTabs activeTab={activeTab} onChange={setActiveTab} />
-          </>
+            <SocialTabs
+              activeTab={activeTab}
+              followersCount={followersCount}
+              followingCount={followingCount}
+              onChange={setActiveTab}
+            />
+            <View style={styles.searchShell}>
+              <Ionicons name="search" size={17} color={colors.textMuted} />
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={60}
+                onChangeText={setSearchQuery}
+                placeholder="Search this list…"
+                placeholderTextColor={colors.textSubtle}
+                selectionColor={colors.primary}
+                style={styles.searchInput}
+                value={searchQuery}
+              />
+              {searchQuery ? (
+                <Pressable
+                  accessibilityLabel="Clear social search"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => setSearchQuery("")}
+                >
+                  <Ionicons name="close" size={16} color={colors.textMuted} />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
         }
         ListEmptyComponent={
           isLoading ? (
@@ -357,9 +432,13 @@ export default function SocialListScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.md,
     paddingBottom: 132,
-    gap: spacing.lg,
+    gap: 0,
+  },
+  listHeader: {
+    gap: spacing.md,
+    marginBottom: spacing.xs,
   },
   header: {
     flexDirection: "row",
@@ -379,9 +458,10 @@ const styles = StyleSheet.create({
   headerCopy: { alignItems: "center", gap: spacing.xxs },
   headerTitle: {
     color: colors.text,
-    fontSize: typography.title,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
     fontWeight: "900",
-    letterSpacing: 2.4,
+    letterSpacing: 1.4,
   },
   headerSubtitle: {
     color: colors.textMuted,
@@ -392,23 +472,19 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   tabsCard: {
     flexDirection: "row",
-    padding: 5,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
   tabButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 42,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.pill,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   activeTabButton: {
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderBottomColor: colors.primary,
   },
   tabText: {
     color: colors.textMuted,
@@ -416,9 +492,29 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   activeTabText: { color: colors.text },
+  searchShell: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.input,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 44,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   loadingCard: {
     alignItems: "center",
     gap: spacing.md,
+    marginTop: spacing.md,
     padding: spacing.xl,
     borderRadius: radius.card,
     borderWidth: 1,
@@ -427,6 +523,7 @@ const styles = StyleSheet.create({
   },
   stateCard: {
     gap: spacing.md,
+    marginTop: spacing.md,
     padding: spacing.lg,
     borderRadius: radius.card,
     borderWidth: 1,
@@ -458,42 +555,58 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   userRow: {
+    minHeight: 76,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
   avatar: {
-    width: 56,
-    height: 56,
+    width: 50,
+    height: 50,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "#1B1D24",
+    backgroundColor: colors.primaryMuted,
   },
-  avatarImage: { width: 56, height: 56, borderRadius: 28 },
+  avatarImage: { width: 50, height: 50, borderRadius: 25 },
   avatarText: {
     color: colors.text,
     fontSize: typography.body,
     fontWeight: "900",
   },
-  userCopy: { flex: 1, minWidth: 0, gap: 3 },
+  userCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
   userName: {
     color: colors.text,
     fontSize: typography.body,
-    fontWeight: "900",
+    fontWeight: "800",
   },
   username: {
     color: colors.textMuted,
     fontSize: typography.caption,
     fontWeight: "800",
   },
-  city: { color: colors.text, fontSize: typography.caption, fontWeight: "800" },
+  city: {
+    color: colors.textSubtle,
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  viewPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+  },
+  viewPillText: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
 });

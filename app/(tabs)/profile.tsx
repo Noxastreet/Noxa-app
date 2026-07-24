@@ -1,30 +1,23 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Image,
+  ImageBackground,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-} from "react-native";
+  type ImageStyle,
+} from 'react-native';
 
-import {
-  NoxaAvatar,
-  NoxaBadge,
-  NoxaButton,
-  NoxaCard,
-  NoxaHeader,
-  NoxaScreen,
-} from "@/src/components/ui";
-import { currentUser } from "@/src/data";
-import { supabase } from "@/src/lib/supabase";
-import { animations, colors, radius, spacing, typography } from "@/src/theme";
-
-type IoniconName = keyof typeof Ionicons.glyphMap;
+import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
+import { stopLiveDriveSession } from '@/src/lib/liveDrive';
+import { supabase } from '@/src/lib/supabase';
+import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
   id: string;
@@ -35,300 +28,320 @@ type CurrentUserProfile = {
   city: string | null;
 };
 
-type ProfileStat = {
-  label: string;
-  value: string | number;
-  mode?: "followers" | "following";
+type ProfilePost = {
+  id: string;
+  image_url: string;
+  created_at: string;
 };
 
-const profileStats: ProfileStat[] = [
-  { label: "Cars", value: String(currentUser.carsCount) },
-  { label: "Crews", value: String(currentUser.crewsCount) },
-  { label: "Events", value: String(currentUser.eventsCount) },
-  { label: "Followers", value: 0, mode: "followers" },
-  { label: "Following", value: 0, mode: "following" },
-];
-
-const profile = {
-  name: currentUser.name,
-  username: currentUser.username,
-  status: currentUser.status.toUpperCase(),
-  location: currentUser.city,
-  stats: profileStats,
-  achievements: ["Night Driver", "Crew Leader", "Early Member"],
-  activity: {
-    label: "Joined",
-    title: "Night Run",
-    date: "Yesterday",
-  },
-  actions: [
-    { label: "Manage Cars", icon: "car-sport-outline" },
-    { label: "My Crews", icon: "people-outline" },
-    { label: "Saved Events", icon: "bookmark-outline" },
-    { label: "Notifications", icon: "notifications-outline" },
-    { label: "Privacy", icon: "shield-checkmark-outline" },
-  ] satisfies { label: string; icon: IoniconName }[],
-};
-
-function useEntryAnimation(delay = 0, distance = animations.entranceDistance) {
+function useEntryAnimation(delay = 0, distance: number = animations.entranceDistance) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(distance)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: animations.entrance,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: animations.entrance,
-        delay,
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacity, { toValue: 1, duration: animations.entrance, delay, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: animations.entrance, delay, useNativeDriver: true }),
     ]).start();
   }, [delay, opacity, translateY]);
 
   return { opacity, transform: [{ translateY }] };
 }
 
-function SettingsButton() {
+function getProfileInitials(displayName: string) {
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2);
+
+  return initials || 'NX';
+}
+
+function formatUsername(username: string | null) {
+  if (!username) return 'Add username';
+  return username.startsWith('@') ? username : `@${username}`;
+}
+
+function ProfileCover({ coverImageUrl, displayName, avatarUrl }: { coverImageUrl: string | null; displayName: string; avatarUrl: string | null }) {
+  const coverContent = (
+    <>
+      <View style={styles.coverShade} />
+      {!coverImageUrl ? (
+        <>
+          <View style={styles.coverGlowLarge} />
+          <View style={styles.coverGlowSmall} />
+          <Ionicons name="car-sport" size={92} color={colors.primaryMuted} />
+        </>
+      ) : null}
+      <Pressable
+        accessibilityLabel="Profile settings"
+        accessibilityRole="button"
+        onPress={() => router.push('/settings')}
+        style={({ pressed }) => [styles.coverAction, pressed && styles.pressed]}>
+        <Ionicons name="settings-outline" size={20} color={colors.text} />
+      </Pressable>
+    </>
+  );
+
   return (
-    <Pressable
-      accessibilityLabel="Profile settings"
-      accessibilityRole="button"
-      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-    >
-      <Ionicons name="settings-outline" size={22} color={colors.text} />
-    </Pressable>
+    <View style={styles.cover}>
+      {coverImageUrl ? (
+        <ImageBackground
+          source={{ uri: coverImageUrl }}
+          resizeMode="cover"
+          style={styles.coverImage}
+          imageStyle={styles.coverImageRadius as ImageStyle}>
+          {coverContent}
+        </ImageBackground>
+      ) : (
+        <View style={[styles.coverImage, styles.coverPlaceholder]}>{coverContent}</View>
+      )}
+      <View style={styles.avatarPosition}>
+        <View style={styles.avatarRing}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImage} accessibilityLabel={`${displayName} avatar`} />
+          ) : (
+            <NoxaAvatar initials={getProfileInitials(displayName)} size={80} />
+          )}
+        </View>
+      </View>
+    </View>
   );
 }
 
-type ProfileHeroProps = {
-  profileData: CurrentUserProfile | null;
-  isLoading: boolean;
-  errorMessage: string | null;
-  onRetry: () => void;
-};
-
-function getProfileInitials(displayName: string) {
-  return displayName
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2);
-}
-
-function ProfileHero({
+function ProfileIdentity({
   profileData,
   isLoading,
   errorMessage,
   onRetry,
-}: ProfileHeroProps) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.97)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 560,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: 560,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [opacity, scale]);
-
-  const displayName = profileData?.display_name ?? profile.name;
-  const username = profileData?.username ?? "Add username";
-  const bio = profileData?.bio ?? "Tell the community about yourself.";
-  const city = profileData?.city ?? "Add city";
-  const avatarUrl = profileData?.avatar_url;
+}: {
+  profileData: CurrentUserProfile | null;
+  isLoading: boolean;
+  errorMessage: string | null;
+  onRetry: () => void;
+}) {
+  const displayName = profileData?.display_name ?? 'NOXA Driver';
+  const username = formatUsername(profileData?.username ?? null);
+  const bio = profileData?.bio ?? 'Tell the community about yourself.';
+  const city = profileData?.city ?? 'Add city';
 
   return (
-    <Animated.View style={[styles.hero, { opacity, transform: [{ scale }] }]}>
-      <View style={styles.avatarRing}>
-        {avatarUrl ? (
-          <Image
-            source={{ uri: avatarUrl }}
-            style={styles.avatarImage}
-            accessibilityLabel={`${displayName} avatar`}
-          />
-        ) : (
-          <NoxaAvatar initials={getProfileInitials(displayName)} size={108} />
-        )}
-      </View>
-      <View style={styles.identityBlock}>
-        {isLoading ? (
-          <Text style={styles.identityMeta}>Loading profile…</Text>
-        ) : null}
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>{displayName}</Text>
-          <NoxaBadge label={profile.status} variant="success" />
+    <Animated.View style={[styles.identitySection, useEntryAnimation(50, 14)]}>
+      <View style={styles.identityTopRow}>
+        <View style={styles.identityNames}>
+          <Text numberOfLines={1} style={styles.name}>{displayName}</Text>
+          <Text style={styles.username}>{isLoading ? 'Loading profile…' : username}</Text>
         </View>
-        <Text style={styles.username}>{username}</Text>
-        <Text style={styles.bio}>{bio}</Text>
-        <View style={styles.locationRow}>
-          <Ionicons
-            name="location-outline"
-            size={16}
-            color={colors.textMuted}
-          />
-          <Text style={styles.location}>{city}</Text>
-        </View>
-        {errorMessage ? (
-          <View style={styles.inlineErrorRow}>
-            <Text style={styles.inlineError}>{errorMessage}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onRetry}
-              style={({ pressed }) => [
-                styles.retryButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.retryText}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : null}
+        <Pressable
+          accessibilityLabel="Edit Profile"
+          accessibilityRole="button"
+          onPress={() => router.push('/edit-profile')}
+          style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}>
+          <Text style={styles.editButtonText}>EDIT PROFILE</Text>
+        </Pressable>
       </View>
+      <Text style={styles.bio}>{bio}</Text>
+      <View style={styles.locationRow}>
+        <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+        <Text style={styles.location}>{city}</Text>
+      </View>
+      {errorMessage ? (
+        <View style={styles.inlineErrorRow}>
+          <Text style={styles.inlineError}>{errorMessage}</Text>
+          <Pressable accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+            <Text style={styles.retryText}>RETRY</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </Animated.View>
   );
 }
 
-function StatsGrid({
+function ProfileStats({
   profileId,
   followersCount,
   followingCount,
+  vehiclesCount,
 }: {
   profileId: string | null;
   followersCount: number;
   followingCount: number;
+  vehiclesCount: number;
 }) {
-  return (
-    <Animated.View style={[styles.statsGrid, useEntryAnimation(90)]}>
-      {profile.stats.map((stat) => {
-        const mode = stat.mode;
-        const value =
-          mode === "followers"
-            ? followersCount
-            : mode === "following"
-              ? followingCount
-              : stat.value;
-        const canNavigate = Boolean(mode && profileId);
+  const stats = [
+    {
+      label: 'FOLLOWERS',
+      value: followersCount,
+      onPress: profileId
+        ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'followers' } })
+        : undefined,
+    },
+    {
+      label: 'FOLLOWING',
+      value: followingCount,
+      onPress: profileId
+        ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'following' } })
+        : undefined,
+    },
+    { label: 'VEHICLES', value: vehiclesCount, onPress: () => router.push('/(tabs)/garage') },
+  ];
 
-        return (
-          <Pressable
-            key={stat.label}
-            accessibilityRole={canNavigate ? "button" : undefined}
-            onPress={
-              canNavigate
-                ? () =>
-                    router.push({
-                      pathname: "/social-list",
-                      params: { userId: profileId, mode },
-                    })
-                : undefined
-            }
-            style={({ pressed }) => [canNavigate && pressed && styles.pressed]}
-          >
-            <NoxaCard>
-              <Text style={styles.statValue}>{value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
-            </NoxaCard>
-          </Pressable>
-        );
-      })}
+  return (
+    <Animated.View style={[styles.statsStrip, useEntryAnimation(100)]}>
+      {stats.map((stat, index) => (
+        <Pressable
+          key={stat.label}
+          accessibilityLabel={`${stat.value} ${stat.label.toLowerCase()}`}
+          accessibilityRole="button"
+          disabled={!stat.onPress}
+          onPress={stat.onPress}
+          style={({ pressed }) => [styles.statCell, index > 0 && styles.statCellBorder, pressed && styles.pressed]}>
+          <Text style={styles.statValue}>{stat.value}</Text>
+          <Text style={styles.statLabel}>{stat.label}</Text>
+        </Pressable>
+      ))}
     </Animated.View>
   );
 }
 
-function AchievementsCard() {
+function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: boolean }) {
   return (
-    <Animated.View style={useEntryAnimation(160)}>
-      <NoxaCard>
-        <Text style={styles.sectionTitle}>Achievements</Text>
-        <View style={styles.badgeList}>
-          {profile.achievements.map((achievement) => (
-            <View key={achievement} style={styles.achievementBadge}>
-              <Ionicons name="medal-outline" size={17} color={colors.primary} />
-              <Text style={styles.achievementText}>{achievement}</Text>
-            </View>
-          ))}
+    <Animated.View style={[styles.postsSection, useEntryAnimation(140)]}>
+      <View style={styles.postsHeader}>
+        <View>
+          <Text style={styles.sectionTitle}>POSTS</Text>
+          <Text style={styles.postsCaption}>
+            {posts.length === 1 ? '1 shared moment' : `${posts.length} shared moments`}
+          </Text>
         </View>
-      </NoxaCard>
-    </Animated.View>
-  );
-}
-
-function RecentActivityCard() {
-  return (
-    <Animated.View style={useEntryAnimation(230)}>
-      <NoxaCard>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.activityPanel}>
-          <View style={styles.activityIcon}>
-            <Ionicons name="flag-outline" size={22} color={colors.primary} />
-          </View>
-          <View style={styles.activityCopy}>
-            <Text style={styles.activityLabel}>{profile.activity.label}</Text>
-            <Text style={styles.activityTitle}>{profile.activity.title}</Text>
-          </View>
-          <Text style={styles.activityDate}>{profile.activity.date}</Text>
+        <Pressable
+          accessibilityLabel="Create post"
+          accessibilityRole="button"
+          onPress={() => router.push('/post-editor')}
+          style={({ pressed }) => [styles.newPostButton, pressed && styles.pressed]}>
+          <Ionicons name="add" size={16} color={colors.text} />
+          <Text style={styles.newPostText}>NEW POST</Text>
+        </Pressable>
+      </View>
+      {isLoading ? (
+        <View style={styles.postsEmpty}>
+          <Text style={styles.postsEmptyText}>Loading posts…</Text>
         </View>
-      </NoxaCard>
-    </Animated.View>
-  );
-}
-
-function QuickActionsCard() {
-  return (
-    <Animated.View style={useEntryAnimation(300)}>
-      <NoxaCard>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionsList}>
-          {profile.actions.map((action) => (
+      ) : posts.length ? (
+        <View style={styles.postGrid}>
+          {posts.map((post) => (
             <Pressable
-              key={action.label}
+              key={post.id}
+              accessibilityLabel="Open post"
               accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.actionRow,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.actionIcon}>
-                <Ionicons name={action.icon} size={20} color={colors.text} />
-              </View>
-              <Text style={styles.actionText}>{action.label}</Text>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.textMuted}
-              />
+              onPress={() => router.push({ pathname: '/post-details', params: { id: post.id } })}
+              style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}>
+              <Image source={{ uri: post.image_url }} style={styles.postImage} />
             </Pressable>
           ))}
         </View>
-      </NoxaCard>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/post-editor')}
+          style={({ pressed }) => [styles.postsEmpty, pressed && styles.pressed]}>
+          <View style={styles.postsEmptyIcon}>
+            <Ionicons name="camera-outline" size={23} color={colors.primaryHover} />
+          </View>
+          <View style={styles.postsEmptyCopy}>
+            <Text style={styles.postsEmptyTitle}>Share your first moment</Text>
+            <Text style={styles.postsEmptyText}>Add a photo to your NOXA profile.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+        </Pressable>
+      )}
+    </Animated.View>
+  );
+}
+
+function ExploreCard({ vehiclesCount }: { vehiclesCount: number }) {
+  const links = [
+    {
+      label: 'Garage',
+      caption: vehiclesCount === 1 ? '1 vehicle' : `${vehiclesCount} vehicles`,
+      icon: 'car-sport-outline' as const,
+      onPress: () => router.push('/(tabs)/garage'),
+    },
+    {
+      label: 'Events',
+      caption: 'Upcoming meets',
+      icon: 'calendar-outline' as const,
+      onPress: () => router.push('/(tabs)/events'),
+    },
+    {
+      label: 'Crews',
+      caption: 'Your community',
+      icon: 'people-outline' as const,
+      onPress: () => router.push('/(tabs)/crews'),
+    },
+  ];
+
+  return (
+    <Animated.View style={[styles.sectionBlock, useEntryAnimation(170)]}>
+      <Text style={styles.sectionTitle}>YOUR NOXA</Text>
+      <View style={styles.linksCard}>
+        {links.map((link, index) => (
+          <Pressable
+            key={link.label}
+            accessibilityRole="button"
+            onPress={link.onPress}
+            style={({ pressed }) => [styles.linkRow, index < links.length - 1 && styles.linkRowBorder, pressed && styles.pressed]}>
+            <View style={styles.linkIcon}><Ionicons name={link.icon} size={21} color={colors.text} /></View>
+            <View style={styles.linkCopy}>
+              <Text style={styles.linkLabel}>{link.label}</Text>
+              <Text style={styles.linkCaption}>{link.caption}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+          </Pressable>
+        ))}
+      </View>
+    </Animated.View>
+  );
+}
+
+function AccountCard({ isSigningOut, onSignOut }: { isSigningOut: boolean; onSignOut: () => void }) {
+  return (
+    <Animated.View style={[styles.sectionBlock, useEntryAnimation(230)]}>
+      <Text style={styles.sectionTitle}>ACCOUNT</Text>
+      <View style={styles.linksCard}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/notifications')}
+          style={({ pressed }) => [styles.linkRow, styles.linkRowBorder, pressed && styles.pressed]}>
+          <View style={styles.linkIcon}><Ionicons name="notifications-outline" size={21} color={colors.text} /></View>
+          <Text style={[styles.linkLabel, styles.accountLinkLabel]}>Notifications</Text>
+          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          disabled={isSigningOut}
+          onPress={onSignOut}
+          style={({ pressed }) => [styles.linkRow, pressed && !isSigningOut && styles.pressed, isSigningOut && styles.disabled]}>
+          <View style={[styles.linkIcon, styles.logoutIcon]}><Ionicons name="log-out-outline" size={21} color={colors.primaryHover} /></View>
+          <Text style={styles.logoutText}>{isSigningOut ? 'Logging out…' : 'Log Out'}</Text>
+        </Pressable>
+      </View>
     </Animated.View>
   );
 }
 
 export default function ProfileScreen() {
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [profileData, setProfileData] = useState<CurrentUserProfile | null>(
-    null,
-  );
+  const [profileData, setProfileData] = useState<CurrentUserProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [vehiclesCount, setVehiclesCount] = useState(0);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [posts, setPosts] = useState<ProfilePost[]>([]);
 
   const loadProfile = useCallback(async () => {
     setIsProfileLoading(true);
@@ -339,38 +352,58 @@ export default function ProfileScreen() {
 
     if (!user) {
       setProfileData(null);
-      setProfileError("Sign in to load profile.");
+      setProfileError('Sign in to load profile.');
+      setFollowersCount(0);
+      setFollowingCount(0);
+      setVehiclesCount(0);
+      setCoverImageUrl(null);
+      setPosts([]);
       setIsProfileLoading(false);
       return;
     }
 
-    const [{ data, error }, followersResult, followingResult] =
-      await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, display_name, username, avatar_url, bio, city")
-          .eq("id", user.id)
-          .single(),
-        supabase
-          .from("follows")
-          .select("follower_id", { count: "exact", head: true })
-          .eq("following_id", user.id),
-        supabase
-          .from("follows")
-          .select("following_id", { count: "exact", head: true })
-          .eq("follower_id", user.id),
-      ]);
+    const [profileResult, followersResult, followingResult, vehiclesResult, postsResult] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, display_name, username, avatar_url, bio, city')
+        .eq('id', user.id)
+        .single(),
+      supabase
+        .from('follows')
+        .select('follower_id', { count: 'exact', head: true })
+        .eq('following_id', user.id),
+      supabase
+        .from('follows')
+        .select('following_id', { count: 'exact', head: true })
+        .eq('follower_id', user.id),
+      supabase
+        .from('vehicles')
+        .select('cover_image_url', { count: 'exact' })
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('posts')
+        .select('id,image_url,created_at')
+        .eq('author_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12),
+    ]);
 
-    if (error || followersResult.error || followingResult.error) {
-      setProfileData(null);
-      setProfileError("Unable to load profile.");
+    if (profileResult.error || followersResult.error || followingResult.error || vehiclesResult.error) {
+      setProfileError('Unable to load profile.');
       setIsProfileLoading(false);
       return;
     }
 
-    setProfileData(data);
+    setProfileData(profileResult.data as CurrentUserProfile);
     setFollowersCount(followersResult.count ?? 0);
     setFollowingCount(followingResult.count ?? 0);
+    setVehiclesCount(vehiclesResult.count ?? 0);
+    setCoverImageUrl(vehiclesResult.data?.cover_image_url ?? null);
+    setPosts(postsResult.error ? [] : (postsResult.data ?? []) as ProfilePost[]);
+    if (postsResult.error) setProfileError('Profile loaded, but posts are unavailable.');
     setIsProfileLoading(false);
   }, []);
 
@@ -381,90 +414,47 @@ export default function ProfileScreen() {
   );
 
   const signOut = async () => {
-    if (isSigningOut) {
-      return;
-    }
+    if (isSigningOut) return;
 
     setIsSigningOut(true);
-
-    const { error } = await supabase.auth.signOut({
-      scope: "local",
-    });
-
+    await stopLiveDriveSession(true).catch(() => undefined);
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     setIsSigningOut(false);
 
     if (error) {
-      Alert.alert(
-        "Logout failed",
-        "We couldn't log you out. Please try again.",
-      );
+      Alert.alert('Logout failed', "We couldn't log you out. Please try again.");
       return;
     }
 
-    router.replace("/welcome");
+    router.replace('/welcome');
   };
 
   const confirmSignOut = () => {
-    if (isSigningOut) {
-      return;
-    }
+    if (isSigningOut) return;
 
-    Alert.alert(
-      "Log out of NOXA?",
-      "You will need to sign in again on this device.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Log Out",
-          style: "destructive",
-          onPress: signOut,
-        },
-      ],
-    );
+    Alert.alert('Log out of NOXA?', 'You will need to sign in again on this device.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: signOut },
+    ]);
   };
+
+  const displayName = profileData?.display_name ?? 'NOXA Driver';
 
   return (
     <NoxaScreen padded={false}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
-        <NoxaHeader title="PROFILE" right={<SettingsButton />} />
-        <ProfileHero
-          profileData={profileData}
-          isLoading={isProfileLoading}
-          errorMessage={profileError}
-          onRetry={loadProfile}
-        />
-        <StatsGrid
-          profileId={profileData?.id ?? null}
-          followersCount={followersCount}
-          followingCount={followingCount}
-        />
-        <AchievementsCard />
-        <RecentActivityCard />
-        <QuickActionsCard />
-        <NoxaButton
-          title="Edit Profile"
-          variant="secondary"
-          fullWidth
-          onPress={() => router.push("/edit-profile")}
-        />
-        <View style={styles.logoutWrap}>
-          <Pressable
-            accessibilityRole="button"
-            disabled={isSigningOut}
-            onPress={confirmSignOut}
-            style={({ pressed }) => [
-              styles.logoutButton,
-              pressed && !isSigningOut && styles.pressed,
-              isSigningOut && styles.logoutButtonDisabled,
-            ]}
-          >
-            <Text style={styles.logoutText}>
-              {isSigningOut ? "Logging out…" : "Log Out"}
-            </Text>
-          </Pressable>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ProfileCover coverImageUrl={coverImageUrl} displayName={displayName} avatarUrl={profileData?.avatar_url ?? null} />
+        <ProfileIdentity profileData={profileData} isLoading={isProfileLoading} errorMessage={profileError} onRetry={loadProfile} />
+        <View style={styles.paddedContent}>
+          <ProfileStats
+            profileId={profileData?.id ?? null}
+            followersCount={followersCount}
+            followingCount={followingCount}
+            vehiclesCount={vehiclesCount}
+          />
+          <ProfilePosts posts={posts} isLoading={isProfileLoading} />
+          <ExploreCard vehiclesCount={vehiclesCount} />
+          <AccountCard isSigningOut={isSigningOut} onSignOut={confirmSignOut} />
         </View>
       </ScrollView>
     </NoxaScreen>
@@ -472,245 +462,211 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: 144,
-    gap: spacing.lg,
+  content: { paddingBottom: 144 },
+  pressed: { opacity: 0.8, transform: [{ translateY: 1 }, { scale: 0.985 }] },
+  disabled: { opacity: 0.45 },
+  cover: { height: 218, marginHorizontal: spacing.lg, marginTop: spacing.md, borderRadius: radius.hero, ...shadows.card },
+  coverImage: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.hero, overflow: 'hidden' },
+  coverImageRadius: { borderRadius: radius.hero },
+  coverPlaceholder: { backgroundColor: colors.surfaceSoft },
+  coverShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.38)' },
+  coverGlowLarge: {
+    position: 'absolute',
+    right: -36,
+    top: -62,
+    width: 210,
+    height: 210,
+    borderRadius: 105,
+    backgroundColor: colors.primaryMuted,
   },
-  iconButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
+  coverGlowSmall: {
+    position: 'absolute',
+    left: 28,
+    bottom: -52,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    borderWidth: 24,
+    borderColor: colors.primarySubtle,
+  },
+  coverAction: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.pill,
+    backgroundColor: 'rgba(6,6,10,0.76)',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  avatarPosition: { position: 'absolute', left: spacing.md, bottom: -42 },
+  avatarRing: {
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 44,
+    backgroundColor: colors.background,
+    borderWidth: 3,
+    borderColor: colors.background,
+  },
+  avatarImage: { width: 80, height: 80, borderRadius: 40 },
+  identitySection: { marginTop: 52, paddingHorizontal: spacing.lg },
+  identityTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  identityNames: { flex: 1 },
+  name: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.h2,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    lineHeight: typography.lineHeight.h2,
+    textTransform: 'uppercase',
+  },
+  username: { marginTop: spacing.xxs, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
+  editButton: {
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.button,
     backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
-  pressed: {
-    opacity: 0.78,
-    transform: [{ translateY: 1 }, { scale: 0.98 }],
+  editButtonText: { color: colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
+  bio: { marginTop: spacing.md, color: colors.text, fontSize: 13, fontWeight: '600', lineHeight: 20 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs, marginTop: spacing.sm },
+  location: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
+  inlineErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+  inlineError: { flex: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
+  retryButton: {
+    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.button,
+    backgroundColor: colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
   },
-  hero: {
-    alignItems: "center",
-    padding: spacing.xl,
-    borderRadius: radius.card,
+  retryText: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  paddedContent: { paddingHorizontal: spacing.lg, gap: spacing.xl, marginTop: spacing.lg },
+  statsStrip: {
+    minHeight: 78,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  avatarImage: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-  },
-  avatarRing: {
-    padding: spacing.xs,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: colors.background,
-  },
-  identityBlock: {
-    alignItems: "center",
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-  },
-  name: {
-    color: colors.text,
-    fontSize: typography.h1,
-    fontWeight: "900",
-    letterSpacing: -0.8,
-  },
-  identityMeta: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  username: {
-    color: colors.textMuted,
-    fontSize: typography.body,
-    fontWeight: "700",
-  },
-  bio: {
-    maxWidth: 280,
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "700",
-    lineHeight: 18,
-    textAlign: "center",
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xxs,
-  },
-  inlineErrorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  inlineError: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  retryButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-  },
-  retryText: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: "900",
-  },
-  location: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "700",
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
+  statCell: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm },
+  statCellBorder: { borderLeftWidth: 1, borderLeftColor: colors.divider },
   statValue: {
-    minWidth: 116,
     color: colors.text,
-    fontSize: typography.h2,
-    fontWeight: "900",
-    letterSpacing: -0.5,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: '900',
+    lineHeight: 25,
   },
-  statLabel: {
-    marginTop: spacing.xxs,
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
+  statLabel: { marginTop: spacing.xxs, color: colors.textSubtle, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  postsSection: { gap: spacing.sm },
+  postsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  postsCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: '800' },
+  newPostButton: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: typography.sectionTitle,
-    fontWeight: "900",
-    letterSpacing: -0.4,
+  newPostText: { color: colors.text, fontSize: 9, fontWeight: '900', letterSpacing: 0.7 },
+  postGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  postTile: {
+    width: '31.6%',
+    aspectRatio: 1,
+    overflow: 'hidden',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
   },
-  badgeList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  achievementBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
+  postImage: { width: '100%', height: '100%' },
+  postsEmpty: {
+    minHeight: 84,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  achievementText: {
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  activityPanel: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: spacing.md,
-    padding: spacing.lg,
     borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  activityIcon: {
-    width: 46,
-    height: 46,
-    alignItems: "center",
-    justifyContent: "center",
+  postsEmptyIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.pill,
     backgroundColor: colors.primarySubtle,
   },
-  activityCopy: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  activityLabel: {
+  postsEmptyCopy: { flex: 1 },
+  postsEmptyTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  postsEmptyText: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '700' },
+  sectionBlock: { gap: spacing.sm },
+  sectionTitle: {
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: typography.letterSpacing.label,
   },
-  activityTitle: {
-    marginTop: spacing.xxs,
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "900",
-  },
-  activityDate: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  actionsList: {
-    marginTop: spacing.md,
-  },
-  actionRow: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  actionIcon: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
-  },
-  actionText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "800",
-  },
-  logoutWrap: {
-    alignItems: "center",
-    marginTop: spacing.xs,
-  },
-  logoutButton: {
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.button,
-    backgroundColor: colors.surfaceSoft,
+  linksCard: {
+    overflow: 'hidden',
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.borderAccent,
+    borderColor: colors.border,
   },
-  logoutButtonDisabled: {
-    opacity: 0.45,
+  linkRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md },
+  linkRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  linkIcon: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
   },
-  logoutText: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: "900",
-    letterSpacing: typography.letterSpacing.caption,
-    textTransform: "uppercase",
+  linkCopy: {
+    flex: 1,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingVertical: spacing.xs,
   },
+  linkLabel: {
+    color: colors.text,
+    fontSize: typography.body,
+    fontWeight: '800',
+    lineHeight: typography.lineHeight.body,
+  },
+  accountLinkLabel: { flex: 1 },
+  linkCaption: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: typography.lineHeight.caption,
+  },
+  logoutIcon: { backgroundColor: colors.primarySubtle },
+  logoutText: { flex: 1, color: colors.primaryHover, fontSize: typography.body, fontWeight: '800' },
 });

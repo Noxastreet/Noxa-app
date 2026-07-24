@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>NOXA app icon</title>
+  <rect width="1024" height="1024" fill="#C8102E"/>
+  <path
+    d="M1 12L4.5 2.5H6L8.5 8.5 10 5H12L9.5 12H7.5L5 6.5 3.5 10H1Z"
+    transform="translate(174 135) scale(52)"
+    fill="#FFFFFF"
+    fill-rule="evenodd"
+  />
+</svg>

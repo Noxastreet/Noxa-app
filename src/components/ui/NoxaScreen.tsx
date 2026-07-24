@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native';
 
-import { colors, spacing } from '@/src/theme';
+import { Screen } from '@/src/components/layout/Screen';
+import { spacing } from '@/src/theme';
 
 type NoxaScreenProps = {
   children: ReactNode;
@@ -11,20 +11,18 @@ type NoxaScreenProps = {
 
 export function NoxaScreen({ children, padded = true }: NoxaScreenProps) {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.content, padded && styles.padded]}>{children}</View>
-    </SafeAreaView>
+    <Screen
+      constrained={false}
+      contentStyle={padded ? styles.padded : undefined}
+      edges={['top', 'bottom', 'left', 'right']}
+      padded={false}
+    >
+      {children}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-  },
   padded: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,

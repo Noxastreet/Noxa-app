@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { NoxaButton, NoxaCard, NoxaHeader, NoxaInput, NoxaScreen } from '@/src/components/ui';
+import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -257,11 +257,11 @@ function BackButton() {
 
 function FormSection({ title, eyebrow, children }: { title: string; eyebrow: string; children: ReactNode }) {
   return (
-    <NoxaCard>
+    <View style={styles.sectionCard}>
       <Text style={styles.eyebrow}>{eyebrow}</Text>
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.sectionContent}>{children}</View>
-    </NoxaCard>
+    </View>
   );
 }
 
@@ -276,8 +276,9 @@ function ColorSelector({ disabled, error, onSelect, selectedColor }: { disabled:
           return (
             <Pressable
               key={option.name}
-              accessibilityRole="button"
+              accessibilityRole="radio"
               accessibilityLabel={`Select ${option.name}`}
+              accessibilityState={{ checked: isSelected }}
               disabled={disabled}
               onPress={() => onSelect(option.name)}
               style={({ pressed }) => [styles.colorChip, isSelected && styles.colorChipSelected, pressed && styles.pressed, disabled && styles.disabled]}
@@ -293,70 +294,90 @@ function ColorSelector({ disabled, error, onSelect, selectedColor }: { disabled:
   );
 }
 
-function GalleryPlaceholder() {
-  return (
-    <View style={styles.fieldGroup}>
-      <View style={styles.galleryHeader}>
-        <Text style={styles.label}>Gallery</Text>
-        <Text style={styles.futureNote}>Upload mockup</Text>
-      </View>
-      <View style={styles.galleryGrid}>
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Pressable key={index} accessibilityRole="button" accessibilityLabel={index === 0 ? 'Add cover photo placeholder' : 'Add gallery photo placeholder'} style={({ pressed }) => [styles.uploadTile, index === 0 && styles.coverTile, pressed && styles.pressed]}>
-            {index === 0 ? <Text style={styles.coverLabel}>Cover Photo</Text> : null}
-            <Ionicons name="add" size={24} color={colors.textMuted} />
-            <Text style={styles.uploadText}>Add photo</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function CoverImagePicker({
+function VehicleCoverEditor({
+  brand,
   disabled,
+  horsepower,
   isBusy,
+  isPublic,
+  model,
   onChoose,
   onRemove,
   previewUri,
+  year,
 }: {
+  brand: string;
   disabled: boolean;
+  horsepower: string;
   isBusy: boolean;
+  isPublic: boolean;
+  model: string;
   onChoose: () => void;
   onRemove: () => void;
   previewUri: string | null;
+  year: string;
 }) {
   const hasImage = Boolean(previewUri);
+  const vehicleName = [brand.trim(), model.trim()].filter(Boolean).join(' ');
 
   return (
-    <View style={styles.fieldGroup}>
-      <View style={styles.galleryHeader}>
-        <Text style={styles.label}>Cover image</Text>
-        {isBusy ? <Text style={styles.futureNote}>Uploading...</Text> : null}
-      </View>
+    <View style={styles.coverEditor}>
       <View style={styles.coverPreview}>
         {previewUri ? (
           <Image source={{ uri: previewUri }} style={styles.coverPreviewImage} />
         ) : (
           <View style={styles.coverPlaceholder}>
-            <Ionicons name="car-sport" size={30} color={colors.primary} />
-            <Text style={styles.coverPlaceholderText}>Premium cover placeholder</Text>
+            <View style={styles.coverGlow} />
+            <Ionicons name="car-sport" size={54} color={colors.primaryHover} />
           </View>
         )}
+        <View style={styles.coverScrim} />
+        <View style={styles.coverTopline}>
+          <View style={styles.garageBadge}>
+            <Ionicons name="speedometer-outline" size={14} color={colors.primaryHover} />
+            <Text style={styles.garageBadgeText}>GARAGE PROFILE</Text>
+          </View>
+          <Text style={styles.coverVisibility}>{isPublic ? 'PUBLIC' : 'PRIVATE'}</Text>
+        </View>
+        <View style={styles.coverCopy}>
+          <Text numberOfLines={2} style={styles.coverVehicleName}>
+            {vehicleName || 'YOUR NEXT BUILD'}
+          </Text>
+          <View style={styles.coverSpecs}>
+            <Text style={styles.coverSpec}>{year.trim() || 'YEAR'}</Text>
+            <View style={styles.specDot} />
+            <Text style={styles.coverSpec}>{horsepower.trim() ? `${horsepower.trim()} HP` : 'POWER'}</Text>
+          </View>
+        </View>
       </View>
       <View style={styles.coverActions}>
         <Pressable accessibilityRole="button" disabled={disabled} onPress={onChoose} style={({ pressed }) => [styles.coverActionButton, pressed && styles.pressed, disabled && styles.disabled]}>
           <Ionicons name="image" size={16} color={colors.text} />
-          <Text style={styles.coverActionText}>{hasImage ? 'Change Cover' : 'Choose Cover'}</Text>
+          <Text style={styles.coverActionText}>{hasImage ? 'CHANGE COVER' : 'CHOOSE COVER'}</Text>
         </Pressable>
         {hasImage ? (
           <Pressable accessibilityRole="button" disabled={disabled} onPress={onRemove} style={({ pressed }) => [styles.coverActionButton, styles.coverRemoveButton, pressed && styles.pressed, disabled && styles.disabled]}>
             <Ionicons name="trash-outline" size={16} color={colors.primary} />
-            <Text style={[styles.coverActionText, styles.coverRemoveText]}>Remove Cover</Text>
+            <Text style={[styles.coverActionText, styles.coverRemoveText]}>REMOVE</Text>
           </Pressable>
         ) : null}
+        {isBusy ? <ActivityIndicator color={colors.primary} size="small" /> : null}
       </View>
+      <Text style={styles.coverHelp}>JPEG, PNG, WEBP, HEIC or HEIF · up to 6 MB</Text>
     </View>
+  );
+}
+
+function VisibilityOption({ active, description, disabled, icon, label, onPress }: { active: boolean; description: string; disabled: boolean; icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="radio" accessibilityState={{ checked: active }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.visibilityOption, active && styles.visibilityOptionActive, pressed && styles.pressed, disabled && styles.disabled]}>
+      <View style={[styles.visibilityIcon, active && styles.visibilityIconActive]}>
+        <Ionicons name={icon} size={20} color={active ? colors.primaryHover : colors.textMuted} />
+      </View>
+      <Text style={styles.visibilityTitle}>{label}</Text>
+      <Text style={styles.visibilityDescription}>{description}</Text>
+      <View style={[styles.radio, active && styles.radioActive]}>{active ? <View style={styles.radioDot} /> : null}</View>
+    </Pressable>
   );
 }
 
@@ -695,73 +716,80 @@ export default function VehicleEditorScreen() {
   return (
     <NoxaScreen padded={false}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoiding}>
+        <View style={styles.editorHeader}>
+          <BackButton />
+          <Text style={styles.headerTitle}>{isEditMode ? 'EDIT VEHICLE' : 'ADD VEHICLE'}</Text>
+          <View style={styles.headerSpacer} />
+        </View>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <NoxaHeader left={<BackButton />} title={isEditMode ? 'EDIT VEHICLE' : 'ADD VEHICLE'} subtitle="Build your automotive identity" />
-
-          <View style={styles.heroPanel}>
-            <Text style={styles.heroTitle}>Shape the profile your crew sees.</Text>
-            <Text style={styles.heroCopy}>Mock editor ready for future image upload, validation, backend save, AI vehicle recognition, and public/private visibility.</Text>
-          </View>
+          <VehicleCoverEditor
+            brand={form.brand}
+            disabled={isSubmitting}
+            horsepower={form.horsepower}
+            isBusy={isSubmitting && Boolean(selectedCoverAsset)}
+            isPublic={form.isPublic}
+            model={form.model}
+            onChoose={chooseCoverImage}
+            onRemove={removeCoverImage}
+            previewUri={coverPreviewUri}
+            year={form.year}
+          />
 
           {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
-          <FormSection eyebrow="Required" title="Core Identity">
+          <FormSection eyebrow="01 / IDENTITY" title="Name the machine">
             <FieldError message={errors.brand}>
-              <NoxaInput editable={!isSubmitting} label="Brand" maxLength={61} onChangeText={(value) => setField('brand', value)} placeholder="Porsche" value={form.brand} autoCapitalize="words" />
+              <NoxaInput editable={!isSubmitting} label="Brand · required" maxLength={60} onChangeText={(value) => setField('brand', value)} placeholder="Porsche" value={form.brand} autoCapitalize="words" />
             </FieldError>
             <FieldError message={errors.model}>
-              <NoxaInput editable={!isSubmitting} label="Model" maxLength={61} onChangeText={(value) => setField('model', value)} placeholder="911 GT3 RS" value={form.model} autoCapitalize="words" />
+              <NoxaInput editable={!isSubmitting} label="Model" maxLength={60} onChangeText={(value) => setField('model', value)} placeholder="911 GT3 RS" value={form.model} autoCapitalize="words" />
             </FieldError>
-            <FieldError message={errors.horsepower}>
-              <NoxaInput editable={!isSubmitting} label="Horsepower" onChangeText={(value) => setField('horsepower', value)} placeholder="518 hp" value={form.horsepower} keyboardType="number-pad" />
-            </FieldError>
-            <ColorSelector disabled={isSubmitting} error={errors.color} onSelect={(value) => setField('color', value)} selectedColor={form.color} />
-            <GalleryPlaceholder />
-            <FieldError message={errors.coverImageUrl}>
-              <CoverImagePicker disabled={isSubmitting} isBusy={isSubmitting && Boolean(selectedCoverAsset)} onChoose={chooseCoverImage} onRemove={removeCoverImage} previewUri={coverPreviewUri} />
-            </FieldError>
-          </FormSection>
-
-          <FormSection eyebrow="Optional" title="Build Details">
             <FieldError message={errors.year}>
               <NoxaInput editable={!isSubmitting} label="Year" onChangeText={(value) => setField('year', value)} placeholder="2024" value={form.year} keyboardType="number-pad" />
             </FieldError>
+            <ColorSelector disabled={isSubmitting} error={errors.color} onSelect={(value) => setField('color', value)} selectedColor={form.color} />
+          </FormSection>
+
+          {errors.coverImageUrl ? <Text style={styles.formError}>{errors.coverImageUrl}</Text> : null}
+
+          <FormSection eyebrow="02 / PERFORMANCE" title="Define the build">
+            <FieldError message={errors.horsepower}>
+              <NoxaInput editable={!isSubmitting} label="Horsepower · required" onChangeText={(value) => setField('horsepower', value)} placeholder="518" value={form.horsepower} keyboardType="number-pad" />
+            </FieldError>
             <FieldError message={errors.tuningStage}>
-              <NoxaInput editable={!isSubmitting} label="Stage" maxLength={41} onChangeText={(value) => setField('tuningStage', value)} placeholder="Stage 2 / Track build / OEM+" value={form.tuningStage} />
+              <NoxaInput editable={!isSubmitting} label="Tuning stage" maxLength={40} onChangeText={(value) => setField('tuningStage', value)} placeholder="Stage 2 / Track build / OEM+" value={form.tuningStage} />
             </FieldError>
             <FieldError message={errors.zeroToHundred}>
-              <NoxaInput editable={!isSubmitting} label="0-100" onChangeText={(value) => setField('zeroToHundred', value)} placeholder="3.8 s" value={form.zeroToHundred} keyboardType="decimal-pad" />
+              <NoxaInput editable={!isSubmitting} label="0–100 km/h · seconds" onChangeText={(value) => setField('zeroToHundred', value)} placeholder="3.8" value={form.zeroToHundred} keyboardType="decimal-pad" />
             </FieldError>
             <FieldError message={errors.transmission}>
-              <NoxaInput editable={!isSubmitting} label="Transmission" maxLength={41} onChangeText={(value) => setField('transmission', value)} placeholder="Manual / DCT / Automatic" value={form.transmission} />
+              <NoxaInput editable={!isSubmitting} label="Transmission" maxLength={40} onChangeText={(value) => setField('transmission', value)} placeholder="Manual / DCT / Automatic" value={form.transmission} />
             </FieldError>
             <FieldError message={errors.drivetrain}>
-              <NoxaInput editable={!isSubmitting} label="Drivetrain" maxLength={41} onChangeText={(value) => setField('drivetrain', value)} placeholder="RWD / AWD / FWD" value={form.drivetrain} />
+              <NoxaInput editable={!isSubmitting} label="Drivetrain" maxLength={40} onChangeText={(value) => setField('drivetrain', value)} placeholder="RWD / AWD / FWD" value={form.drivetrain} />
             </FieldError>
+          </FormSection>
+
+          <FormSection eyebrow="03 / STORY" title="Give it context">
             <FieldError message={errors.description}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Description</Text>
-                <TextInput editable={!isSubmitting} maxLength={1001} multiline onChangeText={(value) => setField('description', value)} placeholder="Tell the story behind the build..." placeholderTextColor={colors.textMuted} selectionColor={colors.primary} style={[styles.textArea]} textAlignVertical="top" value={form.description} />
+                <TextInput editable={!isSubmitting} maxLength={1000} multiline onChangeText={(value) => setField('description', value)} placeholder="Tell the story behind the build…" placeholderTextColor={colors.textMuted} selectionColor={colors.primary} style={styles.textArea} textAlignVertical="top" value={form.description} />
+                <Text style={styles.characterCount}>{form.description.length} / 1000</Text>
               </View>
             </FieldError>
-            <Pressable accessibilityRole="switch" accessibilityState={{ checked: form.isPublic }} disabled={isSubmitting} onPress={() => setField('isPublic', !form.isPublic)} style={({ pressed }) => [styles.visibilityToggle, pressed && styles.pressed, isSubmitting && styles.disabled]}>
-              <View>
-                <Text style={styles.label}>Visibility</Text>
-                <Text style={styles.visibilityText}>{form.isPublic ? 'Public vehicle profile' : 'Private vehicle profile'}</Text>
-              </View>
-              <Ionicons name={form.isPublic ? 'eye' : 'eye-off'} size={22} color={colors.primary} />
-            </Pressable>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Installed parts</Text>
-              <TextInput editable={!isSubmitting} multiline placeholder="Exhaust, coilovers, wheels, tune..." placeholderTextColor={colors.textMuted} selectionColor={colors.primary} style={[styles.textArea]} textAlignVertical="top" />
-            </View>
           </FormSection>
 
-          <View style={styles.actions}>
-            <NoxaButton disabled={isSubmitting} loading={isSubmitting} onPress={saveVehicle} title={isSubmitting && selectedCoverAsset ? 'Uploading...' : isEditMode ? 'SAVE CHANGES' : 'Save Vehicle'} fullWidth />
-            <NoxaButton disabled={isSubmitting} title="Cancel" variant="secondary" fullWidth onPress={() => router.back()} />
-          </View>
+          <FormSection eyebrow="04 / VISIBILITY" title="Choose the audience">
+            <View style={styles.visibilityOptions}>
+              <VisibilityOption active={form.isPublic} description="Visible to every NOXA driver" disabled={isSubmitting} icon="earth-outline" label="Public" onPress={() => setField('isPublic', true)} />
+              <VisibilityOption active={!form.isPublic} description="Visible only to you" disabled={isSubmitting} icon="lock-closed-outline" label="Private" onPress={() => setField('isPublic', false)} />
+            </View>
+          </FormSection>
         </ScrollView>
+        <View style={styles.fixedFooter}>
+          <NoxaButton disabled={isSubmitting} loading={isSubmitting} onPress={saveVehicle} title={isEditMode ? 'SAVE CHANGES' : 'ADD TO GARAGE'} fullWidth />
+        </View>
       </KeyboardAvoidingView>
     </NoxaScreen>
   );
@@ -771,15 +799,36 @@ const styles = StyleSheet.create({
   keyboardAvoiding: {
     flex: 1,
   },
+  editorHeader: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+    backgroundColor: colors.surfaceBase,
+  },
+  headerTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
+  },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: 144,
+    paddingTop: spacing.lg,
+    paddingBottom: 124,
     gap: spacing.lg,
   },
   backButton: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -794,42 +843,172 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.45,
   },
-  heroPanel: {
-    padding: spacing.xl,
-    borderRadius: radius.card,
-    backgroundColor: '#0B0C10',
+  coverEditor: {
+    gap: spacing.sm,
+  },
+  coverPreview: {
+    aspectRatio: 16 / 9,
+    overflow: 'hidden',
+    borderRadius: radius.hero,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.surface,
     ...shadows.card,
   },
-  heroTitle: {
-    color: colors.text,
-    fontSize: typography.h2,
-    fontWeight: '900',
-    letterSpacing: -0.7,
+  coverPreviewImage: {
+    width: '100%',
+    height: '100%',
   },
-  heroCopy: {
-    marginTop: spacing.sm,
-    color: colors.textMuted,
-    fontSize: typography.body,
-    fontWeight: '600',
-    lineHeight: 22,
+  coverPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#090A0E',
+  },
+  coverGlow: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryMuted,
+  },
+  coverScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  coverTopline: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  garageBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: 'rgba(10,10,14,0.78)',
+  },
+  garageBadgeText: {
+    color: colors.primaryHover,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  coverVisibility: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  coverCopy: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.lg,
+    gap: spacing.xs,
+  },
+  coverVehicleName: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.h2,
+    lineHeight: typography.lineHeight.h2,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    textShadowColor: 'rgba(0,0,0,0.72)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
+  coverSpecs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  coverSpec: {
+    color: colors.text,
+    fontSize: typography.caption,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  specDot: {
+    width: 4,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryHover,
+  },
+  coverActions: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  coverActionButton: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.button,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+  },
+  coverRemoveButton: {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  coverActionText: {
+    color: colors.text,
+    fontSize: typography.caption,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  coverRemoveText: {
+    color: colors.primaryHover,
+  },
+  coverHelp: {
+    color: colors.textSubtle,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  sectionCard: {
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    ...shadows.card,
   },
   eyebrow: {
-    color: colors.primary,
-    fontSize: 11,
+    color: colors.primaryHover,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   sectionTitle: {
     marginTop: spacing.xxs,
     color: colors.text,
-    fontSize: typography.sectionTitle,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
     fontWeight: '900',
+    letterSpacing: -0.2,
   },
   sectionContent: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     gap: spacing.md,
   },
   fieldGroup: {
@@ -849,19 +1028,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   colorChip: {
-    minWidth: 132,
+    width: '47%',
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
+    borderRadius: radius.lg,
     backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
     borderColor: colors.border,
   },
   colorChipSelected: {
-    borderColor: 'rgba(255,45,45,0.62)',
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
   },
   swatch: {
     width: 22,
@@ -875,105 +1056,6 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: '800',
   },
-  galleryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  futureNote: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  galleryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  uploadTile: {
-    width: '47%',
-    minHeight: 126,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  coverTile: {
-    borderColor: 'rgba(255,45,45,0.52)',
-  },
-  coverLabel: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  uploadText: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: '800',
-  },
-  coverPreview: {
-    aspectRatio: 16 / 9,
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  coverPreviewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  coverPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: '#090A0E',
-    borderWidth: 1,
-    borderColor: 'rgba(255,45,45,0.2)',
-  },
-  coverPlaceholderText: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: '800',
-  },
-  coverActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  coverActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  coverRemoveButton: {
-    borderColor: 'rgba(255,45,45,0.36)',
-  },
-  coverActionText: {
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: '900',
-  },
-  coverRemoveText: {
-    color: colors.primary,
-  },
   textArea: {
     minHeight: 118,
     padding: spacing.md,
@@ -983,6 +1065,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     color: colors.text,
     fontSize: typography.body,
+  },
+  characterCount: {
+    textAlign: 'right',
+    color: colors.textSubtle,
+    fontSize: typography.caption,
+    fontWeight: '700',
   },
   errorText: {
     color: colors.primary,
@@ -1019,24 +1107,75 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
-  visibilityToggle: {
+  visibilityOptions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    gap: spacing.sm,
+  },
+  visibilityOption: {
+    minHeight: 154,
+    flex: 1,
+    gap: spacing.xs,
     padding: spacing.md,
     borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
   },
-  visibilityText: {
-    marginTop: spacing.xxs,
+  visibilityOptionActive: {
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
+  },
+  visibilityIcon: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xxs,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  visibilityIconActive: {
+    backgroundColor: colors.primaryMuted,
+  },
+  visibilityTitle: {
     color: colors.text,
     fontSize: typography.body,
-    fontWeight: '800',
+    fontWeight: '900',
   },
-  actions: {
-    gap: spacing.sm,
+  visibilityDescription: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  radioActive: {
+    borderColor: colors.primary,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  fixedFooter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.glass,
   },
 });

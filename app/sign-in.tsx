@@ -1,24 +1,11 @@
-import { router } from "expo-router";
-import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { NoxaAuthField } from "@/src/components/auth/NoxaAuthField";
-import { supabase } from "@/src/lib/supabase";
-import {
-  NoxaButton,
-  NoxaCard,
-  NoxaIconButton,
-  NoxaScreen,
-} from "@/src/components/ui";
-import { colors, spacing, typography } from "@/src/theme";
+import { NoxaAuthField, NoxaAuthScreen } from '@/src/components/auth';
+import { NoxaButton } from '@/src/components/ui';
+import { supabase } from '@/src/lib/supabase';
+import { colors, spacing, typography } from '@/src/theme';
 
 type SignInErrors = {
   email?: string;
@@ -29,24 +16,50 @@ type SignInErrors = {
 const emailPattern = /^\S+@\S+\.\S+$/;
 
 function getSignInErrorMessage(message?: string) {
-  if (message === "Invalid login credentials") {
-    return "Incorrect email or password.";
+  if (message === 'Invalid login credentials') {
+    return 'Incorrect email or password.';
   }
 
-  if (message === "Email not confirmed") {
-    return "Confirm your email before signing in.";
+  if (message === 'Email not confirmed') {
+    return 'Confirm your email before signing in.';
   }
 
-  if (message === "Network request failed") {
-    return "Unable to connect. Check your internet connection.";
+  if (message === 'Network request failed') {
+    return 'Unable to connect. Check your internet connection.';
   }
 
-  return "Unable to sign in. Please try again.";
+  return 'Unable to sign in. Please try again.';
 }
 
 export default function SignInScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  return (
+    <NoxaAuthScreen
+      footer={
+        <View style={styles.footer}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/sign-up')} style={styles.switchButton}>
+            <Text style={styles.switchText}>
+              Don&apos;t have an account? <Text style={styles.switchLink}>Sign Up</Text>
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/forgot-password')}
+            style={styles.forgotButton}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
+        </View>
+      }
+      onBack={() => router.back()}
+      subtitle="Sign in to continue your journey."
+      title="Welcome back.">
+      <SignInForm />
+    </NoxaAuthScreen>
+  );
+}
+
+function SignInForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<SignInErrors>({});
@@ -55,15 +68,15 @@ export default function SignInScreen() {
     const nextErrors: SignInErrors = {};
 
     if (!email.trim()) {
-      nextErrors.email = "Email is required.";
+      nextErrors.email = 'Email is required.';
     } else if (!emailPattern.test(email.trim())) {
-      nextErrors.email = "Enter a valid email address.";
+      nextErrors.email = 'Enter a valid email address.';
     }
 
     if (!password) {
-      nextErrors.password = "Password is required.";
+      nextErrors.password = 'Password is required.';
     } else if (password.length < 8) {
-      nextErrors.password = "Password must be at least 8 characters.";
+      nextErrors.password = 'Password must be at least 8 characters.';
     }
 
     setErrors(nextErrors);
@@ -71,11 +84,7 @@ export default function SignInScreen() {
   };
 
   const handleSignIn = async () => {
-    if (isLoading) {
-      return;
-    }
-
-    if (!validate()) {
+    if (isLoading || !validate()) {
       return;
     }
 
@@ -94,14 +103,14 @@ export default function SignInScreen() {
       }
 
       if (data.session) {
-        router.replace("/(tabs)");
+        router.replace('/(tabs)');
       }
     } catch (error) {
       setErrors({
         form:
           error instanceof Error
             ? getSignInErrorMessage(error.message)
-            : "Unable to sign in. Please try again.",
+            : 'Unable to sign in. Please try again.',
       });
     } finally {
       setIsLoading(false);
@@ -109,162 +118,93 @@ export default function SignInScreen() {
   };
 
   return (
-    <NoxaScreen padded={false}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <NoxaIconButton
-              accessibilityLabel="Go back"
-              icon="chevron-back"
-              onPress={() => router.back()}
-            />
-            <Text style={styles.brand}>NOXA</Text>
-            <View style={styles.headerSpacer} />
-          </View>
+    <View style={styles.form}>
+      <NoxaAuthField
+        autoCapitalize="none"
+        autoComplete="email"
+        editable={!isLoading}
+        error={errors.email}
+        inputMode="email"
+        keyboardType="email-address"
+        label="Email"
+        onChangeText={setEmail}
+        placeholder="you@example.com"
+        returnKeyType="next"
+        textContentType="emailAddress"
+        value={email}
+      />
+      <NoxaAuthField
+        autoCapitalize="none"
+        autoComplete="password"
+        editable={!isLoading}
+        error={errors.password}
+        label="Password"
+        onChangeText={setPassword}
+        onTogglePassword={() => setShowPassword((current) => !current)}
+        passwordVisible={showPassword}
+        placeholder="••••••••"
+        returnKeyType="done"
+        secureTextEntry={!showPassword}
+        textContentType="password"
+        value={password}
+      />
 
-          <NoxaCard style={styles.card}>
-            <View style={styles.titleBlock}>
-              <Text style={styles.title}>Welcome back</Text>
-              <Text style={styles.subtitle}>Sign in to continue</Text>
-            </View>
+      {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
-            <View style={styles.form}>
-              <NoxaAuthField
-                autoCapitalize="none"
-                autoComplete="email"
-                error={errors.email}
-                inputMode="email"
-                keyboardType="email-address"
-                label="Email"
-                onChangeText={setEmail}
-                placeholder="you@noxa.app"
-                textContentType="emailAddress"
-                value={email}
-              />
-
-              <NoxaAuthField
-                autoCapitalize="none"
-                autoComplete="password"
-                error={errors.password}
-                label="Password"
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry={!showPassword}
-                textContentType="password"
-                value={password}
-                rightAction={
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setShowPassword((current) => !current)}
-                    hitSlop={8}
-                  >
-                    <Text style={styles.showText}>
-                      {showPassword ? "Hide" : "Show"}
-                    </Text>
-                  </Pressable>
-                }
-              />
-
-              <Pressable accessibilityRole="button" style={styles.forgotButton}>
-                <Text style={styles.textLink}>Forgot password?</Text>
-              </Pressable>
-
-              {errors.form ? (
-                <Text style={styles.error}>{errors.form}</Text>
-              ) : null}
-
-              <NoxaButton
-                disabled={isLoading}
-                fullWidth
-                loading={isLoading}
-                title="Sign In"
-                onPress={handleSignIn}
-              />
-            </View>
-          </NoxaCard>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push("/sign-up")}
-            style={styles.bottomLinkWrap}
-          >
-            <Text style={styles.bottomText}>
-              New to NOXA? <Text style={styles.bottomLink}>Create account</Text>
-            </Text>
-          </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </NoxaScreen>
+      <View style={styles.submit}>
+        <NoxaButton
+          disabled={isLoading}
+          fullWidth
+          loading={isLoading}
+          onPress={handleSignIn}
+          title="Sign In"
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: { flex: 1 },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-    gap: spacing.xl,
+  form: {
+    gap: 14,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  submit: {
+    marginTop: 10,
   },
-  brand: {
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "900",
-    letterSpacing: 5,
-    marginLeft: 5,
+  formError: {
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.body,
+    fontSize: typography.caption,
+    fontWeight: '600',
+    lineHeight: typography.lineHeight.caption,
   },
-  headerSpacer: { width: 44 },
-  card: { gap: spacing.xxl },
-  titleBlock: { gap: spacing.xs },
-  title: {
-    color: colors.text,
-    fontSize: typography.h1,
-    fontWeight: "900",
-    letterSpacing: typography.letterSpacing.tight,
+  footer: {
+    alignItems: 'center',
   },
-  subtitle: {
+  switchButton: {
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  switchText: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    fontWeight: "600",
-    lineHeight: typography.lineHeight.body,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
   },
-  form: { gap: spacing.md },
-  showText: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: "900",
+  switchLink: {
+    color: colors.primaryHover,
+    fontWeight: '600',
   },
-  error: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: "700",
+  forgotButton: {
+    minHeight: 32,
+    justifyContent: 'center',
+    marginTop: spacing.xs,
   },
-  forgotButton: { alignSelf: "flex-end", paddingVertical: spacing.xs },
-  textLink: {
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "800",
+  forgotText: {
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  bottomLinkWrap: { alignItems: "center", paddingVertical: spacing.sm },
-  bottomText: {
-    color: colors.textMuted,
-    fontSize: typography.body,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  bottomLink: { color: colors.text, fontWeight: "900" },
 });

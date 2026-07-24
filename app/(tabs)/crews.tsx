@@ -5,18 +5,21 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
+  ImageBackground,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
+  type ImageStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { NoxaBadge, NoxaHeader, NoxaScreen } from "@/src/components/ui";
+import { NoxaBadge, NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
 import {
   animations,
@@ -27,16 +30,9 @@ import {
   typography,
 } from "@/src/theme";
 
-const categories = ["Featured", "Nearby", "Invites", "My Crews"] as const;
-
-const crewDots = [
-  ["#FF2D2D", "#FFFFFF", "#8E919A"],
-  ["#FFFFFF", "#8E919A", "#FF2D2D"],
-  ["#8E919A", "#FF2D2D", "#FFFFFF"],
-] as const;
-
 type CrewRole = "owner" | "admin" | "member";
 type JoinPolicy = "open" | "approval" | "invite_only";
+type CrewTab = "discover" | "mine";
 
 type CrewRow = {
   id: string;
@@ -93,7 +89,6 @@ type Crew = CrewRow & {
   currentUserRole: CrewRole | null;
   isCurrentUserMember: boolean;
   pendingJoinRequestId: string | null;
-  dots: readonly string[];
 };
 
 function useSlideUp(delay = 0) {
@@ -122,130 +117,68 @@ function useSlideUp(delay = 0) {
   return { opacity, transform: [{ translateY }] };
 }
 
-function CreateIconButton({ onPress }: { onPress: () => void }) {
+function CreateCrewButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       accessibilityLabel="Create crew"
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-    >
-      <Ionicons name="add" size={24} color={colors.text} />
+      style={({ pressed }) => [styles.headerCreateButton, pressed && styles.pressed]}>
+      <Ionicons name="add" size={17} color={colors.text} />
+      <Text style={styles.headerCreateText}>CREATE</Text>
     </Pressable>
   );
 }
 
-function FeaturedCrewCard({
-  crew,
-  loading,
-}: {
-  crew: Crew | null;
-  loading: boolean;
-}) {
-  return (
-    <Animated.View style={[styles.featuredCard, useSlideUp(80)]}>
-      <View style={styles.featuredGlow} />
-      <View style={styles.featuredTopRow}>
-        <NoxaBadge label="FEATURED" variant="primary" />
-        <View style={styles.memberPill}>
-          <Ionicons name="people" size={15} color={colors.primary} />
-          <Text style={styles.memberPillText}>
-            {crew
-              ? `${crew.memberCount} members`
-              : loading
-                ? "Loading"
-                : "Real crews"}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.featuredCopy}>
-        <Text style={styles.featuredTitle}>
-          {crew?.name ?? "Build your first crew."}
-        </Text>
-        <Text style={styles.featuredSubtitle}>
-          {crew?.description ??
-            "Real NOXA crews now sync through secure Supabase membership."}
-        </Text>
-        <View style={styles.featuredStats}>
-          <View style={styles.metaRow}>
-            <Ionicons
-              name="location-outline"
-              size={17}
-              color={colors.textMuted}
-            />
-            <Text style={styles.metaText}>{crew?.city ?? "City optional"}</Text>
-          </View>
-          <View style={styles.metaRow}>
-            <Ionicons
-              name="person-circle-outline"
-              size={17}
-              color={colors.textMuted}
-            />
-            <Text style={styles.metaText}>
-              {crew ? `Owned by ${crew.ownerName}` : "Owner roles included"}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.featuredCta}>
-        <Text style={styles.featuredCtaText}>
-          {crew
-            ? crew.is_public
-              ? "Public Crew"
-              : "Private Crew"
-            : "Create Crew"}
-        </Text>
-      </View>
-    </Animated.View>
-  );
+function crewInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
-function CategoryTabs() {
-  return (
-    <Animated.View style={[styles.categoryRow, useSlideUp(140)]}>
-      {categories.map((category, index) => (
-        <Pressable
-          key={category}
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.categoryTab,
-            index === 0 && styles.categoryTabActive,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text
-            style={[
-              styles.categoryText,
-              index === 0 && styles.categoryTextActive,
-            ]}
-          >
-            {category}
-          </Text>
-        </Pressable>
-      ))}
-    </Animated.View>
-  );
-}
+function CrewLogo({ crew }: { crew: Crew }) {
+  if (crew.logo_url) {
+    return <Image source={{ uri: crew.logo_url }} style={styles.crewLogoImage} accessibilityLabel={`${crew.name} logo`} />;
+  }
 
-function CrewDots({ dots }: { dots: readonly string[] }) {
   return (
-    <View style={styles.dotRow}>
-      {dots.map((dot, index) => (
-        <View
-          key={`${dot}-${index}`}
-          style={[
-            styles.memberDot,
-            { backgroundColor: dot },
-            index > 0 && styles.stackedDot,
-          ]}
-        />
-      ))}
-      <View style={[styles.memberDot, styles.moreDot, styles.stackedDot]}>
-        <Text style={styles.moreDotText}>+</Text>
-      </View>
+    <View style={styles.crewLogoFallback}>
+      <Text style={styles.crewLogoText}>{crewInitials(crew.name)}</Text>
     </View>
+  );
+}
+
+function CrewArtwork({ crew, onPress }: { crew: Crew; onPress: () => void }) {
+  const content = (
+    <>
+      <View style={styles.crewCoverShade} />
+      <View style={styles.crewVisibilityBadge}>
+        <NoxaBadge label={crew.is_public ? "PUBLIC" : "PRIVATE"} variant={crew.is_public ? "primary" : "default"} />
+      </View>
+    </>
+  );
+
+  return (
+    <Pressable accessibilityLabel={`Open ${crew.name} crew details`} accessibilityRole="button" onPress={onPress}>
+      {crew.cover_image_url ? (
+        <ImageBackground
+          source={{ uri: crew.cover_image_url }}
+          resizeMode="cover"
+          style={styles.crewCover}
+          imageStyle={styles.crewCoverImage as ImageStyle}>
+          {content}
+        </ImageBackground>
+      ) : (
+        <View style={[styles.crewCover, styles.crewCoverPlaceholder]}>
+          <Ionicons name="people" size={58} color={colors.primaryMuted} />
+          {content}
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -288,91 +221,51 @@ function CrewCard({
     ["Join Crew", "Request to Join", "Cancel Request", "Leave Crew"].includes(
       actionLabel,
     );
+  const openCrew = () => {
+    if (canNavigate) router.push({ pathname: "/crew/[id]", params: { id: crew.id } });
+  };
 
   return (
     <Animated.View style={[styles.crewCard, useSlideUp(210 + index * 70)]}>
-      <View style={styles.redAccent} />
-      <Pressable
-        accessibilityLabel={`Open ${crew.name} crew details`}
-        accessibilityRole="button"
-        disabled={!canNavigate}
-        onPress={() => {
-          if (canNavigate) {
-            router.push({ pathname: "/crew/[id]", params: { id: crew.id } });
-          }
-        }}
-        style={({ pressed }) => [
-          styles.crewMainPress,
-          pressed && styles.pressed,
-        ]}
-      >
-        <View style={styles.crewHeader}>
-          <View style={styles.crewTitleBlock}>
-            <Text style={styles.crewName}>{crew.name}</Text>
-            <View style={styles.metaRow}>
-              <Ionicons
-                name="location-outline"
-                size={16}
-                color={colors.textMuted}
-              />
-              <Text style={styles.metaText}>{crew.city ?? "No city set"}</Text>
-            </View>
-            <Text style={styles.descriptionText}>
-              {crew.description ?? `Owned by ${crew.ownerName}`}
-            </Text>
-          </View>
-          <NoxaBadge
-            label={crew.is_public ? "PUBLIC" : "PRIVATE"}
-            variant={crew.is_public ? "primary" : "default"}
-          />
+      <CrewArtwork crew={crew} onPress={openCrew} />
+      <View style={styles.crewBody}>
+        <View style={styles.crewIdentityRow}>
+          <View style={styles.crewLogoShell}><CrewLogo crew={crew} /></View>
+          <Pressable
+            accessibilityRole="button"
+            disabled={!canPress}
+            onPress={() => {
+              if (actionLabel === "Join Crew") onJoin(crew);
+              else if (actionLabel === "Request to Join") onRequestJoin(crew);
+              else if (actionLabel === "Cancel Request") onCancelRequest(crew);
+              else if (actionLabel === "Leave Crew") onLeave(crew);
+            }}
+            style={({ pressed }) => [
+              styles.memberAction,
+              !canPress && styles.memberActionDisabled,
+              pressed && styles.pressed,
+            ]}>
+            {busy ? <ActivityIndicator size="small" color={colors.text} /> : <Text style={styles.memberActionText}>{actionLabel}</Text>}
+          </Pressable>
         </View>
-      </Pressable>
-
-      <View style={styles.crewFooter}>
         <Pressable
           accessibilityLabel={`Open ${crew.name} crew details`}
           accessibilityRole="button"
           disabled={!canNavigate}
-          onPress={() => {
-            if (canNavigate) {
-              router.push({ pathname: "/crew/[id]", params: { id: crew.id } });
-            }
-          }}
-          style={({ pressed }) => [
-            styles.crewFooterPress,
-            pressed && styles.pressed,
-          ]}
-        >
-          <CrewDots dots={crew.dots} />
-          <View style={styles.memberCountRow}>
-            <Ionicons
-              name="people-outline"
-              size={16}
-              color={colors.textMuted}
-            />
-            <Text style={styles.metaText}>{crew.memberCount} members</Text>
+          onPress={openCrew}
+          style={({ pressed }) => [styles.crewCopyPress, pressed && styles.pressed]}>
+          <Text style={styles.crewName}>{crew.name}</Text>
+          <View style={styles.crewMetaLine}>
+            <View style={styles.memberCountRow}>
+              <Ionicons name="people-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.metaText}>{crew.memberCount} members</Text>
+            </View>
+            <View style={styles.memberCountRow}>
+              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.metaText}>{crew.city ?? "No city set"}</Text>
+            </View>
           </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={!canPress}
-          onPress={() => {
-            if (actionLabel === "Join Crew") onJoin(crew);
-            else if (actionLabel === "Request to Join") onRequestJoin(crew);
-            else if (actionLabel === "Cancel Request") onCancelRequest(crew);
-            else if (actionLabel === "Leave Crew") onLeave(crew);
-          }}
-          style={({ pressed }) => [
-            styles.memberAction,
-            !canPress && styles.memberActionDisabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          {busy ? (
-            <ActivityIndicator size="small" color={colors.text} />
-          ) : (
-            <Text style={styles.memberActionText}>{actionLabel}</Text>
-          )}
+          <Text numberOfLines={3} style={styles.descriptionText}>{crew.description ?? `Owned by ${crew.ownerName}`}</Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -412,121 +305,147 @@ function CreateCrewModal({
     }
   }, [visible]);
 
+  const canSubmit = name.trim().length >= 2 && !creating;
+
   return (
     <Modal
       animationType="slide"
-      transparent
+      presentationStyle="fullScreen"
       visible={visible}
       onRequestClose={creating ? undefined : onClose}
     >
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Create crew</Text>
-          <TextInput
-            placeholder="Crew name"
-            placeholderTextColor={colors.textMuted}
-            value={name}
-            onChangeText={setName}
-            maxLength={60}
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Description"
-            placeholderTextColor={colors.textMuted}
-            value={description}
-            onChangeText={setDescription}
-            maxLength={500}
-            multiline
-            style={[styles.input, styles.textArea]}
-          />
-          <TextInput
-            placeholder="City"
-            placeholderTextColor={colors.textMuted}
-            value={city}
-            onChangeText={setCity}
-            maxLength={80}
-            style={styles.input}
-          />
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Public crew</Text>
-            <Switch
-              value={isPublic}
-              onValueChange={setIsPublic}
-              trackColor={{
-                false: colors.surfaceSoft,
-                true: colors.primaryMuted,
-              }}
-              thumbColor={isPublic ? colors.primary : colors.textMuted}
-            />
+      <SafeAreaView style={styles.modalScreen}>
+        <View style={styles.modalHeader}>
+          <Pressable
+            accessibilityLabel="Close create crew"
+            accessibilityRole="button"
+            disabled={creating}
+            onPress={onClose}
+            style={({ pressed }) => [styles.modalBackButton, pressed && styles.pressed]}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={styles.modalHeaderTitle}>CREATE CREW</Text>
+          <View style={styles.modalHeaderSpacer} />
+        </View>
+
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.modalContent}>
+          <View style={styles.crewPreview}>
+            <View style={styles.previewGlowLarge} />
+            <View style={styles.previewGlowSmall} />
+            <Ionicons name="people" size={58} color={colors.primaryMuted} />
+            <View style={styles.logoPreview}>
+              <Text style={styles.logoPreviewText}>{name.trim() ? crewInitials(name) : "NX"}</Text>
+            </View>
           </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>CREW NAME</Text>
+            <TextInput
+              placeholder="e.g. Apex Collective"
+              placeholderTextColor={colors.textSubtle}
+              selectionColor={colors.primary}
+              value={name}
+              onChangeText={setName}
+              maxLength={60}
+              style={styles.input}
+            />
+            <Text style={styles.fieldHint}>2–60 characters</Text>
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>PRIVACY</Text>
+            <View style={styles.privacyOptions}>
+              {[
+                { label: "Public", value: true },
+                { label: "Private", value: false },
+              ].map((option) => {
+                const selected = isPublic === option.value;
+                return (
+                  <Pressable
+                    key={option.label}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setIsPublic(option.value)}
+                    style={({ pressed }) => [styles.privacyOption, selected && styles.privacyOptionActive, pressed && styles.pressed]}>
+                    <Ionicons name={option.value ? "earth-outline" : "lock-closed-outline"} size={15} color={selected ? colors.text : colors.textMuted} />
+                    <Text style={[styles.privacyOptionText, selected && styles.privacyOptionTextActive]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           {isPublic ? (
-            <View style={styles.policyOptions}>
-              {(["open", "approval", "invite_only"] as JoinPolicy[]).map(
-                (policy) => (
+            <View style={styles.formField}>
+              <Text style={styles.fieldLabel}>JOIN POLICY</Text>
+              <View style={styles.policyOptions}>
+                {(["open", "approval", "invite_only"] as JoinPolicy[]).map((policy) => (
                   <Pressable
                     key={policy}
                     accessibilityRole="button"
+                    accessibilityState={{ selected: joinPolicy === policy }}
                     onPress={() => setJoinPolicy(policy)}
-                    style={({ pressed }) => [
-                      styles.policyOption,
-                      joinPolicy === policy && styles.policyOptionActive,
-                      pressed && styles.pressed,
-                    ]}
-                  >
+                    style={({ pressed }) => [styles.policyOption, joinPolicy === policy && styles.policyOptionActive, pressed && styles.pressed]}>
                     <Text style={styles.policyOptionText}>
-                      {policy === "open"
-                        ? "Open"
-                        : policy === "approval"
-                          ? "Approval"
-                          : "Invite Only"}
+                      {policy === "open" ? "Open" : policy === "approval" ? "Approval" : "Invite Only"}
                     </Text>
                   </Pressable>
-                ),
-              )}
+                ))}
+              </View>
             </View>
           ) : null}
-          <View style={styles.modalActions}>
-            <Pressable
-              disabled={creating}
-              onPress={onClose}
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              disabled={creating}
-              onPress={() =>
-                onSubmit({
-                  name,
-                  description,
-                  city,
-                  isPublic,
-                  joinPolicy: isPublic ? joinPolicy : "invite_only",
-                })
-              }
-              style={({ pressed }) => [
-                styles.primaryButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              {creating ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <Text style={styles.primaryButtonText}>Create</Text>
-              )}
-            </Pressable>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>LOCATION</Text>
+            <TextInput
+              placeholder="City or region"
+              placeholderTextColor={colors.textSubtle}
+              selectionColor={colors.primary}
+              value={city}
+              onChangeText={setCity}
+              maxLength={80}
+              style={styles.input}
+            />
           </View>
+
+          <View style={styles.formField}>
+            <View style={styles.fieldLabelRow}>
+              <Text style={styles.fieldLabel}>DESCRIPTION</Text>
+              <Text style={styles.fieldCount}>{description.length}/500</Text>
+            </View>
+            <TextInput
+              placeholder="What is your crew about?"
+              placeholderTextColor={colors.textSubtle}
+              selectionColor={colors.primary}
+              value={description}
+              onChangeText={setDescription}
+              maxLength={500}
+              multiline
+              style={[styles.input, styles.textArea]}
+            />
+          </View>
+        </ScrollView>
+
+        <View style={styles.modalFooter}>
+          <Pressable
+            accessibilityRole="button"
+            disabled={!canSubmit}
+            onPress={() => onSubmit({ name, description, city, isPublic, joinPolicy: isPublic ? joinPolicy : "invite_only" })}
+            style={({ pressed }) => [styles.createCrewSubmit, !canSubmit && styles.createCrewSubmitDisabled, pressed && canSubmit && styles.pressed]}>
+            {creating ? <ActivityIndicator color={colors.text} /> : <Text style={styles.createCrewSubmitText}>CREATE CREW</Text>}
+          </Pressable>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 export default function CrewsScreen() {
   const [crews, setCrews] = useState<Crew[]>([]);
+  const [activeTab, setActiveTab] = useState<CrewTab>("discover");
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -709,7 +628,7 @@ export default function CrewsScreen() {
         pendingRequests.set(request.crew_id, request.id);
     }
 
-    const nextCrews = rows.map((crew, index) => {
+    const nextCrews = rows.map((crew) => {
       const crewMembers = members.get(crew.id) ?? [];
       const currentMembership = crewMembers.find(
         (member) => member.user_id === currentUserId,
@@ -728,7 +647,6 @@ export default function CrewsScreen() {
         isCurrentUserMember:
           Boolean(currentMembership) || crew.owner_id === currentUserId,
         pendingJoinRequestId: pendingRequests.get(crew.id) ?? null,
-        dots: crewDots[index % crewDots.length],
       };
     });
 
@@ -921,7 +839,9 @@ export default function CrewsScreen() {
     [busyInvitationId, loadCrews],
   );
 
-  const featuredCrew = crews[0] ?? null;
+  const myCrews = crews.filter((crew) => crew.isCurrentUserMember);
+  const discoverCrews = crews.filter((crew) => !crew.isCurrentUserMember);
+  const visibleCrews = activeTab === "mine" ? myCrews : discoverCrews;
 
   return (
     <NoxaScreen padded={false}>
@@ -936,24 +856,42 @@ export default function CrewsScreen() {
           />
         }
       >
-        <NoxaHeader
-          title="CREWS"
-          subtitle="Find your people"
-          right={<CreateIconButton onPress={openCreate} />}
-        />
-        <FeaturedCrewCard crew={featuredCrew} loading={loading} />
-        <CategoryTabs />
-        {invitations.length > 0 ? (
+        <View style={styles.topBar}>
+          <View style={styles.headingBlock}>
+            <Text style={styles.pageTitle}>CREWS</Text>
+            <Text style={styles.pageSubtitle}>Find your people</Text>
+          </View>
+          <CreateCrewButton onPress={openCreate} />
+        </View>
+
+        <View style={styles.tabBar}>
+          {(["discover", "mine"] as CrewTab[]).map((tab) => {
+            const selected = activeTab === tab;
+            return (
+              <Pressable
+                key={tab}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                onPress={() => setActiveTab(tab)}
+                style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}>
+                <Text style={[styles.tabText, selected && styles.tabTextActive]}>
+                  {tab === "discover" ? "Discover" : `My Crews · ${myCrews.length}`}
+                </Text>
+                {selected ? <View style={styles.tabIndicator} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {activeTab === "discover" && invitations.length > 0 ? (
           <View style={styles.invitationCard}>
             <View style={styles.listHeader}>
-              <Text style={styles.sectionTitle}>Crew Invitations</Text>
-              <Text style={styles.sectionMeta}>
-                {invitations.length} pending
-              </Text>
+              <Text style={styles.sectionTitle}>INVITATIONS</Text>
+              <Text style={styles.sectionMeta}>{invitations.length} PENDING</Text>
             </View>
             {invitations.map((invite) => (
               <View key={invite.id} style={styles.invitationRow}>
-                <View style={styles.crewTitleBlock}>
+                <View style={styles.invitationCopy}>
                   <Text style={styles.crewName}>{invite.crewName}</Text>
                   <Text style={styles.metaText}>
                     {[invite.crewCity, `Invited by ${invite.inviterName}`]
@@ -991,9 +929,10 @@ export default function CrewsScreen() {
             ))}
           </View>
         ) : null}
+
         <View style={styles.listHeader}>
-          <Text style={styles.sectionTitle}>Community core</Text>
-          <Text style={styles.sectionMeta}>{crews.length} crews</Text>
+          <Text style={styles.sectionTitle}>{activeTab === "mine" ? "YOUR CREWS" : "DISCOVER"}</Text>
+          <Text style={styles.sectionMeta}>{visibleCrews.length} CREWS</Text>
         </View>
         {loading ? (
           <View style={styles.stateCard}>
@@ -1006,21 +945,30 @@ export default function CrewsScreen() {
             <Text style={styles.stateText}>{error}</Text>
             <Pressable
               onPress={() => void loadCrews()}
-              style={styles.primaryButton}
+              style={styles.statePrimaryButton}
             >
               <Text style={styles.primaryButtonText}>Retry</Text>
             </Pressable>
           </View>
-        ) : crews.length === 0 ? (
+        ) : visibleCrews.length === 0 ? (
           <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>No crews yet</Text>
+            <View style={styles.stateIcon}>
+              <Ionicons name={activeTab === "mine" ? "car-sport-outline" : "people-outline"} size={30} color={colors.primary} />
+            </View>
+            <Text style={styles.stateTitle}>{activeTab === "mine" ? "No crews yet" : "Nothing new to discover"}</Text>
             <Text style={styles.stateText}>
-              Create the first real NOXA crew and start building your garage
-              circle.
+              {activeTab === "mine"
+                ? "Join or create your first NOXA crew."
+                : "You already belong to every available crew."}
             </Text>
+            {activeTab === "mine" ? (
+              <Pressable accessibilityRole="button" onPress={openCreate} style={({ pressed }) => [styles.statePrimaryButton, pressed && styles.pressed]}>
+                <Text style={styles.primaryButtonText}>Create Crew</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : (
-          crews.map((crew, index) => (
+          visibleCrews.map((crew, index) => (
             <CrewCard
               key={crew.id}
               crew={crew}
@@ -1034,21 +982,6 @@ export default function CrewsScreen() {
           ))
         )}
       </ScrollView>
-
-      <View style={styles.bottomAction} pointerEvents="box-none">
-        <Pressable
-          accessibilityLabel="Create Crew"
-          accessibilityRole="button"
-          onPress={openCreate}
-          style={({ pressed }) => [
-            styles.createButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons name="add" size={22} color={colors.text} />
-          <Text style={styles.createText}>Create Crew</Text>
-        </Pressable>
-      </View>
       <CreateCrewModal
         visible={modalVisible}
         creating={creating}
@@ -1063,8 +996,70 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
-    paddingBottom: 164,
+    paddingBottom: 144,
     gap: spacing.lg,
+  },
+  topBar: {
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  headingBlock: { flex: 1 },
+  pageTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.hero,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+    lineHeight: typography.lineHeight.hero,
+  },
+  pageSubtitle: {
+    marginTop: -spacing.xs,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: "700",
+  },
+  headerCreateButton: {
+    minHeight: 38,
+    marginTop: spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
+    backgroundColor: colors.primary,
+    ...shadows.redGlow,
+  },
+  headerCreateText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+  tabBar: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  tabButton: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "600" },
+  tabTextActive: { color: colors.text, fontWeight: "800" },
+  tabIndicator: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    bottom: -1,
+    height: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
   },
   iconButton: {
     width: 44,
@@ -1218,6 +1213,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  invitationCopy: { gap: spacing.xxs },
   invitationActions: { flexDirection: "row", gap: spacing.sm },
   smallPrimaryButton: {
     flex: 1,
@@ -1264,14 +1260,57 @@ const styles = StyleSheet.create({
   },
   crewCard: {
     overflow: "hidden",
-    padding: spacing.lg,
-    borderRadius: radius.card,
+    borderRadius: radius.hero,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: spacing.md,
     ...shadows.card,
   },
+  crewCover: {
+    height: 132,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceSoft,
+  },
+  crewCoverImage: {
+    borderTopLeftRadius: radius.hero,
+    borderTopRightRadius: radius.hero,
+  },
+  crewCoverPlaceholder: { backgroundColor: colors.surfaceSoft },
+  crewCoverShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(6,6,10,0.34)",
+  },
+  crewVisibilityBadge: { position: "absolute", top: spacing.sm, right: spacing.sm },
+  crewBody: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  crewIdentityRow: {
+    minHeight: 52,
+    marginTop: -28,
+    marginBottom: spacing.sm,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  crewLogoShell: {
+    width: 56,
+    height: 56,
+    overflow: "hidden",
+    borderRadius: radius.md,
+    borderWidth: 3,
+    borderColor: colors.surface,
+    backgroundColor: colors.surfaceRaised,
+  },
+  crewLogoImage: { width: "100%", height: "100%" },
+  crewLogoFallback: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceRaised },
+  crewLogoText: {
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: "900",
+  },
+  crewCopyPress: { gap: spacing.xs },
+  crewMetaLine: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.md },
   redAccent: {
     position: "absolute",
     left: 0,
@@ -1335,12 +1374,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   memberAction: {
-    minWidth: 76,
+    minWidth: 88,
     minHeight: 36,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
+    borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
   memberActionDisabled: {
@@ -1354,14 +1393,24 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   stateCard: {
-    gap: spacing.sm,
+    minHeight: 244,
+    gap: spacing.md,
     alignItems: "center",
+    justifyContent: "center",
     padding: spacing.xl,
     borderRadius: radius.card,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.card,
+  },
+  stateIcon: {
+    width: 60,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySubtle,
   },
   stateTitle: {
     color: colors.text,
@@ -1375,50 +1424,95 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
   },
-  bottomAction: {
-    position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: 106,
-    alignItems: "center",
-  },
-  createButton: {
-    minHeight: 56,
-    flexDirection: "row",
+  statePrimaryButton: {
+    minHeight: 42,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xxl,
-    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.button,
     backgroundColor: colors.primary,
-    ...shadows.redGlow,
   },
-  createText: {
+  modalScreen: { flex: 1, backgroundColor: colors.background },
+  modalHeader: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  modalBackButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+  },
+  modalHeaderTitle: {
     color: colors.text,
-    fontSize: typography.body,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
     fontWeight: "900",
-    letterSpacing: 0.2,
+    letterSpacing: 0.6,
   },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    padding: spacing.lg,
-    backgroundColor: "rgba(0,0,0,0.72)",
-  },
-  modalCard: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
+  modalHeaderSpacer: { width: 40, height: 40 },
+  modalContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 128, gap: spacing.lg },
+  crewPreview: {
+    height: 146,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+    marginBottom: spacing.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
+    borderStyle: "dashed",
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
   },
-  modalTitle: {
-    color: colors.text,
-    fontSize: typography.sectionTitle,
+  previewGlowLarge: {
+    position: "absolute",
+    right: -30,
+    top: -46,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: colors.primaryMuted,
+  },
+  previewGlowSmall: {
+    position: "absolute",
+    left: 30,
+    bottom: -36,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 18,
+    borderColor: colors.primarySubtle,
+  },
+  logoPreview: {
+    position: "absolute",
+    left: spacing.md,
+    bottom: -26,
+    width: 60,
+    height: 60,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 3,
+    borderColor: colors.background,
+    backgroundColor: colors.surfaceRaised,
+  },
+  logoPreviewText: {
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
     fontWeight: "900",
   },
+  formField: { gap: spacing.xs },
+  fieldLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  fieldLabel: { color: colors.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: typography.letterSpacing.label },
+  fieldCount: { color: colors.textSubtle, fontSize: 10, fontWeight: "700" },
+  fieldHint: { color: colors.textSubtle, fontSize: 10, fontWeight: "600" },
   input: {
     minHeight: 48,
     paddingHorizontal: spacing.md,
@@ -1428,47 +1522,51 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surfaceSoft,
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
   },
-  textArea: { minHeight: 92, textAlignVertical: "top" },
-  switchRow: {
+  textArea: { minHeight: 112, textAlignVertical: "top" },
+  privacyOptions: { flexDirection: "row", gap: spacing.sm },
+  privacyOption: {
+    flex: 1,
+    minHeight: 42,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
   },
-  switchLabel: {
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "800",
+  privacyOptionActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  privacyOptionText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "800" },
+  privacyOptionTextActive: { color: colors.text },
+  modalFooter: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.glass,
   },
-  modalActions: { flexDirection: "row", gap: spacing.sm },
-  primaryButton: {
-    flex: 1,
-    minHeight: 48,
+  createCrewSubmit: {
+    minHeight: 54,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.button,
     backgroundColor: colors.primary,
+    ...shadows.redGlow,
   },
+  createCrewSubmitDisabled: { opacity: 0.42 },
+  createCrewSubmitText: { color: colors.text, fontSize: 14, fontWeight: "900", letterSpacing: 0.8 },
   primaryButtonText: {
     color: colors.text,
     fontSize: typography.body,
     fontWeight: "900",
-  },
-  secondaryButton: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.button,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  secondaryButtonText: {
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "800",
   },
 });

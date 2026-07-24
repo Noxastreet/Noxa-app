@@ -1,21 +1,25 @@
-import { useEffect, type ComponentProps, type ReactNode } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
+import type { ComponentProps } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type NoxaAuthFieldProps = ComponentProps<typeof TextInput> & {
   error?: string;
   label: string;
-  rightAction?: ReactNode;
+  onTogglePassword?: () => void;
+  passwordVisible?: boolean;
 };
 
 export function NoxaAuthField({
   error,
   label,
-  rightAction,
-  style,
-  onFocus,
   onBlur,
+  onFocus,
+  onTogglePassword,
+  passwordVisible = false,
+  style,
   ...props
 }: NoxaAuthFieldProps) {
   useEffect(() => {
@@ -27,29 +31,37 @@ export function NoxaAuthField({
   }, [label]);
 
   return (
-    <View style={styles.fieldWrap}>
+    <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputShell, error && styles.inputError]}>
         <TextInput
-          placeholderTextColor={colors.textSubtle}
-          selectionColor={colors.primary}
-          style={[
-            styles.input,
-            rightAction ? styles.inputWithAction : null,
-            style,
-          ]}
           {...props}
-          onFocus={(event) => {
-            console.log(`[AuthField:${label}] focus`);
-            onFocus?.(event);
-          }}
+          accessibilityLabel={label}
           onBlur={(event) => {
             console.log(`[AuthField:${label}] blur`);
             onBlur?.(event);
           }}
+          onFocus={(event) => {
+            console.log(`[AuthField:${label}] focus`);
+            onFocus?.(event);
+          }}
+          placeholderTextColor={colors.textSubtle}
+          selectionColor={colors.primary}
+          style={[styles.input, onTogglePassword && styles.inputWithAction, style]}
         />
-        {rightAction ? (
-          <View style={styles.inputAction}>{rightAction}</View>
+        {onTogglePassword ? (
+          <Pressable
+            accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+            accessibilityRole="button"
+            hitSlop={10}
+            onPress={onTogglePassword}
+            style={({ pressed }) => [styles.passwordButton, pressed && styles.passwordButtonPressed]}>
+            <Ionicons
+              color={passwordVisible ? colors.primaryHover : colors.textMuted}
+              name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+            />
+          </Pressable>
         ) : null}
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -58,35 +70,54 @@ export function NoxaAuthField({
 }
 
 const styles = StyleSheet.create({
-  fieldWrap: { gap: spacing.xs },
+  field: {
+    gap: 6,
+  },
   label: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-    letterSpacing: typography.letterSpacing.caption,
+    color: colors.textSubtle,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.4,
+    lineHeight: 14,
+    textTransform: 'uppercase',
   },
   inputShell: {
-    minHeight: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.input,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  inputError: { borderColor: colors.borderAccent },
+  inputError: {
+    borderColor: colors.borderAccent,
+  },
   input: {
     flex: 1,
-    minHeight: 56,
-    paddingHorizontal: spacing.md,
+    minHeight: 48,
+    paddingHorizontal: 14,
     color: colors.text,
-    fontSize: typography.body,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  inputWithAction: { paddingRight: spacing.xs },
-  inputAction: { paddingRight: spacing.md },
+  inputWithAction: {
+    paddingRight: spacing.xs,
+  },
+  passwordButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passwordButtonPressed: {
+    opacity: 0.7,
+  },
   error: {
-    color: colors.primary,
+    color: colors.primaryHover,
     fontSize: typography.caption,
-    fontWeight: "700",
+    fontWeight: '600',
+    lineHeight: typography.lineHeight.caption,
   },
 });
