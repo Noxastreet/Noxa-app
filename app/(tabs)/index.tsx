@@ -427,6 +427,8 @@ export default function LiveMapScreen() {
   const mapRef = useRef<LiveMapHandle | null>(null);
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventMarkerRow[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventMarkerRow | null>(
     null,
@@ -437,6 +439,7 @@ export default function LiveMapScreen() {
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
   const isMountedRef = useRef(true);
+  const locationRequestInFlightRef = useRef(false);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
   const sharingUserIdRef = useRef<string | null>(null);
   const visibilityModeRef = useRef<LocationVisibilityMode>("ghost");
@@ -493,23 +496,60 @@ export default function LiveMapScreen() {
     [driverLocation, insets.bottom, insets.top],
   );
 
-  const loadDriverLocation = useCallback(async () => {
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== Location.PermissionStatus.GRANTED) {
-      setPermissionDenied(true);
-      return null;
-    }
-    setPermissionDenied(false);
-    const position = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    const point = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-    };
-    setDriverLocation(point);
-    return point;
-  }, []);
+  const loadDriverLocation = useCallback(
+    async ({
+      requestPermission,
+      showLoading = false,
+    }: {
+      requestPermission: boolean;
+      showLoading?: boolean;
+    }) => {
+      if (isMountedRef.current) setLocationError(null);
+      if (showLoading) {
+        locationRequestInFlightRef.current = true;
+        if (isMountedRef.current) {
+          setLocationLoading(true);
+        }
+      }
+
+      try {
+        const permission = requestPermission
+          ? await Location.requestForegroundPermissionsAsync()
+          : await Location.getForegroundPermissionsAsync();
+        if (permission.status !== Location.PermissionStatus.GRANTED) {
+          if (isMountedRef.current) {
+            setPermissionDenied(
+              permission.status === Location.PermissionStatus.DENIED,
+            );
+          }
+          return null;
+        }
+        if (isMountedRef.current) setPermissionDenied(false);
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const point = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        if (isMountedRef.current) setDriverLocation(point);
+        return point;
+      } catch {
+        if (isMountedRef.current) {
+          setLocationError(
+            "Could not get your location. Check GPS and try again.",
+          );
+        }
+        return null;
+      } finally {
+        if (showLoading) {
+          locationRequestInFlightRef.current = false;
+          if (isMountedRef.current) setLocationLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   const deletePresence = useCallback(async (userId?: string | null) => {
     const id = userId ?? sharingUserIdRef.current;
@@ -861,7 +901,7 @@ export default function LiveMapScreen() {
       let isActive = true;
       void (async () => {
         const [point, rows] = await Promise.all([
-          loadDriverLocation().catch(() => null),
+          loadDriverLocation({ requestPermission: false }),
           loadEvents(),
         ]);
         if (!isActive) return;
@@ -1001,10 +1041,13 @@ export default function LiveMapScreen() {
   }, []);
 
   const recenterMap = useCallback(async () => {
-    const point =
-      driverLocation ?? (await loadDriverLocation().catch(() => null));
-    animateTo(point ? pointRegion(point) : pointRegion(THESSALONIKI));
-  }, [animateTo, driverLocation, loadDriverLocation]);
+    if (locationRequestInFlightRef.current) return;
+    const point = await loadDriverLocation({
+      requestPermission: true,
+      showLoading: true,
+    });
+    if (point) animateTo(pointRegion(point));
+  }, [animateTo, loadDriverLocation]);
 
   const mapboxDrivers = useMemo<MapboxDriver[]>(
     () =>
@@ -1240,6 +1283,28 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
+        {locationError ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.locationErrorNotice,
+              {
+                top:
+                  noticesTop +
+                  (sharingError ? 46 : 0) +
+                  (permissionDenied ? 46 : 0),
+              },
+            ]}
+          >
+            <Ionicons
+              name="warning-outline"
+              size={14}
+              color={colors.primaryHover}
+            />
+            <Text style={styles.locationNoticeText}>{locationError}</Text>
+          </View>
+        ) : null}
+
         {!selectedEvent ? (
           <View
             pointerEvents="none"
@@ -1270,11 +1335,20 @@ export default function LiveMapScreen() {
 
         <TouchableOpacity
           accessibilityLabel="Recenter map"
+          accessibilityState={{
+            busy: locationLoading,
+            disabled: locationLoading,
+          }}
           activeOpacity={0.78}
+          disabled={locationLoading}
           onPress={recenterMap}
           style={[styles.recenterButton, { bottom: controlBottom }]}
         >
-          <Ionicons name="locate" size={22} color={colors.text} />
+          {locationLoading ? (
+            <ActivityIndicator color={colors.text} size="small" />
+          ) : (
+            <Ionicons name="locate" size={22} color={colors.text} />
+          )}
         </TouchableOpacity>
 
         {selectedEvent && isRouteMode ? (
@@ -1582,6 +1656,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: "rgba(12,12,16,0.9)",
+  },
+  locationErrorNotice: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primaryMuted,
+    backgroundColor: "rgba(12,12,16,0.94)",
   },
   locationNoticeText: {
     color: colors.textMuted,
