@@ -31,6 +31,7 @@ import {
   updateLiveDriveVisibility,
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
+import type { EventCategory } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
@@ -57,6 +58,7 @@ type ActiveDriver = {
 type EventMarkerRow = {
   id: string;
   title: string;
+  category: EventCategory;
   starts_at: string;
   location_name: string | null;
   latitude: number;
@@ -299,11 +301,14 @@ function EventCard({
   event,
   bottomOffset,
   onClose,
+  onRoute,
 }: {
   event: EventMarkerRow;
   bottomOffset: number;
   onClose: () => void;
+  onRoute: () => void;
 }) {
+  const canRoute = hasValidCoordinates(event);
   return (
     <View style={[styles.eventCard, { bottom: bottomOffset }]}>
       <View style={styles.eventCardHeader}>
@@ -319,8 +324,19 @@ function EventCard({
             {event.location_name ?? "Exact location selected"}
           </Text>
         </View>
-        <View style={styles.eventCardIcon}>
-          <Ionicons name="calendar-outline" size={18} color={colors.text} />
+        <View style={styles.eventCardHeaderActions}>
+          <View style={styles.eventCardIcon}>
+            <Ionicons name="calendar-outline" size={18} color={colors.text} />
+          </View>
+          <TouchableOpacity
+            accessibilityLabel="Close event preview"
+            activeOpacity={0.78}
+            hitSlop={2}
+            onPress={onClose}
+            style={styles.eventCardCloseControl}
+          >
+            <Ionicons name="close" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
         </View>
       </View>
       <View style={styles.eventActions}>
@@ -337,12 +353,26 @@ function EventCard({
           <Text style={styles.eventButtonText}>View Event</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          accessibilityLabel="Close event preview"
+          accessibilityLabel="Route to event"
+          accessibilityState={{ disabled: !canRoute }}
           activeOpacity={0.78}
-          onPress={onClose}
-          style={styles.eventCloseButton}
+          disabled={!canRoute}
+          onPress={onRoute}
+          style={[styles.eventRouteButton, !canRoute && styles.eventButtonDisabled]}
         >
-          <Text style={styles.eventCloseButtonText}>Close</Text>
+          <Ionicons
+            name="navigate"
+            size={15}
+            color={canRoute ? colors.text : colors.textSubtle}
+          />
+          <Text
+            style={[
+              styles.eventRouteButtonText,
+              !canRoute && styles.eventRouteButtonTextDisabled,
+            ]}
+          >
+            Route
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -764,7 +794,7 @@ export default function LiveMapScreen() {
   const loadEvents = useCallback(async () => {
     const { data } = await supabase
       .from("events")
-      .select("id,title,starts_at,location_name,latitude,longitude")
+      .select("id,title,category,starts_at,location_name,latitude,longitude")
       .eq("status", "scheduled")
       .gte("starts_at", new Date().toISOString())
       .not("latitude", "is", null)
@@ -1027,6 +1057,12 @@ export default function LiveMapScreen() {
     void requestRoute();
   }, [requestRoute]);
 
+  const routeToEvent = useCallback((event: EventMarkerRow) => {
+    if (!hasValidCoordinates(event)) return;
+    setSelectedEvent(event);
+    router.setParams({ focusEventId: event.id, mapMode: "route" });
+  }, []);
+
   const selectEvent = useCallback(
     (event: EventMarkerRow) => {
       setSelectedEvent(event);
@@ -1065,6 +1101,7 @@ export default function LiveMapScreen() {
       events.map((event) => ({
         id: event.id,
         title: event.title,
+        category: event.category,
         latitude: event.latitude,
         longitude: event.longitude,
       })),
@@ -1366,6 +1403,7 @@ export default function LiveMapScreen() {
             event={selectedEvent}
             bottomOffset={eventCardBottom}
             onClose={() => setSelectedEvent(null)}
+            onRoute={() => routeToEvent(selectedEvent)}
           />
         ) : null}
       </View>
@@ -1848,6 +1886,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primary,
   },
+  eventCardHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  eventCardCloseControl: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+  },
   cardKicker: {
     color: colors.primaryHover,
     fontSize: 10,
@@ -1896,20 +1949,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-  eventCloseButton: {
+  eventRouteButton: {
     flex: 1,
     height: 40,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: spacing.xs,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
   },
-  eventCloseButtonText: {
-    color: colors.textMuted,
+  eventRouteButtonText: {
+    color: colors.text,
     fontSize: 13,
     fontWeight: "600",
+  },
+  eventButtonDisabled: {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+    opacity: 0.55,
+  },
+  eventRouteButtonTextDisabled: {
+    color: colors.textSubtle,
   },
   routeCard: {
     position: "absolute",

@@ -1,3 +1,5 @@
+import type { EventCategory } from "@/src/lib/eventExperience";
+
 export type LatLng = { latitude: number; longitude: number };
 
 export type MapRegion = LatLng & {
@@ -16,6 +18,7 @@ export type MapboxDriver = {
 export type MapboxEvent = {
   id: string;
   title: string;
+  category: EventCategory;
   latitude: number;
   longitude: number;
 };

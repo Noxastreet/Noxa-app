@@ -52,6 +52,23 @@ const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
 const ROUTE_ZOOM = 14.5;
 const DRIVER_CLUSTER_LIMIT = 80;
 
+function eventIconName(
+  category: string | null | undefined,
+): keyof typeof Ionicons.glyphMap {
+  switch (category) {
+    case "social":
+      return "people";
+    case "meet":
+      return "car-sport";
+    case "drive":
+      return "navigate";
+    case "track":
+      return "speedometer";
+    default:
+      return "flag";
+  }
+}
+
 if (MAPBOX_ACCESS_TOKEN) {
   Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
 }
@@ -377,14 +394,23 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   key={event.id}
                 >
                   <TouchableOpacity
+                    accessibilityLabel={`${event.title} event`}
                     activeOpacity={0.82}
                     onPress={() => onEventPress(event)}
-                    style={[
-                      styles.markerDot,
-                      selectedEvent?.id === event.id && styles.markerDotSelected,
-                    ]}
+                    style={styles.eventMarkerPressTarget}
                   >
-                    <Ionicons name="flag" size={13} color={colors.text} />
+                    <View
+                      style={[
+                        styles.markerDot,
+                        selectedEvent?.id === event.id && styles.markerDotSelected,
+                      ]}
+                    >
+                      <Ionicons
+                        name={eventIconName(event.category)}
+                        size={15}
+                        color={colors.text}
+                      />
+                    </View>
                   </TouchableOpacity>
                 </MarkerView>
               ))
@@ -524,15 +550,21 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: radius.pill,
   },
-  markerDot: {
-    width: 30,
-    height: 30,
+  eventMarkerPressTarget: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.sm,
+  },
+  markerDot: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: colors.primary,
+    backgroundColor: "rgba(17,17,22,0.96)",
     shadowColor: colors.black,
     shadowOpacity: 0.4,
     shadowRadius: 7,
@@ -540,8 +572,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   markerDotSelected: {
-    borderColor: colors.white,
-    backgroundColor: colors.primaryHover,
+    borderColor: "rgba(255,255,255,0.82)",
+    backgroundColor: colors.primary,
+    shadowColor: colors.primaryHover,
+    shadowOpacity: 0.5,
+    shadowRadius: 9,
     transform: [{ scale: 1.1 }],
   },
 });
