@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -325,6 +325,12 @@ export default function SettingsScreen() {
                   icon="map-outline"
                   label="Open Map"
                   onPress={() => router.push('/(tabs)')}
+                />
+                <SettingsRow
+                  caption="Review the NOXA introduction"
+                  icon="play-circle-outline"
+                  label="Replay onboarding"
+                  onPress={() => router.push('/onboarding?replay=1' as Href)}
                 />
                 <SettingsRow
                   caption={SUPPORT_EMAIL}

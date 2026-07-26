@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Redirect, Tabs, type Href } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { hasCompletedOnboarding } from '@/src/lib/onboarding';
+import { supabase } from '@/src/lib/supabase';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
@@ -23,6 +26,43 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const [destination, setDestination] = useState<'ready' | '/welcome' | '/onboarding' | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkAccess() {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!isMounted) return;
+
+      const user = data.session?.user;
+      if (error || !user) {
+        setDestination('/welcome');
+        return;
+      }
+
+      setDestination(hasCompletedOnboarding(user.id) ? 'ready' : '/onboarding');
+    }
+
+    void checkAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (!destination) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (destination !== 'ready') {
+    return <Redirect href={destination as Href} />;
+  }
 
   return (
     <Tabs
@@ -86,6 +126,12 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
   tabBar: {
     position: 'absolute',
     left: 0,
