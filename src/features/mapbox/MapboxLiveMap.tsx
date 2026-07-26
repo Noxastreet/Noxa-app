@@ -7,7 +7,6 @@ import Mapbox, {
   MarkerView,
   ShapeSource,
   SymbolLayer,
-  UserTrackingMode,
 } from "@rnmapbox/maps";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -15,7 +14,6 @@ import {
   type ElementRef,
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -49,7 +47,6 @@ import type {
 } from "./types";
 
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
-const ROUTE_ZOOM = 14.5;
 const DRIVER_CLUSTER_LIMIT = 80;
 
 function eventIconName(
@@ -92,8 +89,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     const cameraRef = useRef<ElementRef<typeof Camera> | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [hasError, setHasError] = useState(false);
-    const [isFollowingUser, setIsFollowingUser] = useState(false);
-    const hadDriverLocationRef = useRef(false);
 
     const driverFeatures = useMemo(
       () => createDriverFeatureCollection(activeDrivers),
@@ -119,7 +114,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 
     const animateToRegion = useCallback(
       (region: MapRegion, duration = 550) => {
-        setIsFollowingUser(false);
         cameraRef.current?.setCamera({
           centerCoordinate: toPosition(region),
           zoomLevel: DEFAULT_ZOOM,
@@ -143,7 +137,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             point.longitude <= 180,
         );
         if (validPoints.length < 2) return;
-        setIsFollowingUser(false);
         const longitudes = validPoints.map((point) => point.longitude);
         const latitudes = validPoints.map((point) => point.latitude);
         cameraRef.current?.setCamera({
@@ -165,46 +158,13 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [isRouteMode],
     );
 
-    const followUser = useCallback(() => {
-      if (!driverLocation) return false;
-      setIsFollowingUser(true);
-      return true;
-    }, [driverLocation]);
-
     useImperativeHandle(
       ref,
       () => ({
         animateToRegion,
         fitToCoordinates,
-        followUser,
       }),
-      [animateToRegion, fitToCoordinates, followUser],
-    );
-
-    useEffect(() => {
-      const hasDriverLocation = Boolean(driverLocation);
-      if (hasDriverLocation && !hadDriverLocationRef.current && !isRouteMode) {
-        setIsFollowingUser(true);
-      }
-      if (!hasDriverLocation || !isRouteMode) {
-        if (!hasDriverLocation) setIsFollowingUser(false);
-      }
-      hadDriverLocationRef.current = hasDriverLocation;
-    }, [driverLocation, isRouteMode]);
-
-    useEffect(() => {
-      setIsFollowingUser(false);
-    }, [isRouteMode]);
-
-    const recenterToUser = useCallback(() => {
-      followUser();
-    }, [followUser]);
-
-    const pauseFollowForGesture = useCallback(
-      (state: { gestures: { isGestureActive: boolean } }) => {
-        if (state.gestures.isGestureActive) setIsFollowingUser(false);
-      },
-      [],
+      [animateToRegion, fitToCoordinates],
     );
 
     const onDriverSourcePress = useCallback(
@@ -255,7 +215,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             setHasError(true);
             setIsLoaded(false);
           }}
-          onCameraChanged={pauseFollowForGesture}
           pitchEnabled
           projection="mercator"
           rotateEnabled
@@ -272,29 +231,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               zoomLevel: DEFAULT_ZOOM,
               pitch: 28,
             }}
-            followPadding={
-              isFollowingUser
-                ? {
-                    paddingTop: 110,
-                    paddingRight: spacing.xl,
-                    paddingBottom: isRouteMode ? 260 : 190,
-                    paddingLeft: spacing.xl,
-                  }
-                : {
-                    paddingTop: 0,
-                    paddingRight: 0,
-                    paddingBottom: 0,
-                    paddingLeft: 0,
-                  }
-            }
-            followPitch={isRouteMode ? 54 : 36}
-            followUserLocation={isFollowingUser && Boolean(driverLocation)}
-            followUserMode={
-              isRouteMode
-                ? UserTrackingMode.FollowWithCourse
-                : UserTrackingMode.Follow
-            }
-            followZoomLevel={isRouteMode ? ROUTE_ZOOM : DEFAULT_ZOOM}
           />
 
           <LocationPuck
@@ -490,17 +426,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           </View>
         ) : null}
 
-        {driverLocation && !isFollowingUser ? (
-          <TouchableOpacity
-            accessibilityLabel="Follow current location"
-            activeOpacity={0.8}
-            onPress={recenterToUser}
-            style={styles.followChip}
-          >
-            <Ionicons name="navigate" size={14} color={colors.primaryHover} />
-            <Text style={styles.followText}>Follow</Text>
-          </TouchableOpacity>
-        ) : null}
       </View>
     );
   },
@@ -555,25 +480,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     backgroundColor: "rgba(12,12,16,0.94)",
-  },
-  followChip: {
-    position: "absolute",
-    right: spacing.md,
-    bottom: 118,
-    height: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 11,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: "rgba(12,12,16,0.88)",
-  },
-  followText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "700",
   },
   driverMarker: {
     width: 36,

@@ -387,10 +387,7 @@ function RouteCard({
   message,
   bottomOffset,
   onClose,
-  onFollow,
   onRetry,
-  canFollow,
-  followMessage,
 }: {
   event: EventMarkerRow;
   route: RouteResult | null;
@@ -398,10 +395,7 @@ function RouteCard({
   message: string | null;
   bottomOffset: number;
   onClose: () => void;
-  onFollow: () => void;
   onRetry: () => void;
-  canFollow: boolean;
-  followMessage: string | null;
 }) {
   const loading = status === "loading";
   return (
@@ -451,39 +445,6 @@ function RouteCard({
           <Text style={styles.routeRetryText}>Retry route</Text>
         </TouchableOpacity>
       ) : null}
-      {status === "ready" ? (
-        <>
-          <TouchableOpacity
-            accessibilityLabel="Follow route from current location"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canFollow }}
-            activeOpacity={0.82}
-            disabled={!canFollow}
-            onPress={onFollow}
-            style={[
-              styles.routeFollowButton,
-              !canFollow && styles.eventButtonDisabled,
-            ]}
-          >
-            <Ionicons
-              name="navigate"
-              size={16}
-              color={canFollow ? colors.text : colors.textSubtle}
-            />
-            <Text
-              style={[
-                styles.routeFollowText,
-                !canFollow && styles.eventRouteButtonTextDisabled,
-              ]}
-            >
-              Follow
-            </Text>
-          </TouchableOpacity>
-          {followMessage ? (
-            <Text style={styles.routeFollowMessage}>{followMessage}</Text>
-          ) : null}
-        </>
-      ) : null}
     </View>
   );
 }
@@ -509,6 +470,7 @@ export default function LiveMapScreen() {
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
+  const driverLocationRef = useRef<LatLng | null>(null);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
@@ -540,6 +502,7 @@ export default function LiveMapScreen() {
       ? normalizedFocusEventId
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
+  driverLocationRef.current = driverLocation;
 
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
@@ -549,10 +512,8 @@ export default function LiveMapScreen() {
   );
 
   const fitRouteToMap = useCallback(
-    (coordinates: LatLng[], destination: LatLng) => {
-      const points = driverLocation
-        ? [driverLocation, ...coordinates, destination]
-        : [...coordinates, destination];
+    (coordinates: LatLng[], destination: LatLng, origin: LatLng) => {
+      const points = [origin, ...coordinates, destination];
       if (points.length < 2) return;
       mapRef.current?.fitToCoordinates(points, {
         animated: true,
@@ -564,7 +525,7 @@ export default function LiveMapScreen() {
         },
       });
     },
-    [driverLocation, insets.bottom, insets.top],
+    [insets.bottom, insets.top],
   );
 
   const loadDriverLocation = useCallback(
@@ -1014,18 +975,17 @@ export default function LiveMapScreen() {
     routeRequestKeyRef.current = null;
   }, [focusEventId, isRouteMode]);
 
-  const requestRoute = useCallback(async () => {
+  const requestRoute = useCallback(async (retry = false) => {
     if (!isRouteMode || !focusEventId || !selectedEvent) return;
+    if (selectedEvent.id !== focusEventId) return;
     if (!hasValidCoordinates(selectedEvent)) {
       setRoute(null);
       setRouteStatus("error");
       setRouteMessage("This event does not have a valid route location.");
       return;
     }
-    if (
-      !driverLocation ||
-      !hasValidLatLng(driverLocation.latitude, driverLocation.longitude)
-    ) {
+    const origin = driverLocationRef.current;
+    if (!origin || !hasValidLatLng(origin.latitude, origin.longitude)) {
       setRoute(null);
       setRouteStatus("error");
       setRouteMessage(
@@ -1036,11 +996,9 @@ export default function LiveMapScreen() {
       return;
     }
 
-    const requestKey =
-      `${focusEventId}:` +
-      `${driverLocation.latitude.toFixed(5)},${driverLocation.longitude.toFixed(5)}:` +
+    const requestKey = `${focusEventId}:` +
       `${selectedEvent.latitude.toFixed(5)},${selectedEvent.longitude.toFixed(5)}`;
-    if (routeRequestKeyRef.current === requestKey) return;
+    if (!retry && routeRequestKeyRef.current === requestKey) return;
 
     const requestId = routeRequestIdRef.current + 1;
     routeRequestIdRef.current = requestId;
@@ -1054,14 +1012,18 @@ export default function LiveMapScreen() {
 
     let nextRoute: RouteResult | null = null;
     let nextMessage = "Route could not be built right now.";
-    const timeout = setTimeout(() => controller.abort(), ROUTE_REQUEST_TIMEOUT_MS);
+    let didTimeout = false;
+    const timeout = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, ROUTE_REQUEST_TIMEOUT_MS);
 
     try {
       const { data, error } = await supabase.functions.invoke<RouteResult>(
         "event-route",
         {
           body: {
-            origin: driverLocation,
+            origin,
             destination: {
               latitude: selectedEvent.latitude,
               longitude: selectedEvent.longitude,
@@ -1071,7 +1033,21 @@ export default function LiveMapScreen() {
         },
       );
 
-      if (error) {
+      if (
+        routeRequestIdRef.current !== requestId ||
+        routeAbortControllerRef.current !== controller ||
+        !isMountedRef.current
+      ) {
+        return;
+      }
+      if (controller.signal.aborted) {
+        if (!didTimeout) return;
+        console.warn("[event-route] request timed out", {
+          code: "TIMEOUT",
+          message: "Route request timed out.",
+        });
+        nextMessage = "Route request timed out. Please retry.";
+      } else if (error) {
         const status =
           error.context instanceof Response ? error.context.status : undefined;
         console.warn("[event-route] request failed", {
@@ -1104,14 +1080,21 @@ export default function LiveMapScreen() {
         nextMessage = "The route response was invalid. Please retry.";
       }
     } catch {
-      const timedOut = controller.signal.aborted;
+      if (
+        routeRequestIdRef.current !== requestId ||
+        routeAbortControllerRef.current !== controller ||
+        !isMountedRef.current ||
+        (controller.signal.aborted && !didTimeout)
+      ) {
+        return;
+      }
       console.warn("[event-route] request exception", {
-        code: timedOut ? "TIMEOUT" : "REQUEST_EXCEPTION",
-        message: timedOut
+        code: didTimeout ? "TIMEOUT" : "REQUEST_EXCEPTION",
+        message: didTimeout
           ? "Route request timed out."
           : "Route request could not be completed.",
       });
-      nextMessage = timedOut
+      nextMessage = didTimeout
         ? "Route request timed out. Please retry."
         : "Route request failed. Check your connection and retry.";
     } finally {
@@ -1132,11 +1115,10 @@ export default function LiveMapScreen() {
         fitRouteToMap(nextRoute.coordinates, {
           latitude: selectedEvent.latitude,
           longitude: selectedEvent.longitude,
-        });
+        }, origin);
       }
     }
   }, [
-    driverLocation,
     fitRouteToMap,
     focusEventId,
     isRouteMode,
@@ -1146,7 +1128,7 @@ export default function LiveMapScreen() {
 
   useEffect(() => {
     void requestRoute();
-  }, [requestRoute]);
+  }, [driverLocation, requestRoute]);
 
   useEffect(() => {
     return () => {
@@ -1171,8 +1153,7 @@ export default function LiveMapScreen() {
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
-    routeRequestKeyRef.current = null;
-    void requestRoute();
+    void requestRoute(true);
   }, [requestRoute]);
 
   const routeToEvent = useCallback((event: EventMarkerRow) => {
@@ -1195,47 +1176,15 @@ export default function LiveMapScreen() {
   }, []);
 
   const recenterMap = useCallback(async () => {
-    if (isRouteMode && routeStatus === "ready" && route) {
-      if (mapRef.current?.followUser()) return;
-    }
     if (locationRequestInFlightRef.current) return;
     const point = await loadDriverLocation({
       requestPermission: true,
       showLoading: true,
     });
     if (point) {
-      if (isRouteMode && routeStatus === "ready" && route) {
-        mapRef.current?.followUser();
-      } else {
-        animateTo(pointRegion(point));
-      }
+      animateTo(pointRegion(point));
     }
-  }, [animateTo, isRouteMode, loadDriverLocation, route, routeStatus]);
-
-  const hasCurrentRouteLocation = Boolean(
-    driverLocation &&
-      hasValidLatLng(driverLocation.latitude, driverLocation.longitude),
-  );
-  const canFollowRoute =
-    routeStatus === "ready" &&
-    Boolean(route?.coordinates.length && route.coordinates.length >= 2) &&
-    hasCurrentRouteLocation;
-  const followRouteMessage =
-    routeStatus === "ready" && !hasCurrentRouteLocation
-      ? permissionDenied
-        ? "Enable location permission to follow this route."
-        : "Current location is unavailable. Check GPS to follow."
-      : null;
-
-  const followRoute = useCallback(() => {
-    if (!mapRef.current?.followUser()) {
-      setRouteMessage(
-        permissionDenied
-          ? "Enable location permission to follow this route."
-          : "Current location is unavailable. Check GPS to follow.",
-      );
-    }
-  }, [permissionDenied]);
+  }, [animateTo, loadDriverLocation]);
 
   const mapboxDrivers = useMemo<MapboxDriver[]>(
     () =>
@@ -1548,10 +1497,7 @@ export default function LiveMapScreen() {
             message={routeMessage}
             bottomOffset={routeCardBottom}
             onClose={closeRouteMode}
-            onFollow={followRoute}
             onRetry={retryRoute}
-            canFollow={canFollowRoute}
-            followMessage={followRouteMessage}
           />
         ) : selectedEvent ? (
           <EventCard
@@ -2206,29 +2152,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.caption,
     fontWeight: "600",
-  },
-  routeFollowButton: {
-    marginTop: spacing.md,
-    height: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  routeFollowText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  routeFollowMessage: {
-    marginTop: spacing.xs,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "500",
-    lineHeight: 15,
   },
 });
