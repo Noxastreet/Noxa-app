@@ -94,6 +94,7 @@ const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
 const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
 const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
 const DRIVER_LIST_REFRESH_MS = 30 * 1000;
+const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let driverLocationsMapChannelSequence = 0;
@@ -386,7 +387,10 @@ function RouteCard({
   message,
   bottomOffset,
   onClose,
+  onFollow,
   onRetry,
+  canFollow,
+  followMessage,
 }: {
   event: EventMarkerRow;
   route: RouteResult | null;
@@ -394,7 +398,10 @@ function RouteCard({
   message: string | null;
   bottomOffset: number;
   onClose: () => void;
+  onFollow: () => void;
   onRetry: () => void;
+  canFollow: boolean;
+  followMessage: string | null;
 }) {
   const loading = status === "loading";
   return (
@@ -444,6 +451,39 @@ function RouteCard({
           <Text style={styles.routeRetryText}>Retry route</Text>
         </TouchableOpacity>
       ) : null}
+      {status === "ready" ? (
+        <>
+          <TouchableOpacity
+            accessibilityLabel="Follow route from current location"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canFollow }}
+            activeOpacity={0.82}
+            disabled={!canFollow}
+            onPress={onFollow}
+            style={[
+              styles.routeFollowButton,
+              !canFollow && styles.eventButtonDisabled,
+            ]}
+          >
+            <Ionicons
+              name="navigate"
+              size={16}
+              color={canFollow ? colors.text : colors.textSubtle}
+            />
+            <Text
+              style={[
+                styles.routeFollowText,
+                !canFollow && styles.eventRouteButtonTextDisabled,
+              ]}
+            >
+              Follow
+            </Text>
+          </TouchableOpacity>
+          {followMessage ? (
+            <Text style={styles.routeFollowMessage}>{followMessage}</Text>
+          ) : null}
+        </>
+      ) : null}
     </View>
   );
 }
@@ -468,6 +508,7 @@ export default function LiveMapScreen() {
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
+  const routeAbortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
@@ -963,6 +1004,10 @@ export default function LiveMapScreen() {
   }, [animateTo, events, focusEventId, isRouteMode]);
 
   useEffect(() => {
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
+    routeRequestIdRef.current += 1;
+    routeRequestKeyRef.current = null;
     setRoute(null);
     setRouteMessage(null);
     setRouteStatus("idle");
@@ -970,66 +1015,132 @@ export default function LiveMapScreen() {
   }, [focusEventId, isRouteMode]);
 
   const requestRoute = useCallback(async () => {
-    if (!isRouteMode || !focusEventId || !hasValidCoordinates(selectedEvent))
+    if (!isRouteMode || !focusEventId || !selectedEvent) return;
+    if (!hasValidCoordinates(selectedEvent)) {
+      setRoute(null);
+      setRouteStatus("error");
+      setRouteMessage("This event does not have a valid route location.");
       return;
-    if (!driverLocation) {
+    }
+    if (
+      !driverLocation ||
+      !hasValidLatLng(driverLocation.latitude, driverLocation.longitude)
+    ) {
       setRoute(null);
       setRouteStatus("error");
       setRouteMessage(
         permissionDenied
-          ? "Location permission is off. Enable location to route on NOXA."
-          : "Current location is needed to build this route.",
+          ? "Location permission is off. Enable location, then retry."
+          : "Current location is unavailable. Check GPS, then retry.",
       );
       return;
     }
 
-    const requestKey = `${focusEventId}:${driverLocation.latitude.toFixed(5)},${driverLocation.longitude.toFixed(5)}:${selectedEvent.latitude.toFixed(5)},${selectedEvent.longitude.toFixed(5)}`;
-    if (routeStatus === "loading" || routeRequestKeyRef.current === requestKey)
-      return;
+    const requestKey =
+      `${focusEventId}:` +
+      `${driverLocation.latitude.toFixed(5)},${driverLocation.longitude.toFixed(5)}:` +
+      `${selectedEvent.latitude.toFixed(5)},${selectedEvent.longitude.toFixed(5)}`;
+    if (routeRequestKeyRef.current === requestKey) return;
 
     const requestId = routeRequestIdRef.current + 1;
     routeRequestIdRef.current = requestId;
     routeRequestKeyRef.current = requestKey;
+    routeAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    routeAbortControllerRef.current = controller;
     setRoute(null);
     setRouteStatus("loading");
     setRouteMessage(null);
 
-    const { data, error } = await supabase.functions.invoke<RouteResult>(
-      "event-route",
-      {
-        body: {
-          origin: driverLocation,
-          destination: {
-            latitude: selectedEvent.latitude,
-            longitude: selectedEvent.longitude,
+    let nextRoute: RouteResult | null = null;
+    let nextMessage = "Route could not be built right now.";
+    const timeout = setTimeout(() => controller.abort(), ROUTE_REQUEST_TIMEOUT_MS);
+
+    try {
+      const { data, error } = await supabase.functions.invoke<RouteResult>(
+        "event-route",
+        {
+          body: {
+            origin: driverLocation,
+            destination: {
+              latitude: selectedEvent.latitude,
+              longitude: selectedEvent.longitude,
+            },
           },
+          signal: controller.signal,
         },
-      },
-    );
+      );
 
-    if (routeRequestIdRef.current !== requestId) return;
-
-    if (error || !data || data.coordinates.length < 2) {
-      routeRequestKeyRef.current = null;
-      setRoute(null);
-      setRouteStatus("error");
-      setRouteMessage(error?.message ?? "Route could not be built right now.");
-      return;
+      if (error) {
+        const status =
+          error.context instanceof Response ? error.context.status : undefined;
+        console.warn("[event-route] request failed", {
+          status,
+          code: error.name,
+          message: "Edge Function did not return a route.",
+        });
+        nextMessage =
+          status === 401
+            ? "Your session expired. Sign in again, then retry."
+            : status === 429
+              ? "Route service is busy. Wait a moment, then retry."
+              : "Route is unavailable right now. Please retry.";
+      } else if (
+        data &&
+        Array.isArray(data.coordinates) &&
+        data.coordinates.length >= 2 &&
+        data.coordinates.every((point) =>
+          hasValidLatLng(point.latitude, point.longitude),
+        ) &&
+        Number.isFinite(data.distanceMeters) &&
+        Number.isFinite(data.durationSeconds)
+      ) {
+        nextRoute = data;
+      } else {
+        console.warn("[event-route] invalid response", {
+          code: "MALFORMED_ROUTE",
+          message: "Edge Function returned an invalid route.",
+        });
+        nextMessage = "The route response was invalid. Please retry.";
+      }
+    } catch {
+      const timedOut = controller.signal.aborted;
+      console.warn("[event-route] request exception", {
+        code: timedOut ? "TIMEOUT" : "REQUEST_EXCEPTION",
+        message: timedOut
+          ? "Route request timed out."
+          : "Route request could not be completed.",
+      });
+      nextMessage = timedOut
+        ? "Route request timed out. Please retry."
+        : "Route request failed. Check your connection and retry.";
+    } finally {
+      clearTimeout(timeout);
+      if (routeAbortControllerRef.current === controller) {
+        routeAbortControllerRef.current = null;
+      }
+      if (
+        routeRequestIdRef.current !== requestId ||
+        !isMountedRef.current
+      ) {
+        return;
+      }
+      setRoute(nextRoute);
+      setRouteStatus(nextRoute ? "ready" : "error");
+      setRouteMessage(nextRoute ? null : nextMessage);
+      if (nextRoute) {
+        fitRouteToMap(nextRoute.coordinates, {
+          latitude: selectedEvent.latitude,
+          longitude: selectedEvent.longitude,
+        });
+      }
     }
-
-    setRoute(data);
-    setRouteStatus("ready");
-    fitRouteToMap(data.coordinates, {
-      latitude: selectedEvent.latitude,
-      longitude: selectedEvent.longitude,
-    });
   }, [
     driverLocation,
     fitRouteToMap,
     focusEventId,
     isRouteMode,
     permissionDenied,
-    routeStatus,
     selectedEvent,
   ]);
 
@@ -1040,11 +1151,15 @@ export default function LiveMapScreen() {
   useEffect(() => {
     return () => {
       routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
     };
   }, []);
 
   const closeRouteMode = useCallback(() => {
     routeRequestIdRef.current += 1;
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
     routeRequestKeyRef.current = null;
     setRoute(null);
     setRouteStatus("idle");
@@ -1053,6 +1168,9 @@ export default function LiveMapScreen() {
   }, []);
 
   const retryRoute = useCallback(() => {
+    routeRequestIdRef.current += 1;
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
     routeRequestKeyRef.current = null;
     void requestRoute();
   }, [requestRoute]);
@@ -1077,13 +1195,47 @@ export default function LiveMapScreen() {
   }, []);
 
   const recenterMap = useCallback(async () => {
+    if (isRouteMode && routeStatus === "ready" && route) {
+      if (mapRef.current?.followUser()) return;
+    }
     if (locationRequestInFlightRef.current) return;
     const point = await loadDriverLocation({
       requestPermission: true,
       showLoading: true,
     });
-    if (point) animateTo(pointRegion(point));
-  }, [animateTo, loadDriverLocation]);
+    if (point) {
+      if (isRouteMode && routeStatus === "ready" && route) {
+        mapRef.current?.followUser();
+      } else {
+        animateTo(pointRegion(point));
+      }
+    }
+  }, [animateTo, isRouteMode, loadDriverLocation, route, routeStatus]);
+
+  const hasCurrentRouteLocation = Boolean(
+    driverLocation &&
+      hasValidLatLng(driverLocation.latitude, driverLocation.longitude),
+  );
+  const canFollowRoute =
+    routeStatus === "ready" &&
+    Boolean(route?.coordinates.length && route.coordinates.length >= 2) &&
+    hasCurrentRouteLocation;
+  const followRouteMessage =
+    routeStatus === "ready" && !hasCurrentRouteLocation
+      ? permissionDenied
+        ? "Enable location permission to follow this route."
+        : "Current location is unavailable. Check GPS to follow."
+      : null;
+
+  const followRoute = useCallback(() => {
+    if (!mapRef.current?.followUser()) {
+      setRouteMessage(
+        permissionDenied
+          ? "Enable location permission to follow this route."
+          : "Current location is unavailable. Check GPS to follow.",
+      );
+    }
+  }, [permissionDenied]);
 
   const mapboxDrivers = useMemo<MapboxDriver[]>(
     () =>
@@ -1142,7 +1294,7 @@ export default function LiveMapScreen() {
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 168 : selectedEvent ? 196 : 62);
+    (isRouteMode && selectedEvent ? 218 : selectedEvent ? 196 : 62);
 
   return (
     <View style={styles.screen}>
@@ -1396,7 +1548,10 @@ export default function LiveMapScreen() {
             message={routeMessage}
             bottomOffset={routeCardBottom}
             onClose={closeRouteMode}
+            onFollow={followRoute}
             onRetry={retryRoute}
+            canFollow={canFollowRoute}
+            followMessage={followRouteMessage}
           />
         ) : selectedEvent ? (
           <EventCard
@@ -2051,5 +2206,29 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.caption,
     fontWeight: "600",
+  },
+  routeFollowButton: {
+    marginTop: spacing.md,
+    height: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  routeFollowText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  routeFollowMessage: {
+    marginTop: spacing.xs,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "500",
+    lineHeight: 15,
   },
 });

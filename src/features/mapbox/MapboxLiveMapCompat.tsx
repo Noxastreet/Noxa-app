@@ -43,6 +43,7 @@ export const MapboxLiveMapCompat = forwardRef<
       fitToCoordinates: (...args) => {
         realMapRef.current?.fitToCoordinates(...args);
       },
+      followUser: () => realMapRef.current?.followUser() ?? false,
     }),
     [],
   );

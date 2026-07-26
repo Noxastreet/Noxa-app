@@ -56,4 +56,5 @@ export type LiveMapHandle = {
       };
     },
   ) => void;
+  followUser: () => boolean;
 };

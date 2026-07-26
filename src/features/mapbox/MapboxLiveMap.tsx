@@ -92,7 +92,8 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     const cameraRef = useRef<ElementRef<typeof Camera> | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [hasError, setHasError] = useState(false);
-    const [isFollowingUser, setIsFollowingUser] = useState(true);
+    const [isFollowingUser, setIsFollowingUser] = useState(false);
+    const hadDriverLocationRef = useRef(false);
 
     const driverFeatures = useMemo(
       () => createDriverFeatureCollection(activeDrivers),
@@ -103,6 +104,13 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [events, selectedEventId],
     );
     const routeFeature = useMemo(() => createRouteFeature(route), [route]);
+    const routeShape = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
+      () => ({
+        type: "FeatureCollection",
+        features: routeFeature ? [routeFeature] : [],
+      }),
+      [routeFeature],
+    );
     const selectedEvent = useMemo(
       () => events.find((event) => event.id === selectedEventId) ?? null,
       [events, selectedEventId],
@@ -125,10 +133,19 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 
     const fitToCoordinates: LiveMapHandle["fitToCoordinates"] = useCallback(
       (points, options) => {
-        if (points.length < 2) return;
+        const validPoints = points.filter(
+          (point) =>
+            Number.isFinite(point.latitude) &&
+            point.latitude >= -90 &&
+            point.latitude <= 90 &&
+            Number.isFinite(point.longitude) &&
+            point.longitude >= -180 &&
+            point.longitude <= 180,
+        );
+        if (validPoints.length < 2) return;
         setIsFollowingUser(false);
-        const longitudes = points.map((point) => point.longitude);
-        const latitudes = points.map((point) => point.latitude);
+        const longitudes = validPoints.map((point) => point.longitude);
+        const latitudes = validPoints.map((point) => point.latitude);
         cameraRef.current?.setCamera({
           bounds: {
             ne: [Math.max(...longitudes), Math.max(...latitudes)],
@@ -148,23 +165,47 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [isRouteMode],
     );
 
+    const followUser = useCallback(() => {
+      if (!driverLocation) return false;
+      setIsFollowingUser(true);
+      return true;
+    }, [driverLocation]);
+
     useImperativeHandle(
       ref,
       () => ({
         animateToRegion,
         fitToCoordinates,
+        followUser,
       }),
-      [animateToRegion, fitToCoordinates],
+      [animateToRegion, fitToCoordinates, followUser],
     );
 
     useEffect(() => {
-      setIsFollowingUser(Boolean(driverLocation));
-    }, [driverLocation]);
+      const hasDriverLocation = Boolean(driverLocation);
+      if (hasDriverLocation && !hadDriverLocationRef.current && !isRouteMode) {
+        setIsFollowingUser(true);
+      }
+      if (!hasDriverLocation || !isRouteMode) {
+        if (!hasDriverLocation) setIsFollowingUser(false);
+      }
+      hadDriverLocationRef.current = hasDriverLocation;
+    }, [driverLocation, isRouteMode]);
+
+    useEffect(() => {
+      setIsFollowingUser(false);
+    }, [isRouteMode]);
 
     const recenterToUser = useCallback(() => {
-      if (!driverLocation) return;
-      setIsFollowingUser(true);
-    }, [driverLocation]);
+      followUser();
+    }, [followUser]);
+
+    const pauseFollowForGesture = useCallback(
+      (state: { gestures: { isGestureActive: boolean } }) => {
+        if (state.gestures.isGestureActive) setIsFollowingUser(false);
+      },
+      [],
+    );
 
     const onDriverSourcePress = useCallback(
       (feature: GeoJSON.Feature) => {
@@ -214,7 +255,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             setHasError(true);
             setIsLoaded(false);
           }}
+          onCameraChanged={pauseFollowForGesture}
           pitchEnabled
+          projection="mercator"
           rotateEnabled
           scaleBarEnabled={false}
           style={StyleSheet.absoluteFillObject}
@@ -229,12 +272,21 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               zoomLevel: DEFAULT_ZOOM,
               pitch: 28,
             }}
-            followPadding={{
-              paddingTop: 110,
-              paddingRight: spacing.xl,
-              paddingBottom: isRouteMode ? 260 : 190,
-              paddingLeft: spacing.xl,
-            }}
+            followPadding={
+              isFollowingUser
+                ? {
+                    paddingTop: 110,
+                    paddingRight: spacing.xl,
+                    paddingBottom: isRouteMode ? 260 : 190,
+                    paddingLeft: spacing.xl,
+                  }
+                : {
+                    paddingTop: 0,
+                    paddingRight: 0,
+                    paddingBottom: 0,
+                    paddingLeft: 0,
+                  }
+            }
             followPitch={isRouteMode ? 54 : 36}
             followUserLocation={isFollowingUser && Boolean(driverLocation)}
             followUserMode={
@@ -252,29 +304,33 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             visible={Boolean(driverLocation)}
           />
 
-          {routeFeature ? (
-            <ShapeSource id="noxa-route-source" shape={routeFeature}>
-              <LineLayer
-                id="noxa-route-casing"
-                style={{
-                  lineCap: "round",
-                  lineColor: "rgba(31,6,8,0.82)",
-                  lineJoin: "round",
-                  lineWidth: 10,
-                }}
-              />
-              <LineLayer
-                id="noxa-route-line"
-                style={{
-                  lineCap: "round",
-                  lineColor: colors.primary,
-                  lineJoin: "round",
-                  lineOpacity: 0.94,
-                  lineWidth: 5,
-                }}
-              />
-            </ShapeSource>
-          ) : null}
+          <ShapeSource id="noxa-route-source" shape={routeShape}>
+            <LineLayer
+              id="noxa-route-casing"
+              sourceID="noxa-route-source"
+              style={{
+                lineCap: "round",
+                lineColor: "rgba(18,3,5,0.94)",
+                lineElevationReference: "ground",
+                lineJoin: "round",
+                lineWidth: 12,
+                lineZOffset: 5,
+              }}
+            />
+            <LineLayer
+              id="noxa-route-line"
+              sourceID="noxa-route-source"
+              style={{
+                lineCap: "round",
+                lineColor: colors.primary,
+                lineElevationReference: "ground",
+                lineJoin: "round",
+                lineOpacity: 0.98,
+                lineWidth: 6,
+                lineZOffset: 5,
+              }}
+            />
+          </ShapeSource>
 
           {mapFilter !== "events" ? (
             <ShapeSource
