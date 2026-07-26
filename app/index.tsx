@@ -1,10 +1,11 @@
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
 
-type Destination = '/welcome' | '/(tabs)' | null;
+type Destination = '/welcome' | '/onboarding' | '/(tabs)' | null;
 
 export default function IndexRoute() {
   const [destination, setDestination] = useState<Destination>(null);
@@ -19,12 +20,14 @@ export default function IndexRoute() {
         return;
       }
 
-      if (error || !data.session) {
+      const user = data.session?.user;
+
+      if (error || !user) {
         setDestination('/welcome');
         return;
       }
 
-      setDestination('/(tabs)');
+      setDestination(hasCompletedOnboarding(user.id) ? '/(tabs)' : '/onboarding');
     }
 
     void restoreSession();
@@ -42,7 +45,7 @@ export default function IndexRoute() {
     );
   }
 
-  return <Redirect href={destination} />;
+  return <Redirect href={destination as Href} />;
 }
 
 const styles = StyleSheet.create({
