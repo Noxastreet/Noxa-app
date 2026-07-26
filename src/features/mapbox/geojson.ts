@@ -30,6 +30,17 @@ export function toPosition(point: LatLng): [number, number] {
   return [point.longitude, point.latitude];
 }
 
+function isValidLatLng(point: LatLng) {
+  return (
+    Number.isFinite(point.latitude) &&
+    point.latitude >= -90 &&
+    point.latitude <= 90 &&
+    Number.isFinite(point.longitude) &&
+    point.longitude >= -180 &&
+    point.longitude <= 180
+  );
+}
+
 export function createDriverFeatureCollection(
   drivers: MapboxDriver[],
 ): PointFeatureCollection {
@@ -75,13 +86,14 @@ export function createEventFeatureCollection(
 }
 
 export function createRouteFeature(route: MapboxRoute | null): RouteFeature | null {
-  if (!route || route.coordinates.length < 2) return null;
+  const coordinates = route?.coordinates.filter(isValidLatLng) ?? [];
+  if (coordinates.length < 2) return null;
   return {
     type: "Feature",
     properties: { id: "active-route" },
     geometry: {
       type: "LineString",
-      coordinates: route.coordinates.map(toPosition),
+      coordinates: coordinates.map(toPosition),
     },
   };
 }

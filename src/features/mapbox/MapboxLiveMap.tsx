@@ -7,7 +7,6 @@ import Mapbox, {
   MarkerView,
   ShapeSource,
   SymbolLayer,
-  UserTrackingMode,
 } from "@rnmapbox/maps";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -15,7 +14,6 @@ import {
   type ElementRef,
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -49,8 +47,24 @@ import type {
 } from "./types";
 
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
-const ROUTE_ZOOM = 14.5;
 const DRIVER_CLUSTER_LIMIT = 80;
+
+function eventIconName(
+  category: string | null | undefined,
+): keyof typeof Ionicons.glyphMap {
+  switch (category) {
+    case "social":
+      return "people";
+    case "meet":
+      return "car-sport";
+    case "drive":
+      return "navigate";
+    case "track":
+      return "speedometer";
+    default:
+      return "flag";
+  }
+}
 
 if (MAPBOX_ACCESS_TOKEN) {
   Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
@@ -75,7 +89,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     const cameraRef = useRef<ElementRef<typeof Camera> | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [hasError, setHasError] = useState(false);
-    const [isFollowingUser, setIsFollowingUser] = useState(true);
 
     const driverFeatures = useMemo(
       () => createDriverFeatureCollection(activeDrivers),
@@ -86,6 +99,13 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [events, selectedEventId],
     );
     const routeFeature = useMemo(() => createRouteFeature(route), [route]);
+    const routeShape = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
+      () => ({
+        type: "FeatureCollection",
+        features: routeFeature ? [routeFeature] : [],
+      }),
+      [routeFeature],
+    );
     const selectedEvent = useMemo(
       () => events.find((event) => event.id === selectedEventId) ?? null,
       [events, selectedEventId],
@@ -94,7 +114,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 
     const animateToRegion = useCallback(
       (region: MapRegion, duration = 550) => {
-        setIsFollowingUser(false);
         cameraRef.current?.setCamera({
           centerCoordinate: toPosition(region),
           zoomLevel: DEFAULT_ZOOM,
@@ -108,10 +127,18 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 
     const fitToCoordinates: LiveMapHandle["fitToCoordinates"] = useCallback(
       (points, options) => {
-        if (points.length < 2) return;
-        setIsFollowingUser(false);
-        const longitudes = points.map((point) => point.longitude);
-        const latitudes = points.map((point) => point.latitude);
+        const validPoints = points.filter(
+          (point) =>
+            Number.isFinite(point.latitude) &&
+            point.latitude >= -90 &&
+            point.latitude <= 90 &&
+            Number.isFinite(point.longitude) &&
+            point.longitude >= -180 &&
+            point.longitude <= 180,
+        );
+        if (validPoints.length < 2) return;
+        const longitudes = validPoints.map((point) => point.longitude);
+        const latitudes = validPoints.map((point) => point.latitude);
         cameraRef.current?.setCamera({
           bounds: {
             ne: [Math.max(...longitudes), Math.max(...latitudes)],
@@ -139,15 +166,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       }),
       [animateToRegion, fitToCoordinates],
     );
-
-    useEffect(() => {
-      setIsFollowingUser(Boolean(driverLocation));
-    }, [driverLocation]);
-
-    const recenterToUser = useCallback(() => {
-      if (!driverLocation) return;
-      setIsFollowingUser(true);
-    }, [driverLocation]);
 
     const onDriverSourcePress = useCallback(
       (feature: GeoJSON.Feature) => {
@@ -198,6 +216,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             setIsLoaded(false);
           }}
           pitchEnabled
+          projection="mercator"
           rotateEnabled
           scaleBarEnabled={false}
           style={StyleSheet.absoluteFillObject}
@@ -212,20 +231,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               zoomLevel: DEFAULT_ZOOM,
               pitch: 28,
             }}
-            followPadding={{
-              paddingTop: 110,
-              paddingRight: spacing.xl,
-              paddingBottom: isRouteMode ? 260 : 190,
-              paddingLeft: spacing.xl,
-            }}
-            followPitch={isRouteMode ? 54 : 36}
-            followUserLocation={isFollowingUser && Boolean(driverLocation)}
-            followUserMode={
-              isRouteMode
-                ? UserTrackingMode.FollowWithCourse
-                : UserTrackingMode.Follow
-            }
-            followZoomLevel={isRouteMode ? ROUTE_ZOOM : DEFAULT_ZOOM}
           />
 
           <LocationPuck
@@ -235,29 +240,33 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             visible={Boolean(driverLocation)}
           />
 
-          {routeFeature ? (
-            <ShapeSource id="noxa-route-source" shape={routeFeature}>
-              <LineLayer
-                id="noxa-route-casing"
-                style={{
-                  lineCap: "round",
-                  lineColor: "rgba(31,6,8,0.82)",
-                  lineJoin: "round",
-                  lineWidth: 10,
-                }}
-              />
-              <LineLayer
-                id="noxa-route-line"
-                style={{
-                  lineCap: "round",
-                  lineColor: colors.primary,
-                  lineJoin: "round",
-                  lineOpacity: 0.94,
-                  lineWidth: 5,
-                }}
-              />
-            </ShapeSource>
-          ) : null}
+          <ShapeSource id="noxa-route-source" shape={routeShape}>
+            <LineLayer
+              id="noxa-route-casing"
+              sourceID="noxa-route-source"
+              style={{
+                lineCap: "round",
+                lineColor: "rgba(18,3,5,0.94)",
+                lineElevationReference: "ground",
+                lineJoin: "round",
+                lineWidth: 12,
+                lineZOffset: 5,
+              }}
+            />
+            <LineLayer
+              id="noxa-route-line"
+              sourceID="noxa-route-source"
+              style={{
+                lineCap: "round",
+                lineColor: colors.primary,
+                lineElevationReference: "ground",
+                lineJoin: "round",
+                lineOpacity: 0.98,
+                lineWidth: 6,
+                lineZOffset: 5,
+              }}
+            />
+          </ShapeSource>
 
           {mapFilter !== "events" ? (
             <ShapeSource
@@ -377,14 +386,23 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   key={event.id}
                 >
                   <TouchableOpacity
+                    accessibilityLabel={`${event.title} event`}
                     activeOpacity={0.82}
                     onPress={() => onEventPress(event)}
-                    style={[
-                      styles.markerDot,
-                      selectedEvent?.id === event.id && styles.markerDotSelected,
-                    ]}
+                    style={styles.eventMarkerPressTarget}
                   >
-                    <Ionicons name="flag" size={13} color={colors.text} />
+                    <View
+                      style={[
+                        styles.markerDot,
+                        selectedEvent?.id === event.id && styles.markerDotSelected,
+                      ]}
+                    >
+                      <Ionicons
+                        name={eventIconName(event.category)}
+                        size={15}
+                        color={colors.text}
+                      />
+                    </View>
                   </TouchableOpacity>
                 </MarkerView>
               ))
@@ -408,17 +426,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           </View>
         ) : null}
 
-        {driverLocation && !isFollowingUser ? (
-          <TouchableOpacity
-            accessibilityLabel="Follow current location"
-            activeOpacity={0.8}
-            onPress={recenterToUser}
-            style={styles.followChip}
-          >
-            <Ionicons name="navigate" size={14} color={colors.primaryHover} />
-            <Text style={styles.followText}>Follow</Text>
-          </TouchableOpacity>
-        ) : null}
       </View>
     );
   },
@@ -474,25 +481,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: "rgba(12,12,16,0.94)",
   },
-  followChip: {
-    position: "absolute",
-    right: spacing.md,
-    bottom: 118,
-    height: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 11,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: "rgba(12,12,16,0.88)",
-  },
-  followText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "700",
-  },
   driverMarker: {
     width: 36,
     height: 36,
@@ -524,15 +512,21 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: radius.pill,
   },
-  markerDot: {
-    width: 30,
-    height: 30,
+  eventMarkerPressTarget: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.sm,
+  },
+  markerDot: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
     borderWidth: 1.5,
     borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: colors.primary,
+    backgroundColor: "rgba(17,17,22,0.96)",
     shadowColor: colors.black,
     shadowOpacity: 0.4,
     shadowRadius: 7,
@@ -540,8 +534,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   markerDotSelected: {
-    borderColor: colors.white,
-    backgroundColor: colors.primaryHover,
+    borderColor: "rgba(255,255,255,0.82)",
+    backgroundColor: colors.primary,
+    shadowColor: colors.primaryHover,
+    shadowOpacity: 0.5,
+    shadowRadius: 9,
     transform: [{ scale: 1.1 }],
   },
 });

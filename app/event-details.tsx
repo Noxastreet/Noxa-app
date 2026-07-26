@@ -62,6 +62,22 @@ function displayName(profile: CreatorProfile | null) {
   return profile?.display_name || profile?.username || "NOXA driver";
 }
 
+function hasValidEventCoordinates(
+  event: EventExperienceRow | null,
+): event is EventExperienceRow & { latitude: number; longitude: number } {
+  return Boolean(
+    event &&
+    typeof event.latitude === "number" &&
+    Number.isFinite(event.latitude) &&
+    event.latitude >= -90 &&
+    event.latitude <= 90 &&
+    typeof event.longitude === "number" &&
+    Number.isFinite(event.longitude) &&
+    event.longitude >= -180 &&
+    event.longitude <= 180,
+  );
+}
+
 function HeaderAction({
   icon,
   label,
@@ -157,6 +173,8 @@ export default function EventDetailsScreen() {
   );
   const rsvpClosed = lifecycle === "completed" || lifecycle === "cancelled";
   const canChat = isHost || myResponse !== null;
+  const routeEvent = hasValidEventCoordinates(event) ? event : null;
+  const canRoute = routeEvent !== null;
   const capacityProgress = event?.capacity
     ? Math.min(1, goingCount / event.capacity)
     : 0;
@@ -393,7 +411,7 @@ export default function EventDetailsScreen() {
   }, [currentUserId, event, isSaved, savingEvent]);
 
   const routeOnNoxaMap = useCallback(() => {
-    if (!event) return;
+    if (!event || !hasValidEventCoordinates(event)) return;
     router.replace({
       pathname: "/(tabs)",
       params: { focusEventId: event.id, mapMode: "route" },
@@ -683,15 +701,28 @@ export default function EventDetailsScreen() {
                   <Ionicons name="location" size={15} color={colors.textMuted} />
                   <Text style={styles.sectionTitle}>MEETING POINT</Text>
                 </View>
-                {canChat ? (
-                  <Pressable onPress={routeOnNoxaMap}>
-                    <Text style={styles.sectionAction}>ROUTE</Text>
-                  </Pressable>
-                ) : null}
+                <Pressable
+                  accessibilityLabel={
+                    canRoute ? "Route to event" : "Route unavailable"
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !canRoute }}
+                  disabled={!canRoute}
+                  onPress={routeOnNoxaMap}
+                >
+                  <Text
+                    style={[
+                      styles.sectionAction,
+                      !canRoute && styles.sectionActionDisabled,
+                    ]}
+                  >
+                    {canRoute ? "ROUTE" : "ROUTE UNAVAILABLE"}
+                  </Text>
+                </Pressable>
               </View>
               <Text style={styles.meetingName}>{event.location_name}</Text>
               <Text style={styles.meetingTime}>Meet by {formatEventTime(event.starts_at)}</Text>
-              {event.latitude !== null && event.longitude !== null ? (
+              {routeEvent ? (
                 <Pressable
                   accessibilityLabel="Open route on NOXA map"
                   onPress={routeOnNoxaMap}
@@ -699,8 +730,8 @@ export default function EventDetailsScreen() {
                 >
                   <MapboxEventPreviewCompat
                     coordinate={{
-                      latitude: event.latitude,
-                      longitude: event.longitude,
+                      latitude: routeEvent.latitude,
+                      longitude: routeEvent.longitude,
                     }}
                   />
                   <View style={styles.mapShade} />
@@ -710,13 +741,13 @@ export default function EventDetailsScreen() {
                   </View>
                 </Pressable>
               ) : (
-                <Pressable
-                  onPress={routeOnNoxaMap}
-                  style={({ pressed }) => [styles.mapEmpty, pressed && styles.pressed]}
+                <View
+                  accessibilityLabel="Route unavailable because this event has no valid coordinates"
+                  style={styles.mapEmpty}
                 >
                   <Ionicons name="map-outline" size={21} color={colors.textSubtle} />
-                  <Text style={styles.mapEmptyText}>Open event on NOXA Map</Text>
-                </Pressable>
+                  <Text style={styles.mapEmptyText}>Route unavailable</Text>
+                </View>
               )}
             </View>
 
@@ -1004,6 +1035,7 @@ const styles = StyleSheet.create({
   sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   sectionTitle: { color: colors.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
   sectionAction: { color: colors.primaryHover, fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
+  sectionActionDisabled: { color: colors.textSubtle },
   meetingName: { marginTop: spacing.sm, color: colors.text, fontSize: 14, fontWeight: "900" },
   meetingTime: { marginTop: 3, color: colors.textMuted, fontSize: 11, fontWeight: "700" },
   mapPreview: { height: 96, overflow: "hidden", marginTop: spacing.sm, borderRadius: radius.md, backgroundColor: colors.surfaceSoft },

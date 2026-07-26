@@ -31,6 +31,7 @@ import {
   updateLiveDriveVisibility,
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
+import type { EventCategory } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
@@ -57,6 +58,7 @@ type ActiveDriver = {
 type EventMarkerRow = {
   id: string;
   title: string;
+  category: EventCategory;
   starts_at: string;
   location_name: string | null;
   latitude: number;
@@ -92,6 +94,7 @@ const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
 const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
 const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
 const DRIVER_LIST_REFRESH_MS = 30 * 1000;
+const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let driverLocationsMapChannelSequence = 0;
@@ -299,11 +302,14 @@ function EventCard({
   event,
   bottomOffset,
   onClose,
+  onRoute,
 }: {
   event: EventMarkerRow;
   bottomOffset: number;
   onClose: () => void;
+  onRoute: () => void;
 }) {
+  const canRoute = hasValidCoordinates(event);
   return (
     <View style={[styles.eventCard, { bottom: bottomOffset }]}>
       <View style={styles.eventCardHeader}>
@@ -319,8 +325,19 @@ function EventCard({
             {event.location_name ?? "Exact location selected"}
           </Text>
         </View>
-        <View style={styles.eventCardIcon}>
-          <Ionicons name="calendar-outline" size={18} color={colors.text} />
+        <View style={styles.eventCardHeaderActions}>
+          <View style={styles.eventCardIcon}>
+            <Ionicons name="calendar-outline" size={18} color={colors.text} />
+          </View>
+          <TouchableOpacity
+            accessibilityLabel="Close event preview"
+            activeOpacity={0.78}
+            hitSlop={2}
+            onPress={onClose}
+            style={styles.eventCardCloseControl}
+          >
+            <Ionicons name="close" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
         </View>
       </View>
       <View style={styles.eventActions}>
@@ -337,12 +354,26 @@ function EventCard({
           <Text style={styles.eventButtonText}>View Event</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          accessibilityLabel="Close event preview"
+          accessibilityLabel="Route to event"
+          accessibilityState={{ disabled: !canRoute }}
           activeOpacity={0.78}
-          onPress={onClose}
-          style={styles.eventCloseButton}
+          disabled={!canRoute}
+          onPress={onRoute}
+          style={[styles.eventRouteButton, !canRoute && styles.eventButtonDisabled]}
         >
-          <Text style={styles.eventCloseButtonText}>Close</Text>
+          <Ionicons
+            name="navigate"
+            size={15}
+            color={canRoute ? colors.text : colors.textSubtle}
+          />
+          <Text
+            style={[
+              styles.eventRouteButtonText,
+              !canRoute && styles.eventRouteButtonTextDisabled,
+            ]}
+          >
+            Route
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -438,6 +469,8 @@ export default function LiveMapScreen() {
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
+  const routeAbortControllerRef = useRef<AbortController | null>(null);
+  const driverLocationRef = useRef<LatLng | null>(null);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
@@ -469,6 +502,7 @@ export default function LiveMapScreen() {
       ? normalizedFocusEventId
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
+  driverLocationRef.current = driverLocation;
 
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
@@ -478,10 +512,8 @@ export default function LiveMapScreen() {
   );
 
   const fitRouteToMap = useCallback(
-    (coordinates: LatLng[], destination: LatLng) => {
-      const points = driverLocation
-        ? [driverLocation, ...coordinates, destination]
-        : [...coordinates, destination];
+    (coordinates: LatLng[], destination: LatLng, origin: LatLng) => {
+      const points = [origin, ...coordinates, destination];
       if (points.length < 2) return;
       mapRef.current?.fitToCoordinates(points, {
         animated: true,
@@ -493,7 +525,7 @@ export default function LiveMapScreen() {
         },
       });
     },
-    [driverLocation, insets.bottom, insets.top],
+    [insets.bottom, insets.top],
   );
 
   const loadDriverLocation = useCallback(
@@ -764,7 +796,7 @@ export default function LiveMapScreen() {
   const loadEvents = useCallback(async () => {
     const { data } = await supabase
       .from("events")
-      .select("id,title,starts_at,location_name,latitude,longitude")
+      .select("id,title,category,starts_at,location_name,latitude,longitude")
       .eq("status", "scheduled")
       .gte("starts_at", new Date().toISOString())
       .not("latitude", "is", null)
@@ -933,88 +965,183 @@ export default function LiveMapScreen() {
   }, [animateTo, events, focusEventId, isRouteMode]);
 
   useEffect(() => {
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
+    routeRequestIdRef.current += 1;
+    routeRequestKeyRef.current = null;
     setRoute(null);
     setRouteMessage(null);
     setRouteStatus("idle");
     routeRequestKeyRef.current = null;
   }, [focusEventId, isRouteMode]);
 
-  const requestRoute = useCallback(async () => {
-    if (!isRouteMode || !focusEventId || !hasValidCoordinates(selectedEvent))
+  const requestRoute = useCallback(async (retry = false) => {
+    if (!isRouteMode || !focusEventId || !selectedEvent) return;
+    if (selectedEvent.id !== focusEventId) return;
+    if (!hasValidCoordinates(selectedEvent)) {
+      setRoute(null);
+      setRouteStatus("error");
+      setRouteMessage("This event does not have a valid route location.");
       return;
-    if (!driverLocation) {
+    }
+    const origin = driverLocationRef.current;
+    if (!origin || !hasValidLatLng(origin.latitude, origin.longitude)) {
       setRoute(null);
       setRouteStatus("error");
       setRouteMessage(
         permissionDenied
-          ? "Location permission is off. Enable location to route on NOXA."
-          : "Current location is needed to build this route.",
+          ? "Location permission is off. Enable location, then retry."
+          : "Current location is unavailable. Check GPS, then retry.",
       );
       return;
     }
 
-    const requestKey = `${focusEventId}:${driverLocation.latitude.toFixed(5)},${driverLocation.longitude.toFixed(5)}:${selectedEvent.latitude.toFixed(5)},${selectedEvent.longitude.toFixed(5)}`;
-    if (routeStatus === "loading" || routeRequestKeyRef.current === requestKey)
-      return;
+    const requestKey = `${focusEventId}:` +
+      `${selectedEvent.latitude.toFixed(5)},${selectedEvent.longitude.toFixed(5)}`;
+    if (!retry && routeRequestKeyRef.current === requestKey) return;
 
     const requestId = routeRequestIdRef.current + 1;
     routeRequestIdRef.current = requestId;
     routeRequestKeyRef.current = requestKey;
+    routeAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    routeAbortControllerRef.current = controller;
     setRoute(null);
     setRouteStatus("loading");
     setRouteMessage(null);
 
-    const { data, error } = await supabase.functions.invoke<RouteResult>(
-      "event-route",
-      {
-        body: {
-          origin: driverLocation,
-          destination: {
-            latitude: selectedEvent.latitude,
-            longitude: selectedEvent.longitude,
+    let nextRoute: RouteResult | null = null;
+    let nextMessage = "Route could not be built right now.";
+    let didTimeout = false;
+    const timeout = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, ROUTE_REQUEST_TIMEOUT_MS);
+
+    try {
+      const { data, error } = await supabase.functions.invoke<RouteResult>(
+        "event-route",
+        {
+          body: {
+            origin,
+            destination: {
+              latitude: selectedEvent.latitude,
+              longitude: selectedEvent.longitude,
+            },
           },
+          signal: controller.signal,
         },
-      },
-    );
+      );
 
-    if (routeRequestIdRef.current !== requestId) return;
-
-    if (error || !data || data.coordinates.length < 2) {
-      routeRequestKeyRef.current = null;
-      setRoute(null);
-      setRouteStatus("error");
-      setRouteMessage(error?.message ?? "Route could not be built right now.");
-      return;
+      if (
+        routeRequestIdRef.current !== requestId ||
+        routeAbortControllerRef.current !== controller ||
+        !isMountedRef.current
+      ) {
+        return;
+      }
+      if (controller.signal.aborted) {
+        if (!didTimeout) return;
+        console.warn("[event-route] request timed out", {
+          code: "TIMEOUT",
+          message: "Route request timed out.",
+        });
+        nextMessage = "Route request timed out. Please retry.";
+      } else if (error) {
+        const status =
+          error.context instanceof Response ? error.context.status : undefined;
+        console.warn("[event-route] request failed", {
+          status,
+          code: error.name,
+          message: "Edge Function did not return a route.",
+        });
+        nextMessage =
+          status === 401
+            ? "Your session expired. Sign in again, then retry."
+            : status === 429
+              ? "Route service is busy. Wait a moment, then retry."
+              : "Route is unavailable right now. Please retry.";
+      } else if (
+        data &&
+        Array.isArray(data.coordinates) &&
+        data.coordinates.length >= 2 &&
+        data.coordinates.every((point) =>
+          hasValidLatLng(point.latitude, point.longitude),
+        ) &&
+        Number.isFinite(data.distanceMeters) &&
+        Number.isFinite(data.durationSeconds)
+      ) {
+        nextRoute = data;
+      } else {
+        console.warn("[event-route] invalid response", {
+          code: "MALFORMED_ROUTE",
+          message: "Edge Function returned an invalid route.",
+        });
+        nextMessage = "The route response was invalid. Please retry.";
+      }
+    } catch {
+      if (
+        routeRequestIdRef.current !== requestId ||
+        routeAbortControllerRef.current !== controller ||
+        !isMountedRef.current ||
+        (controller.signal.aborted && !didTimeout)
+      ) {
+        return;
+      }
+      console.warn("[event-route] request exception", {
+        code: didTimeout ? "TIMEOUT" : "REQUEST_EXCEPTION",
+        message: didTimeout
+          ? "Route request timed out."
+          : "Route request could not be completed.",
+      });
+      nextMessage = didTimeout
+        ? "Route request timed out. Please retry."
+        : "Route request failed. Check your connection and retry.";
+    } finally {
+      clearTimeout(timeout);
+      if (routeAbortControllerRef.current === controller) {
+        routeAbortControllerRef.current = null;
+      }
+      if (
+        routeRequestIdRef.current !== requestId ||
+        !isMountedRef.current
+      ) {
+        return;
+      }
+      setRoute(nextRoute);
+      setRouteStatus(nextRoute ? "ready" : "error");
+      setRouteMessage(nextRoute ? null : nextMessage);
+      if (nextRoute) {
+        fitRouteToMap(nextRoute.coordinates, {
+          latitude: selectedEvent.latitude,
+          longitude: selectedEvent.longitude,
+        }, origin);
+      }
     }
-
-    setRoute(data);
-    setRouteStatus("ready");
-    fitRouteToMap(data.coordinates, {
-      latitude: selectedEvent.latitude,
-      longitude: selectedEvent.longitude,
-    });
   }, [
-    driverLocation,
     fitRouteToMap,
     focusEventId,
     isRouteMode,
     permissionDenied,
-    routeStatus,
     selectedEvent,
   ]);
 
   useEffect(() => {
     void requestRoute();
-  }, [requestRoute]);
+  }, [driverLocation, requestRoute]);
 
   useEffect(() => {
     return () => {
       routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
     };
   }, []);
 
   const closeRouteMode = useCallback(() => {
     routeRequestIdRef.current += 1;
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
     routeRequestKeyRef.current = null;
     setRoute(null);
     setRouteStatus("idle");
@@ -1023,9 +1150,17 @@ export default function LiveMapScreen() {
   }, []);
 
   const retryRoute = useCallback(() => {
-    routeRequestKeyRef.current = null;
-    void requestRoute();
+    routeRequestIdRef.current += 1;
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
+    void requestRoute(true);
   }, [requestRoute]);
+
+  const routeToEvent = useCallback((event: EventMarkerRow) => {
+    if (!hasValidCoordinates(event)) return;
+    setSelectedEvent(event);
+    router.setParams({ focusEventId: event.id, mapMode: "route" });
+  }, []);
 
   const selectEvent = useCallback(
     (event: EventMarkerRow) => {
@@ -1046,7 +1181,9 @@ export default function LiveMapScreen() {
       requestPermission: true,
       showLoading: true,
     });
-    if (point) animateTo(pointRegion(point));
+    if (point) {
+      animateTo(pointRegion(point));
+    }
   }, [animateTo, loadDriverLocation]);
 
   const mapboxDrivers = useMemo<MapboxDriver[]>(
@@ -1065,6 +1202,7 @@ export default function LiveMapScreen() {
       events.map((event) => ({
         id: event.id,
         title: event.title,
+        category: event.category,
         latitude: event.latitude,
         longitude: event.longitude,
       })),
@@ -1105,7 +1243,7 @@ export default function LiveMapScreen() {
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 168 : selectedEvent ? 196 : 62);
+    (isRouteMode && selectedEvent ? 218 : selectedEvent ? 196 : 62);
 
   return (
     <View style={styles.screen}>
@@ -1366,6 +1504,7 @@ export default function LiveMapScreen() {
             event={selectedEvent}
             bottomOffset={eventCardBottom}
             onClose={() => setSelectedEvent(null)}
+            onRoute={() => routeToEvent(selectedEvent)}
           />
         ) : null}
       </View>
@@ -1848,6 +1987,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primary,
   },
+  eventCardHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  eventCardCloseControl: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+  },
   cardKicker: {
     color: colors.primaryHover,
     fontSize: 10,
@@ -1896,20 +2050,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-  eventCloseButton: {
+  eventRouteButton: {
     flex: 1,
     height: 40,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: spacing.xs,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
   },
-  eventCloseButtonText: {
-    color: colors.textMuted,
+  eventRouteButtonText: {
+    color: colors.text,
     fontSize: 13,
     fontWeight: "600",
+  },
+  eventButtonDisabled: {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+    opacity: 0.55,
+  },
+  eventRouteButtonTextDisabled: {
+    color: colors.textSubtle,
   },
   routeCard: {
     position: "absolute",
