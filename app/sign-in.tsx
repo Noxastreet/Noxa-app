@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NoxaAuthField, NoxaAuthScreen } from '@/src/components/auth';
 import { NoxaButton } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
+import { resetToAuthenticatedApp } from '@/src/navigation/authNavigation';
 import { colors, spacing, typography } from '@/src/theme';
 
 type SignInErrors = {
@@ -103,7 +104,7 @@ function SignInForm() {
       }
 
       if (data.session) {
-        router.replace('/(tabs)');
+        resetToAuthenticatedApp();
       }
     } catch (error) {
       setErrors({

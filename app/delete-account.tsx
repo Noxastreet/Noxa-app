@@ -17,6 +17,7 @@ import { NoxaAuthField } from '@/src/components/auth';
 import { NoxaHeader, NoxaScreen } from '@/src/components/ui';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
+import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 const confirmationText = 'DELETE';
@@ -82,7 +83,7 @@ export default function DeleteAccountScreen() {
     }
 
     await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-    router.replace('/welcome');
+    resetToSignedOutHome();
   };
 
   return (
