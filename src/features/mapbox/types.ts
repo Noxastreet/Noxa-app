@@ -38,6 +38,8 @@ export type MapboxLiveMapProps = {
   selectedEventId: string | null;
   mapFilter: MapboxMapFilter;
   isRouteMode: boolean;
+  followUserLocation: boolean;
+  onFollowUserLocationChange: (following: boolean) => void;
   onDriverPress: (driverId: string) => void;
   onEventPress: (event: MapboxEvent) => void;
 };
