@@ -5,23 +5,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
-  Image,
-  Platform,
-  Switch,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import MapView, {
-  Marker,
-  Polyline,
-  PROVIDER_GOOGLE,
-  type MapViewProps,
-  type Region,
-} from "react-native-maps";
+import { Defs, LinearGradient, Rect, Stop, Svg } from "react-native-svg";
 
+import { NoxaCompactLogo } from "@/src/components/brand";
+import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
+import type {
+  LiveMapHandle,
+  MapRegion,
+  MapboxDriver,
+  MapboxEvent,
+} from "@/src/features/mapbox/types";
+import {
+  LIVE_DRIVE_TASK_NAME,
+  getLiveDriveSession,
+  requestLiveDrivePermissions,
+  startLiveDriveSession,
+  stopLiveDriveSession,
+  updateLiveDriveVisibility,
+  type LiveDriveVisibilityMode,
+} from "@/src/lib/liveDrive";
+import type { EventCategory } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
@@ -48,6 +58,7 @@ type ActiveDriver = {
 type EventMarkerRow = {
   id: string;
   title: string;
+  category: EventCategory;
   starts_at: string;
   location_name: string | null;
   latitude: number;
@@ -57,11 +68,11 @@ type LatLng = { latitude: number; longitude: number };
 type PresenceLocationPayload = {
   latitude: number;
   longitude: number;
-  visibility_mode: "Global";
-  share_expires_at: string;
   heading: number | null;
   speed_mps: number | null;
   accuracy_meters: number | null;
+  visibility_mode: LocationVisibilityMode;
+  share_expires_at: string;
 };
 type RouteResult = {
   coordinates: LatLng[];
@@ -69,6 +80,8 @@ type RouteResult = {
   durationSeconds: number;
 };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
+type MapFilter = "all" | "drivers" | "events";
+type LocationVisibilityMode = "crew" | "friends" | "global" | "ghost";
 
 type ActionButtonProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -80,78 +93,51 @@ const THESSALONIKI: LatLng = { latitude: 40.6401, longitude: 22.9444 };
 const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
 const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
 const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
-const DRIVER_PRESENCE_HEARTBEAT_MS = 45 * 1000;
-const DRIVER_PRESENCE_LEASE_MS = 90 * 1000;
+const DRIVER_LIST_REFRESH_MS = 30 * 1000;
+const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let driverLocationsMapChannelSequence = 0;
 
-const TAB_BAR_HEIGHT = 82;
-const TAB_BAR_BOTTOM_GAP = spacing.md;
+const TAB_BAR_HEIGHT = 64;
+const TAB_BAR_BOTTOM_GAP = 0;
 const FLOATING_GAP = spacing.sm;
-
-const androidNoxaMapStyle = [
-  { elementType: "geometry", stylers: [{ color: "#07080A" }] },
-  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#737984" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#07080A" }] },
+const MAP_FILTERS: { id: MapFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "drivers", label: "Drivers" },
+  { id: "events", label: "Events" },
+];
+const VISIBILITY_MODES: {
+  id: LocationVisibilityMode;
+  label: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   {
-    featureType: "administrative",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#1B2028" }],
+    id: "crew",
+    label: "Crew",
+    description: "Visible to drivers in your crews",
+    icon: "people-outline",
   },
   {
-    featureType: "landscape",
-    elementType: "geometry",
-    stylers: [{ color: "#090A0D" }],
+    id: "friends",
+    label: "Friends",
+    description: "Visible to mutual followers",
+    icon: "person-add-outline",
   },
   {
-    featureType: "landscape.natural",
-    elementType: "geometry",
-    stylers: [{ color: "#090F0C" }],
+    id: "global",
+    label: "Global",
+    description: "Visible to everyone on NOXA",
+    icon: "earth-outline",
   },
   {
-    featureType: "poi",
-    elementType: "labels.icon",
-    stylers: [{ visibility: "off" }],
+    id: "ghost",
+    label: "Ghost",
+    description: "Location sharing is off",
+    icon: "eye-off-outline",
   },
-  { featureType: "poi.business", stylers: [{ visibility: "off" }] },
-  {
-    featureType: "poi.park",
-    elementType: "geometry",
-    stylers: [{ color: "#090F0C" }],
-  },
-  { featureType: "poi.school", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.shopping_mall", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.sports_complex", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.tourist_attraction", stylers: [{ visibility: "off" }] },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#25272D" }],
-  },
-  {
-    featureType: "road.arterial",
-    elementType: "geometry",
-    stylers: [{ color: "#25272D" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry",
-    stylers: [{ color: "#30323A" }],
-  },
-  {
-    featureType: "road.local",
-    elementType: "geometry",
-    stylers: [{ color: "#1B1D22" }],
-  },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#050A12" }],
-  },
-] satisfies MapViewProps["customMapStyle"];
+];
 
 function HeaderAction({
   icon,
@@ -165,19 +151,56 @@ function HeaderAction({
       onPress={onPress}
       style={styles.headerAction}
     >
-      <Ionicons name={icon} size={20} color={colors.text} />
+      <Ionicons name={icon} size={17} color={colors.text} />
     </TouchableOpacity>
   );
 }
 
-function eventRegion(event: EventMarkerRow): Region {
+function MapFilterBar({
+  active,
+  onChange,
+  top,
+}: {
+  active: MapFilter;
+  onChange: (filter: MapFilter) => void;
+  top: number;
+}) {
+  return (
+    <View style={[styles.filterBar, { top }]}>
+      {MAP_FILTERS.map((filter) => {
+        const selected = active === filter.id;
+        return (
+          <TouchableOpacity
+            key={filter.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            activeOpacity={0.78}
+            onPress={() => onChange(filter.id)}
+            style={[styles.filterPill, selected && styles.filterPillActive]}
+          >
+            <Text
+              style={[
+                styles.filterPillText,
+                selected && styles.filterPillTextActive,
+              ]}
+            >
+              {filter.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function eventRegion(event: EventMarkerRow): MapRegion {
   return {
     latitude: event.latitude,
     longitude: event.longitude,
     ...DEFAULT_DELTA,
   };
 }
-function pointRegion(point: LatLng): Region {
+function pointRegion(point: LatLng): MapRegion {
   return { ...point, ...DEFAULT_DELTA };
 }
 
@@ -194,6 +217,15 @@ function formatEventTime(value: string) {
 
 function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function formatLiveDriveRemaining(expiresAt: string | null, nowMs: number) {
+  if (!expiresAt) return null;
+  const remainingMs = Math.max(0, Date.parse(expiresAt) - nowMs);
+  const totalMinutes = Math.ceil(remainingMs / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
 function finiteOrNull(value: number | null | undefined) {
@@ -269,91 +301,82 @@ function formatDuration(seconds: number) {
 function EventCard({
   event,
   bottomOffset,
+  onClose,
+  onRoute,
 }: {
   event: EventMarkerRow;
   bottomOffset: number;
+  onClose: () => void;
+  onRoute: () => void;
 }) {
+  const canRoute = hasValidCoordinates(event);
   return (
     <View style={[styles.eventCard, { bottom: bottomOffset }]}>
-      <Text style={styles.cardKicker}>Upcoming event</Text>
-      <Text style={styles.cardTitle}>{event.title}</Text>
-      <Text style={styles.cardSubtitle}>
-        {formatEventTime(event.starts_at)}
-      </Text>
-      <Text style={styles.cardLocation} numberOfLines={1}>
-        {event.location_name ?? "Exact location selected"}
-      </Text>
-      <TouchableOpacity
-        activeOpacity={0.82}
-        onPress={() =>
-          router.push({ pathname: "/event-details", params: { id: event.id } })
-        }
-        style={styles.eventButton}
-      >
-        <Text style={styles.eventButtonText}>View Event</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.text} />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function driverInitials(driver: ActiveDriver) {
-  const label = driverLabel(driver);
-  const initials = label
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  return initials || null;
-}
-
-function DriverMarker({ driver }: { driver: ActiveDriver }) {
-  const label = driverLabel(driver);
-  const [imageFailed, setImageFailed] = useState(false);
-  const [tracksViewChanges, setTracksViewChanges] = useState(
-    Boolean(driver.profile?.avatar_url),
-  );
-  const avatarUrl = imageFailed ? null : driver.profile?.avatar_url;
-  const initials = driverInitials(driver);
-
-  return (
-    <Marker
-      coordinate={{ latitude: driver.latitude, longitude: driver.longitude }}
-      accessibilityLabel={`${label} is visible on the NOXA map`}
-      anchor={{ x: 0.5, y: 1 }}
-      tracksViewChanges={tracksViewChanges}
-      onPress={() =>
-        router.push({
-          pathname: "/driver-profile/[id]",
-          params: { id: driver.user_id },
-        })
-      }
-      title={label}
-    >
-      <View style={styles.driverMarkerWrap}>
-        <View style={styles.driverMarker}>
-          {avatarUrl ? (
-            <Image
-              accessibilityIgnoresInvertColors
-              source={{ uri: avatarUrl }}
-              onLoadEnd={() => setTracksViewChanges(false)}
-              onError={() => {
-                setImageFailed(true);
-                setTracksViewChanges(false);
-              }}
-              style={styles.driverMarkerImage}
-            />
-          ) : initials ? (
-            <Text style={styles.driverMarkerInitials}>{initials}</Text>
-          ) : (
-            <Ionicons name="person" size={19} color={colors.text} />
-          )}
-          <View style={styles.driverMarkerStatus} />
+      <View style={styles.eventCardHeader}>
+        <View style={styles.eventCardCopy}>
+          <Text style={styles.cardKicker}>Upcoming event</Text>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {event.title}
+          </Text>
+          <Text style={styles.cardSubtitle}>
+            {formatEventTime(event.starts_at)}
+          </Text>
+          <Text style={styles.cardLocation} numberOfLines={1}>
+            {event.location_name ?? "Exact location selected"}
+          </Text>
         </View>
-        <View style={styles.driverMarkerTail} />
+        <View style={styles.eventCardHeaderActions}>
+          <View style={styles.eventCardIcon}>
+            <Ionicons name="calendar-outline" size={18} color={colors.text} />
+          </View>
+          <TouchableOpacity
+            accessibilityLabel="Close event preview"
+            activeOpacity={0.78}
+            hitSlop={2}
+            onPress={onClose}
+            style={styles.eventCardCloseControl}
+          >
+            <Ionicons name="close" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </Marker>
+      <View style={styles.eventActions}>
+        <TouchableOpacity
+          activeOpacity={0.82}
+          onPress={() =>
+            router.push({
+              pathname: "/event-details",
+              params: { id: event.id },
+            })
+          }
+          style={styles.eventButton}
+        >
+          <Text style={styles.eventButtonText}>View Event</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityLabel="Route to event"
+          accessibilityState={{ disabled: !canRoute }}
+          activeOpacity={0.78}
+          disabled={!canRoute}
+          onPress={onRoute}
+          style={[styles.eventRouteButton, !canRoute && styles.eventButtonDisabled]}
+        >
+          <Ionicons
+            name="navigate"
+            size={15}
+            color={canRoute ? colors.text : colors.textSubtle}
+          />
+          <Text
+            style={[
+              styles.eventRouteButtonText,
+              !canRoute && styles.eventRouteButtonTextDisabled,
+            ]}
+          >
+            Route
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -432,9 +455,11 @@ export default function LiveMapScreen() {
     mapMode?: string | string[];
   }>();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<LiveMapHandle | null>(null);
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventMarkerRow[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EventMarkerRow | null>(
     null,
@@ -444,15 +469,13 @@ export default function LiveMapScreen() {
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
-  const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
-  const watcherSetupIdRef = useRef(0);
-  const lastHeadingRef = useRef<number | null>(null);
-  const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null,
-  );
+  const routeAbortControllerRef = useRef<AbortController | null>(null);
+  const driverLocationRef = useRef<LatLng | null>(null);
   const isMountedRef = useRef(true);
+  const locationRequestInFlightRef = useRef(false);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
   const sharingUserIdRef = useRef<string | null>(null);
+  const visibilityModeRef = useRef<LocationVisibilityMode>("ghost");
   const latestPresencePayloadRef = useRef<PresenceLocationPayload | null>(null);
   const lastPresenceWriteRef = useRef(0);
   const presenceWriteQueueRef = useRef(Promise.resolve());
@@ -460,12 +483,17 @@ export default function LiveMapScreen() {
   const activeDriversRefreshInFlightRef = useRef(false);
   const activeDriversRefreshQueuedRef = useRef(false);
   const [isVisibleOnMap, setIsVisibleOnMap] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [driverRefreshError, setDriverRefreshError] = useState(false);
-  const [isRouteFollowing, setIsRouteFollowing] = useState(false);
-  const isRouteFollowingRef = useRef(false);
+  const [visibilityMode, setVisibilityMode] =
+    useState<LocationVisibilityMode>("ghost");
+  const [visibilityMenuOpen, setVisibilityMenuOpen] = useState(false);
+  const [pendingVisibilityMode, setPendingVisibilityMode] =
+    useState<LiveDriveVisibilityMode | null>(null);
+  const [isStartingLiveDrive, setIsStartingLiveDrive] = useState(false);
+  const [liveDriveExpiresAt, setLiveDriveExpiresAt] = useState<string | null>(null);
+  const [liveDriveClock, setLiveDriveClock] = useState(Date.now());
   const [sharingError, setSharingError] = useState<string | null>(null);
   const [activeDrivers, setActiveDrivers] = useState<ActiveDriver[]>([]);
+  const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
   const normalizedMapMode = normalizeParam(params.mapMode);
   const focusEventId =
@@ -474,50 +502,18 @@ export default function LiveMapScreen() {
       ? normalizedFocusEventId
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
-  const onlineCount = activeDrivers.length;
-  const markerDrivers = activeDrivers.filter(
-    (driver) => driver.user_id !== currentUserId,
-  );
-  const shouldRenderRoute =
-    isRouteMode &&
-    routeStatus === "ready" &&
-    route !== null &&
-    route.coordinates.filter((point) =>
-      hasValidLatLng(point.latitude, point.longitude),
-    ).length >= 2;
+  driverLocationRef.current = driverLocation;
 
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
   const animateTo = useCallback(
-    (region: Region) => mapRef.current?.animateToRegion(region, 550),
-    [],
-  );
-
-  const setRouteFollowing = useCallback((enabled: boolean) => {
-    isRouteFollowingRef.current = enabled;
-    setIsRouteFollowing(enabled);
-  }, []);
-
-  const animateNavigationCamera = useCallback(
-    (point: LatLng, heading?: number | null) => {
-      mapRef.current?.animateCamera(
-        {
-          center: point,
-          heading: heading ?? 0,
-          pitch: 54,
-          zoom: 17,
-        },
-        { duration: 650 },
-      );
-    },
+    (region: MapRegion) => mapRef.current?.animateToRegion(region, 550),
     [],
   );
 
   const fitRouteToMap = useCallback(
-    (coordinates: LatLng[], destination: LatLng) => {
-      const points = driverLocation
-        ? [driverLocation, ...coordinates, destination]
-        : [...coordinates, destination];
+    (coordinates: LatLng[], destination: LatLng, origin: LatLng) => {
+      const points = [origin, ...coordinates, destination];
       if (points.length < 2) return;
       mapRef.current?.fitToCoordinates(points, {
         animated: true,
@@ -529,15 +525,63 @@ export default function LiveMapScreen() {
         },
       });
     },
-    [driverLocation, insets.bottom, insets.top],
+    [insets.bottom, insets.top],
   );
 
-  const clearPresenceHeartbeat = useCallback(() => {
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current);
-      heartbeatIntervalRef.current = null;
-    }
-  }, []);
+  const loadDriverLocation = useCallback(
+    async ({
+      requestPermission,
+      showLoading = false,
+    }: {
+      requestPermission: boolean;
+      showLoading?: boolean;
+    }) => {
+      if (isMountedRef.current) setLocationError(null);
+      if (showLoading) {
+        locationRequestInFlightRef.current = true;
+        if (isMountedRef.current) {
+          setLocationLoading(true);
+        }
+      }
+
+      try {
+        const permission = requestPermission
+          ? await Location.requestForegroundPermissionsAsync()
+          : await Location.getForegroundPermissionsAsync();
+        if (permission.status !== Location.PermissionStatus.GRANTED) {
+          if (isMountedRef.current) {
+            setPermissionDenied(
+              permission.status === Location.PermissionStatus.DENIED,
+            );
+          }
+          return null;
+        }
+        if (isMountedRef.current) setPermissionDenied(false);
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const point = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        if (isMountedRef.current) setDriverLocation(point);
+        return point;
+      } catch {
+        if (isMountedRef.current) {
+          setLocationError(
+            "Could not get your location. Check GPS and try again.",
+          );
+        }
+        return null;
+      } finally {
+        if (showLoading) {
+          locationRequestInFlightRef.current = false;
+          if (isMountedRef.current) setLocationLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   const deletePresence = useCallback(async (userId?: string | null) => {
     const id = userId ?? sharingUserIdRef.current;
@@ -547,22 +591,23 @@ export default function LiveMapScreen() {
 
   const stopSharing = useCallback(
     async (deleteRow = true) => {
-      locationWatcherRef.current?.remove();
-      locationWatcherRef.current = null;
-      clearPresenceHeartbeat();
       lastPresenceWriteRef.current = 0;
       latestPresencePayloadRef.current = null;
       const userId = sharingUserIdRef.current;
       sharingUserIdRef.current = null;
+      visibilityModeRef.current = "ghost";
       if (isMountedRef.current) {
         setIsVisibleOnMap(false);
+        setVisibilityMode("ghost");
+        setVisibilityMenuOpen(false);
+        setPendingVisibilityMode(null);
+        setLiveDriveExpiresAt(null);
         setSharingError(null);
       }
-      if (deleteRow && userId) {
-        await deletePresence(userId).catch(() => undefined);
-      }
+      await stopLiveDriveSession(deleteRow).catch(() => undefined);
+      if (deleteRow && userId) await deletePresence(userId).catch(() => undefined);
     },
-    [clearPresenceHeartbeat, deletePresence],
+    [deletePresence],
   );
 
   const writePresencePayload = useCallback(
@@ -620,10 +665,9 @@ export default function LiveMapScreen() {
           heading !== null && heading >= 0 && heading < 360 ? heading : null,
         speed_mps: speed !== null && speed >= 0 ? speed : null,
         accuracy_meters: accuracy !== null && accuracy >= 0 ? accuracy : null,
-        visibility_mode: "Global",
-        share_expires_at: new Date(
-          Date.now() + DRIVER_PRESENCE_LEASE_MS,
-        ).toISOString(),
+        visibility_mode: visibilityModeRef.current,
+        share_expires_at:
+          getLiveDriveSession()?.expiresAt ?? new Date().toISOString(),
       };
       latestPresencePayloadRef.current = payload;
       void writePresencePayload(userId, payload);
@@ -631,104 +675,128 @@ export default function LiveMapScreen() {
     [writePresencePayload],
   );
 
-  const startPresenceHeartbeat = useCallback(() => {
-    if (heartbeatIntervalRef.current) return;
-    if (
-      !isAppForegroundRef.current ||
-      !sharingUserIdRef.current ||
-      !latestPresencePayloadRef.current
-    )
-      return;
-    heartbeatIntervalRef.current = setInterval(() => {
-      const userId = sharingUserIdRef.current;
-      const payload = latestPresencePayloadRef.current;
-      if (!isAppForegroundRef.current || !userId || !payload) return;
-      void writePresencePayload(userId, payload, true);
-    }, DRIVER_PRESENCE_HEARTBEAT_MS);
-  }, [writePresencePayload]);
-
-  const handlePosition = useCallback(
-    (position: Location.LocationObject) => {
-      const { coords } = position;
-      if (!hasValidLatLng(coords.latitude, coords.longitude)) return;
-      const heading = finiteOrNull(coords.heading);
-      const validHeading = heading !== null && heading >= 0 && heading <= 360;
-      if (validHeading) lastHeadingRef.current = heading;
-      const point = { latitude: coords.latitude, longitude: coords.longitude };
-      setDriverLocation(point);
-      const userId = sharingUserIdRef.current;
-      if (userId) upsertPresence(userId, coords);
-      if (isRouteFollowingRef.current) {
-        animateNavigationCamera(
-          point,
-          validHeading ? heading : lastHeadingRef.current,
-        );
+  const startSharing = useCallback(
+    async (mode: LiveDriveVisibilityMode) => {
+      setSharingError(null);
+      setIsStartingLiveDrive(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) {
+        visibilityModeRef.current = "ghost";
+        setSharingError("Sign in to become visible on the map.");
+        setIsVisibleOnMap(false);
+        setVisibilityMode("ghost");
+        setIsStartingLiveDrive(false);
+        return;
+      }
+      try {
+        await requestLiveDrivePermissions();
+        const liveDriveSession = await startLiveDriveSession(userId, mode);
+        visibilityModeRef.current = mode;
+        sharingUserIdRef.current = userId;
+        setVisibilityMode(mode);
+        setLiveDriveExpiresAt(liveDriveSession.expiresAt);
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        upsertPresence(userId, position.coords);
+        if (isMountedRef.current) setIsVisibleOnMap(true);
+      } catch (error) {
+        sharingUserIdRef.current = null;
+        visibilityModeRef.current = "ghost";
+        latestPresencePayloadRef.current = null;
+        await stopLiveDriveSession(true).catch(() => undefined);
+        await deletePresence(userId).catch(() => undefined);
+        if (isMountedRef.current) {
+          setIsVisibleOnMap(false);
+          setVisibilityMode("ghost");
+          setLiveDriveExpiresAt(null);
+          setSharingError(
+            error instanceof Error
+              ? error.message
+              : "Could not start the 4-hour Live Drive session.",
+          );
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setIsStartingLiveDrive(false);
+          setPendingVisibilityMode(null);
+        }
       }
     },
-    [animateNavigationCamera, upsertPresence],
+    [deletePresence, upsertPresence],
   );
 
-  const ensureForegroundWatcher = useCallback(async () => {
-    const setupId = watcherSetupIdRef.current + 1;
-    watcherSetupIdRef.current = setupId;
-    locationWatcherRef.current?.remove();
-    locationWatcherRef.current = null;
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (watcherSetupIdRef.current !== setupId || !isMountedRef.current)
-        return null;
-      if (permission.status !== Location.PermissionStatus.GRANTED) {
-        setPermissionDenied(true);
-        setSharingError(
-          (current) =>
-            current ??
-            "Allow location access so your selected audience can see you on the NOXA map.",
-        );
-        return null;
+  const changeVisibilityMode = useCallback(
+    async (mode: LocationVisibilityMode) => {
+      setVisibilityMenuOpen(false);
+      if (mode === "ghost") {
+        await stopSharing(true);
+        return;
       }
-      setPermissionDenied(false);
-      const current = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      if (watcherSetupIdRef.current !== setupId || !isMountedRef.current)
-        return null;
-      handlePosition(current);
-      const watcher = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2500,
-          distanceInterval: 5,
-        },
-        handlePosition,
-      );
-      if (watcherSetupIdRef.current !== setupId || !isMountedRef.current) {
-        watcher.remove();
-        return null;
-      }
-      locationWatcherRef.current = watcher;
-      return {
-        latitude: current.coords.latitude,
-        longitude: current.coords.longitude,
-      };
-    } catch (error) {
-      console.warn("NOXA location watcher failed", error);
-      if (isMountedRef.current) {
-        setPermissionDenied(true);
-        setSharingError("Could not start location sharing.");
-      }
-      return null;
-    }
-  }, [handlePosition]);
 
-  const loadDriverLocation = useCallback(async () => {
-    if (driverLocation) return driverLocation;
-    return ensureForegroundWatcher();
-  }, [driverLocation, ensureForegroundWatcher]);
+      const activeSession = getLiveDriveSession();
+      const userId = sharingUserIdRef.current ?? activeSession?.userId;
+      if (!userId || !activeSession) {
+        setPendingVisibilityMode(mode);
+        return;
+      }
+
+      visibilityModeRef.current = mode;
+      const liveDriveSession = await updateLiveDriveVisibility(mode).catch(() => null);
+      if (!liveDriveSession) {
+        await stopSharing(true);
+        setSharingError("Your Live Drive session expired. Start a new 4-hour session.");
+        return;
+      }
+      setVisibilityMode(mode);
+      setIsVisibleOnMap(true);
+      setLiveDriveExpiresAt(liveDriveSession.expiresAt);
+      lastPresenceWriteRef.current = 0;
+      const latestPayload = latestPresencePayloadRef.current;
+      if (latestPayload) {
+        const nextPayload = { ...latestPayload, visibility_mode: mode };
+        latestPresencePayloadRef.current = nextPayload;
+        await writePresencePayload(userId, nextPayload, true);
+      } else {
+        await supabase
+          .from("driver_locations")
+          .update({ visibility_mode: mode })
+          .eq("user_id", userId);
+      }
+    },
+    [stopSharing, writePresencePayload],
+  );
+
+  const restoreLiveDriveSession = useCallback(async () => {
+    const activeSession = getLiveDriveSession();
+    if (!activeSession) {
+      if (sharingUserIdRef.current) await stopSharing(true);
+      return;
+    }
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user.id !== activeSession.userId) {
+      await stopSharing(true);
+      return;
+    }
+    if (!(await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME))) {
+      await stopSharing(true);
+      return;
+    }
+    sharingUserIdRef.current = activeSession.userId;
+    visibilityModeRef.current = activeSession.visibilityMode;
+    if (isMountedRef.current) {
+      setVisibilityMode(activeSession.visibilityMode);
+      setLiveDriveExpiresAt(activeSession.expiresAt);
+      setIsVisibleOnMap(true);
+      setLiveDriveClock(Date.now());
+    }
+  }, [stopSharing]);
 
   const loadEvents = useCallback(async () => {
     const { data } = await supabase
       .from("events")
-      .select("id,title,starts_at,location_name,latitude,longitude")
+      .select("id,title,category,starts_at,location_name,latitude,longitude")
       .eq("status", "scheduled")
       .gte("starts_at", new Date().toISOString())
       .not("latitude", "is", null)
@@ -762,14 +830,12 @@ export default function LiveMapScreen() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
-      setCurrentUserId(userId ?? null);
       if (!userId) {
         if (isMountedRef.current) setActiveDrivers([]);
         return;
       }
-      const now = new Date();
       const since = new Date(
-        now.getTime() - ACTIVE_DRIVER_WINDOW_MS,
+        Date.now() - ACTIVE_DRIVER_WINDOW_MS,
       ).toISOString();
       const { data, error } = await supabase
         .from("driver_locations")
@@ -777,15 +843,10 @@ export default function LiveMapScreen() {
           "user_id,latitude,longitude,updated_at,profiles(id,display_name,username,avatar_url)",
         )
         .gte("updated_at", since)
-        .gt("share_expires_at", now.toISOString())
-        .neq("visibility_mode", "Ghost")
+        .neq("user_id", userId)
         .order("updated_at", { ascending: false });
-      if (error) {
-        console.warn("NOXA active drivers refresh failed", error.message);
-        if (isMountedRef.current) setDriverRefreshError(true);
-        return;
-      }
       if (
+        error ||
         !isMountedRef.current ||
         activeDriversRequestIdRef.current !== requestId
       )
@@ -794,7 +855,6 @@ export default function LiveMapScreen() {
         .map(normalizeActiveDriver)
         .filter((driver): driver is ActiveDriver => driver !== null);
       setActiveDrivers(drivers);
-      setDriverRefreshError(false);
     } finally {
       activeDriversRefreshInFlightRef.current = false;
       if (activeDriversRefreshQueuedRef.current) {
@@ -804,62 +864,10 @@ export default function LiveMapScreen() {
     }
   }, []);
 
-  const startSharing = useCallback(async () => {
-    setSharingError(null);
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user.id;
-    setCurrentUserId(userId ?? null);
-    if (!userId) {
-      setSharingError("Sign in to become visible on the map.");
-      setIsVisibleOnMap(false);
-      return;
-    }
-    try {
-      sharingUserIdRef.current = userId;
-      const point = await ensureForegroundWatcher();
-      if (!point || sharingUserIdRef.current !== userId) {
-        sharingUserIdRef.current = null;
-        setIsVisibleOnMap(false);
-        return;
-      }
-      if (latestPresencePayloadRef.current) {
-        await writePresencePayload(
-          userId,
-          latestPresencePayloadRef.current,
-          true,
-        );
-      }
-      startPresenceHeartbeat();
-      if (isMountedRef.current) {
-        setIsVisibleOnMap(true);
-        void refreshActiveDrivers();
-      }
-    } catch (error) {
-      console.warn("NOXA sharing start failed", error);
-      sharingUserIdRef.current = null;
-      if (isMountedRef.current) {
-        setIsVisibleOnMap(false);
-        setSharingError("Could not start location sharing.");
-      }
-    }
-  }, [
-    ensureForegroundWatcher,
-    refreshActiveDrivers,
-    startPresenceHeartbeat,
-    writePresencePayload,
-  ]);
-
-  const toggleVisibility = useCallback(
-    (enabled: boolean) => {
-      if (enabled) void startSharing();
-      else void stopSharing(true).then(() => refreshActiveDrivers());
-    },
-    [refreshActiveDrivers, startSharing, stopSharing],
-  );
-
   useEffect(() => {
     let isActive = true;
     isMountedRef.current = true;
+    void restoreLiveDriveSession();
     void refreshActiveDrivers();
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -867,6 +875,9 @@ export default function LiveMapScreen() {
           void stopSharing(true);
       },
     );
+    const refreshInterval = setInterval(() => {
+      if (isActive && isAppForegroundRef.current) void refreshActiveDrivers();
+    }, DRIVER_LIST_REFRESH_MS);
     const channel = supabase.channel(createDriverLocationsMapTopic());
     channel.on(
       "postgres_changes",
@@ -887,51 +898,42 @@ export default function LiveMapScreen() {
       isActive = false;
       isMountedRef.current = false;
       activeDriversRequestIdRef.current += 1;
-      locationWatcherRef.current?.remove();
-      locationWatcherRef.current = null;
-      clearPresenceHeartbeat();
       latestPresencePayloadRef.current = null;
-      const userId = sharingUserIdRef.current;
       sharingUserIdRef.current = null;
-      void deletePresence(userId).catch(() => undefined);
+      clearInterval(refreshInterval);
       void supabase.removeChannel(channel);
       authListener.subscription.unsubscribe();
     };
   }, [
-    clearPresenceHeartbeat,
-    deletePresence,
     refreshActiveDrivers,
+    restoreLiveDriveSession,
     stopSharing,
   ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       isAppForegroundRef.current = nextState === "active";
-      if (nextState === "active") {
-        void ensureForegroundWatcher();
-        startPresenceHeartbeat();
-      } else {
-        void stopSharing(true);
-        clearPresenceHeartbeat();
-        watcherSetupIdRef.current += 1;
-        locationWatcherRef.current?.remove();
-        locationWatcherRef.current = null;
-      }
+      if (nextState === "active") void restoreLiveDriveSession();
     });
     return () => subscription.remove();
-  }, [
-    clearPresenceHeartbeat,
-    ensureForegroundWatcher,
-    startPresenceHeartbeat,
-    stopSharing,
-  ]);
+  }, [restoreLiveDriveSession]);
+
+  useEffect(() => {
+    if (!liveDriveExpiresAt) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setLiveDriveClock(now);
+      if (now >= Date.parse(liveDriveExpiresAt)) void stopSharing(true);
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [liveDriveExpiresAt, stopSharing]);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
       void (async () => {
         const [point, rows] = await Promise.all([
-          ensureForegroundWatcher().catch(() => null),
+          loadDriverLocation({ requestPermission: false }),
           loadEvents(),
         ]);
         if (!isActive) return;
@@ -949,33 +951,8 @@ export default function LiveMapScreen() {
       })();
       return () => {
         isActive = false;
-        void stopSharing(true);
-        watcherSetupIdRef.current += 1;
-        locationWatcherRef.current?.remove();
-        locationWatcherRef.current = null;
       };
-    }, [
-      animateTo,
-      ensureForegroundWatcher,
-      focusEventId,
-      isRouteMode,
-      loadEvents,
-      stopSharing,
-    ]),
-  );
-
-  const clearRouteState = useCallback(
-    (replaceRoute = true) => {
-      routeRequestIdRef.current += 1;
-      routeRequestKeyRef.current = null;
-      setRoute(null);
-      setRouteStatus("idle");
-      setRouteMessage(null);
-      setRouteFollowing(false);
-      setSelectedEvent(null);
-      if (replaceRoute) router.replace("/(tabs)");
-    },
-    [setRouteFollowing],
+    }, [animateTo, focusEventId, isRouteMode, loadDriverLocation, loadEvents]),
   );
 
   useEffect(() => {
@@ -988,94 +965,202 @@ export default function LiveMapScreen() {
   }, [animateTo, events, focusEventId, isRouteMode]);
 
   useEffect(() => {
-    if (!isRouteMode || !focusEventId) clearRouteState(false);
-  }, [clearRouteState, focusEventId, isRouteMode]);
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
+    routeRequestIdRef.current += 1;
+    routeRequestKeyRef.current = null;
+    setRoute(null);
+    setRouteMessage(null);
+    setRouteStatus("idle");
+    routeRequestKeyRef.current = null;
+  }, [focusEventId, isRouteMode]);
 
-  const requestRoute = useCallback(async () => {
-    if (!isRouteMode || !focusEventId || !hasValidCoordinates(selectedEvent))
+  const requestRoute = useCallback(async (retry = false) => {
+    if (!isRouteMode || !focusEventId || !selectedEvent) return;
+    if (selectedEvent.id !== focusEventId) return;
+    if (!hasValidCoordinates(selectedEvent)) {
+      setRoute(null);
+      setRouteStatus("error");
+      setRouteMessage("This event does not have a valid route location.");
       return;
-    if (!driverLocation) {
+    }
+    const origin = driverLocationRef.current;
+    if (!origin || !hasValidLatLng(origin.latitude, origin.longitude)) {
       setRoute(null);
       setRouteStatus("error");
       setRouteMessage(
         permissionDenied
-          ? "Location permission is off. Enable location to route on NOXA."
-          : "Current location is needed to build this route.",
+          ? "Location permission is off. Enable location, then retry."
+          : "Current location is unavailable. Check GPS, then retry.",
       );
       return;
     }
 
-    const requestKey = `${focusEventId}:${driverLocation.latitude.toFixed(5)},${driverLocation.longitude.toFixed(5)}:${selectedEvent.latitude.toFixed(5)},${selectedEvent.longitude.toFixed(5)}`;
-    if (routeStatus === "loading" || routeRequestKeyRef.current === requestKey)
-      return;
+    const requestKey = `${focusEventId}:` +
+      `${selectedEvent.latitude.toFixed(5)},${selectedEvent.longitude.toFixed(5)}`;
+    if (!retry && routeRequestKeyRef.current === requestKey) return;
 
     const requestId = routeRequestIdRef.current + 1;
     routeRequestIdRef.current = requestId;
     routeRequestKeyRef.current = requestKey;
+    routeAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    routeAbortControllerRef.current = controller;
     setRoute(null);
     setRouteStatus("loading");
     setRouteMessage(null);
 
-    const { data, error } = await supabase.functions.invoke<RouteResult>(
-      "event-route",
-      {
-        body: {
-          origin: driverLocation,
-          destination: {
-            latitude: selectedEvent.latitude,
-            longitude: selectedEvent.longitude,
+    let nextRoute: RouteResult | null = null;
+    let nextMessage = "Route could not be built right now.";
+    let didTimeout = false;
+    const timeout = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, ROUTE_REQUEST_TIMEOUT_MS);
+
+    try {
+      const { data, error } = await supabase.functions.invoke<RouteResult>(
+        "event-route",
+        {
+          body: {
+            origin,
+            destination: {
+              latitude: selectedEvent.latitude,
+              longitude: selectedEvent.longitude,
+            },
           },
+          signal: controller.signal,
         },
-      },
-    );
+      );
 
-    if (routeRequestIdRef.current !== requestId) return;
-
-    if (error || !data || data.coordinates.length < 2) {
-      routeRequestKeyRef.current = null;
-      setRoute(null);
-      setRouteStatus("error");
-      setRouteMessage(error?.message ?? "Route could not be built right now.");
-      return;
+      if (
+        routeRequestIdRef.current !== requestId ||
+        routeAbortControllerRef.current !== controller ||
+        !isMountedRef.current
+      ) {
+        return;
+      }
+      if (controller.signal.aborted) {
+        if (!didTimeout) return;
+        console.warn("[event-route] request timed out", {
+          code: "TIMEOUT",
+          message: "Route request timed out.",
+        });
+        nextMessage = "Route request timed out. Please retry.";
+      } else if (error) {
+        const status =
+          error.context instanceof Response ? error.context.status : undefined;
+        console.warn("[event-route] request failed", {
+          status,
+          code: error.name,
+          message: "Edge Function did not return a route.",
+        });
+        nextMessage =
+          status === 401
+            ? "Your session expired. Sign in again, then retry."
+            : status === 429
+              ? "Route service is busy. Wait a moment, then retry."
+              : "Route is unavailable right now. Please retry.";
+      } else if (
+        data &&
+        Array.isArray(data.coordinates) &&
+        data.coordinates.length >= 2 &&
+        data.coordinates.every((point) =>
+          hasValidLatLng(point.latitude, point.longitude),
+        ) &&
+        Number.isFinite(data.distanceMeters) &&
+        Number.isFinite(data.durationSeconds)
+      ) {
+        nextRoute = data;
+      } else {
+        console.warn("[event-route] invalid response", {
+          code: "MALFORMED_ROUTE",
+          message: "Edge Function returned an invalid route.",
+        });
+        nextMessage = "The route response was invalid. Please retry.";
+      }
+    } catch {
+      if (
+        routeRequestIdRef.current !== requestId ||
+        routeAbortControllerRef.current !== controller ||
+        !isMountedRef.current ||
+        (controller.signal.aborted && !didTimeout)
+      ) {
+        return;
+      }
+      console.warn("[event-route] request exception", {
+        code: didTimeout ? "TIMEOUT" : "REQUEST_EXCEPTION",
+        message: didTimeout
+          ? "Route request timed out."
+          : "Route request could not be completed.",
+      });
+      nextMessage = didTimeout
+        ? "Route request timed out. Please retry."
+        : "Route request failed. Check your connection and retry.";
+    } finally {
+      clearTimeout(timeout);
+      if (routeAbortControllerRef.current === controller) {
+        routeAbortControllerRef.current = null;
+      }
+      if (
+        routeRequestIdRef.current !== requestId ||
+        !isMountedRef.current
+      ) {
+        return;
+      }
+      setRoute(nextRoute);
+      setRouteStatus(nextRoute ? "ready" : "error");
+      setRouteMessage(nextRoute ? null : nextMessage);
+      if (nextRoute) {
+        fitRouteToMap(nextRoute.coordinates, {
+          latitude: selectedEvent.latitude,
+          longitude: selectedEvent.longitude,
+        }, origin);
+      }
     }
-
-    setRoute(data);
-    setRouteStatus("ready");
-    setRouteFollowing(true);
-    fitRouteToMap(data.coordinates, {
-      latitude: selectedEvent.latitude,
-      longitude: selectedEvent.longitude,
-    });
   }, [
-    driverLocation,
     fitRouteToMap,
     focusEventId,
     isRouteMode,
     permissionDenied,
-    routeStatus,
     selectedEvent,
-    setRouteFollowing,
   ]);
 
   useEffect(() => {
     void requestRoute();
-  }, [requestRoute]);
+  }, [driverLocation, requestRoute]);
 
   useEffect(() => {
     return () => {
       routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
     };
   }, []);
 
-  const closeRouteMode = useCallback(
-    () => clearRouteState(true),
-    [clearRouteState],
-  );
+  const closeRouteMode = useCallback(() => {
+    routeRequestIdRef.current += 1;
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
+    routeRequestKeyRef.current = null;
+    setRoute(null);
+    setRouteStatus("idle");
+    setRouteMessage(null);
+    router.setParams({ mapMode: undefined, focusEventId: undefined });
+  }, []);
 
   const retryRoute = useCallback(() => {
-    routeRequestKeyRef.current = null;
-    void requestRoute();
+    routeRequestIdRef.current += 1;
+    routeAbortControllerRef.current?.abort();
+    routeAbortControllerRef.current = null;
+    void requestRoute(true);
   }, [requestRoute]);
+
+  const routeToEvent = useCallback((event: EventMarkerRow) => {
+    if (!hasValidCoordinates(event)) return;
+    setSelectedEvent(event);
+    router.setParams({ focusEventId: event.id, mapMode: "route" });
+  }, []);
 
   const selectEvent = useCallback(
     (event: EventMarkerRow) => {
@@ -1085,111 +1170,127 @@ export default function LiveMapScreen() {
     [animateTo],
   );
 
+  const changeMapFilter = useCallback((filter: MapFilter) => {
+    setMapFilter(filter);
+    if (filter === "drivers") setSelectedEvent(null);
+  }, []);
+
   const recenterMap = useCallback(async () => {
-    const point =
-      driverLocation ?? (await loadDriverLocation().catch(() => null));
-    if (isRouteMode && point) {
-      setRouteFollowing(true);
-      animateNavigationCamera(point, lastHeadingRef.current);
-      return;
+    if (locationRequestInFlightRef.current) return;
+    const point = await loadDriverLocation({
+      requestPermission: true,
+      showLoading: true,
+    });
+    if (point) {
+      animateTo(pointRegion(point));
     }
-    animateTo(point ? pointRegion(point) : pointRegion(THESSALONIKI));
-  }, [
-    animateNavigationCamera,
-    animateTo,
-    driverLocation,
-    isRouteMode,
-    loadDriverLocation,
-    setRouteFollowing,
-  ]);
+  }, [animateTo, loadDriverLocation]);
+
+  const mapboxDrivers = useMemo<MapboxDriver[]>(
+    () =>
+      activeDrivers.map((driver) => ({
+        user_id: driver.user_id,
+        latitude: driver.latitude,
+        longitude: driver.longitude,
+        label: driverLabel(driver),
+        avatar_url: driver.profile?.avatar_url ?? null,
+      })),
+    [activeDrivers],
+  );
+  const mapboxEvents = useMemo<MapboxEvent[]>(
+    () =>
+      events.map((event) => ({
+        id: event.id,
+        title: event.title,
+        category: event.category,
+        latitude: event.latitude,
+        longitude: event.longitude,
+      })),
+    [events],
+  );
+  const openDriverProfile = useCallback((driverId: string) => {
+    router.push({
+      pathname: "/driver-profile/[id]",
+      params: { id: driverId },
+    });
+  }, []);
+  const selectMapboxEvent = useCallback(
+    (event: MapboxEvent) => {
+      const fullEvent = events.find((candidate) => candidate.id === event.id);
+      if (fullEvent) selectEvent(fullEvent);
+    },
+    [events, selectEvent],
+  );
 
   const headerTop = insets.top + spacing.sm;
-  const headerBottom = headerTop + 52;
+  const headerBottom = headerTop + 34;
+  const filtersTop = headerBottom + spacing.sm;
+  const filtersBottom = filtersTop + 32;
+  const visibilityTop = filtersBottom + 10;
+  const activeVisibilityMode =
+    VISIBILITY_MODES.find((mode) => mode.id === visibilityMode) ??
+    VISIBILITY_MODES[VISIBILITY_MODES.length - 1];
+  const liveDriveRemaining = formatLiveDriveRemaining(
+    liveDriveExpiresAt,
+    liveDriveClock,
+  );
+  const pendingVisibility = VISIBILITY_MODES.find(
+    (mode) => mode.id === pendingVisibilityMode,
+  );
+  const noticesTop = visibilityTop + (visibilityMenuOpen ? 238 : 42);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 168 : selectedEvent ? 188 : spacing.md);
+    (isRouteMode && selectedEvent ? 218 : selectedEvent ? 196 : 62);
 
   return (
     <View style={styles.screen}>
-      <MapView
+      <MapboxLiveMapCompat
         ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
+        activeDrivers={mapboxDrivers}
+        driverLocation={driverLocation}
+        events={mapboxEvents}
         initialRegion={initialRegion}
-        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
-        userInterfaceStyle="dark"
-        mapType={Platform.OS === "ios" ? "mutedStandard" : "standard"}
-        customMapStyle={
-          Platform.OS === "android" ? androidNoxaMapStyle : undefined
-        }
-        showsUserLocation={Boolean(driverLocation)}
-        showsMyLocationButton={false}
-        showsPointsOfInterest={false}
-        showsBuildings={false}
-        showsTraffic={false}
-        showsIndoors={false}
-        showsScale={false}
-        showsCompass={false}
-        toolbarEnabled={false}
-        onPanDrag={() => {
-          if (isRouteFollowingRef.current) setRouteFollowing(false);
-        }}
-      >
-        {shouldRenderRoute ? (
-          <>
-            <Polyline
-              coordinates={route.coordinates}
-              strokeColor="rgba(31,6,8,0.78)"
-              strokeWidth={9}
-              lineCap="round"
-              lineJoin="round"
-            />
-            <Polyline
-              coordinates={route.coordinates}
-              strokeColor={colors.primary}
-              strokeWidth={5}
-              lineCap="round"
-              lineJoin="round"
-            />
-          </>
-        ) : null}
-        {markerDrivers.map((driver) => (
-          <DriverMarker key={driver.user_id} driver={driver} />
-        ))}
-        {events.map((event) => (
-          <Marker
-            key={event.id}
-            coordinate={{
-              latitude: event.latitude,
-              longitude: event.longitude,
-            }}
-            onPress={() => selectEvent(event)}
-            title={event.title}
-          >
-            <View
-              style={[
-                styles.markerDot,
-                selectedEvent?.id === event.id && styles.markerDotSelected,
-              ]}
-            >
-              <Ionicons name="flag" size={14} color={colors.text} />
-            </View>
-          </Marker>
-        ))}
-      </MapView>
+        isRouteMode={isRouteMode}
+        mapFilter={mapFilter}
+        onDriverPress={openDriverProfile}
+        onEventPress={selectMapboxEvent}
+        route={route}
+        selectedEventId={selectedEvent?.id ?? null}
+      />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
+        <Svg
+          height={noticesTop + 70}
+          pointerEvents="none"
+          style={styles.topScrim}
+          width="100%"
+        >
+          <Defs>
+            <LinearGradient id="mapTopFade" x1="0" x2="0" y1="0" y2="1">
+              <Stop offset="0" stopColor={colors.background} stopOpacity="0.9" />
+              <Stop
+                offset="0.62"
+                stopColor={colors.background}
+                stopOpacity="0.54"
+              />
+              <Stop offset="1" stopColor={colors.background} stopOpacity="0" />
+            </LinearGradient>
+          </Defs>
+          <Rect fill="url(#mapTopFade)" height="100%" width="100%" />
+        </Svg>
+
         <View style={[styles.header, { top: headerTop }]}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>N</Text>
-          </View>
-          <View pointerEvents="none" style={styles.logoWrap}>
-            <View style={styles.logoSpeedLine} />
-            <Text style={styles.logo}>NOXA</Text>
-          </View>
+          <NoxaCompactLogo />
           <View style={styles.headerActions}>
+            <View style={styles.onlinePill}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.onlineText}>
+                {activeDrivers.length} online
+              </Text>
+            </View>
             <HeaderAction
               icon="search-outline"
               accessibilityLabel="Search"
@@ -1203,56 +1304,104 @@ export default function LiveMapScreen() {
           </View>
         </View>
 
-        <View
-          style={[styles.visibilityControl, { top: headerBottom + spacing.sm }]}
+        <MapFilterBar
+          active={mapFilter}
+          onChange={changeMapFilter}
+          top={filtersTop}
+        />
+
+        <TouchableOpacity
+          accessibilityLabel={`Map visibility: ${activeVisibilityMode.label}`}
+          accessibilityHint="Choose who can see your temporary live location"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: visibilityMenuOpen }}
+          activeOpacity={0.78}
+          onPress={() => setVisibilityMenuOpen((current) => !current)}
+          style={[
+            styles.visibilityControl,
+            isVisibleOnMap && styles.visibilityControlActive,
+            { top: visibilityTop },
+          ]}
         >
-          <View style={styles.visibilityCopy}>
-            <Text style={styles.visibilityTitle}>Visible on Map</Text>
-            <Text style={styles.visibilityText}>
-              {onlineCount} online visible{" "}
-              {onlineCount === 1 ? "driver" : "drivers"}.
-            </Text>
-          </View>
-          <Switch
-            accessibilityLabel="Toggle temporary visibility on the NOXA map"
-            value={isVisibleOnMap}
-            onValueChange={toggleVisibility}
-            trackColor={{
-              false: "rgba(255,255,255,0.16)",
-              true: "rgba(215,25,32,0.44)",
-            }}
-            thumbColor={isVisibleOnMap ? colors.text : "#737984"}
+          <Ionicons
+            name={activeVisibilityMode.icon}
+            size={15}
+            color={isVisibleOnMap ? colors.primaryHover : colors.textMuted}
           />
-        </View>
-
-        <View
-          pointerEvents="none"
-          style={[styles.onlinePill, { top: headerBottom + 74 }]}
-        >
-          <Text style={styles.locationNoticeText}>
-            {onlineCount} online •{" "}
-            {isRouteFollowing ? "Route follow on" : "Live Map"}
-          </Text>
-        </View>
-
-        {driverRefreshError ? (
-          <View
-            pointerEvents="none"
-            style={[styles.sharingNotice, { top: headerBottom + 112 }]}
+          <Text
+            style={[
+              styles.visibilityTitle,
+              isVisibleOnMap && styles.visibilityTitleActive,
+            ]}
           >
-            <Text style={styles.locationNoticeText}>
-              Live drivers are reconnecting.
-            </Text>
+            {activeVisibilityMode.label}
+            {isVisibleOnMap && liveDriveRemaining
+              ? ` · ${liveDriveRemaining}`
+              : ""}
+          </Text>
+          <Ionicons
+            name={visibilityMenuOpen ? "chevron-up" : "chevron-down"}
+            size={13}
+            color={colors.textSubtle}
+          />
+        </TouchableOpacity>
+
+        {visibilityMenuOpen ? (
+          <View style={[styles.visibilityMenu, { top: visibilityTop + 38 }]}>
+            <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
+            {VISIBILITY_MODES.map((mode) => {
+              const selected = visibilityMode === mode.id;
+              return (
+                <TouchableOpacity
+                  accessibilityLabel={`${mode.label}. ${mode.description}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                  activeOpacity={0.76}
+                  key={mode.id}
+                  onPress={() => void changeVisibilityMode(mode.id)}
+                  style={[
+                    styles.visibilityOption,
+                    selected && styles.visibilityOptionSelected,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.visibilityOptionIcon,
+                      selected && styles.visibilityOptionIconSelected,
+                    ]}
+                  >
+                    <Ionicons
+                      name={mode.icon}
+                      size={16}
+                      color={selected ? colors.primaryHover : colors.textMuted}
+                    />
+                  </View>
+                  <View style={styles.visibilityOptionCopy}>
+                    <Text
+                      style={[
+                        styles.visibilityOptionLabel,
+                        selected && styles.visibilityOptionLabelSelected,
+                      ]}
+                    >
+                      {mode.label}
+                    </Text>
+                    <Text style={styles.visibilityOptionDescription}>
+                      {mode.description}
+                    </Text>
+                  </View>
+                  {selected ? (
+                    <Ionicons name="checkmark" size={16} color={colors.primaryHover} />
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         ) : null}
 
         {sharingError ? (
           <View
             pointerEvents="none"
-            style={[
-              styles.sharingNotice,
-              { top: headerBottom + (driverRefreshError ? 150 : 112) },
-            ]}
+            style={[styles.sharingNotice, { top: noticesTop }]}
           >
             <Text style={styles.locationNoticeText}>{sharingError}</Text>
           </View>
@@ -1263,7 +1412,7 @@ export default function LiveMapScreen() {
             pointerEvents="none"
             style={[
               styles.locationNotice,
-              { top: headerBottom + (sharingError ? 156 : 112) },
+              { top: noticesTop + (sharingError ? 46 : 0) },
             ]}
           >
             <Text style={styles.locationNoticeText}>
@@ -1272,13 +1421,72 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
+        {locationError ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.locationErrorNotice,
+              {
+                top:
+                  noticesTop +
+                  (sharingError ? 46 : 0) +
+                  (permissionDenied ? 46 : 0),
+              },
+            ]}
+          >
+            <Ionicons
+              name="warning-outline"
+              size={14}
+              color={colors.primaryHover}
+            />
+            <Text style={styles.locationNoticeText}>{locationError}</Text>
+          </View>
+        ) : null}
+
+        {!selectedEvent ? (
+          <View
+            pointerEvents="none"
+            style={[styles.nearbySummary, { bottom: eventCardBottom }]}
+          >
+            <Text style={styles.nearbyLabel}>Nearby</Text>
+            <View style={styles.nearbyMetrics}>
+              <View style={styles.nearbyMetric}>
+                <View style={styles.nearbyDriverDot} />
+                <Text style={styles.nearbyMetricText}>
+                  {activeDrivers.length} drivers
+                </Text>
+              </View>
+              <View style={styles.nearbyDivider} />
+              <View style={styles.nearbyMetric}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={14}
+                  color={colors.primaryHover}
+                />
+                <Text style={styles.nearbyMetricText}>
+                  {events.length} events
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
         <TouchableOpacity
           accessibilityLabel="Recenter map"
+          accessibilityState={{
+            busy: locationLoading,
+            disabled: locationLoading,
+          }}
           activeOpacity={0.78}
+          disabled={locationLoading}
           onPress={recenterMap}
           style={[styles.recenterButton, { bottom: controlBottom }]}
         >
-          <Ionicons name="locate" size={22} color={colors.text} />
+          {locationLoading ? (
+            <ActivityIndicator color={colors.text} size="small" />
+          ) : (
+            <Ionicons name="locate" size={22} color={colors.text} />
+          )}
         </TouchableOpacity>
 
         {selectedEvent && isRouteMode ? (
@@ -1292,295 +1500,590 @@ export default function LiveMapScreen() {
             onRetry={retryRoute}
           />
         ) : selectedEvent ? (
-          <EventCard event={selectedEvent} bottomOffset={eventCardBottom} />
+          <EventCard
+            event={selectedEvent}
+            bottomOffset={eventCardBottom}
+            onClose={() => setSelectedEvent(null)}
+            onRoute={() => routeToEvent(selectedEvent)}
+          />
         ) : null}
       </View>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isStartingLiveDrive) setPendingVisibilityMode(null);
+        }}
+        transparent
+        visible={pendingVisibilityMode !== null}
+      >
+        <View style={styles.liveDriveModalBackdrop}>
+          <View style={styles.liveDriveModalCard}>
+            <View style={styles.liveDriveModalIcon}>
+              <Ionicons name="navigate" size={22} color={colors.primaryHover} />
+            </View>
+            <Text style={styles.liveDriveModalEyebrow}>BACKGROUND LOCATION</Text>
+            <Text style={styles.liveDriveModalTitle}>Start a 4-hour Live Drive?</Text>
+            <Text style={styles.liveDriveModalBody}>
+              NOXA collects and shares your precise location with{' '}
+              {pendingVisibility?.label.toLowerCase() ?? 'your selected audience'} while
+              the app is in the background, so they can see you on the live map.
+            </Text>
+            <Text style={styles.liveDriveModalFootnote}>
+              Sharing stops after 4 hours, when you select Ghost, or when you sign out.
+            </Text>
+            <View style={styles.liveDriveModalActions}>
+              <TouchableOpacity
+                disabled={isStartingLiveDrive}
+                onPress={() => setPendingVisibilityMode(null)}
+                style={styles.liveDriveCancelButton}
+              >
+                <Text style={styles.liveDriveCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={isStartingLiveDrive || !pendingVisibilityMode}
+                onPress={() => {
+                  if (pendingVisibilityMode) void startSharing(pendingVisibilityMode);
+                }}
+                style={styles.liveDriveStartButton}
+              >
+                {isStartingLiveDrive ? (
+                  <ActivityIndicator color={colors.text} size="small" />
+                ) : (
+                  <Text style={styles.liveDriveStartText}>START 4-HOUR SESSION</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, overflow: "hidden", backgroundColor: "#050608" },
+  screen: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
+  topScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+  },
   header: {
     position: "absolute",
     left: spacing.md,
     right: spacing.md,
-    height: 52,
+    height: 34,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.11)",
-    backgroundColor: "rgba(8,10,14,0.56)",
-    shadowColor: "#000",
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
   },
-  avatar: {
-    width: 44,
-    height: 44,
+  headerActions: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "#141821",
+    gap: 6,
   },
-  avatarText: {
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "900",
-  },
-  logoWrap: {
-    position: "absolute",
-    left: 0,
-    right: 0,
+  onlinePill: {
+    height: 28,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  logoSpeedLine: {
-    width: 44,
-    height: 2,
-    marginBottom: 5,
+    gap: 6,
+    paddingHorizontal: 9,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.34)",
-    backgroundColor: "rgba(255,36,36,0.96)",
-    shadowColor: colors.accent,
-    shadowOpacity: 0.9,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 0 },
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.78)",
   },
-  logo: {
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  onlineText: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "900",
-    letterSpacing: 7.2,
+    fontSize: 11,
+    fontWeight: "500",
   },
-  headerActions: { flexDirection: "row", gap: spacing.sm },
   headerAction: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.13)",
-    backgroundColor: "#131720",
-  },
-  driverMarkerWrap: {
-    alignItems: "center",
-  },
-  driverMarker: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    overflow: "hidden",
-    borderWidth: 3,
-    borderColor: "#11151D",
-    backgroundColor: "rgba(20,24,33,0.96)",
-  },
-  driverMarkerImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.72)",
-  },
-  driverMarkerInitials: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  driverMarkerStatus: {
-    position: "absolute",
-    right: 1,
-    bottom: 2,
-    width: 10,
-    height: 10,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: "#11151D",
-    backgroundColor: colors.accent,
-  },
-  driverMarkerTail: {
-    width: 10,
-    height: 10,
-    marginTop: -3,
-    transform: [{ rotate: "45deg" }],
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "rgba(255,36,36,0.82)",
-    backgroundColor: colors.accent,
-  },
-  markerDot: {
     width: 34,
     height: 34,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.72)",
+  },
+  filterBar: {
+    position: "absolute",
+    left: spacing.md,
+    flexDirection: "row",
+    gap: 6,
+  },
+  filterPill: {
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 13,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(24,24,29,0.84)",
+  },
+  filterPillActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  filterPillText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  filterPillTextActive: {
+    color: colors.text,
+    fontWeight: "600",
+  },
+  driverMarker: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.72)",
-    backgroundColor: colors.accentDark,
+    borderColor: colors.primary,
+    backgroundColor: "rgba(17,17,22,0.96)",
+    shadowColor: colors.black,
+    shadowOpacity: 0.42,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  driverMarkerAccent: {
+    position: "absolute",
+    right: -1,
+    bottom: -1,
+    width: 7,
+    height: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+    backgroundColor: colors.success,
+  },
+  markerDot: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: colors.primary,
+    shadowColor: colors.black,
+    shadowOpacity: 0.4,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
   },
   markerDotSelected: {
-    backgroundColor: "#D71920",
-    transform: [{ scale: 1.08 }],
+    borderColor: colors.white,
+    backgroundColor: colors.primaryHover,
+    transform: [{ scale: 1.1 }],
   },
   visibilityControl: {
     position: "absolute",
-    left: spacing.md,
     right: spacing.md,
-    minHeight: 58,
+    minWidth: 104,
+    height: 32,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.11)",
-    backgroundColor: "rgba(10,12,16,0.88)",
-  },
-  visibilityCopy: { flex: 1 },
-  visibilityTitle: {
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "900",
-  },
-  visibilityText: {
-    marginTop: 1,
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "700",
-  },
-  onlinePill: {
-    position: "absolute",
-    alignSelf: "center",
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
+    gap: 6,
+    paddingHorizontal: 10,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.11)",
-    backgroundColor: "rgba(10,12,16,0.78)",
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.82)",
+  },
+  visibilityControlActive: {
+    borderColor: colors.borderAccent,
+    backgroundColor: "rgba(200,16,46,0.12)",
+  },
+  visibilityTitle: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  visibilityTitleActive: {
+    color: colors.text,
+  },
+  visibilityMenu: {
+    position: "absolute",
+    right: spacing.md,
+    width: 264,
+    overflow: "hidden",
+    padding: spacing.xs,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.97)",
+    ...shadows.card,
+  },
+  visibilityMenuEyebrow: {
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: 6,
+    color: colors.textSubtle,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+  visibilityOption: {
+    minHeight: 47,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  visibilityOptionSelected: {
+    backgroundColor: colors.primarySubtle,
+  },
+  visibilityOptionIcon: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  visibilityOptionIconSelected: {
+    backgroundColor: colors.primaryMuted,
+  },
+  visibilityOptionCopy: { flex: 1, minWidth: 0 },
+  visibilityOptionLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  visibilityOptionLabelSelected: { color: colors.text },
+  visibilityOptionDescription: {
+    marginTop: 1,
+    color: colors.textSubtle,
+    fontSize: 8,
+    fontWeight: "600",
   },
   sharingNotice: {
     position: "absolute",
     left: spacing.md,
     right: spacing.md,
     alignItems: "center",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: "rgba(10,12,16,0.86)",
+    backgroundColor: "rgba(12,12,16,0.9)",
   },
   locationNotice: {
     position: "absolute",
-    top: spacing.md,
     left: spacing.md,
     right: spacing.md,
     alignItems: "center",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: "rgba(10,12,16,0.86)",
+    backgroundColor: "rgba(12,12,16,0.9)",
+  },
+  locationErrorNotice: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primaryMuted,
+    backgroundColor: "rgba(12,12,16,0.94)",
   },
   locationNoticeText: {
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  liveDriveModalBackdrop: {
+    flex: 1,
+    justifyContent: "center",
+    padding: spacing.xl,
+    backgroundColor: "rgba(4,4,7,0.78)",
+  },
+  liveDriveModalCard: {
+    padding: spacing.xl,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  liveDriveModalIcon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySubtle,
+  },
+  liveDriveModalEyebrow: {
+    marginBottom: spacing.xs,
+    color: colors.primaryHover,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1.4,
+  },
+  liveDriveModalTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  liveDriveModalBody: {
+    marginTop: spacing.md,
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  liveDriveModalFootnote: {
+    marginTop: spacing.sm,
+    color: colors.textSubtle,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  liveDriveModalActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  liveDriveCancelButton: {
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  liveDriveCancelText: {
+    color: colors.textMuted,
+    fontSize: 12,
     fontWeight: "800",
+  },
+  liveDriveStartButton: {
+    flex: 1,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  liveDriveStartText: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  nearbySummary: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(17,17,22,0.9)",
+    ...shadows.card,
+  },
+  nearbyLabel: {
+    color: colors.textSubtle,
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  nearbyMetrics: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  nearbyMetric: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  nearbyDriverDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  nearbyMetricText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  nearbyDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 16,
+    backgroundColor: colors.borderStrong,
   },
   recenterButton: {
     position: "absolute",
-    right: spacing.lg,
-    width: 48,
-    height: 48,
+    right: spacing.md,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(10,12,16,0.88)",
-    shadowColor: "#000",
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
   },
   eventCard: {
     position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    padding: spacing.lg,
+    left: spacing.md,
+    right: spacing.md,
+    padding: 14,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.11)",
-    backgroundColor: "rgba(10,12,16,0.9)",
+    borderColor: colors.border,
+    backgroundColor: "rgba(17,17,22,0.94)",
     ...shadows.card,
   },
+  eventCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  eventCardCopy: {
+    flex: 1,
+  },
+  eventCardIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  eventCardHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  eventCardCloseControl: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+  },
   cardKicker: {
-    color: colors.accent,
-    fontSize: typography.caption,
-    fontWeight: "800",
-    letterSpacing: 1.2,
+    color: colors.primaryHover,
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 1.3,
     textTransform: "uppercase",
   },
   cardTitle: {
     marginTop: 4,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: -0.7,
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.3,
+    lineHeight: 20,
   },
   cardSubtitle: {
-    marginTop: 2,
+    marginTop: 4,
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "500",
   },
   cardLocation: {
     marginTop: 2,
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "600",
+    color: colors.textSubtle,
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  eventActions: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    gap: spacing.xs,
   },
   eventButton: {
-    marginTop: spacing.sm,
-    height: 44,
+    flex: 1,
+    height: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  eventButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  eventRouteButton: {
+    flex: 1,
+    height: 40,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    borderRadius: radius.pill,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,36,36,0.44)",
-    backgroundColor: "#D71920",
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
   },
-  eventButtonText: {
+  eventRouteButtonText: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "800",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  eventButtonDisabled: {
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+    opacity: 0.55,
+  },
+  eventRouteButtonTextDisabled: {
+    color: colors.textSubtle,
   },
   routeCard: {
     position: "absolute",
-    left: spacing.lg,
-    right: spacing.lg,
-    padding: spacing.lg,
+    left: spacing.md,
+    right: spacing.md,
+    padding: spacing.md,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: "rgba(255,36,36,0.24)",
-    backgroundColor: "rgba(10,12,16,0.94)",
+    borderColor: colors.borderAccent,
+    backgroundColor: "rgba(17,17,22,0.96)",
     ...shadows.card,
   },
   routeHeader: {
@@ -1593,9 +2096,9 @@ const styles = StyleSheet.create({
   routeTitle: {
     marginTop: 3,
     color: colors.text,
-    fontSize: typography.cardTitle,
-    fontWeight: "900",
-    letterSpacing: -0.4,
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.3,
   },
   routeCloseButton: {
     width: 38,
@@ -1604,8 +2107,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
   },
   routeStatusRow: {
     marginTop: spacing.md,
@@ -1617,7 +2120,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     color: colors.textMuted,
     fontSize: typography.caption,
-    fontWeight: "800",
+    fontWeight: "500",
   },
   routeMetrics: {
     marginTop: spacing.md,
@@ -1628,26 +2131,26 @@ const styles = StyleSheet.create({
   routeMetric: {
     color: colors.text,
     fontSize: typography.body,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   routeMetricMuted: {
     color: colors.textMuted,
     fontSize: typography.caption,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   routeRetryButton: {
     marginTop: spacing.md,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.pill,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,36,36,0.44)",
-    backgroundColor: "rgba(215,25,32,0.18)",
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
   },
   routeRetryText: {
     color: colors.text,
     fontSize: typography.caption,
-    fontWeight: "900",
+    fontWeight: "600",
   },
 });

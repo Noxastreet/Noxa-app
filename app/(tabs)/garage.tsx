@@ -1,11 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type ImageStyle,
+} from 'react-native';
 
-import { NoxaBadge, NoxaButton, NoxaCard, NoxaHeader, NoxaScreen } from '@/src/components/ui';
+import { NoxaBadge, NoxaScreen } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
-import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 type GarageVehicle = {
   id: string;
@@ -45,98 +55,114 @@ const vehicleSelect = `
   updated_at
 `;
 
-function useEntryAnimation(delay = 0) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(animations.entranceDistance)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: animations.entrance,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: animations.entrance,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return { opacity, transform: [{ translateY }] };
+function formatAcceleration(value: number | null) {
+  return value === null ? '—' : String(value);
 }
 
-function VehicleCard({ vehicle }: { vehicle: GarageVehicle }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.97)).current;
-  const modelName = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
-  const details = [vehicle.year, `${vehicle.horsepower} HP`, vehicle.color].filter(Boolean).join(' • ');
+function formatYear(value: number | null) {
+  return value === null ? '—' : String(value);
+}
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 560,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: 560,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [opacity, scale]);
+function vehicleTags(vehicle: GarageVehicle) {
+  return [vehicle.color, vehicle.tuning_stage, vehicle.transmission, vehicle.drivetrain].filter(
+    (value): value is string => Boolean(value?.trim()),
+  );
+}
 
+function SpecCell({ label, value, unit, bordered = false }: { label: string; value: string; unit?: string; bordered?: boolean }) {
+  return (
+    <View style={[styles.specCell, bordered && styles.specCellBorder]}>
+      <View style={styles.specValueRow}>
+        <Text style={styles.specValue}>{value}</Text>
+        {unit ? <Text style={styles.specUnit}>{unit}</Text> : null}
+      </View>
+      <Text style={styles.specLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
   const content = (
     <>
       <View style={styles.heroShade} />
+      <View style={styles.vehicleBadge}>
+        <NoxaBadge label={vehicle.is_public ? 'PUBLIC' : 'PRIVATE'} variant={vehicle.is_public ? 'primary' : 'default'} />
+      </View>
       <View style={styles.heroContent}>
-        <NoxaBadge label={vehicle.is_public ? 'PUBLIC' : 'PRIVATE'} variant="primary" />
-        <View>
-          <Text style={styles.model}>{modelName}</Text>
-          <Text style={styles.buildName}>{details}</Text>
-        </View>
+        <Text numberOfLines={1} style={styles.brand}>{vehicle.brand}</Text>
+        <Text numberOfLines={1} style={styles.model}>
+          {[vehicle.year, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}
+        </Text>
       </View>
     </>
   );
 
+  if (vehicle.cover_image_url) {
+    return (
+      <ImageBackground
+        source={{ uri: vehicle.cover_image_url }}
+        resizeMode="cover"
+        style={styles.heroImage}
+        imageStyle={styles.heroImageRadius as ImageStyle}>
+        {content}
+      </ImageBackground>
+    );
+  }
+
   return (
-    <Animated.View style={[{ opacity, transform: [{ scale }] }]}>
+    <View style={[styles.heroImage, styles.vehiclePlaceholder]}>
+      <Ionicons name="car-sport" size={86} color={colors.primaryMuted} />
+      {content}
+    </View>
+  );
+}
+
+function VehicleCard({ vehicle, index }: { vehicle: GarageVehicle; index: number }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(18)).current;
+  const tags = vehicleTags(vehicle);
+  const modelName = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 460, delay: index * 55, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 460, delay: index * 55, useNativeDriver: true }),
+    ]).start();
+  }, [index, opacity, translateY]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
       <Pressable
         accessibilityLabel={`Open ${modelName} details`}
         accessibilityRole="button"
-        onPress={() =>
-          router.push({
-            pathname: '/vehicle-details',
-            params: { id: vehicle.id },
-          })
-        }
-        style={({ pressed }) => [styles.heroCard, pressed && styles.pressed]}
-      >
-        {vehicle.cover_image_url ? (
-          <ImageBackground source={{ uri: vehicle.cover_image_url }} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius as ImageStyle}>
-            {content}
-          </ImageBackground>
-        ) : (
-          <View style={[styles.heroImage, styles.vehiclePlaceholder]}>
-            <Ionicons name="car-sport" size={84} color="rgba(255,45,45,0.42)" />
-            {content}
+        onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
+        style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
+        <VehicleArtwork vehicle={vehicle} />
+        <View style={styles.specStrip}>
+          <SpecCell label="POWER" value={String(vehicle.horsepower)} unit="HP" />
+          <SpecCell label="0–100" value={formatAcceleration(vehicle.zero_to_hundred)} unit={vehicle.zero_to_hundred === null ? undefined : 'S'} bordered />
+          <SpecCell label="YEAR" value={formatYear(vehicle.year)} bordered />
+        </View>
+        {tags.length > 0 ? (
+          <View style={styles.tagList}>
+            {tags.map((tag, tagIndex) => (
+              <View key={`${tag}-${tagIndex}`} style={styles.tag}>
+                <Text style={styles.tagText}>{tag}</Text>
+              </View>
+            ))}
           </View>
-        )}
+        ) : null}
       </Pressable>
     </Animated.View>
   );
 }
 
-function VehicleCollection({ error, isLoading, onRetry, vehicles }: { error: boolean; isLoading: boolean; onRetry: () => void; vehicles: GarageVehicle[] }) {
+function GarageState({ error, isLoading, onRetry }: { error: boolean; isLoading: boolean; onRetry: () => void }) {
   if (isLoading) {
     return (
       <View style={styles.collectionState}>
         <ActivityIndicator color={colors.primary} />
-        <Text style={styles.stateText}>Loading your garage...</Text>
+        <Text style={styles.stateText}>Loading your garage…</Text>
       </View>
     );
   }
@@ -144,77 +170,25 @@ function VehicleCollection({ error, isLoading, onRetry, vehicles }: { error: boo
   if (error) {
     return (
       <View style={styles.collectionState}>
-        <Text style={styles.stateTitle}>Unable to load your garage.</Text>
+        <View style={styles.stateIcon}><Ionicons name="cloud-offline-outline" size={28} color={colors.primary} /></View>
+        <Text style={styles.stateTitle}>Garage unavailable</Text>
+        <Text style={styles.stateText}>Your vehicles could not be loaded.</Text>
         <Pressable accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-          <Text style={styles.retryText}>Retry</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (vehicles.length === 0) {
-    return (
-      <View style={styles.collectionState}>
-        <Text style={styles.stateTitle}>Your garage is empty.</Text>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/vehicle-editor')} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-          <Text style={styles.retryText}>Add your first car</Text>
+          <Text style={styles.retryText}>TRY AGAIN</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.vehicleList}>
-      {vehicles.map((vehicle) => (
-        <VehicleCard key={vehicle.id} vehicle={vehicle} />
-      ))}
+    <View style={styles.collectionState}>
+      <View style={styles.stateIcon}><Ionicons name="car-sport-outline" size={30} color={colors.primary} /></View>
+      <Text style={styles.stateTitle}>Your garage is empty</Text>
+      <Text style={styles.stateText}>Add your first car and start building your NOXA identity.</Text>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/vehicle-editor')} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+        <Text style={styles.retryText}>ADD FIRST CAR</Text>
+      </Pressable>
     </View>
-  );
-}
-
-type VehicleStat = {
-  label: string;
-  value: string | null;
-};
-
-function hasStatValue(stat: VehicleStat): stat is { label: string; value: string } {
-  return stat.value !== null && stat.value.trim() !== '';
-}
-
-function buildVehicleStats(vehicle: GarageVehicle) {
-  const stats: VehicleStat[] = [
-    { label: 'Horsepower', value: `${vehicle.horsepower} HP` },
-    { label: 'Year', value: vehicle.year !== null ? String(vehicle.year) : null },
-    { label: 'Transmission', value: vehicle.transmission },
-    { label: 'Drivetrain', value: vehicle.drivetrain },
-    { label: 'Stage', value: vehicle.tuning_stage },
-    { label: '0-100', value: vehicle.zero_to_hundred !== null ? `${vehicle.zero_to_hundred} s` : null },
-    { label: 'Visibility', value: vehicle.is_public ? 'PUBLIC' : 'PRIVATE' },
-  ];
-
-  return stats.filter(hasStatValue);
-}
-
-function StatsCard({ vehicle }: { vehicle: GarageVehicle | null }) {
-  const entryAnimationStyle = useEntryAnimation(80);
-
-  if (!vehicle) {
-    return null;
-  }
-
-  const stats = buildVehicleStats(vehicle);
-
-  return (
-    <Animated.View style={entryAnimationStyle}>
-      <View style={styles.statsGrid}>
-        {stats.map((stat) => (
-          <NoxaCard key={stat.label} style={styles.statCard}>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-          </NoxaCard>
-        ))}
-      </View>
-    </Animated.View>
   );
 }
 
@@ -223,7 +197,6 @@ export default function GarageScreen() {
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
   const [hasVehicleError, setHasVehicleError] = useState(false);
   const hasLoadedVehiclesRef = useRef(false);
-  const selectedVehicle = vehicles[0] ?? null;
 
   const loadVehicles = useCallback(async () => {
     setIsLoadingVehicles(!hasLoadedVehiclesRef.current);
@@ -265,18 +238,41 @@ export default function GarageScreen() {
   return (
     <NoxaScreen padded={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <NoxaHeader
-          title="MY CARS"
-          subtitle="Your automotive identity"
-          right={
-            <Pressable accessibilityLabel="Car settings" accessibilityRole="button" style={({ pressed }) => [styles.settings, pressed && styles.pressed]}>
-              <Ionicons name="settings-outline" size={22} color={colors.text} />
-            </Pressable>
-          }
-        />
-        <VehicleCollection error={hasVehicleError} isLoading={isLoadingVehicles} onRetry={loadVehicles} vehicles={vehicles} />
-        <StatsCard vehicle={selectedVehicle} />
-        <NoxaButton title="Add Vehicle" fullWidth onPress={() => router.push('/vehicle-editor')} />
+        <View style={styles.topBar}>
+          <View style={styles.headingBlock}>
+            <Text style={styles.pageTitle}>GARAGE</Text>
+            <Text style={styles.pageSubtitle}>
+              {isLoadingVehicles ? 'Loading vehicles…' : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle' : 'vehicles'}`}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Add Vehicle"
+            accessibilityRole="button"
+            onPress={() => router.push('/vehicle-editor')}
+            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
+            <Ionicons name="add" size={17} color={colors.text} />
+            <Text style={styles.addText}>ADD</Text>
+          </Pressable>
+        </View>
+
+        {isLoadingVehicles || hasVehicleError || vehicles.length === 0 ? (
+          <GarageState error={hasVehicleError} isLoading={isLoadingVehicles} onRetry={loadVehicles} />
+        ) : (
+          <View style={styles.vehicleList}>
+            {vehicles.map((vehicle, index) => <VehicleCard key={vehicle.id} vehicle={vehicle} index={index} />)}
+          </View>
+        )}
+
+        {!isLoadingVehicles && !hasVehicleError && vehicles.length > 0 ? (
+          <Pressable
+            accessibilityLabel="Add another vehicle"
+            accessibilityRole="button"
+            onPress={() => router.push('/vehicle-editor')}
+            style={({ pressed }) => [styles.addSlot, pressed && styles.pressed]}>
+            <View style={styles.addSlotIcon}><Ionicons name="add" size={18} color={colors.textMuted} /></View>
+            <Text style={styles.addSlotText}>Add another vehicle</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </NoxaScreen>
   );
@@ -289,122 +285,154 @@ const styles = StyleSheet.create({
     paddingBottom: 144,
     gap: spacing.lg,
   },
-  settings: {
-    width: 44,
-    height: 44,
+  topBar: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  headingBlock: { flex: 1 },
+  pageTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.hero,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    lineHeight: typography.lineHeight.hero,
+  },
+  pageSubtitle: {
+    marginTop: -spacing.xs,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
+  addButton: {
+    minHeight: 38,
+    marginTop: spacing.xs,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
+    backgroundColor: colors.primary,
+    ...shadows.redGlow,
+  },
+  addText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.985 }] },
+  vehicleList: { gap: spacing.md },
+  vehicleCard: {
+    overflow: 'hidden',
+    borderRadius: radius.hero,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
+  },
+  heroImage: { height: 210, justifyContent: 'flex-end', backgroundColor: colors.surfaceSoft },
+  heroImageRadius: { borderTopLeftRadius: radius.hero, borderTopRightRadius: radius.hero },
+  vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.35)' },
+  vehicleBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm },
+  heroContent: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md },
+  brand: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    lineHeight: 36,
+    textTransform: 'uppercase',
+  },
+  model: {
+    marginTop: spacing.xxs,
+    color: 'rgba(240,240,244,0.68)',
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  specStrip: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.divider },
+  specCell: { flex: 1, minHeight: 68, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm },
+  specCellBorder: { borderLeftWidth: 1, borderLeftColor: colors.divider },
+  specValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 3 },
+  specValue: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: '900',
+  },
+  specUnit: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  specLabel: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
+  tagList: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  tag: {
+    minHeight: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  pressed: {
-    opacity: 0.82,
-    transform: [{ translateY: 1 }, { scale: 0.98 }],
-  },
-  heroCard: {
-    height: 372,
-    borderRadius: radius.card,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
-  },
-  heroImage: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  heroImageRadius: {
-    borderRadius: radius.card,
-  },
-  vehiclePlaceholder: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceSoft,
-    justifyContent: 'center',
-  },
-  heroShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.26)',
-  },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-  },
-  model: {
-    color: colors.text,
-    fontSize: typography.h1,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  buildName: {
-    marginTop: spacing.xxs,
-    color: colors.textMuted,
-    fontSize: typography.cardTitle,
-    fontWeight: '700',
-  },
-  vehicleList: {
-    gap: spacing.md,
-  },
+  tagText: { color: colors.textMuted, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
   collectionState: {
-    minHeight: 168,
+    minHeight: 280,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.card,
+    padding: spacing.xl,
+    borderRadius: radius.hero,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.card,
+  },
+  stateIcon: {
+    width: 62,
+    height: 62,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySubtle,
   },
   stateTitle: {
     color: colors.text,
-    fontSize: typography.body,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
     fontWeight: '900',
     textAlign: 'center',
+    textTransform: 'uppercase',
   },
-  stateText: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
+  stateText: { maxWidth: 260, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700', lineHeight: 18, textAlign: 'center' },
   retryButton: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
+    borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  retryText: {
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  statsGrid: {
+  retryText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  addSlot: {
+    minHeight: 88,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
   },
-  statCard: {
-    flexGrow: 1,
-    flexBasis: 148,
+  addSlotIcon: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
   },
-  statValue: {
-    minWidth: 116,
-    color: colors.text,
-    fontSize: typography.sectionTitle,
-    fontWeight: '900',
-  },
-  statLabel: {
-    marginTop: spacing.xs,
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
+  addSlotText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
 });

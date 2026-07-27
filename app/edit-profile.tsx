@@ -3,6 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -15,7 +16,6 @@ import {
 
 import {
   NoxaButton,
-  NoxaCard,
   NoxaHeader,
   NoxaInput,
   NoxaScreen,
@@ -409,16 +409,13 @@ export default function EditProfileScreen() {
   return (
     <NoxaScreen padded={false}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardAvoiding}
       >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-        >
+        <View style={styles.shell}>
           <NoxaHeader
             title="EDIT PROFILE"
+            subtitle="Your public NOXA identity"
             left={
               <Pressable
                 accessibilityLabel="Back to profile"
@@ -434,14 +431,22 @@ export default function EditProfileScreen() {
             }
           />
 
-          <NoxaCard>
-            <View style={styles.formStack}>
-              {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
-              {isLoading ? (
-                <Text style={styles.helperText}>Loading your profile…</Text>
-              ) : null}
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+            {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
-              <View style={styles.avatarSection}>
+            {isLoading ? (
+              <View style={styles.loadingCard}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={styles.helperText}>Loading your profile…</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>PROFILE PHOTO</Text>
+              <View style={styles.profilePreviewCard}>
                 <View style={styles.avatarPreview}>
                   {selectedAvatar ? (
                     <Image source={{ uri: selectedAvatar.uri }} style={styles.avatarImage} />
@@ -451,103 +456,129 @@ export default function EditProfileScreen() {
                     <Text style={styles.avatarInitials}>{getInitials(form.displayName)}</Text>
                   )}
                 </View>
-                <View style={styles.avatarActions}>
+                <View style={styles.previewCopy}>
+                  <Text numberOfLines={1} style={styles.previewName}>
+                    {form.displayName || "NOXA Driver"}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.previewMeta}>
+                    {form.username ? `@${normalizeUsername(form.username)}` : "Add a username"}
+                    {form.city.trim() ? ` · ${form.city.trim()}` : ""}
+                  </Text>
+                  <Text style={styles.photoHint}>Square image · JPEG, PNG, WebP, HEIC · up to 5 MB</Text>
+                </View>
+              </View>
+              <View style={styles.avatarActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isLoading || isSubmitting}
+                  onPress={chooseAvatar}
+                  style={({ pressed }) => [
+                    styles.avatarActionButton,
+                    pressed && !isSubmitting && styles.pressed,
+                    (isLoading || isSubmitting) && styles.disabledAction,
+                  ]}>
+                  <Ionicons name="camera-outline" size={16} color={colors.text} />
+                  <Text style={styles.avatarActionText}>
+                    {selectedAvatar || (avatarUrl && !shouldRemoveAvatar) ? "Change Photo" : "Choose Photo"}
+                  </Text>
+                </Pressable>
+                {selectedAvatar || (avatarUrl && !shouldRemoveAvatar) ? (
                   <Pressable
                     accessibilityRole="button"
                     disabled={isLoading || isSubmitting}
-                    onPress={chooseAvatar}
+                    onPress={removeAvatar}
                     style={({ pressed }) => [
                       styles.avatarActionButton,
+                      styles.avatarRemoveButton,
                       pressed && !isSubmitting && styles.pressed,
                       (isLoading || isSubmitting) && styles.disabledAction,
-                    ]}
-                  >
-                    <Text style={styles.avatarActionText}>
-                      {selectedAvatar || (avatarUrl && !shouldRemoveAvatar) ? "Change Photo" : "Choose Photo"}
-                    </Text>
+                    ]}>
+                    <Ionicons name="trash-outline" size={16} color={colors.primaryHover} />
+                    <Text style={[styles.avatarActionText, styles.removeText]}>Remove</Text>
                   </Pressable>
-                  {(selectedAvatar || (avatarUrl && !shouldRemoveAvatar)) ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={isLoading || isSubmitting}
-                      onPress={removeAvatar}
-                      style={({ pressed }) => [
-                        styles.avatarActionButton,
-                        styles.avatarRemoveButton,
-                        pressed && !isSubmitting && styles.pressed,
-                        (isLoading || isSubmitting) && styles.disabledAction,
-                      ]}
-                    >
-                      <Text style={styles.avatarActionText}>Remove Photo</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-                {errors.avatar ? <Text style={styles.errorText}>{errors.avatar}</Text> : null}
+                ) : null}
               </View>
-
-              <FieldError message={errors.displayName}>
-                <NoxaInput
-                  autoCapitalize="words"
-                  editable={!isLoading && !isSubmitting}
-                  label="Display name"
-                  maxLength={40}
-                  onChangeText={(value) => setField("displayName", value)}
-                  placeholder="Your display name"
-                  value={form.displayName}
-                />
-              </FieldError>
-
-              <FieldError message={errors.username}>
-                <NoxaInput
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isLoading && !isSubmitting}
-                  label="Username"
-                  maxLength={21}
-                  onBlur={() => setField("username", normalizeUsername(form.username))}
-                  onChangeText={(value) => setField("username", value)}
-                  placeholder="noxa_driver"
-                  value={form.username}
-                />
-              </FieldError>
-
-              <FieldError message={errors.city}>
-                <NoxaInput
-                  autoCapitalize="words"
-                  editable={!isLoading && !isSubmitting}
-                  label="City"
-                  maxLength={60}
-                  onChangeText={(value) => setField("city", value)}
-                  placeholder="Los Angeles"
-                  value={form.city}
-                />
-              </FieldError>
-
-              <FieldError message={errors.bio}>
-                <NoxaInput
-                  editable={!isLoading && !isSubmitting}
-                  label="Bio"
-                  maxLength={300}
-                  multiline
-                  onChangeText={(value) => setField("bio", value)}
-                  placeholder="Tell the community about your garage."
-                  style={styles.bioInput}
-                  textAlignVertical="top"
-                  value={form.bio}
-                />
-                <Text style={styles.counter}>{form.bio.length}/300</Text>
-              </FieldError>
-
-              <NoxaButton
-                disabled={isLoading || isSubmitting}
-                fullWidth
-                loading={isSubmitting}
-                onPress={saveProfile}
-                title="Save Profile"
-              />
+              {errors.avatar ? <Text style={styles.errorText}>{errors.avatar}</Text> : null}
             </View>
-          </NoxaCard>
-        </ScrollView>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>IDENTITY</Text>
+              <View style={styles.formCard}>
+                <FieldError message={errors.displayName}>
+                  <NoxaInput
+                    autoCapitalize="words"
+                    editable={!isLoading && !isSubmitting}
+                    label="Display name"
+                    maxLength={40}
+                    onChangeText={(value) => setField("displayName", value)}
+                    placeholder="Your display name"
+                    value={form.displayName}
+                  />
+                  <Text style={styles.counter}>{form.displayName.length}/40</Text>
+                </FieldError>
+
+                <FieldError message={errors.username}>
+                  <NoxaInput
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading && !isSubmitting}
+                    label="Username"
+                    maxLength={21}
+                    onBlur={() => setField("username", normalizeUsername(form.username))}
+                    onChangeText={(value) => setField("username", value)}
+                    placeholder="noxa_driver"
+                    value={form.username}
+                  />
+                  <Text style={styles.counter}>{normalizeUsername(form.username).length}/20</Text>
+                </FieldError>
+
+                <FieldError message={errors.city}>
+                  <NoxaInput
+                    autoCapitalize="words"
+                    editable={!isLoading && !isSubmitting}
+                    label="City"
+                    maxLength={60}
+                    onChangeText={(value) => setField("city", value)}
+                    placeholder="Los Angeles"
+                    value={form.city}
+                  />
+                  <Text style={styles.counter}>{form.city.length}/60</Text>
+                </FieldError>
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>ABOUT</Text>
+              <View style={styles.formCard}>
+                <FieldError message={errors.bio}>
+                  <NoxaInput
+                    editable={!isLoading && !isSubmitting}
+                    label="Bio"
+                    maxLength={300}
+                    multiline
+                    onChangeText={(value) => setField("bio", value)}
+                    placeholder="Tell the community about your garage."
+                    style={styles.bioInput}
+                    textAlignVertical="top"
+                    value={form.bio}
+                  />
+                  <Text style={styles.counter}>{form.bio.length}/300</Text>
+                </FieldError>
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.saveBar}>
+            <Text style={styles.saveHint}>Changes sync across your NOXA profile.</Text>
+            <NoxaButton
+              disabled={isLoading || isSubmitting}
+              fullWidth
+              loading={isSubmitting}
+              onPress={saveProfile}
+              title="Save Changes"
+            />
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </NoxaScreen>
   );
@@ -572,19 +603,24 @@ const styles = StyleSheet.create({
   keyboardAvoiding: {
     flex: 1,
   },
-  content: {
+  shell: {
+    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
-    paddingBottom: 144,
-    gap: spacing.lg,
+    backgroundColor: colors.background,
+  },
+  content: {
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
+    gap: spacing.xl,
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -592,23 +628,47 @@ const styles = StyleSheet.create({
     opacity: 0.78,
     transform: [{ translateY: 1 }, { scale: 0.98 }],
   },
-  formStack: {
-    gap: spacing.md,
-  },
   fieldWrap: {
     gap: spacing.xs,
   },
-  avatarSection: {
-    alignItems: "center",
+  section: {
     gap: spacing.sm,
   },
+  sectionLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: typography.letterSpacing.label,
+  },
+  loadingCard: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  profilePreviewCard: {
+    minHeight: 104,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
   avatarPreview: {
-    width: 112,
-    height: 112,
+    width: 72,
+    height: 72,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    borderRadius: 56,
+    borderRadius: 36,
     borderWidth: 2,
     borderColor: colors.borderAccent,
     backgroundColor: colors.surfaceSoft,
@@ -619,21 +679,49 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     color: colors.text,
-    fontSize: 34,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 26,
     fontWeight: "900",
+  },
+  previewCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  previewName: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: "900",
+    lineHeight: typography.lineHeight.title,
+    textTransform: "uppercase",
+  },
+  previewMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  photoHint: {
+    marginTop: spacing.sm,
+    color: colors.textSubtle,
+    fontSize: 9,
+    fontWeight: "700",
+    lineHeight: 13,
   },
   avatarActions: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
     gap: spacing.sm,
   },
   avatarActionButton: {
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
+    borderRadius: radius.button,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceSoft,
   },
   avatarRemoveButton: {
@@ -642,11 +730,22 @@ const styles = StyleSheet.create({
   },
   avatarActionText: {
     color: colors.text,
-    fontSize: typography.caption,
+    fontSize: 11,
     fontWeight: "900",
+  },
+  removeText: {
+    color: colors.primaryHover,
   },
   disabledAction: {
     opacity: 0.5,
+  },
+  formCard: {
+    gap: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   bioInput: {
     minHeight: 118,
@@ -654,8 +753,8 @@ const styles = StyleSheet.create({
   },
   counter: {
     alignSelf: "flex-end",
-    color: colors.textMuted,
-    fontSize: typography.caption,
+    color: colors.textSubtle,
+    fontSize: 10,
     fontWeight: "800",
   },
   helperText: {
@@ -678,5 +777,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.caption,
     fontWeight: "800",
+  },
+  saveBar: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    backgroundColor: colors.background,
+  },
+  saveHint: {
+    color: colors.textSubtle,
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
   },
 });

@@ -1,153 +1,192 @@
-import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Defs, LinearGradient, Rect, Stop, Svg } from 'react-native-svg';
 
-import { NoxaButton, NoxaCard, NoxaScreen } from "@/src/components/ui";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { NoxaCompactLogo } from '@/src/components/brand';
+import { useResponsive } from '@/src/hooks/useResponsive';
+import { NoxaButton } from '@/src/components/ui';
+import { colors, spacing, typography } from '@/src/theme';
+
+const WELCOME_HERO_IMAGE =
+  'https://images.unsplash.com/photo-1775935925972-8a2bbed63ce4?w=800&h=1200&fit=crop&auto=format';
 
 export default function WelcomeScreen() {
+  const insets = useSafeAreaInsets();
+  const responsive = useResponsive();
+
+  const headlineSize = Math.min(
+    64,
+    Math.max(44, responsive.width * 0.144),
+  );
+
+  const descriptionMaxWidth = responsive.isTablet
+    ? 420
+    : Math.min(
+        300,
+        responsive.width - responsive.gutter * 2,
+      );
+
   return (
-    <NoxaScreen padded={false}>
-      <View style={styles.backgroundGlow} />
-      <View style={styles.topLight} />
+    <View style={styles.screen}>
+      <Image
+        accessibilityLabel="Performance car at night"
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        source={{ uri: WELCOME_HERO_IMAGE }}
+        style={StyleSheet.absoluteFillObject}
+        transition={220}
+      />
+      <Svg height="100%" pointerEvents="none" style={StyleSheet.absoluteFillObject} width="100%">
+        <Defs>
+          <LinearGradient id="welcomeFade" x1="0" x2="0" y1="0" y2="1">
+            <Stop offset="0" stopColor={colors.background} stopOpacity="0.3" />
+            <Stop offset="0.25" stopColor={colors.background} stopOpacity="0.1" />
+            <Stop offset="0.6" stopColor={colors.background} stopOpacity="0.65" />
+            <Stop offset="1" stopColor={colors.background} stopOpacity="0.99" />
+          </LinearGradient>
+        </Defs>
+        <Rect fill="url(#welcomeFade)" height="100%" width="100%" />
+      </Svg>
 
-      <View style={styles.content}>
-        <View style={styles.brandBlock}>
-          <Text style={styles.logo}>NOXA</Text>
-          <View style={styles.logoUnderline} />
-        </View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            width: '100%',
+            maxWidth: responsive.contentMaxWidth,
+            alignSelf: 'center',
+            paddingHorizontal: responsive.gutter,
+            paddingTop:
+              Math.max(insets.top, spacing.md) +
+              spacing.md,
+            paddingBottom:
+              Math.max(insets.bottom, spacing.md) +
+              spacing.lg,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}>
+        <NoxaCompactLogo />
 
-        <NoxaCard>
-          <View style={styles.heroCard}>
-            <View style={styles.cardGlow} />
-            <Text style={styles.eyebrow}>MIDNIGHT SOCIAL CLUB</Text>
-            <Text style={styles.headline}>Drive the night.</Text>
-            <Text style={styles.subtitle}>
-              Find crews, events, and drivers around you.
-            </Text>
+        <View
+          style={[
+            styles.heroSpace,
+            {
+              minHeight: responsive.isCompactHeight
+                ? 72
+                : responsive.vertical(150),
+            },
+          ]}
+        />
+
+        <View style={styles.bottomContent}>
+          <Text style={styles.eyebrow}>Premium Automotive Community</Text>
+          <Text
+            style={[
+              styles.headline,
+              {
+                fontSize: headlineSize,
+                lineHeight: headlineSize * 0.96,
+              },
+            ]}>
+            YOUR WORLD.{'\n'}
+            <Text style={styles.headlineAccent}>ON THE ROAD.</Text>
+          </Text>
+          <Text
+            style={[
+              styles.description,
+              { maxWidth: descriptionMaxWidth },
+            ]}>
+            Connect with passionate drivers. Discover exclusive events. Join crews that match your drive.
+          </Text>
+
+          <View style={styles.actions}>
+            <NoxaButton fullWidth onPress={() => router.push('/sign-up')} title="Create Account" />
+            <NoxaButton fullWidth onPress={() => router.push('/sign-in')} title="Sign In" variant="overlay" />
           </View>
-        </NoxaCard>
 
-        <View style={styles.actions}>
-          <NoxaButton
-            fullWidth
-            title="Continue as Guest"
-            onPress={() => router.replace("/(tabs)")}
-          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.replace('/(tabs)')}
+            style={({ pressed }) => [styles.guestButton, pressed && styles.guestButtonPressed]}>
+            <Text style={styles.guestText}>Continue as Guest</Text>
+          </Pressable>
 
-          <View style={styles.secondaryActions}>
-            <NoxaButton
-              fullWidth
-              title="Sign in with Email"
-              variant="secondary"
-              onPress={() => router.push("/sign-in")}
-            />
-            <NoxaButton
-              fullWidth
-              title="Create Account"
-              variant="secondary"
-              onPress={() => router.push("/sign-up")}
-            />
-          </View>
+          <Text style={styles.legal}>
+            By continuing you agree to our Terms of Service{'\n'}and Privacy Policy
+          </Text>
         </View>
-      </View>
-    </NoxaScreen>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundGlow: {
-    position: "absolute",
-    left: -120,
-    right: -120,
-    bottom: -180,
-    height: 360,
-    borderRadius: 360,
-    backgroundColor: "rgba(255,36,36,0.12)",
-    shadowColor: colors.accent,
-    shadowOpacity: 0.42,
-    shadowRadius: 90,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  topLight: {
-    position: "absolute",
-    top: 0,
-    alignSelf: "center",
-    width: 220,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.36)",
-    shadowColor: "#FFFFFF",
-    shadowOpacity: 0.5,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 0 },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
   content: {
+    flexGrow: 1,
+  },
+  heroSpace: {
     flex: 1,
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl,
-    paddingBottom: spacing.xxl,
   },
-  brandBlock: {
-    alignItems: "center",
-  },
-  logo: {
-    color: colors.text,
-    fontSize: typography.sectionTitle,
-    fontWeight: "900",
-    letterSpacing: 12,
-    marginLeft: 12,
-  },
-  logoUnderline: {
-    width: 52,
-    height: 2,
-    marginTop: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.8,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  heroCard: {
-    minHeight: 320,
-    justifyContent: "flex-end",
-    overflow: "hidden",
-  },
-  cardGlow: {
-    position: "absolute",
-    top: -90,
-    right: -80,
-    width: 220,
-    height: 220,
-    borderRadius: 220,
-    backgroundColor: "rgba(255,36,36,0.14)",
+  bottomContent: {
+    width: '100%',
   },
   eyebrow: {
-    color: colors.accent,
-    fontSize: typography.caption,
-    fontWeight: "800",
-    letterSpacing: 3,
-    marginBottom: spacing.md,
+    marginBottom: 8,
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+    lineHeight: 14,
+    textTransform: 'uppercase',
   },
   headline: {
     color: colors.text,
-    fontSize: 44,
-    fontWeight: "900",
-    letterSpacing: -1.2,
-    lineHeight: 48,
+    fontFamily: typography.fontFamily.display,
+    fontWeight: '900',
+    letterSpacing: 0.4,
   },
-  subtitle: {
-    maxWidth: 280,
+  headlineAccent: {
+    color: colors.primary,
+  },
+  description: {
     marginTop: spacing.md,
-    color: colors.textMuted,
-    fontSize: typography.cardTitle,
-    fontWeight: "500",
-    lineHeight: 25,
+    marginBottom: spacing.xxl,
+    color: 'rgba(240,240,244,0.62)',
+    fontFamily: typography.fontFamily.body,
+    fontSize: 14,
+    lineHeight: 22,
   },
   actions: {
-    gap: spacing.md,
+    gap: 10,
   },
-  secondaryActions: {
-    gap: spacing.sm,
+  guestButton: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+  },
+  guestButtonPressed: {
+    opacity: 0.6,
+  },
+  guestText: {
+    color: colors.textMuted,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  legal: {
+    marginTop: spacing.xs,
+    color: colors.textSubtle,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
   },
 });

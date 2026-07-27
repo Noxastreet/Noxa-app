@@ -1,84 +1,124 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Redirect, Tabs, type Href } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { HapticTab } from '@/components/haptic-tab';
+import { hasCompletedOnboarding } from '@/src/lib/onboarding';
+import { supabase } from '@/src/lib/supabase';
 import { colors } from '@/src/theme/colors';
-import { radius } from '@/src/theme/radius';
 import { spacing } from '@/src/theme/spacing';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-function TabIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
+function TabIcon({ name, color, emphasized = false }: { name: IconName; color: string; emphasized?: boolean }) {
   return (
-    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      <Ionicons name={name} size={22} color={color} />
-      {focused ? <View style={styles.activeIndicator} /> : null}
+    <View style={styles.iconWrap}>
+      <Ionicons name={name} size={emphasized ? 24 : 22} color={color} />
     </View>
   );
 }
 
-function MapIcon({ color, focused }: { color: string; focused: boolean }) {
-  return (
-    <View style={[styles.mapIcon, focused && styles.mapIconActive]}>
-      <Ionicons name="map" size={26} color={color} />
-      {focused ? <View style={styles.mapActiveIndicator} /> : null}
-    </View>
-  );
+function TabLabel({ label, focused }: { label: string; focused: boolean }) {
+  return <Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>;
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const [destination, setDestination] = useState<'ready' | '/welcome' | '/onboarding' | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkAccess() {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!isMounted) return;
+
+      const user = data.session?.user;
+      if (error || !user) {
+        setDestination('/welcome');
+        return;
+      }
+
+      setDestination(hasCompletedOnboarding(user.id) ? 'ready' : '/onboarding');
+    }
+
+    void checkAccess();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (!destination) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (destination !== 'ready') {
+    return <Redirect href={destination as Href} />;
+  }
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: styles.label,
-        tabBarStyle: styles.tabBar,
+        tabBarInactiveTintColor: colors.textSubtle,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: 64 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, spacing.sm),
+          },
+        ],
         tabBarItemStyle: styles.tabItem,
+        tabBarButton: HapticTab,
+        tabBarHideOnKeyboard: true,
       }}>
       <Tabs.Screen
         name="crews"
         options={{
           title: 'Crews',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
-          ),
+          tabBarLabel: ({ focused }) => <TabLabel label="Crews" focused={focused} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} />,
         }}
       />
       <Tabs.Screen
         name="events"
         options={{
           title: 'Events',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} focused={focused} />
-          ),
+          tabBarLabel: ({ focused }) => <TabLabel label="Events" focused={focused} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} />,
         }}
       />
       <Tabs.Screen
         name="index"
         options={{
           title: 'Map',
-          tabBarLabelStyle: [styles.label, styles.mapLabel],
-          tabBarIcon: ({ focused }) => <MapIcon color={colors.text} focused={focused} />,
+          tabBarLabel: ({ focused }) => <TabLabel label="Map" focused={focused} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'map' : 'map-outline'} color={color} emphasized />,
         }}
       />
       <Tabs.Screen
         name="garage"
         options={{
           title: 'Garage',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} focused={focused} />
-          ),
+          tabBarLabel: ({ focused }) => <TabLabel label="Garage" focused={focused} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />
-          ),
+          tabBarLabel: ({ focused }) => <TabLabel label="Profile" focused={focused} />,
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} />,
         }}
       />
     </Tabs>
@@ -86,78 +126,41 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
   tabBar: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.md,
-    height: 82,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderTopWidth: 0,
-    borderRadius: radius.xl,
-    borderWidth: 1,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 10,
+    backgroundColor: colors.glass,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
+    elevation: 0,
   },
   tabItem: {
-    paddingVertical: spacing.xs,
+    paddingVertical: 0,
   },
   label: {
-    fontSize: 11,
-    fontWeight: '700',
+    marginTop: 2,
+    color: colors.textSubtle,
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
-  mapLabel: {
-    color: colors.accent,
+  labelActive: {
+    color: colors.text,
+    fontWeight: '600',
   },
   iconWrap: {
-    width: 38,
-    height: 30,
+    width: 40,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-  },
-  iconWrapActive: {
-    backgroundColor: colors.primaryMuted,
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -5,
-    width: 16,
-    height: 2,
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-  },
-  mapIcon: {
-    width: 56,
-    height: 56,
-    marginTop: -spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    borderWidth: 4,
-    borderColor: colors.background,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 16,
-  },
-  mapIconActive: {
-    backgroundColor: colors.accentDark,
-  },
-  mapActiveIndicator: {
-    position: 'absolute',
-    bottom: 7,
-    width: 20,
-    height: 2,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.72)',
   },
 });

@@ -10,20 +10,29 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.karaketidis.noxa",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "NOXA uses your location while the map is open to show your position, nearby drivers and active routes."
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "NOXA uses your precise location to place you on the live map while the app is open."
       }
     },
     "android": {
+      "package": "com.karaketidis.noxa",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#C8102E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -44,10 +53,15 @@
           }
         }
       ],
+      "@rnmapbox/maps",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NOXA uses your location while the map is open to show your position, nearby drivers and active routes."
+          "locationWhenInUsePermission": "NOXA uses your precise location to place you on the live map while the app is open.",
+          "locationAlwaysAndWhenInUsePermission": "NOXA uses your precise location during a 4-hour Live Drive session, including in the background, so the audience you choose can see you on the live map.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ]
     ],
@@ -59,6 +73,13 @@
       "image": "./assets/images/noxa-splash-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#C8102E"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a"
+      }
+    },
+    "owner": "noxastreetapp"
   }
 }

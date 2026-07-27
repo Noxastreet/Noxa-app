@@ -12,7 +12,9 @@ import {
   View,
 } from "react-native";
 
+import { ReportModal } from "@/src/components/moderation/ReportModal";
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
+import { blockUser } from "@/src/lib/moderation";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
@@ -36,6 +38,12 @@ type PublicVehicle = {
   color: string | null;
   cover_image_url: string | null;
   is_public: boolean | null;
+};
+
+type PublicPost = {
+  id: string;
+  image_url: string;
+  created_at: string;
 };
 
 const uuidPattern =
@@ -110,6 +118,7 @@ export default function PublicDriverProfileScreen() {
   const isValidDriverId = uuidPattern.test(driverId);
   const [profile, setProfile] = useState<DriverProfile | null>(null);
   const [vehicles, setVehicles] = useState<PublicVehicle[]>([]);
+  const [posts, setPosts] = useState<PublicPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -117,11 +126,14 @@ export default function PublicDriverProfileScreen() {
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
 
   const loadDriverProfile = useCallback(async () => {
     if (!isValidDriverId) {
       setProfile(null);
       setVehicles([]);
+      setPosts([]);
       setErrorMessage("This driver profile link is invalid.");
       setIsLoading(false);
       return;
@@ -143,6 +155,7 @@ export default function PublicDriverProfileScreen() {
     if (profileError) {
       setProfile(null);
       setVehicles([]);
+      setPosts([]);
       setErrorMessage("Unable to load this driver profile.");
       setIsLoading(false);
       return;
@@ -151,6 +164,7 @@ export default function PublicDriverProfileScreen() {
     if (!profileData) {
       setProfile(null);
       setVehicles([]);
+      setPosts([]);
       setIsLoading(false);
       return;
     }
@@ -187,27 +201,37 @@ export default function PublicDriverProfileScreen() {
       setErrorMessage("Driver loaded, but social details could not be loaded.");
     }
 
-    const { data: vehicleData, error: vehicleError } = await supabase
-      .from("vehicles")
-      .select(
-        "id, brand, model, year, horsepower, color, cover_image_url, is_public",
-      )
-      .eq("owner_id", driverId)
-      .eq("is_public", true)
-      .order("created_at", { ascending: false });
+    const [vehicleResult, postResult] = await Promise.all([
+      supabase
+        .from("vehicles")
+        .select(
+          "id, brand, model, year, horsepower, color, cover_image_url, is_public",
+        )
+        .eq("owner_id", driverId)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("posts")
+        .select("id,image_url,created_at")
+        .eq("author_id", driverId)
+        .order("created_at", { ascending: false })
+        .limit(12),
+    ]);
 
-    if (vehicleError) {
+    if (vehicleResult.error || postResult.error) {
       setProfile(profileData);
       setVehicles([]);
+      setPosts([]);
       setErrorMessage(
-        "Driver loaded, but public vehicles could not be loaded.",
+        "Driver loaded, but public content could not be loaded.",
       );
       setIsLoading(false);
       return;
     }
 
     setProfile(profileData);
-    setVehicles(vehicleData ?? []);
+    setVehicles(vehicleResult.data ?? []);
+    setPosts((postResult.data ?? []) as PublicPost[]);
     setIsLoading(false);
   }, [driverId, isValidDriverId]);
 
@@ -296,6 +320,48 @@ export default function PublicDriverProfileScreen() {
     refreshFollowDetails,
   ]);
 
+  const confirmBlock = useCallback(() => {
+    if (!profile || !currentUserId || currentUserId === profile.id || isBlocking) return;
+    const name = profile.display_name?.trim() || "this driver";
+
+    Alert.alert(
+      `Block ${name}?`,
+      "You will no longer see each other's profiles, content, follows, or Live Drive location. Existing follows will be removed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            setIsBlocking(true);
+            try {
+              await blockUser(profile.id);
+              Alert.alert("Driver blocked", `${name} is now hidden from your NOXA account.`, [
+                { text: "OK", onPress: () => router.back() },
+              ]);
+            } catch (blockError) {
+              Alert.alert(
+                "Block failed",
+                blockError instanceof Error ? blockError.message : "Please try again.",
+              );
+            } finally {
+              setIsBlocking(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [currentUserId, isBlocking, profile]);
+
+  const openSafetyActions = useCallback(() => {
+    if (!profile || !currentUserId || currentUserId === profile.id) return;
+    Alert.alert("Driver actions", "Choose a safety action for this profile.", [
+      { text: "Report User", onPress: () => setReportVisible(true) },
+      { text: "Block User", style: "destructive", onPress: confirmBlock },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }, [confirmBlock, currentUserId, profile]);
+
   const displayName = profile?.display_name?.trim() || "NOXA Driver";
   const username = profile?.username ? `@${profile.username}` : null;
   const canFollow = Boolean(
@@ -306,6 +372,10 @@ export default function PublicDriverProfileScreen() {
     { label: "Followers", value: followersCount, mode: "followers" as const },
     { label: "Following", value: followingCount, mode: "following" as const },
   ];
+  const coverVehicle =
+    vehicles.find((vehicle) => Boolean(vehicle.cover_image_url)) ??
+    vehicles[0] ??
+    null;
 
   return (
     <NoxaScreen padded={false}>
@@ -319,8 +389,16 @@ export default function PublicDriverProfileScreen() {
             label="Go back"
             onPress={() => router.back()}
           />
-          <Text style={styles.headerTitle}>Driver Profile</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>DRIVER PROFILE</Text>
+          {canFollow ? (
+            <HeaderAction
+              icon={isBlocking ? "hourglass-outline" : "ellipsis-horizontal"}
+              label="Driver safety actions"
+              onPress={isBlocking ? undefined : openSafetyActions}
+            />
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
         </View>
 
         {isLoading ? (
@@ -342,8 +420,26 @@ export default function PublicDriverProfileScreen() {
           />
         ) : (
           <>
-            <View style={styles.heroCard}>
-              <View style={styles.heroGlow} />
+            <View style={styles.coverHero}>
+              {coverVehicle?.cover_image_url ? (
+                <Image
+                  source={{ uri: coverVehicle.cover_image_url }}
+                  style={styles.coverImage}
+                />
+              ) : (
+                <View style={styles.coverFallback}>
+                  <View style={styles.coverGlow} />
+                  <Ionicons
+                    name="car-sport"
+                    size={74}
+                    color={colors.primaryMuted}
+                  />
+                </View>
+              )}
+              <View style={styles.coverShade} />
+              <View style={styles.coverBadge}>
+                <Text style={styles.coverBadgeText}>NOXA DRIVER</Text>
+              </View>
               {profile.avatar_url ? (
                 <Image
                   source={{ uri: profile.avatar_url }}
@@ -356,57 +452,59 @@ export default function PublicDriverProfileScreen() {
                   </Text>
                 </View>
               )}
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{displayName}</Text>
+            </View>
+
+            <View style={styles.identityBlock}>
+              <View style={styles.identityRow}>
+                <View style={styles.identityCopy}>
+                  <Text style={styles.name}>{displayName}</Text>
+                  {username ? (
+                    <Text style={styles.username}>{username}</Text>
+                  ) : null}
+                </View>
+                {canFollow ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isFollowLoading}
+                    onPress={toggleFollow}
+                    style={({ pressed }) => [
+                      styles.followButton,
+                      isFollowing && styles.followingButton,
+                      pressed && !isFollowLoading && styles.pressed,
+                      isFollowLoading && styles.followButtonDisabled,
+                    ]}
+                  >
+                    {isFollowLoading ? (
+                      <ActivityIndicator color={colors.text} size="small" />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.followButtonText,
+                          isFollowing && styles.followingButtonText,
+                        ]}
+                      >
+                        {isFollowing ? "FOLLOWING" : "FOLLOW"}
+                      </Text>
+                    )}
+                  </Pressable>
+                ) : null}
               </View>
-              {username ? (
-                <Text style={styles.username}>{username}</Text>
-              ) : null}
-              {profile.bio ? (
-                <Text style={styles.bio}>{profile.bio}</Text>
-              ) : null}
-              {canFollow ? (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={isFollowLoading}
-                  onPress={toggleFollow}
-                  style={({ pressed }) => [
-                    styles.followButton,
-                    isFollowing && styles.followingButton,
-                    pressed && !isFollowLoading && styles.pressed,
-                    isFollowLoading && styles.followButtonDisabled,
-                  ]}
-                >
-                  {isFollowLoading ? (
-                    <ActivityIndicator color={colors.text} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.followButtonText,
-                        isFollowing && styles.followingButtonText,
-                      ]}
-                    >
-                      {isFollowing ? "Following" : "Follow"}
-                    </Text>
-                  )}
-                </Pressable>
-              ) : null}
+
+              {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
               {profile.city ? (
                 <View style={styles.metaRow}>
-                  <View style={styles.metaPill}>
-                    <Ionicons
-                      name="location-outline"
-                      size={14}
-                      color={colors.accent}
-                    />
-                    <Text style={styles.metaText}>{profile.city}</Text>
-                  </View>
+                  <Ionicons
+                    name="location-outline"
+                    size={14}
+                    color={colors.primaryHover}
+                  />
+                  <Text style={styles.metaText}>{profile.city}</Text>
                 </View>
               ) : null}
             </View>
 
             <View style={styles.statsCard}>
-              {stats.map((stat) => {
+              {stats.map((stat, index) => {
                 const content = (
                   <>
                     <Text style={styles.statValue}>{stat.value}</Text>
@@ -416,7 +514,13 @@ export default function PublicDriverProfileScreen() {
 
                 if (stat.label === "Cars") {
                   return (
-                    <View key={stat.label} style={styles.statItem}>
+                    <View
+                      key={stat.label}
+                      style={[
+                        styles.statItem,
+                        index < stats.length - 1 && styles.statDivider,
+                      ]}
+                    >
                       {content}
                     </View>
                   );
@@ -434,6 +538,7 @@ export default function PublicDriverProfileScreen() {
                     }
                     style={({ pressed }) => [
                       styles.statItem,
+                      index < stats.length - 1 && styles.statDivider,
                       pressed && styles.pressed,
                     ]}
                   >
@@ -445,78 +550,167 @@ export default function PublicDriverProfileScreen() {
 
             {errorMessage ? (
               <StateCard
-                title="Garage warning"
+                title="Profile warning"
                 message={errorMessage}
                 onRetry={loadDriverProfile}
               />
             ) : null}
 
-            {vehicles.length > 0 ? (
+            {posts.length ? (
               <>
-                <SectionTitle title="Public Garage" />
+                <SectionTitle title="Posts" />
+                <View style={styles.postGrid}>
+                  {posts.map((post) => (
+                    <Pressable
+                      accessibilityLabel="Open post"
+                      accessibilityRole="button"
+                      key={post.id}
+                      onPress={() =>
+                        router.push({ pathname: "/post-details", params: { id: post.id } })
+                      }
+                      style={({ pressed }) => [styles.postTile, pressed && styles.pressed]}>
+                      <Image source={{ uri: post.image_url }} style={styles.postImage} />
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            {coverVehicle ? (
+              <>
+                <SectionTitle title="Featured build" />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    router.push({
+                      pathname: "/vehicle-details",
+                      params: { id: coverVehicle.id },
+                    })
+                  }
+                  style={({ pressed }) => [
+                    styles.featuredVehicle,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  {coverVehicle.cover_image_url ? (
+                    <Image
+                      source={{ uri: coverVehicle.cover_image_url }}
+                      style={styles.featuredVehicleImage}
+                    />
+                  ) : (
+                    <View style={styles.featuredVehicleFallback}>
+                      <Ionicons
+                        name="car-sport-outline"
+                        size={44}
+                        color={colors.primaryHover}
+                      />
+                    </View>
+                  )}
+                  <View style={styles.featuredVehicleShade} />
+                  <View style={styles.featuredBadge}>
+                    <Text style={styles.featuredBadgeText}>FEATURED</Text>
+                  </View>
+                  <View style={styles.featuredVehicleCopy}>
+                    <Text style={styles.featuredVehicleName}>
+                      {vehicleName(coverVehicle)}
+                    </Text>
+                    <Text style={styles.featuredVehicleMeta}>
+                      {[coverVehicle.horsepower
+                        ? `${coverVehicle.horsepower} HP`
+                        : null, coverVehicle.color]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={19}
+                    color={colors.text}
+                    style={styles.featuredChevron}
+                  />
+                </Pressable>
+              </>
+            ) : null}
+
+            {vehicles.length > 1 ? (
+              <>
+                <SectionTitle title="Public garage" />
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.garageList}
                 >
-                  {vehicles.map((vehicle) => (
-                    <Pressable
-                      key={vehicle.id}
-                      accessibilityRole="button"
-                      onPress={() =>
-                        router.push({
-                          pathname: "/vehicle-details",
-                          params: { id: vehicle.id },
-                        })
-                      }
-                      style={({ pressed }) => [
-                        styles.carCard,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      {vehicle.cover_image_url ? (
-                        <Image
-                          source={{ uri: vehicle.cover_image_url }}
-                          style={styles.carImage}
-                        />
-                      ) : (
-                        <View style={styles.carImageFallback}>
-                          <Ionicons
-                            name="car-sport-outline"
-                            size={42}
-                            color={colors.textMuted}
+                  {vehicles
+                    .filter((vehicle) => vehicle.id !== coverVehicle?.id)
+                    .map((vehicle) => (
+                      <Pressable
+                        key={vehicle.id}
+                        accessibilityRole="button"
+                        onPress={() =>
+                          router.push({
+                            pathname: "/vehicle-details",
+                            params: { id: vehicle.id },
+                          })
+                        }
+                        style={({ pressed }) => [
+                          styles.carCard,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        {vehicle.cover_image_url ? (
+                          <Image
+                            source={{ uri: vehicle.cover_image_url }}
+                            style={styles.carImage}
                           />
+                        ) : (
+                          <View style={styles.carImageFallback}>
+                            <Ionicons
+                              name="car-sport-outline"
+                              size={42}
+                              color={colors.textMuted}
+                            />
+                          </View>
+                        )}
+                        <View style={styles.carShade} />
+                        <View style={styles.carCopy}>
+                          <Text style={styles.carName}>
+                            {vehicleName(vehicle)}
+                          </Text>
+                          <View style={styles.carMetaRow}>
+                            {vehicle.horsepower ? (
+                              <Text style={styles.carPill}>
+                                {vehicle.horsepower} HP
+                              </Text>
+                            ) : null}
+                            {vehicle.color ? (
+                              <Text style={styles.carPill}>
+                                {vehicle.color}
+                              </Text>
+                            ) : null}
+                          </View>
                         </View>
-                      )}
-                      <View style={styles.carShade} />
-                      <View style={styles.carCopy}>
-                        <Text style={styles.carName}>
-                          {vehicleName(vehicle)}
-                        </Text>
-                        <View style={styles.carMetaRow}>
-                          {vehicle.horsepower ? (
-                            <Text style={styles.carPill}>
-                              {vehicle.horsepower} HP
-                            </Text>
-                          ) : null}
-                          {vehicle.color ? (
-                            <Text style={styles.carPill}>{vehicle.color}</Text>
-                          ) : null}
-                        </View>
-                      </View>
-                    </Pressable>
-                  ))}
+                      </Pressable>
+                    ))}
                 </ScrollView>
               </>
-            ) : (
+            ) : null}
+
+            {vehicles.length === 0 ? (
               <StateCard
                 title="No public vehicles"
                 message="This driver has not shared any public vehicles yet."
               />
-            )}
+            ) : null}
           </>
         )}
       </ScrollView>
+      <ReportModal
+        onClose={() => setReportVisible(false)}
+        targetId={profile?.id ?? null}
+        targetLabel="driver"
+        targetType="profile"
+        visible={reportVisible}
+      />
     </NoxaScreen>
   );
 }
@@ -535,9 +729,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.text,
-    fontSize: typography.body,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
     fontWeight: "900",
-    letterSpacing: 0.3,
+    letterSpacing: 1.2,
   },
   headerAction: {
     width: 42,
@@ -561,6 +756,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   stateCard: {
+    marginTop: spacing.lg,
     gap: spacing.md,
     padding: spacing.lg,
     borderRadius: radius.card,
@@ -579,89 +775,121 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 22,
   },
-  heroCard: {
+  coverHero: {
     width: "100%",
+    height: 228,
     overflow: "hidden",
-    alignItems: "center",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    borderRadius: radius.card,
+    marginTop: spacing.xs,
+    borderRadius: radius.hero,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.borderAccent,
     backgroundColor: colors.surface,
     ...shadows.card,
   },
-  heroGlow: {
-    position: "absolute",
-    top: -120,
-    width: 260,
-    height: 260,
-    borderRadius: 160,
-    backgroundColor: "rgba(255,45,45,0.18)",
-  },
-  avatar: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.84)",
-  },
-  avatarFallback: {
-    width: 112,
-    height: 112,
+  coverImage: { width: "100%", height: "100%" },
+  coverFallback: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 56,
+    backgroundColor: colors.surfaceBase,
+  },
+  coverGlow: {
+    position: "absolute",
+    top: -80,
+    right: -30,
+    width: 250,
+    height: 250,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryMuted,
+  },
+  coverShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.30)",
+  },
+  coverBadge: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: "rgba(6,6,10,0.76)",
+  },
+  coverBadgeText: {
+    color: colors.primaryHover,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.1,
+  },
+  avatar: {
+    position: "absolute",
+    left: spacing.lg,
+    bottom: spacing.md,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.84)",
+    borderColor: colors.text,
+  },
+  avatarFallback: {
+    position: "absolute",
+    left: spacing.lg,
+    bottom: spacing.md,
+    width: 84,
+    height: 84,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 42,
+    borderWidth: 3,
+    borderColor: colors.text,
     backgroundColor: colors.surfaceSoft,
   },
   avatarInitials: {
     color: colors.text,
-    fontSize: 34,
+    fontSize: typography.h2,
     fontWeight: "900",
   },
-  nameRow: {
-    width: "100%",
-    marginTop: spacing.md,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "center",
+  identityBlock: {
     gap: spacing.sm,
+    paddingTop: spacing.md,
   },
+  identityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  identityCopy: { flex: 1, minWidth: 0 },
   name: {
-    maxWidth: "78%",
     color: colors.text,
-    textAlign: "center",
-    fontSize: 28,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.h2,
     fontWeight: "900",
-    letterSpacing: -0.7,
+    letterSpacing: -0.4,
   },
   username: {
-    marginTop: 4,
+    marginTop: spacing.xxs,
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.caption,
     fontWeight: "700",
   },
   bio: {
-    marginTop: spacing.md,
-    color: colors.text,
-    textAlign: "center",
-    fontSize: typography.body,
-    fontWeight: "700",
-    lineHeight: 22,
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 21,
   },
   followButton: {
-    marginTop: spacing.lg,
-    minWidth: 136,
-    minHeight: 44,
+    minWidth: 112,
+    minHeight: 40,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
     backgroundColor: colors.primary,
-    ...shadows.redGlow,
   },
   followingButton: {
     borderWidth: 1,
@@ -677,35 +905,19 @@ const styles = StyleSheet.create({
   },
   followingButtonText: { color: colors.textMuted },
   metaRow: {
-    width: "100%",
-    marginTop: spacing.lg,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: spacing.sm,
-  },
-  metaPill: {
-    maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.glass,
+    gap: spacing.xs,
   },
   metaText: {
     flexShrink: 1,
-    color: colors.text,
+    color: colors.textMuted,
     fontSize: typography.caption,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   statsCard: {
     marginTop: spacing.lg,
     flexDirection: "row",
-    paddingVertical: spacing.md,
     borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -715,17 +927,102 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     gap: 3,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.md,
   },
-  statValue: { color: colors.text, fontSize: 17, fontWeight: "900" },
-  statLabel: { color: colors.textMuted, fontSize: 10, fontWeight: "800" },
+  statDivider: { borderRightWidth: 1, borderRightColor: colors.divider },
+  statValue: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
+    fontWeight: "900",
+  },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
   sectionTitle: {
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     color: colors.text,
-    fontSize: 20,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
     fontWeight: "900",
     letterSpacing: -0.3,
+  },
+  postGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  postTile: {
+    width: "31.6%",
+    aspectRatio: 1,
+    overflow: "hidden",
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+  },
+  postImage: { width: "100%", height: "100%" },
+  featuredVehicle: {
+    height: 172,
+    overflow: "hidden",
+    borderRadius: radius.hero,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  featuredVehicleImage: { width: "100%", height: "100%" },
+  featuredVehicleFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceSoft,
+  },
+  featuredVehicleShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.32)",
+  },
+  featuredBadge: {
+    position: "absolute",
+    top: spacing.sm,
+    left: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: "rgba(6,6,10,0.78)",
+  },
+  featuredBadgeText: {
+    color: colors.primaryHover,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  featuredVehicleCopy: {
+    position: "absolute",
+    left: spacing.md,
+    right: 44,
+    bottom: spacing.md,
+  },
+  featuredVehicleName: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: "900",
+  },
+  featuredVehicleMeta: {
+    marginTop: spacing.xxs,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: "800",
+  },
+  featuredChevron: {
+    position: "absolute",
+    right: spacing.md,
+    bottom: spacing.md,
   },
   garageList: { gap: spacing.sm, paddingRight: spacing.lg },
   carCard: {
