@@ -18,6 +18,7 @@ import { NoxaAvatar, NoxaHeader, NoxaScreen } from '@/src/components/ui';
 import { SUPPORT_EMAIL } from '@/src/legal/legalDocuments';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
+import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 type SettingsProfile = {
@@ -183,7 +184,7 @@ export default function SettingsScreen() {
       return;
     }
 
-    router.replace('/welcome');
+    resetToSignedOutHome();
   };
 
   const confirmSignOut = () => {

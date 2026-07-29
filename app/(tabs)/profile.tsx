@@ -17,6 +17,7 @@ import {
 import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
+import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
 import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
@@ -426,7 +427,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    router.replace('/welcome');
+    resetToSignedOutHome();
   };
 
   const confirmSignOut = () => {

@@ -33,6 +33,7 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
         <Stack.Screen name="forgot-password" />
         <Stack.Screen name="reset-password" />
+        <Stack.Screen name="auth/callback" options={{ gestureEnabled: false }} />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="blocked-users" />
@@ -40,7 +41,7 @@ export default function RootLayout() {
         <Stack.Screen name="privacy-policy" />
         <Stack.Screen name="terms-of-service" />
         <Stack.Screen name="search" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
         <Stack.Screen name="event-details" />
         <Stack.Screen name="event-editor" />
         <Stack.Screen name="event-chat" />
