@@ -17,8 +17,13 @@ Use exact production paths where possible. Remove the broad Expo Go redirect bef
 
 ## Custom SMTP
 
-The NOXA project was created after Supabase restricted template customization for new Free
-projects using the default SMTP provider. Configure custom SMTP before applying the template.
+Supabase's built-in SMTP service is best-effort, rate-limited, and intended only for non-production
+testing. Configure custom SMTP before testing email delivery with external alpha users.
+
+Current hosted-project guidance:
+
+- Custom SMTP: https://supabase.com/docs/guides/auth/auth-smtp
+- Email templates: https://supabase.com/docs/guides/auth/auth-email-templates
 
 For temporary Gmail-based alpha testing:
 
