@@ -7,23 +7,37 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 1. Install dependencies
 
    ```bash
-   npm install
+   npm ci
    ```
 
-2. Start the app
+2. Create the local environment file
 
    ```bash
-   npx expo start
+   cp .env.example .env.local
    ```
 
-In the output, you'll find options to open the app in a
+3. Add these public client values to `.env.local`:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```dotenv
+   EXPO_PUBLIC_SUPABASE_URL=
+   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+   EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   `EXPO_PUBLIC_` values are embedded in the application bundle. Never use a
+   Supabase service-role/secret key or another private credential here.
+
+4. Start the installed development build
+
+   ```bash
+   npx expo start --dev-client --tunnel -c
+   ```
+
+NOXA uses native Mapbox and location modules, so runtime verification requires
+an Android/iOS development build rather than Expo Go.
+
+The EAS build profiles explicitly use their matching environments:
+`development`, `preview`, and `production`.
 
 ## Get a fresh project
 

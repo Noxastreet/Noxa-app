@@ -1,8 +1,9 @@
 import 'expo-sqlite/localStorage/install';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
+import { requireClientEnv } from '@/src/config/env';
+
+const { supabaseUrl, supabasePublishableKey } = requireClientEnv();
 
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
