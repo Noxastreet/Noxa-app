@@ -2,6 +2,14 @@
 
 Noxa is a premium car-culture social app with a dark, graphite-first interface and a disciplined deep-red accent. The system combines the NOXA product architecture with the approved Figma Make visual language. It should feel precise, automotive, and calm: more Porsche cockpit and Apple restraint than game HUD.
 
+## Companion interaction standard
+
+Use [`docs/design/NOXA_APPLE_DESIGN_STANDARD.md`](docs/design/NOXA_APPLE_DESIGN_STANDARD.md) for canonical guidance on UX hierarchy, wayfinding, map interactions, gestures, spring motion, haptics, accessibility, runtime validation, and AI design reviews.
+
+- This file defines the visual system and reusable component direction.
+- The companion standard defines how the interface should behave and be evaluated.
+- Preserve NOXA identity; apply Apple interaction discipline without copying iOS visuals.
+
 ## Visual philosophy
 
 - Build on black and graphite surfaces.
