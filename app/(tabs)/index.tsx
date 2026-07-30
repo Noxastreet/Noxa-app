@@ -1286,7 +1286,6 @@ export default function LiveMapScreen() {
   const headerBottom = headerTop + 34;
   const filtersTop = headerBottom + spacing.sm;
   const filtersBottom = filtersTop + 32;
-  const visibilityTop = filtersBottom + 10;
   const activeVisibilityMode =
     VISIBILITY_MODES.find((mode) => mode.id === visibilityMode) ??
     VISIBILITY_MODES[VISIBILITY_MODES.length - 1];
@@ -1297,13 +1296,28 @@ export default function LiveMapScreen() {
   const pendingVisibility = VISIBILITY_MODES.find(
     (mode) => mode.id === pendingVisibilityMode,
   );
-  const noticesTop = visibilityTop + (visibilityMenuOpen ? 238 : 42);
+  const activeNotice = sharingError
+    ? {
+        icon: "warning-outline" as const,
+        message: isVisibleOnMap
+          ? "Live Drive is reconnecting. Your last visibility setting is preserved."
+          : "Live Drive could not start. You are still in Ghost.",
+      }
+    : locationError
+      ? { icon: "warning-outline" as const, message: locationError }
+      : permissionDenied
+        ? {
+            icon: "location-outline" as const,
+            message: "Location is off. Use Recenter to request access.",
+          }
+        : null;
+  const noticesTop = filtersBottom + spacing.sm;
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : 62);
+    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);
 
   return (
     <View style={styles.screen}>
@@ -1325,7 +1339,7 @@ export default function LiveMapScreen() {
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
         <Svg
-          height={noticesTop + 70}
+          height={noticesTop + (activeNotice ? 68 : 28)}
           pointerEvents="none"
           style={styles.topScrim}
           width="100%"
@@ -1347,12 +1361,6 @@ export default function LiveMapScreen() {
         <View style={[styles.header, { top: headerTop }]}>
           <NoxaCompactLogo />
           <View style={styles.headerActions}>
-            <View style={styles.onlinePill}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>
-                {activeDrivers.length} online
-              </Text>
-            </View>
             <HeaderAction
               icon="search-outline"
               accessibilityLabel="Search"
@@ -1372,184 +1380,134 @@ export default function LiveMapScreen() {
           top={filtersTop}
         />
 
-        <TouchableOpacity
-          accessibilityLabel={`Map visibility: ${activeVisibilityMode.label}`}
-          accessibilityHint="Choose who can see your temporary live location"
-          accessibilityRole="button"
-          accessibilityState={{ expanded: visibilityMenuOpen }}
-          activeOpacity={0.78}
-          onPress={() => setVisibilityMenuOpen((current) => !current)}
-          style={[
-            styles.visibilityControl,
-            isVisibleOnMap && styles.visibilityControlActive,
-            { top: visibilityTop },
-          ]}
+        <View
+          pointerEvents="box-none"
+          style={[styles.locationControlStack, { bottom: controlBottom }]}
         >
-          <Ionicons
-            name={activeVisibilityMode.icon}
-            size={15}
-            color={isVisibleOnMap ? colors.primaryHover : colors.textMuted}
-          />
-          <Text
+          <TouchableOpacity
+            accessibilityLabel={`Map visibility: ${activeVisibilityMode.label}`}
+            accessibilityHint="Choose who can see your temporary live location"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: visibilityMenuOpen }}
+            activeOpacity={0.78}
+            onPress={() => setVisibilityMenuOpen((current) => !current)}
             style={[
-              styles.visibilityTitle,
-              isVisibleOnMap && styles.visibilityTitleActive,
-            ]}
-          >
-            {activeVisibilityMode.label}
-            {isVisibleOnMap && liveDriveRemaining
-              ? ` · ${liveDriveRemaining}`
-              : ""}
-          </Text>
-          <Ionicons
-            name={visibilityMenuOpen ? "chevron-up" : "chevron-down"}
-            size={13}
-            color={colors.textSubtle}
-          />
-        </TouchableOpacity>
-
-        {visibilityMenuOpen ? (
-          <View style={[styles.visibilityMenu, { top: visibilityTop + 38 }]}>
-            <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
-            {VISIBILITY_MODES.map((mode) => {
-              const selected = visibilityMode === mode.id;
-              return (
-                <TouchableOpacity
-                  accessibilityLabel={`${mode.label}. ${mode.description}`}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  activeOpacity={0.76}
-                  key={mode.id}
-                  onPress={() => void changeVisibilityMode(mode.id)}
-                  style={[
-                    styles.visibilityOption,
-                    selected && styles.visibilityOptionSelected,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.visibilityOptionIcon,
-                      selected && styles.visibilityOptionIconSelected,
-                    ]}
-                  >
-                    <Ionicons
-                      name={mode.icon}
-                      size={16}
-                      color={selected ? colors.primaryHover : colors.textMuted}
-                    />
-                  </View>
-                  <View style={styles.visibilityOptionCopy}>
-                    <Text
-                      style={[
-                        styles.visibilityOptionLabel,
-                        selected && styles.visibilityOptionLabelSelected,
-                      ]}
-                    >
-                      {mode.label}
-                    </Text>
-                    <Text style={styles.visibilityOptionDescription}>
-                      {mode.description}
-                    </Text>
-                  </View>
-                  {selected ? (
-                    <Ionicons name="checkmark" size={16} color={colors.primaryHover} />
-                  ) : null}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ) : null}
-
-        {sharingError ? (
-          <View
-            pointerEvents="none"
-            style={[styles.sharingNotice, { top: noticesTop }]}
-          >
-            <Text style={styles.locationNoticeText}>{sharingError}</Text>
-          </View>
-        ) : null}
-
-        {permissionDenied ? (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.locationNotice,
-              { top: noticesTop + (sharingError ? 46 : 0) },
-            ]}
-          >
-            <Text style={styles.locationNoticeText}>
-              Location off — centered on NOXA map.
-            </Text>
-          </View>
-        ) : null}
-
-        {locationError ? (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.locationErrorNotice,
-              {
-                top:
-                  noticesTop +
-                  (sharingError ? 46 : 0) +
-                  (permissionDenied ? 46 : 0),
-              },
+              styles.visibilityControl,
+              isVisibleOnMap && styles.visibilityControlActive,
             ]}
           >
             <Ionicons
-              name="warning-outline"
-              size={14}
+              name={activeVisibilityMode.icon}
+              size={15}
+              color={isVisibleOnMap ? colors.primaryHover : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.visibilityTitle,
+                isVisibleOnMap && styles.visibilityTitleActive,
+              ]}
+            >
+              {activeVisibilityMode.label}
+              {isVisibleOnMap && liveDriveRemaining
+                ? ` · ${liveDriveRemaining}`
+                : ""}
+            </Text>
+            <Ionicons
+              name={visibilityMenuOpen ? "chevron-up" : "chevron-down"}
+              size={13}
+              color={colors.textSubtle}
+            />
+          </TouchableOpacity>
+
+          {visibilityMenuOpen ? (
+            <View style={styles.visibilityMenu}>
+              <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
+              {VISIBILITY_MODES.map((mode) => {
+                const selected = visibilityMode === mode.id;
+                return (
+                  <TouchableOpacity
+                    accessibilityLabel={`${mode.label}. ${mode.description}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    activeOpacity={0.76}
+                    key={mode.id}
+                    onPress={() => void changeVisibilityMode(mode.id)}
+                    style={[
+                      styles.visibilityOption,
+                      selected && styles.visibilityOptionSelected,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.visibilityOptionIcon,
+                        selected && styles.visibilityOptionIconSelected,
+                      ]}
+                    >
+                      <Ionicons
+                        name={mode.icon}
+                        size={16}
+                        color={selected ? colors.primaryHover : colors.textMuted}
+                      />
+                    </View>
+                    <View style={styles.visibilityOptionCopy}>
+                      <Text
+                        style={[
+                          styles.visibilityOptionLabel,
+                          selected && styles.visibilityOptionLabelSelected,
+                        ]}
+                      >
+                        {mode.label}
+                      </Text>
+                      <Text style={styles.visibilityOptionDescription}>
+                        {mode.description}
+                      </Text>
+                    </View>
+                    {selected ? (
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={colors.primaryHover}
+                      />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            accessibilityLabel="Recenter map"
+            accessibilityState={{
+              busy: locationLoading,
+              disabled: locationLoading,
+            }}
+            activeOpacity={0.78}
+            disabled={locationLoading}
+            onPress={recenterMap}
+            style={styles.recenterButton}
+          >
+            {locationLoading ? (
+              <ActivityIndicator color={colors.text} size="small" />
+            ) : (
+              <Ionicons name="locate" size={22} color={colors.text} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {activeNotice ? (
+          <View
+            accessibilityLiveRegion="polite"
+            pointerEvents="none"
+            style={[styles.mapNotice, { top: noticesTop }]}
+          >
+            <Ionicons
+              name={activeNotice.icon}
+              size={15}
               color={colors.primaryHover}
             />
-            <Text style={styles.locationNoticeText}>{locationError}</Text>
+            <Text style={styles.mapNoticeText}>{activeNotice.message}</Text>
           </View>
         ) : null}
-
-        {!selectedEvent ? (
-          <View
-            pointerEvents="none"
-            style={[styles.nearbySummary, { bottom: eventCardBottom }]}
-          >
-            <Text style={styles.nearbyLabel}>Nearby</Text>
-            <View style={styles.nearbyMetrics}>
-              <View style={styles.nearbyMetric}>
-                <View style={styles.nearbyDriverDot} />
-                <Text style={styles.nearbyMetricText}>
-                  {activeDrivers.length} drivers
-                </Text>
-              </View>
-              <View style={styles.nearbyDivider} />
-              <View style={styles.nearbyMetric}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={14}
-                  color={colors.primaryHover}
-                />
-                <Text style={styles.nearbyMetricText}>
-                  {events.length} events
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        <TouchableOpacity
-          accessibilityLabel="Recenter map"
-          accessibilityState={{
-            busy: locationLoading,
-            disabled: locationLoading,
-          }}
-          activeOpacity={0.78}
-          disabled={locationLoading}
-          onPress={recenterMap}
-          style={[styles.recenterButton, { bottom: controlBottom }]}
-        >
-          {locationLoading ? (
-            <ActivityIndicator color={colors.text} size="small" />
-          ) : (
-            <Ionicons name="locate" size={22} color={colors.text} />
-          )}
-        </TouchableOpacity>
 
         {selectedEvent && isRouteMode ? (
           <RouteCard
@@ -1590,8 +1548,8 @@ export default function LiveMapScreen() {
             <Text style={styles.liveDriveModalEyebrow}>BACKGROUND LOCATION</Text>
             <Text style={styles.liveDriveModalTitle}>Start a 4-hour Live Drive?</Text>
             <Text style={styles.liveDriveModalBody}>
-              NOXA collects and shares your precise location with{' '}
-              {pendingVisibility?.label.toLowerCase() ?? 'your selected audience'} while
+              NOXA collects and shares your precise location with{" "}
+              {pendingVisibility?.label.toLowerCase() ?? "your selected audience"} while
               the app is in the background, so they can see you on the live map.
             </Text>
             <Text style={styles.liveDriveModalFootnote}>
@@ -1647,28 +1605,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  onlinePill: {
-    height: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 9,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.78)",
-  },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
-  onlineText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "500",
   },
   headerAction: {
     width: 34,
@@ -1755,23 +1691,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryHover,
     transform: [{ scale: 1.1 }],
   },
-  visibilityControl: {
+  locationControlStack: {
     position: "absolute",
     right: spacing.md,
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  visibilityControl: {
     minWidth: 104,
-    height: 32,
+    height: 38,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.82)",
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
   },
   visibilityControlActive: {
     borderColor: colors.borderAccent,
-    backgroundColor: "rgba(200,16,46,0.12)",
+    backgroundColor: "rgba(200,16,46,0.14)",
   },
   visibilityTitle: {
     color: colors.textMuted,
@@ -1783,7 +1725,8 @@ const styles = StyleSheet.create({
   },
   visibilityMenu: {
     position: "absolute",
-    right: spacing.md,
+    right: 0,
+    bottom: 98,
     width: 264,
     overflow: "hidden",
     padding: spacing.xs,
@@ -1837,34 +1780,11 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: "600",
   },
-  sharingNotice: {
+  mapNotice: {
     position: "absolute",
     left: spacing.md,
     right: spacing.md,
-    alignItems: "center",
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(12,12,16,0.9)",
-  },
-  locationNotice: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    alignItems: "center",
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(12,12,16,0.9)",
-  },
-  locationErrorNotice: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
+    minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1876,11 +1796,23 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryMuted,
     backgroundColor: "rgba(12,12,16,0.94)",
   },
-  locationNoticeText: {
+  mapNoticeText: {
+    flexShrink: 1,
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: "600",
     textAlign: "center",
+  },
+  recenterButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
   },
   liveDriveModalBackdrop: {
     flex: 1,
@@ -1962,68 +1894,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.7,
-  },
-  nearbySummary: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(17,17,22,0.9)",
-    ...shadows.card,
-  },
-  nearbyLabel: {
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  nearbyMetrics: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  nearbyMetric: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  nearbyDriverDot: {
-    width: 7,
-    height: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
-  nearbyMetricText: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  nearbyDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 16,
-    backgroundColor: colors.borderStrong,
-  },
-  recenterButton: {
-    position: "absolute",
-    right: spacing.md,
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.88)",
-    ...shadows.control,
   },
   eventCard: {
     position: "absolute",
