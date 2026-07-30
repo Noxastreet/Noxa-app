@@ -4,8 +4,14 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
+import { hasCompletedVisibilitySetup } from '@/src/lib/visibilitySetup';
 
-type Destination = '/welcome' | '/onboarding' | '/(tabs)' | null;
+type Destination =
+  | '/welcome'
+  | '/onboarding'
+  | '/visibility-setup'
+  | '/(tabs)'
+  | null;
 
 export default function IndexRoute() {
   const [destination, setDestination] = useState<Destination>(null);
@@ -27,7 +33,14 @@ export default function IndexRoute() {
         return;
       }
 
-      setDestination(hasCompletedOnboarding(user.id) ? '/(tabs)' : '/onboarding');
+      if (!hasCompletedOnboarding(user.id)) {
+        setDestination('/onboarding');
+        return;
+      }
+
+      setDestination(
+        hasCompletedVisibilitySetup(user.id) ? '/(tabs)' : '/visibility-setup',
+      );
     }
 
     void restoreSession();
