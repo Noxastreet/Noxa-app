@@ -386,7 +386,10 @@ function RouteCard({
   status,
   message,
   bottomOffset,
+  following,
+  canFollow,
   onClose,
+  onFollowToggle,
   onRetry,
 }: {
   event: EventMarkerRow;
@@ -394,7 +397,10 @@ function RouteCard({
   status: RouteStatus;
   message: string | null;
   bottomOffset: number;
+  following: boolean;
+  canFollow: boolean;
   onClose: () => void;
+  onFollowToggle: () => void;
   onRetry: () => void;
 }) {
   const loading = status === "loading";
@@ -436,6 +442,30 @@ function RouteCard({
           {message ?? "Route unavailable. Keep exploring the NOXA map."}
         </Text>
       )}
+      {route && canFollow ? (
+        <TouchableOpacity
+          accessibilityLabel={
+            following ? "Stop following current location" : "Follow route"
+          }
+          accessibilityRole="button"
+          accessibilityState={{ selected: following }}
+          activeOpacity={0.82}
+          onPress={onFollowToggle}
+          style={[
+            styles.routeFollowButton,
+            following && styles.routeFollowButtonActive,
+          ]}
+        >
+          <Ionicons
+            name={following ? "navigate" : "navigate-outline"}
+            size={16}
+            color={following ? colors.text : colors.primaryHover}
+          />
+          <Text style={styles.routeFollowText}>
+            {following ? "Following" : "Follow"}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
       {status === "error" ? (
         <TouchableOpacity
           activeOpacity={0.82}
@@ -467,6 +497,7 @@ export default function LiveMapScreen() {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeStatus, setRouteStatus] = useState<RouteStatus>("idle");
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
+  const [isRouteFollowing, setIsRouteFollowing] = useState(false);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
@@ -965,6 +996,7 @@ export default function LiveMapScreen() {
   }, [animateTo, events, focusEventId, isRouteMode]);
 
   useEffect(() => {
+    setIsRouteFollowing(false);
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
     routeRequestIdRef.current += 1;
@@ -1006,6 +1038,7 @@ export default function LiveMapScreen() {
     routeAbortControllerRef.current?.abort();
     const controller = new AbortController();
     routeAbortControllerRef.current = controller;
+    setIsRouteFollowing(false);
     setRoute(null);
     setRouteStatus("loading");
     setRouteMessage(null);
@@ -1139,6 +1172,7 @@ export default function LiveMapScreen() {
   }, []);
 
   const closeRouteMode = useCallback(() => {
+    setIsRouteFollowing(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1150,6 +1184,7 @@ export default function LiveMapScreen() {
   }, []);
 
   const retryRoute = useCallback(() => {
+    setIsRouteFollowing(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1157,6 +1192,7 @@ export default function LiveMapScreen() {
   }, [requestRoute]);
 
   const routeToEvent = useCallback((event: EventMarkerRow) => {
+    setIsRouteFollowing(false);
     if (!hasValidCoordinates(event)) return;
     setSelectedEvent(event);
     router.setParams({ focusEventId: event.id, mapMode: "route" });
@@ -1182,9 +1218,33 @@ export default function LiveMapScreen() {
       showLoading: true,
     });
     if (point) {
-      animateTo(pointRegion(point));
+      if (isRouteFollowing) {
+        setIsRouteFollowing(false);
+        requestAnimationFrame(() => animateTo(pointRegion(point)));
+      } else {
+        animateTo(pointRegion(point));
+      }
     }
-  }, [animateTo, loadDriverLocation]);
+  }, [animateTo, isRouteFollowing, loadDriverLocation]);
+
+  const toggleRouteFollow = useCallback(() => {
+    if (isRouteFollowing) {
+      setIsRouteFollowing(false);
+      return;
+    }
+    const point = driverLocationRef.current;
+    if (
+      !isRouteMode ||
+      routeStatus !== "ready" ||
+      !route ||
+      !point ||
+      !hasValidLatLng(point.latitude, point.longitude)
+    ) {
+      return;
+    }
+    mapRef.current?.animateToRegion(pointRegion(point), 250);
+    setIsRouteFollowing(true);
+  }, [isRouteFollowing, isRouteMode, route, routeStatus]);
 
   const mapboxDrivers = useMemo<MapboxDriver[]>(
     () =>
@@ -1243,7 +1303,7 @@ export default function LiveMapScreen() {
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 218 : selectedEvent ? 196 : 62);
+    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : 62);
 
   return (
     <View style={styles.screen}>
@@ -1254,7 +1314,9 @@ export default function LiveMapScreen() {
         events={mapboxEvents}
         initialRegion={initialRegion}
         isRouteMode={isRouteMode}
+        followUserLocation={isRouteFollowing}
         mapFilter={mapFilter}
+        onFollowUserLocationChange={setIsRouteFollowing}
         onDriverPress={openDriverProfile}
         onEventPress={selectMapboxEvent}
         route={route}
@@ -1496,7 +1558,10 @@ export default function LiveMapScreen() {
             status={routeStatus}
             message={routeMessage}
             bottomOffset={routeCardBottom}
+            following={isRouteFollowing}
+            canFollow={routeStatus === "ready" && Boolean(driverLocation)}
             onClose={closeRouteMode}
+            onFollowToggle={toggleRouteFollow}
             onRetry={retryRoute}
           />
         ) : selectedEvent ? (
@@ -2137,6 +2202,26 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.caption,
     fontWeight: "600",
+  },
+  routeFollowButton: {
+    marginTop: spacing.md,
+    height: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
+  },
+  routeFollowButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  routeFollowText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
   },
   routeRetryButton: {
     marginTop: spacing.md,
