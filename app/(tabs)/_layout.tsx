@@ -7,10 +7,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HapticTab } from '@/components/haptic-tab';
 import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
+import { hasCompletedVisibilitySetup } from '@/src/lib/visibilitySetup';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
 type IconName = keyof typeof Ionicons.glyphMap;
+type TabDestination =
+  | 'ready'
+  | '/welcome'
+  | '/onboarding'
+  | '/visibility-setup'
+  | null;
 
 function TabIcon({ name, color, emphasized = false }: { name: IconName; color: string; emphasized?: boolean }) {
   return (
@@ -26,7 +33,7 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const [destination, setDestination] = useState<'ready' | '/welcome' | '/onboarding' | null>(null);
+  const [destination, setDestination] = useState<TabDestination>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -42,7 +49,14 @@ export default function TabLayout() {
         return;
       }
 
-      setDestination(hasCompletedOnboarding(user.id) ? 'ready' : '/onboarding');
+      if (!hasCompletedOnboarding(user.id)) {
+        setDestination('/onboarding');
+        return;
+      }
+
+      setDestination(
+        hasCompletedVisibilitySetup(user.id) ? 'ready' : '/visibility-setup',
+      );
     }
 
     void checkAccess();
