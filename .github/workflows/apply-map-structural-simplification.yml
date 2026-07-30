@@ -1,0 +1,393 @@
+name: Apply Map structural simplification
+
+on:
+  push:
+    branches:
+      - design/map-structural-simplification-stacked-20260730
+    paths:
+      - .github/workflows/apply-map-structural-simplification.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out stacked branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply guarded Map transformations
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path("app/(tabs)/index.tsx")
+          text = path.read_text()
+
+          def replace_once(source: str, old: str, new: str, label: str) -> str:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
+              return source.replace(old, new, 1)
+
+          def replace_between(source: str, start: str, end: str, new: str, label: str) -> str:
+              start_count = source.count(start)
+              end_count = source.count(end)
+              if start_count != 1 or end_count != 1:
+                  raise SystemExit(
+                      f"{label}: expected one start/end marker, found {start_count}/{end_count}"
+                  )
+              start_index = source.index(start)
+              end_index = source.index(end, start_index)
+              return source[:start_index] + new + source[end_index:]
+
+          old_header_status = '''            <View style={styles.onlinePill}>
+              <View style={styles.onlineDot} />
+              <Text style={styles.onlineText}>
+                {activeDrivers.length} online
+              </Text>
+            </View>
+'''
+          text = replace_once(text, old_header_status, "", "remove online pill")
+
+          layout_start = '  const headerTop = insets.top + spacing.sm;'
+          layout_end = '\n\n  return ('
+          new_layout = '''  const headerTop = insets.top + spacing.sm;
+  const headerBottom = headerTop + 34;
+  const filtersTop = headerBottom + spacing.sm;
+  const filtersBottom = filtersTop + 32;
+  const activeVisibilityMode =
+    VISIBILITY_MODES.find((mode) => mode.id === visibilityMode) ??
+    VISIBILITY_MODES[VISIBILITY_MODES.length - 1];
+  const liveDriveRemaining = formatLiveDriveRemaining(
+    liveDriveExpiresAt,
+    liveDriveClock,
+  );
+  const pendingVisibility = VISIBILITY_MODES.find(
+    (mode) => mode.id === pendingVisibilityMode,
+  );
+  const activeNotice = sharingError
+    ? {
+        icon: "warning-outline" as const,
+        message: isVisibleOnMap
+          ? "Live Drive is reconnecting. Your last visibility setting is preserved."
+          : "Live Drive could not start. You are still in Ghost.",
+      }
+    : locationError
+      ? { icon: "warning-outline" as const, message: locationError }
+      : permissionDenied
+        ? {
+            icon: "location-outline" as const,
+            message: "Location is off. Use Recenter to request access.",
+          }
+        : null;
+  const noticesTop = filtersBottom + spacing.sm;
+  const eventCardBottom =
+    insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
+  const routeCardBottom = eventCardBottom;
+  const controlBottom =
+    eventCardBottom +
+    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);'''
+          text = replace_between(text, layout_start, layout_end, new_layout, "replace layout calculations")
+
+          controls_start = '''        <TouchableOpacity
+          accessibilityLabel={`Map visibility: ${activeVisibilityMode.label}`}'''
+          controls_end = '''        {selectedEvent && isRouteMode ? ('''
+          new_controls = '''        <View
+          pointerEvents="box-none"
+          style={[styles.locationControlStack, { bottom: controlBottom }]}
+        >
+          <TouchableOpacity
+            accessibilityLabel={`Map visibility: ${activeVisibilityMode.label}`}
+            accessibilityHint="Choose who can see your temporary live location"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: visibilityMenuOpen }}
+            activeOpacity={0.78}
+            onPress={() => setVisibilityMenuOpen((current) => !current)}
+            style={[
+              styles.visibilityControl,
+              isVisibleOnMap && styles.visibilityControlActive,
+            ]}
+          >
+            <Ionicons
+              name={activeVisibilityMode.icon}
+              size={15}
+              color={isVisibleOnMap ? colors.primaryHover : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.visibilityTitle,
+                isVisibleOnMap && styles.visibilityTitleActive,
+              ]}
+            >
+              {activeVisibilityMode.label}
+              {isVisibleOnMap && liveDriveRemaining
+                ? ` · ${liveDriveRemaining}`
+                : ""}
+            </Text>
+            <Ionicons
+              name={visibilityMenuOpen ? "chevron-up" : "chevron-down"}
+              size={13}
+              color={colors.textSubtle}
+            />
+          </TouchableOpacity>
+
+          {visibilityMenuOpen ? (
+            <View style={styles.visibilityMenu}>
+              <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
+              {VISIBILITY_MODES.map((mode) => {
+                const selected = visibilityMode === mode.id;
+                return (
+                  <TouchableOpacity
+                    accessibilityLabel={`${mode.label}. ${mode.description}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    activeOpacity={0.76}
+                    key={mode.id}
+                    onPress={() => void changeVisibilityMode(mode.id)}
+                    style={[
+                      styles.visibilityOption,
+                      selected && styles.visibilityOptionSelected,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.visibilityOptionIcon,
+                        selected && styles.visibilityOptionIconSelected,
+                      ]}
+                    >
+                      <Ionicons
+                        name={mode.icon}
+                        size={16}
+                        color={selected ? colors.primaryHover : colors.textMuted}
+                      />
+                    </View>
+                    <View style={styles.visibilityOptionCopy}>
+                      <Text
+                        style={[
+                          styles.visibilityOptionLabel,
+                          selected && styles.visibilityOptionLabelSelected,
+                        ]}
+                      >
+                        {mode.label}
+                      </Text>
+                      <Text style={styles.visibilityOptionDescription}>
+                        {mode.description}
+                      </Text>
+                    </View>
+                    {selected ? (
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={colors.primaryHover}
+                      />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            accessibilityLabel="Recenter map"
+            accessibilityState={{
+              busy: locationLoading,
+              disabled: locationLoading,
+            }}
+            activeOpacity={0.78}
+            disabled={locationLoading}
+            onPress={recenterMap}
+            style={styles.recenterButton}
+          >
+            {locationLoading ? (
+              <ActivityIndicator color={colors.text} size="small" />
+            ) : (
+              <Ionicons name="locate" size={22} color={colors.text} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {activeNotice ? (
+          <View
+            accessibilityLiveRegion="polite"
+            pointerEvents="none"
+            style={[styles.mapNotice, { top: noticesTop }]}
+          >
+            <Ionicons
+              name={activeNotice.icon}
+              size={15}
+              color={colors.primaryHover}
+            />
+            <Text style={styles.mapNoticeText}>{activeNotice.message}</Text>
+          </View>
+        ) : null}
+
+'''
+          text = replace_between(text, controls_start, controls_end, new_controls, "replace Map controls")
+
+          old_scrim_height = '''          height={noticesTop + 70}'''
+          new_scrim_height = '''          height={noticesTop + (activeNotice ? 68 : 28)}'''
+          text = replace_once(text, old_scrim_height, new_scrim_height, "update top scrim height")
+
+          styles_online_start = '  onlinePill: {'
+          styles_online_end = '  headerAction: {'
+          text = replace_between(text, styles_online_start, styles_online_end, '  headerAction: {', "remove online styles")
+
+          styles_controls_start = '  visibilityControl: {'
+          styles_controls_end = '  liveDriveModalBackdrop: {'
+          new_control_styles = '''  locationControlStack: {
+    position: "absolute",
+    right: spacing.md,
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  visibilityControl: {
+    minWidth: 104,
+    height: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 11,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
+  },
+  visibilityControlActive: {
+    borderColor: colors.borderAccent,
+    backgroundColor: "rgba(200,16,46,0.14)",
+  },
+  visibilityTitle: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  visibilityTitleActive: {
+    color: colors.text,
+  },
+  visibilityMenu: {
+    position: "absolute",
+    right: 0,
+    bottom: 98,
+    width: 264,
+    overflow: "hidden",
+    padding: spacing.xs,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.97)",
+    ...shadows.card,
+  },
+  visibilityMenuEyebrow: {
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: 6,
+    color: colors.textSubtle,
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+  visibilityOption: {
+    minHeight: 47,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  visibilityOptionSelected: {
+    backgroundColor: colors.primarySubtle,
+  },
+  visibilityOptionIcon: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  visibilityOptionIconSelected: {
+    backgroundColor: colors.primaryMuted,
+  },
+  visibilityOptionCopy: { flex: 1, minWidth: 0 },
+  visibilityOptionLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  visibilityOptionLabelSelected: { color: colors.text },
+  visibilityOptionDescription: {
+    marginTop: 1,
+    color: colors.textSubtle,
+    fontSize: 8,
+    fontWeight: "600",
+  },
+  mapNotice: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primaryMuted,
+    backgroundColor: "rgba(12,12,16,0.94)",
+  },
+  mapNoticeText: {
+    flexShrink: 1,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  recenterButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
+  },
+  liveDriveModalBackdrop: {'''
+          text = replace_between(text, styles_controls_start, styles_controls_end, new_control_styles, "replace control styles")
+
+          nearby_styles_start = '  nearbySummary: {'
+          nearby_styles_end = '  eventCard: {'
+          text = replace_between(text, nearby_styles_start, nearby_styles_end, '  eventCard: {', "remove Nearby and old recenter styles")
+
+          path.write_text(text)
+          Path('.github/workflows/apply-map-structural-simplification.yml').unlink()
+          PY
+
+      - name: Verify transformed source
+        run: |
+          git diff --check
+          grep -q 'locationControlStack' 'app/(tabs)/index.tsx'
+          grep -q 'activeNotice' 'app/(tabs)/index.tsx'
+          if grep -q 'onlinePill\|nearbySummary\|sharingNotice\|locationErrorNotice' 'app/(tabs)/index.tsx'; then
+            echo 'Legacy persistent Map styles remain unexpectedly.' >&2
+            exit 1
+          fi
+
+      - name: Commit structural simplification
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor(map): simplify persistent map chrome'
+          git push
