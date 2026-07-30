@@ -16,24 +16,21 @@ function getVisibilitySetupKey(userId: string) {
 }
 
 function readVisibilitySetup(userId: string): StoredVisibilitySetup | null {
-  try {
-    const raw = localStorage.getItem(getVisibilitySetupKey(userId));
-    if (!raw) return null;
+  const key = getVisibilitySetupKey(userId);
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
 
-    const parsed = JSON.parse(raw) as Partial<StoredVisibilitySetup>;
-    if (
-      parsed.status !== 'complete' ||
-      typeof parsed.completedAt !== 'string' ||
-      !['crew', 'friends', 'global', 'ghost'].includes(parsed.preferredMode ?? '')
-    ) {
-      localStorage.removeItem(getVisibilitySetupKey(userId));
-      return null;
-    }
-
-    return parsed as StoredVisibilitySetup;
-  } catch {
+  const parsed = JSON.parse(raw) as Partial<StoredVisibilitySetup>;
+  if (
+    parsed.status !== 'complete' ||
+    typeof parsed.completedAt !== 'string' ||
+    !['crew', 'friends', 'global', 'ghost'].includes(parsed.preferredMode ?? '')
+  ) {
+    localStorage.removeItem(key);
     return null;
   }
+
+  return parsed as StoredVisibilitySetup;
 }
 
 export function hasCompletedVisibilitySetup(userId: string) {
@@ -46,7 +43,11 @@ export function hasCompletedVisibilitySetup(userId: string) {
 }
 
 export function getPreferredVisibilityMode(userId: string) {
-  return readVisibilitySetup(userId)?.preferredMode ?? null;
+  try {
+    return readVisibilitySetup(userId)?.preferredMode ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function markVisibilitySetupComplete(
