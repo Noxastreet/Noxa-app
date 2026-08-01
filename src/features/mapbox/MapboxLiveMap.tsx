@@ -7,6 +7,7 @@ import Mapbox, {
   MarkerView,
   ShapeSource,
   SymbolLayer,
+  UserTrackingMode,
 } from "@rnmapbox/maps";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -47,6 +48,7 @@ import type {
 } from "./types";
 
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
+const ROUTE_FOLLOW_ZOOM = 16.5;
 const DRIVER_CLUSTER_LIMIT = 80;
 
 function eventIconName(
@@ -81,6 +83,8 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       selectedEventId,
       mapFilter,
       isRouteMode,
+      followUserLocation,
+      onFollowUserLocationChange,
       onDriverPress,
       onEventPress,
     },
@@ -114,6 +118,10 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 
     const animateToRegion = useCallback(
       (region: MapRegion, duration = 550) => {
+        if (followUserLocation) {
+          onFollowUserLocationChange(false);
+          return;
+        }
         cameraRef.current?.setCamera({
           centerCoordinate: toPosition(region),
           zoomLevel: DEFAULT_ZOOM,
@@ -122,11 +130,15 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: "easeTo",
         });
       },
-      [isRouteMode],
+      [followUserLocation, isRouteMode, onFollowUserLocationChange],
     );
 
     const fitToCoordinates: LiveMapHandle["fitToCoordinates"] = useCallback(
       (points, options) => {
+        if (followUserLocation) {
+          onFollowUserLocationChange(false);
+          return;
+        }
         const validPoints = points.filter(
           (point) =>
             Number.isFinite(point.latitude) &&
@@ -155,7 +167,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: options?.animated === false ? "none" : "easeTo",
         });
       },
-      [isRouteMode],
+      [followUserLocation, isRouteMode, onFollowUserLocationChange],
     );
 
     useImperativeHandle(
@@ -215,6 +227,11 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             setHasError(true);
             setIsLoaded(false);
           }}
+          onCameraChanged={(state) => {
+            if (followUserLocation && state.gestures.isGestureActive) {
+              onFollowUserLocationChange(false);
+            }
+          }}
           pitchEnabled
           projection="mercator"
           rotateEnabled
@@ -230,6 +247,26 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               centerCoordinate: toPosition(initialRegion),
               zoomLevel: DEFAULT_ZOOM,
               pitch: 28,
+            }}
+            followPadding={{
+              paddingTop: 110,
+              paddingRight: spacing.xl,
+              paddingBottom: 260,
+              paddingLeft: spacing.xl,
+            }}
+            followPitch={54}
+            followUserLocation={
+              followUserLocation && Boolean(driverLocation) && isRouteMode
+            }
+            followUserMode={UserTrackingMode.FollowWithCourse}
+            followZoomLevel={ROUTE_FOLLOW_ZOOM}
+            onUserTrackingModeChange={(event) => {
+              if (
+                followUserLocation &&
+                !event.nativeEvent.payload.followUserLocation
+              ) {
+                onFollowUserLocationChange(false);
+              }
             }}
           />
 
@@ -329,7 +366,11 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
                     activeOpacity={0.82}
                     onPress={() => onDriverPress(driver.user_id)}
-                    style={styles.driverMarker}
+                    style={[
+                      styles.driverMarker,
+                      driver.is_relevant && styles.driverMarkerRelevant,
+                      driver.is_dimmed && styles.driverMarkerDimmed,
+                    ]}
                   >
                     <View style={styles.driverMarkerAccent} />
                     {driver.avatar_url ? (
@@ -495,6 +536,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
+  },
+  driverMarkerRelevant: {
+    borderColor: colors.primaryHover,
+    transform: [{ scale: 1.08 }],
+  },
+  driverMarkerDimmed: {
+    opacity: 0.38,
+    borderColor: colors.borderStrong,
+    shadowOpacity: 0.12,
+    elevation: 1,
   },
   driverMarkerAccent: {
     position: "absolute",

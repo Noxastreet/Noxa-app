@@ -31,6 +31,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="visibility-setup" options={{ gestureEnabled: false }} />
         <Stack.Screen name="forgot-password" />
         <Stack.Screen name="reset-password" />
         <Stack.Screen name="notifications" />

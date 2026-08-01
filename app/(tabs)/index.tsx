@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,7 +15,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Defs, LinearGradient, Rect, Stop, Svg } from "react-native-svg";
 
-import { NoxaCompactLogo } from "@/src/components/brand";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -80,14 +80,8 @@ type RouteResult = {
   durationSeconds: number;
 };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
-type MapFilter = "all" | "drivers" | "events";
+type MapLens = "all" | "mine";
 type LocationVisibilityMode = "crew" | "friends" | "global" | "ghost";
-
-type ActionButtonProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  accessibilityLabel: string;
-  onPress?: () => void;
-};
 
 const THESSALONIKI: LatLng = { latitude: 40.6401, longitude: 22.9444 };
 const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
@@ -95,6 +89,7 @@ const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
 const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
 const DRIVER_LIST_REFRESH_MS = 30 * 1000;
 const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
+const NEARBY_RADIUS_METERS = 25_000;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let driverLocationsMapChannelSequence = 0;
@@ -102,11 +97,6 @@ let driverLocationsMapChannelSequence = 0;
 const TAB_BAR_HEIGHT = 64;
 const TAB_BAR_BOTTOM_GAP = 0;
 const FLOATING_GAP = spacing.sm;
-const MAP_FILTERS: { id: MapFilter; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "drivers", label: "Drivers" },
-  { id: "events", label: "Events" },
-];
 const VISIBILITY_MODES: {
   id: LocationVisibilityMode;
   label: string;
@@ -139,60 +129,6 @@ const VISIBILITY_MODES: {
   },
 ];
 
-function HeaderAction({
-  icon,
-  accessibilityLabel,
-  onPress,
-}: ActionButtonProps) {
-  return (
-    <TouchableOpacity
-      accessibilityLabel={accessibilityLabel}
-      activeOpacity={0.78}
-      onPress={onPress}
-      style={styles.headerAction}
-    >
-      <Ionicons name={icon} size={17} color={colors.text} />
-    </TouchableOpacity>
-  );
-}
-
-function MapFilterBar({
-  active,
-  onChange,
-  top,
-}: {
-  active: MapFilter;
-  onChange: (filter: MapFilter) => void;
-  top: number;
-}) {
-  return (
-    <View style={[styles.filterBar, { top }]}>
-      {MAP_FILTERS.map((filter) => {
-        const selected = active === filter.id;
-        return (
-          <TouchableOpacity
-            key={filter.id}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            activeOpacity={0.78}
-            onPress={() => onChange(filter.id)}
-            style={[styles.filterPill, selected && styles.filterPillActive]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                selected && styles.filterPillTextActive,
-              ]}
-            >
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
 function eventRegion(event: EventMarkerRow): MapRegion {
   return {
     latitude: event.latitude,
@@ -202,6 +138,21 @@ function eventRegion(event: EventMarkerRow): MapRegion {
 }
 function pointRegion(point: LatLng): MapRegion {
   return { ...point, ...DEFAULT_DELTA };
+}
+
+function distanceBetweenMeters(a: LatLng, b: LatLng) {
+  const earthRadius = 6_371_000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const latitudeDelta = toRadians(b.latitude - a.latitude);
+  const longitudeDelta = toRadians(b.longitude - a.longitude);
+  const latitudeA = toRadians(a.latitude);
+  const latitudeB = toRadians(b.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(latitudeA) *
+      Math.cos(latitudeB) *
+      Math.sin(longitudeDelta / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.sqrt(haversine));
 }
 
 function formatEventTime(value: string) {
@@ -386,7 +337,10 @@ function RouteCard({
   status,
   message,
   bottomOffset,
+  following,
+  canFollow,
   onClose,
+  onFollowToggle,
   onRetry,
 }: {
   event: EventMarkerRow;
@@ -394,7 +348,10 @@ function RouteCard({
   status: RouteStatus;
   message: string | null;
   bottomOffset: number;
+  following: boolean;
+  canFollow: boolean;
   onClose: () => void;
+  onFollowToggle: () => void;
   onRetry: () => void;
 }) {
   const loading = status === "loading";
@@ -436,6 +393,30 @@ function RouteCard({
           {message ?? "Route unavailable. Keep exploring the NOXA map."}
         </Text>
       )}
+      {route && canFollow ? (
+        <TouchableOpacity
+          accessibilityLabel={
+            following ? "Stop following current location" : "Follow route"
+          }
+          accessibilityRole="button"
+          accessibilityState={{ selected: following }}
+          activeOpacity={0.82}
+          onPress={onFollowToggle}
+          style={[
+            styles.routeFollowButton,
+            following && styles.routeFollowButtonActive,
+          ]}
+        >
+          <Ionicons
+            name={following ? "navigate" : "navigate-outline"}
+            size={16}
+            color={following ? colors.text : colors.primaryHover}
+          />
+          <Text style={styles.routeFollowText}>
+            {following ? "Following" : "Follow"}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
       {status === "error" ? (
         <TouchableOpacity
           activeOpacity={0.82}
@@ -467,6 +448,7 @@ export default function LiveMapScreen() {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeStatus, setRouteStatus] = useState<RouteStatus>("idle");
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
+  const [isRouteFollowing, setIsRouteFollowing] = useState(false);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
@@ -493,7 +475,9 @@ export default function LiveMapScreen() {
   const [liveDriveClock, setLiveDriveClock] = useState(Date.now());
   const [sharingError, setSharingError] = useState<string | null>(null);
   const [activeDrivers, setActiveDrivers] = useState<ActiveDriver[]>([]);
-  const [mapFilter, setMapFilter] = useState<MapFilter>("all");
+  const [currentProfile, setCurrentProfile] = useState<ProfileMarkerRow | null>(null);
+  const [myDriverIds, setMyDriverIds] = useState<Set<string>>(() => new Set());
+  const [mapLens, setMapLens] = useState<MapLens>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
   const normalizedMapMode = normalizeParam(params.mapMode);
   const focusEventId =
@@ -793,6 +777,66 @@ export default function LiveMapScreen() {
     }
   }, [stopSharing]);
 
+  const loadCurrentProfile = useCallback(async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) {
+      if (isMountedRef.current) setCurrentProfile(null);
+      return;
+    }
+    const { data } = await supabase
+      .from("profiles")
+      .select("id,display_name,username,avatar_url")
+      .eq("id", userId)
+      .maybeSingle();
+    if (isMountedRef.current) {
+      setCurrentProfile((data as ProfileMarkerRow | null) ?? null);
+    }
+  }, []);
+
+  const loadMyDriverIds = useCallback(async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) {
+      if (isMountedRef.current) setMyDriverIds(new Set());
+      return;
+    }
+
+    const [outgoingResult, incomingResult, membershipResult] = await Promise.all([
+      supabase.from("follows").select("following_id").eq("follower_id", userId),
+      supabase.from("follows").select("follower_id").eq("following_id", userId),
+      supabase.from("crew_members").select("crew_id").eq("user_id", userId),
+    ]);
+
+    const outgoing = new Set(
+      ((outgoingResult.data ?? []) as { following_id: string }[]).map(
+        (row) => row.following_id,
+      ),
+    );
+    const mutualIds = ((incomingResult.data ?? []) as { follower_id: string }[])
+      .map((row) => row.follower_id)
+      .filter((id) => outgoing.has(id));
+    const crewIds = ((membershipResult.data ?? []) as { crew_id: string }[]).map(
+      (row) => row.crew_id,
+    );
+
+    let crewMemberIds: string[] = [];
+    if (crewIds.length > 0) {
+      const { data } = await supabase
+        .from("crew_members")
+        .select("user_id")
+        .in("crew_id", crewIds)
+        .neq("user_id", userId);
+      crewMemberIds = ((data ?? []) as { user_id: string }[]).map(
+        (row) => row.user_id,
+      );
+    }
+
+    if (isMountedRef.current) {
+      setMyDriverIds(new Set([...mutualIds, ...crewMemberIds]));
+    }
+  }, []);
+
   const loadEvents = useCallback(async () => {
     const { data } = await supabase
       .from("events")
@@ -869,10 +913,19 @@ export default function LiveMapScreen() {
     isMountedRef.current = true;
     void restoreLiveDriveSession();
     void refreshActiveDrivers();
+    void loadCurrentProfile();
+    void loadMyDriverIds();
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (isActive && (event === "SIGNED_OUT" || !session))
+        if (!isActive) return;
+        if (event === "SIGNED_OUT" || !session) {
+          setCurrentProfile(null);
+          setMyDriverIds(new Set());
           void stopSharing(true);
+          return;
+        }
+        void loadCurrentProfile();
+        void loadMyDriverIds();
       },
     );
     const refreshInterval = setInterval(() => {
@@ -905,6 +958,8 @@ export default function LiveMapScreen() {
       authListener.subscription.unsubscribe();
     };
   }, [
+    loadCurrentProfile,
+    loadMyDriverIds,
     refreshActiveDrivers,
     restoreLiveDriveSession,
     stopSharing,
@@ -965,6 +1020,7 @@ export default function LiveMapScreen() {
   }, [animateTo, events, focusEventId, isRouteMode]);
 
   useEffect(() => {
+    setIsRouteFollowing(false);
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
     routeRequestIdRef.current += 1;
@@ -1006,6 +1062,7 @@ export default function LiveMapScreen() {
     routeAbortControllerRef.current?.abort();
     const controller = new AbortController();
     routeAbortControllerRef.current = controller;
+    setIsRouteFollowing(false);
     setRoute(null);
     setRouteStatus("loading");
     setRouteMessage(null);
@@ -1139,6 +1196,7 @@ export default function LiveMapScreen() {
   }, []);
 
   const closeRouteMode = useCallback(() => {
+    setIsRouteFollowing(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1150,6 +1208,7 @@ export default function LiveMapScreen() {
   }, []);
 
   const retryRoute = useCallback(() => {
+    setIsRouteFollowing(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1157,6 +1216,7 @@ export default function LiveMapScreen() {
   }, [requestRoute]);
 
   const routeToEvent = useCallback((event: EventMarkerRow) => {
+    setIsRouteFollowing(false);
     if (!hasValidCoordinates(event)) return;
     setSelectedEvent(event);
     router.setParams({ focusEventId: event.id, mapMode: "route" });
@@ -1170,11 +1230,6 @@ export default function LiveMapScreen() {
     [animateTo],
   );
 
-  const changeMapFilter = useCallback((filter: MapFilter) => {
-    setMapFilter(filter);
-    if (filter === "drivers") setSelectedEvent(null);
-  }, []);
-
   const recenterMap = useCallback(async () => {
     if (locationRequestInFlightRef.current) return;
     const point = await loadDriverLocation({
@@ -1182,10 +1237,45 @@ export default function LiveMapScreen() {
       showLoading: true,
     });
     if (point) {
-      animateTo(pointRegion(point));
+      if (isRouteFollowing) {
+        setIsRouteFollowing(false);
+        requestAnimationFrame(() => animateTo(pointRegion(point)));
+      } else {
+        animateTo(pointRegion(point));
+      }
     }
-  }, [animateTo, loadDriverLocation]);
+  }, [animateTo, isRouteFollowing, loadDriverLocation]);
 
+  const toggleRouteFollow = useCallback(() => {
+    if (isRouteFollowing) {
+      setIsRouteFollowing(false);
+      return;
+    }
+    const point = driverLocationRef.current;
+    if (
+      !isRouteMode ||
+      routeStatus !== "ready" ||
+      !route ||
+      !point ||
+      !hasValidLatLng(point.latitude, point.longitude)
+    ) {
+      return;
+    }
+    mapRef.current?.animateToRegion(pointRegion(point), 250);
+    setIsRouteFollowing(true);
+  }, [isRouteFollowing, isRouteMode, route, routeStatus]);
+
+  const nearbyDrivers = useMemo(
+    () =>
+      driverLocation
+        ? activeDrivers.filter(
+            (driver) =>
+              distanceBetweenMeters(driverLocation, driver) <=
+              NEARBY_RADIUS_METERS,
+          )
+        : activeDrivers,
+    [activeDrivers, driverLocation],
+  );
   const mapboxDrivers = useMemo<MapboxDriver[]>(
     () =>
       activeDrivers.map((driver) => ({
@@ -1194,8 +1284,10 @@ export default function LiveMapScreen() {
         longitude: driver.longitude,
         label: driverLabel(driver),
         avatar_url: driver.profile?.avatar_url ?? null,
+        is_relevant: myDriverIds.has(driver.user_id),
+        is_dimmed: mapLens === "mine" && !myDriverIds.has(driver.user_id),
       })),
-    [activeDrivers],
+    [activeDrivers, mapLens, myDriverIds],
   );
   const mapboxEvents = useMemo<MapboxEvent[]>(
     () =>
@@ -1223,10 +1315,7 @@ export default function LiveMapScreen() {
   );
 
   const headerTop = insets.top + spacing.sm;
-  const headerBottom = headerTop + 34;
-  const filtersTop = headerBottom + spacing.sm;
-  const filtersBottom = filtersTop + 32;
-  const visibilityTop = filtersBottom + 10;
+  const headerBottom = headerTop + 44;
   const activeVisibilityMode =
     VISIBILITY_MODES.find((mode) => mode.id === visibilityMode) ??
     VISIBILITY_MODES[VISIBILITY_MODES.length - 1];
@@ -1237,13 +1326,28 @@ export default function LiveMapScreen() {
   const pendingVisibility = VISIBILITY_MODES.find(
     (mode) => mode.id === pendingVisibilityMode,
   );
-  const noticesTop = visibilityTop + (visibilityMenuOpen ? 238 : 42);
+  const activeNotice = sharingError
+    ? {
+        icon: "warning-outline" as const,
+        message: isVisibleOnMap
+          ? "Live Drive is reconnecting. Your last visibility setting is preserved."
+          : "Live Drive could not start. You are still in Ghost.",
+      }
+    : locationError
+      ? { icon: "warning-outline" as const, message: locationError }
+      : permissionDenied
+        ? {
+            icon: "location-outline" as const,
+            message: "Location is off. Use Recenter to request access.",
+          }
+        : null;
+  const noticesTop = headerBottom + spacing.sm;
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 218 : selectedEvent ? 196 : 62);
+    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);
 
   return (
     <View style={styles.screen}>
@@ -1254,7 +1358,9 @@ export default function LiveMapScreen() {
         events={mapboxEvents}
         initialRegion={initialRegion}
         isRouteMode={isRouteMode}
-        mapFilter={mapFilter}
+        followUserLocation={isRouteFollowing}
+        mapFilter="all"
+        onFollowUserLocationChange={setIsRouteFollowing}
         onDriverPress={openDriverProfile}
         onEventPress={selectMapboxEvent}
         route={route}
@@ -1263,7 +1369,7 @@ export default function LiveMapScreen() {
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
         <Svg
-          height={noticesTop + 70}
+          height={noticesTop + (activeNotice ? 68 : 28)}
           pointerEvents="none"
           style={styles.topScrim}
           width="100%"
@@ -1283,71 +1389,76 @@ export default function LiveMapScreen() {
         </Svg>
 
         <View style={[styles.header, { top: headerTop }]}>
-          <NoxaCompactLogo />
-          <View style={styles.headerActions}>
-            <View style={styles.onlinePill}>
-              <View style={styles.onlineDot} />
-              <Text style={styles.onlineText}>
-                {activeDrivers.length} online
-              </Text>
-            </View>
-            <HeaderAction
-              icon="search-outline"
-              accessibilityLabel="Search"
-              onPress={() => router.push("/search")}
-            />
-            <HeaderAction
-              icon="notifications-outline"
-              accessibilityLabel="Notifications"
-              onPress={() => router.push("/notifications")}
-            />
-          </View>
-        </View>
-
-        <MapFilterBar
-          active={mapFilter}
-          onChange={changeMapFilter}
-          top={filtersTop}
-        />
-
-        <TouchableOpacity
-          accessibilityLabel={`Map visibility: ${activeVisibilityMode.label}`}
-          accessibilityHint="Choose who can see your temporary live location"
-          accessibilityRole="button"
-          accessibilityState={{ expanded: visibilityMenuOpen }}
-          activeOpacity={0.78}
-          onPress={() => setVisibilityMenuOpen((current) => !current)}
-          style={[
-            styles.visibilityControl,
-            isVisibleOnMap && styles.visibilityControlActive,
-            { top: visibilityTop },
-          ]}
-        >
-          <Ionicons
-            name={activeVisibilityMode.icon}
-            size={15}
-            color={isVisibleOnMap ? colors.primaryHover : colors.textMuted}
-          />
-          <Text
+          <TouchableOpacity
+            accessibilityLabel={`${
+              currentProfile?.display_name?.trim() ||
+              currentProfile?.username?.trim() ||
+              "Your identity"
+            }. Visibility: ${activeVisibilityMode.label}`}
+            accessibilityHint="Manage who can see your temporary live location"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: visibilityMenuOpen }}
+            activeOpacity={0.8}
+            onPress={() => setVisibilityMenuOpen((current) => !current)}
             style={[
-              styles.visibilityTitle,
-              isVisibleOnMap && styles.visibilityTitleActive,
+              styles.identityControl,
+              isVisibleOnMap && styles.identityControlLive,
             ]}
           >
-            {activeVisibilityMode.label}
-            {isVisibleOnMap && liveDriveRemaining
-              ? ` · ${liveDriveRemaining}`
-              : ""}
-          </Text>
-          <Ionicons
-            name={visibilityMenuOpen ? "chevron-up" : "chevron-down"}
-            size={13}
-            color={colors.textSubtle}
-          />
-        </TouchableOpacity>
+            {currentProfile?.avatar_url ? (
+              <Image
+                contentFit="cover"
+                source={{ uri: currentProfile.avatar_url }}
+                style={styles.identityAvatar}
+              />
+            ) : (
+              <Ionicons name="person" size={17} color={colors.text} />
+            )}
+            <View
+              style={[
+                styles.identityStatusDot,
+                isVisibleOnMap && styles.identityStatusDotLive,
+              ]}
+            />
+          </TouchableOpacity>
+
+          <View pointerEvents="none" style={styles.livingPulse}>
+            <View style={styles.livingPulseRow}>
+              <View style={styles.livingPulseDot} />
+              <Text style={styles.livingPulseNumber}>{nearbyDrivers.length}</Text>
+            </View>
+            <Text style={styles.livingPulseLabel}>
+              {driverLocation ? "nearby now" : "active now"}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            accessibilityLabel={`Map lens: ${mapLens === "all" ? "All" : "Mine"}`}
+            accessibilityHint="Switch between the full city and your social circle"
+            accessibilityRole="button"
+            accessibilityState={{ selected: mapLens === "mine" }}
+            activeOpacity={0.8}
+            onPress={() =>
+              setMapLens((current) => (current === "all" ? "mine" : "all"))
+            }
+            style={[
+              styles.lensControl,
+              mapLens === "mine" && styles.lensControlActive,
+            ]}
+          >
+            <Ionicons
+              name={mapLens === "all" ? "earth-outline" : "people-outline"}
+              size={15}
+              color={mapLens === "mine" ? colors.text : colors.textMuted}
+            />
+            <Text style={styles.lensText}>
+              {mapLens === "all" ? "All" : "Mine"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {visibilityMenuOpen ? (
-          <View style={[styles.visibilityMenu, { top: visibilityTop + 38 }]}>
+          <View style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
             <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
             {VISIBILITY_MODES.map((mode) => {
               const selected = visibilityMode === mode.id;
@@ -1390,7 +1501,11 @@ export default function LiveMapScreen() {
                     </Text>
                   </View>
                   {selected ? (
-                    <Ionicons name="checkmark" size={16} color={colors.primaryHover} />
+                    <Ionicons
+                      name="checkmark"
+                      size={16}
+                      color={colors.primaryHover}
+                    />
                   ) : null}
                 </TouchableOpacity>
               );
@@ -1398,96 +1513,43 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {sharingError ? (
-          <View
-            pointerEvents="none"
-            style={[styles.sharingNotice, { top: noticesTop }]}
+        <View
+          pointerEvents="box-none"
+          style={[styles.locationControlStack, { bottom: controlBottom }]}
+        >
+          <TouchableOpacity
+            accessibilityLabel="Recenter map"
+            accessibilityState={{
+              busy: locationLoading,
+              disabled: locationLoading,
+            }}
+            activeOpacity={0.78}
+            disabled={locationLoading}
+            onPress={recenterMap}
+            style={styles.recenterButton}
           >
-            <Text style={styles.locationNoticeText}>{sharingError}</Text>
-          </View>
-        ) : null}
+            {locationLoading ? (
+              <ActivityIndicator color={colors.text} size="small" />
+            ) : (
+              <Ionicons name="locate" size={22} color={colors.text} />
+            )}
+          </TouchableOpacity>
+        </View>
 
-        {permissionDenied ? (
+        {activeNotice ? (
           <View
+            accessibilityLiveRegion="polite"
             pointerEvents="none"
-            style={[
-              styles.locationNotice,
-              { top: noticesTop + (sharingError ? 46 : 0) },
-            ]}
-          >
-            <Text style={styles.locationNoticeText}>
-              Location off — centered on NOXA map.
-            </Text>
-          </View>
-        ) : null}
-
-        {locationError ? (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.locationErrorNotice,
-              {
-                top:
-                  noticesTop +
-                  (sharingError ? 46 : 0) +
-                  (permissionDenied ? 46 : 0),
-              },
-            ]}
+            style={[styles.mapNotice, { top: noticesTop }]}
           >
             <Ionicons
-              name="warning-outline"
-              size={14}
+              name={activeNotice.icon}
+              size={15}
               color={colors.primaryHover}
             />
-            <Text style={styles.locationNoticeText}>{locationError}</Text>
+            <Text style={styles.mapNoticeText}>{activeNotice.message}</Text>
           </View>
         ) : null}
-
-        {!selectedEvent ? (
-          <View
-            pointerEvents="none"
-            style={[styles.nearbySummary, { bottom: eventCardBottom }]}
-          >
-            <Text style={styles.nearbyLabel}>Nearby</Text>
-            <View style={styles.nearbyMetrics}>
-              <View style={styles.nearbyMetric}>
-                <View style={styles.nearbyDriverDot} />
-                <Text style={styles.nearbyMetricText}>
-                  {activeDrivers.length} drivers
-                </Text>
-              </View>
-              <View style={styles.nearbyDivider} />
-              <View style={styles.nearbyMetric}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={14}
-                  color={colors.primaryHover}
-                />
-                <Text style={styles.nearbyMetricText}>
-                  {events.length} events
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
-        <TouchableOpacity
-          accessibilityLabel="Recenter map"
-          accessibilityState={{
-            busy: locationLoading,
-            disabled: locationLoading,
-          }}
-          activeOpacity={0.78}
-          disabled={locationLoading}
-          onPress={recenterMap}
-          style={[styles.recenterButton, { bottom: controlBottom }]}
-        >
-          {locationLoading ? (
-            <ActivityIndicator color={colors.text} size="small" />
-          ) : (
-            <Ionicons name="locate" size={22} color={colors.text} />
-          )}
-        </TouchableOpacity>
 
         {selectedEvent && isRouteMode ? (
           <RouteCard
@@ -1496,7 +1558,10 @@ export default function LiveMapScreen() {
             status={routeStatus}
             message={routeMessage}
             bottomOffset={routeCardBottom}
+            following={isRouteFollowing}
+            canFollow={routeStatus === "ready" && Boolean(driverLocation)}
             onClose={closeRouteMode}
+            onFollowToggle={toggleRouteFollow}
             onRetry={retryRoute}
           />
         ) : selectedEvent ? (
@@ -1525,8 +1590,8 @@ export default function LiveMapScreen() {
             <Text style={styles.liveDriveModalEyebrow}>BACKGROUND LOCATION</Text>
             <Text style={styles.liveDriveModalTitle}>Start a 4-hour Live Drive?</Text>
             <Text style={styles.liveDriveModalBody}>
-              NOXA collects and shares your precise location with{' '}
-              {pendingVisibility?.label.toLowerCase() ?? 'your selected audience'} while
+              NOXA collects and shares your precise location with{" "}
+              {pendingVisibility?.label.toLowerCase() ?? "your selected audience"} while
               the app is in the background, so they can see you on the live map.
             </Text>
             <Text style={styles.liveDriveModalFootnote}>
@@ -1573,76 +1638,96 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: spacing.md,
     right: spacing.md,
-    height: 34,
+    height: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  headerActions: {
-    flexDirection: "row",
+  identityControl: {
+    width: 42,
+    height: 42,
     alignItems: "center",
-    gap: 6,
-  },
-  onlinePill: {
-    height: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 9,
+    justifyContent: "center",
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.78)",
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
   },
-  onlineDot: {
+  identityControlLive: {
+    borderColor: colors.borderAccent,
+  },
+  identityAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+  },
+  identityStatusDot: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 10,
+    height: 10,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    backgroundColor: colors.textSubtle,
+  },
+  identityStatusDotLive: {
+    backgroundColor: colors.success,
+  },
+  livingPulse: {
+    position: "absolute",
+    left: 72,
+    right: 72,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  livingPulseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  livingPulseDot: {
     width: 6,
     height: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
   },
-  onlineText: {
+  livingPulseNumber: {
     color: colors.text,
-    fontSize: 11,
-    fontWeight: "500",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.4,
   },
-  headerAction: {
-    width: 34,
-    height: 34,
+  livingPulseLabel: {
+    marginTop: -1,
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  lensControl: {
+    minWidth: 64,
+    height: 36,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.72)",
+    backgroundColor: "rgba(12,12,16,0.82)",
   },
-  filterBar: {
-    position: "absolute",
-    left: spacing.md,
-    flexDirection: "row",
-    gap: 6,
+  lensControlActive: {
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
   },
-  filterPill: {
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 13,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(24,24,29,0.84)",
-  },
-  filterPillActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  filterPillText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  filterPillTextActive: {
+  lensText: {
     color: colors.text,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
   },
   driverMarker: {
     width: 36,
@@ -1690,23 +1775,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryHover,
     transform: [{ scale: 1.1 }],
   },
-  visibilityControl: {
+  locationControlStack: {
     position: "absolute",
     right: spacing.md,
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  visibilityControl: {
     minWidth: 104,
-    height: 32,
+    height: 38,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.82)",
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
   },
   visibilityControlActive: {
     borderColor: colors.borderAccent,
-    backgroundColor: "rgba(200,16,46,0.12)",
+    backgroundColor: "rgba(200,16,46,0.14)",
   },
   visibilityTitle: {
     color: colors.textMuted,
@@ -1718,7 +1809,7 @@ const styles = StyleSheet.create({
   },
   visibilityMenu: {
     position: "absolute",
-    right: spacing.md,
+    left: spacing.md,
     width: 264,
     overflow: "hidden",
     padding: spacing.xs,
@@ -1772,34 +1863,11 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: "600",
   },
-  sharingNotice: {
+  mapNotice: {
     position: "absolute",
     left: spacing.md,
     right: spacing.md,
-    alignItems: "center",
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(12,12,16,0.9)",
-  },
-  locationNotice: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    alignItems: "center",
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(12,12,16,0.9)",
-  },
-  locationErrorNotice: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
+    minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1811,11 +1879,23 @@ const styles = StyleSheet.create({
     borderColor: colors.primaryMuted,
     backgroundColor: "rgba(12,12,16,0.94)",
   },
-  locationNoticeText: {
+  mapNoticeText: {
+    flexShrink: 1,
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: "600",
     textAlign: "center",
+  },
+  recenterButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.88)",
+    ...shadows.control,
   },
   liveDriveModalBackdrop: {
     flex: 1,
@@ -1897,68 +1977,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.7,
-  },
-  nearbySummary: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(17,17,22,0.9)",
-    ...shadows.card,
-  },
-  nearbyLabel: {
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  nearbyMetrics: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  nearbyMetric: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  nearbyDriverDot: {
-    width: 7,
-    height: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
-  nearbyMetricText: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "500",
-  },
-  nearbyDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 16,
-    backgroundColor: colors.borderStrong,
-  },
-  recenterButton: {
-    position: "absolute",
-    right: spacing.md,
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.88)",
-    ...shadows.control,
   },
   eventCard: {
     position: "absolute",
@@ -2137,6 +2155,26 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.caption,
     fontWeight: "600",
+  },
+  routeFollowButton: {
+    marginTop: spacing.md,
+    height: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
+  },
+  routeFollowButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  routeFollowText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "700",
   },
   routeRetryButton: {
     marginTop: spacing.md,
