@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { animations, colors, radius, shadows, spacing } from '@/src/theme';
 
-type NoxaButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'overlay' | 'google';
-type NoxaButtonSize = 'sm' | 'md' | 'lg';
+export type NoxaButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'overlay' | 'google';
+export type NoxaButtonSize = 'sm' | 'md' | 'lg';
 
 type NoxaButtonProps = {
   title: string;
@@ -15,6 +16,7 @@ type NoxaButtonProps = {
   loading?: boolean;
   size?: NoxaButtonSize;
   leadingIcon?: ReactNode;
+  trailingIcon?: ReactNode;
   accessibilityLabel?: string;
   accessibilityHint?: string;
 };
@@ -28,10 +30,13 @@ export function NoxaButton({
   loading = false,
   size = 'lg',
   leadingIcon,
+  trailingIcon,
   accessibilityLabel,
   accessibilityHint,
 }: NoxaButtonProps) {
   const isDisabled = disabled || loading;
+  const reduceMotion = useReducedMotion();
+  const loadingColor = variant === 'google' ? '#1F1F1F' : colors.text;
 
   return (
     <Pressable
@@ -46,14 +51,19 @@ export function NoxaButton({
         styles[size],
         styles[variant],
         fullWidth && styles.fullWidth,
-        pressed && !isDisabled && styles.pressed,
+        pressed && !isDisabled && (reduceMotion ? styles.pressedReduced : styles.pressed),
         isDisabled && styles.disabled,
       ]}>
       <View style={styles.content}>
-        {leadingIcon ? <View style={styles.leadingIcon}>{leadingIcon}</View> : null}
+        {loading ? (
+          <ActivityIndicator color={loadingColor} size="small" style={styles.leadingIcon} />
+        ) : leadingIcon ? (
+          <View style={styles.leadingIcon}>{leadingIcon}</View>
+        ) : null}
         <Text style={[styles.text, styles[`${size}Text`], styles[`${variant}Text`], isDisabled && styles.disabledText]}>
-          {loading ? 'Loading…' : title}
+          {title}
         </Text>
+        {!loading && trailingIcon ? <View style={styles.trailingIcon}>{trailingIcon}</View> : null}
       </View>
     </Pressable>
   );
@@ -79,6 +89,9 @@ const styles = StyleSheet.create({
   leadingIcon: {
     marginRight: spacing.sm,
   },
+  trailingIcon: {
+    marginLeft: spacing.sm,
+  },
   primary: { backgroundColor: colors.primary, borderColor: colors.primary },
   secondary: { backgroundColor: colors.surfaceSoft, borderColor: colors.border },
   ghost: { backgroundColor: 'transparent', borderColor: 'transparent' },
@@ -86,6 +99,7 @@ const styles = StyleSheet.create({
   overlay: { backgroundColor: colors.glass, borderColor: colors.borderStrong, ...shadows.control },
   google: { backgroundColor: '#FFFFFF', borderColor: '#747775' },
   pressed: { opacity: 0.9, transform: [{ translateY: 1 }, { scale: animations.pressedScale }] },
+  pressedReduced: { opacity: 0.82 },
   disabled: { opacity: 0.45 },
   text: {
     fontWeight: '600',
