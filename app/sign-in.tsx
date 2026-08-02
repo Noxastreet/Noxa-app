@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { NoxaAuthField, NoxaAuthScreen } from '@/src/components/auth';
+import { NoxaAuthField, NoxaAuthScreen, NoxaSocialAuth } from '@/src/components/auth';
 import { NoxaButton } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
 import { colors, spacing, typography } from '@/src/theme';
@@ -160,6 +160,7 @@ function SignInForm() {
           title="Sign In"
         />
       </View>
+      <NoxaSocialAuth />
     </View>
   );
 }
