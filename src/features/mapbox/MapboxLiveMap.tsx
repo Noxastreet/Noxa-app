@@ -15,6 +15,7 @@ import {
   type ElementRef,
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -103,11 +104,45 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [events, selectedEventId],
     );
     const routeFeature = useMemo(() => createRouteFeature(route), [route]);
+    const routeShape = useMemo<
+      GeoJSON.FeatureCollection<GeoJSON.LineString> | null
+    >(
+      () =>
+        routeFeature
+          ? {
+              type: "FeatureCollection",
+              features: [routeFeature],
+            }
+          : null,
+      [routeFeature],
+    );
+    const routeRenderKey = useMemo(() => {
+      const coordinates = routeFeature?.geometry.coordinates;
+      if (!coordinates || coordinates.length < 2) return null;
+      const first = coordinates[0];
+      const last = coordinates[coordinates.length - 1];
+      return [
+        coordinates.length,
+        first[0],
+        first[1],
+        last[0],
+        last[1],
+      ].join(":");
+    }, [routeFeature]);
     const selectedEvent = useMemo(
       () => events.find((event) => event.id === selectedEventId) ?? null,
       [events, selectedEventId],
     );
     const shouldClusterDrivers = activeDrivers.length >= DRIVER_CLUSTER_LIMIT;
+
+    useEffect(() => {
+      if (!routeShape || !routeRenderKey) return;
+      console.info("[noxa-route-render]", {
+        coordinateCount: routeShape.features[0]?.geometry.coordinates.length ?? 0,
+        isMapLoaded: isLoaded,
+        routeRenderKey,
+      });
+    }, [isLoaded, routeRenderKey, routeShape]);
 
     const animateToRegion = useCallback(
       (region: MapRegion, duration = 550) => {
@@ -270,30 +305,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             visible={Boolean(driverLocation)}
           />
 
-          {routeFeature ? (
-            <ShapeSource id="noxa-route-source" shape={routeFeature}>
-              <LineLayer
-                id="noxa-route-casing"
-                style={{
-                  lineCap: "round",
-                  lineColor: "rgba(18,3,5,0.94)",
-                  lineJoin: "round",
-                  lineWidth: 12,
-                }}
-              />
-              <LineLayer
-                id="noxa-route-line"
-                style={{
-                  lineCap: "round",
-                  lineColor: colors.primary,
-                  lineJoin: "round",
-                  lineOpacity: 0.98,
-                  lineWidth: 6,
-                }}
-              />
-            </ShapeSource>
-          ) : null}
-
           {mapFilter !== "events" ? (
             <ShapeSource
               cluster={shouldClusterDrivers}
@@ -437,6 +448,34 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 </MarkerView>
               ))
             : null}
+          {routeShape && routeRenderKey ? (
+            <ShapeSource
+              id="noxa-route-source"
+              key={`noxa-route-source:${routeRenderKey}`}
+              shape={routeShape}
+            >
+              <LineLayer
+                id="noxa-route-casing"
+                style={{
+                  lineCap: "round",
+                  lineColor: "rgba(18,3,5,0.94)",
+                  lineJoin: "round",
+                  lineWidth: 12,
+                }}
+              />
+              <LineLayer
+                id="noxa-route-line"
+                style={{
+                  lineCap: "round",
+                  lineColor: colors.primary,
+                  lineJoin: "round",
+                  lineOpacity: 0.98,
+                  lineWidth: 6,
+                }}
+              />
+            </ShapeSource>
+          ) : null}
+
         </MapView>
 
         {!isLoaded && !hasError ? (
