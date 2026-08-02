@@ -13,6 +13,8 @@ export type MapboxDriver = {
   longitude: number;
   label: string;
   avatar_url: string | null;
+  is_relevant?: boolean;
+  is_dimmed?: boolean;
 };
 
 export type MapboxEvent = {
@@ -38,6 +40,8 @@ export type MapboxLiveMapProps = {
   selectedEventId: string | null;
   mapFilter: MapboxMapFilter;
   isRouteMode: boolean;
+  followUserLocation: boolean;
+  onFollowUserLocationChange: (following: boolean) => void;
   onDriverPress: (driverId: string) => void;
   onEventPress: (event: MapboxEvent) => void;
 };

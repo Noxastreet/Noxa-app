@@ -1,11 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { NoxaAuthField, NoxaAuthScreen } from '@/src/components/auth';
+import { NoxaAuthField, NoxaAuthScreen, NoxaSocialAuth } from '@/src/components/auth';
 import { NoxaButton } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
-import { colors, typography } from '@/src/theme';
+import { resetToAuthenticatedApp } from '@/src/navigation/authNavigation';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type SignUpErrors = {
   displayName?: string;
@@ -18,24 +21,61 @@ type SignUpErrors = {
 const emailPattern = /^\S+@\S+\.\S+$/;
 
 export default function SignUpScreen() {
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
   return (
     <NoxaAuthScreen
       footer={
         <Pressable accessibilityRole="button" onPress={() => router.push('/sign-in')} style={styles.switchButton}>
           <Text style={styles.switchText}>
-            Already have an account? <Text style={styles.switchLink}>Sign In</Text>
+            {pendingEmail ? 'Already confirmed? ' : 'Already have an account? '}
+            <Text style={styles.switchLink}>Sign In</Text>
           </Text>
         </Pressable>
       }
-      onBack={() => router.back()}
-      subtitle="Start your automotive journey today."
-      title="Join NOXA.">
-      <SignUpForm />
+      onBack={() => {
+        if (pendingEmail) {
+          setPendingEmail(null);
+          return;
+        }
+
+        router.back();
+      }}
+      subtitle={
+        pendingEmail
+          ? `We sent a secure confirmation link to ${pendingEmail}.`
+          : 'Start your automotive journey today.'
+      }
+      title={pendingEmail ? 'Check your inbox.' : 'Join NOXA.'}>
+      {pendingEmail ? (
+        <EmailConfirmationPending />
+      ) : (
+        <SignUpForm onConfirmationRequired={setPendingEmail} />
+      )}
     </NoxaAuthScreen>
   );
 }
 
-function SignUpForm() {
+function EmailConfirmationPending() {
+  return (
+    <View style={styles.confirmationState}>
+      <View style={styles.confirmationIcon}>
+        <Ionicons color={colors.success} name="mail-outline" size={34} />
+      </View>
+      <Text style={styles.confirmationTitle}>Confirm on this phone</Text>
+      <Text style={styles.confirmationText}>
+        Tap “Confirm email address” in the newest NOXA email. The link will return you to NOXA and
+        open your account automatically.
+      </Text>
+    </View>
+  );
+}
+
+function SignUpForm({
+  onConfirmationRequired,
+}: {
+  onConfirmationRequired: (email: string) => void;
+}) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,7 +83,6 @@ function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<SignUpErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   const validate = () => {
     const nextErrors: SignUpErrors = {};
@@ -76,18 +115,19 @@ function SignUpForm() {
       return;
     }
 
-    setSuccessMessage('');
     if (!validate()) {
       return;
     }
 
     setIsSubmitting(true);
+    const normalizedEmail = email.trim().toLowerCase();
 
     try {
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: normalizedEmail,
         password,
         options: {
+          emailRedirectTo: Linking.createURL('/auth/callback'),
           data: {
             display_name: displayName.trim(),
           },
@@ -100,12 +140,12 @@ function SignUpForm() {
       }
 
       if (data.session) {
-        router.replace('/(tabs)');
+        resetToAuthenticatedApp(data.session.user.id);
         return;
       }
 
       if (data.user) {
-        setSuccessMessage('Check your email to confirm your NOXA account.');
+        onConfirmationRequired(normalizedEmail);
       }
     } catch {
       setErrors({ submit: 'Unable to create your account. Please try again.' });
@@ -189,7 +229,6 @@ function SignUpForm() {
         .
       </Text>
       {errors.submit ? <Text style={styles.error}>{errors.submit}</Text> : null}
-      {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
 
       <View style={styles.submit}>
         <NoxaButton
@@ -200,6 +239,7 @@ function SignUpForm() {
           title="Create Account"
         />
       </View>
+      <NoxaSocialAuth />
     </View>
   );
 }
@@ -226,12 +266,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: typography.lineHeight.caption,
   },
-  success: {
-    color: colors.success,
+  confirmationState: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+  },
+  confirmationIcon: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(48,209,88,0.3)',
+    backgroundColor: 'rgba(48,209,88,0.12)',
+  },
+  confirmationTitle: {
+    marginTop: spacing.lg,
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: '800',
+    lineHeight: typography.lineHeight.title,
+    textAlign: 'center',
+  },
+  confirmationText: {
+    maxWidth: 310,
+    marginTop: spacing.sm,
+    color: colors.textMuted,
     fontFamily: typography.fontFamily.body,
-    fontSize: typography.caption,
-    fontWeight: '600',
-    lineHeight: typography.lineHeight.caption,
+    fontSize: typography.body,
+    lineHeight: typography.lineHeight.body,
+    textAlign: 'center',
   },
   submit: {
     marginTop: 10,

@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import type { ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { animations, colors, radius, shadows, spacing } from '@/src/theme';
 
-type NoxaButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'overlay';
+type NoxaButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'overlay' | 'google';
 type NoxaButtonSize = 'sm' | 'md' | 'lg';
 
 type NoxaButtonProps = {
@@ -13,6 +14,9 @@ type NoxaButtonProps = {
   fullWidth?: boolean;
   loading?: boolean;
   size?: NoxaButtonSize;
+  leadingIcon?: ReactNode;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 };
 
 export function NoxaButton({
@@ -23,12 +27,18 @@ export function NoxaButton({
   fullWidth = false,
   loading = false,
   size = 'lg',
+  leadingIcon,
+  accessibilityLabel,
+  accessibilityHint,
 }: NoxaButtonProps) {
   const isDisabled = disabled || loading;
 
   return (
     <Pressable
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel ?? title}
       accessibilityRole="button"
+      accessibilityState={{ busy: loading, disabled: isDisabled }}
       disabled={isDisabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -39,9 +49,12 @@ export function NoxaButton({
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
       ]}>
-      <Text style={[styles.text, styles[`${size}Text`], styles[`${variant}Text`], isDisabled && styles.disabledText]}>
-        {loading ? 'Loading…' : title}
-      </Text>
+      <View style={styles.content}>
+        {leadingIcon ? <View style={styles.leadingIcon}>{leadingIcon}</View> : null}
+        <Text style={[styles.text, styles[`${size}Text`], styles[`${variant}Text`], isDisabled && styles.disabledText]}>
+          {loading ? 'Loading…' : title}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -58,11 +71,20 @@ const styles = StyleSheet.create({
   md: { minHeight: 44, paddingHorizontal: spacing.lg },
   lg: { minHeight: 54, paddingHorizontal: spacing.xl },
   fullWidth: { width: '100%' },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  leadingIcon: {
+    marginRight: spacing.sm,
+  },
   primary: { backgroundColor: colors.primary, borderColor: colors.primary },
   secondary: { backgroundColor: colors.surfaceSoft, borderColor: colors.border },
   ghost: { backgroundColor: 'transparent', borderColor: 'transparent' },
   danger: { backgroundColor: colors.primaryMuted, borderColor: colors.borderAccent },
   overlay: { backgroundColor: colors.glass, borderColor: colors.borderStrong, ...shadows.control },
+  google: { backgroundColor: '#FFFFFF', borderColor: '#747775' },
   pressed: { opacity: 0.9, transform: [{ translateY: 1 }, { scale: animations.pressedScale }] },
   disabled: { opacity: 0.45 },
   text: {
@@ -77,5 +99,6 @@ const styles = StyleSheet.create({
   ghostText: { color: colors.textMuted },
   dangerText: { color: colors.primaryHover },
   overlayText: { color: colors.text },
+  googleText: { color: '#1F1F1F', fontSize: 14, lineHeight: 20, letterSpacing: 0 },
   disabledText: { color: colors.textMuted },
 });

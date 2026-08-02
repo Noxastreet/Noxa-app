@@ -7,6 +7,7 @@ import Mapbox, {
   MarkerView,
   ShapeSource,
   SymbolLayer,
+  UserTrackingMode,
 } from "@rnmapbox/maps";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -14,6 +15,7 @@ import {
   type ElementRef,
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -47,6 +49,7 @@ import type {
 } from "./types";
 
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
+const ROUTE_FOLLOW_ZOOM = 16.5;
 const DRIVER_CLUSTER_LIMIT = 80;
 
 function eventIconName(
@@ -81,6 +84,8 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       selectedEventId,
       mapFilter,
       isRouteMode,
+      followUserLocation,
+      onFollowUserLocationChange,
       onDriverPress,
       onEventPress,
     },
@@ -99,21 +104,52 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [events, selectedEventId],
     );
     const routeFeature = useMemo(() => createRouteFeature(route), [route]);
-    const routeShape = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
-      () => ({
-        type: "FeatureCollection",
-        features: routeFeature ? [routeFeature] : [],
-      }),
+    const routeShape = useMemo<
+      GeoJSON.FeatureCollection<GeoJSON.LineString> | null
+    >(
+      () =>
+        routeFeature
+          ? {
+              type: "FeatureCollection",
+              features: [routeFeature],
+            }
+          : null,
       [routeFeature],
     );
+    const routeRenderKey = useMemo(() => {
+      const coordinates = routeFeature?.geometry.coordinates;
+      if (!coordinates || coordinates.length < 2) return null;
+      const first = coordinates[0];
+      const last = coordinates[coordinates.length - 1];
+      return [
+        coordinates.length,
+        first[0],
+        first[1],
+        last[0],
+        last[1],
+      ].join(":");
+    }, [routeFeature]);
     const selectedEvent = useMemo(
       () => events.find((event) => event.id === selectedEventId) ?? null,
       [events, selectedEventId],
     );
     const shouldClusterDrivers = activeDrivers.length >= DRIVER_CLUSTER_LIMIT;
 
+    useEffect(() => {
+      if (!routeShape || !routeRenderKey) return;
+      console.info("[noxa-route-render]", {
+        coordinateCount: routeShape.features[0]?.geometry.coordinates.length ?? 0,
+        isMapLoaded: isLoaded,
+        routeRenderKey,
+      });
+    }, [isLoaded, routeRenderKey, routeShape]);
+
     const animateToRegion = useCallback(
       (region: MapRegion, duration = 550) => {
+        if (followUserLocation) {
+          onFollowUserLocationChange(false);
+          return;
+        }
         cameraRef.current?.setCamera({
           centerCoordinate: toPosition(region),
           zoomLevel: DEFAULT_ZOOM,
@@ -122,11 +158,15 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: "easeTo",
         });
       },
-      [isRouteMode],
+      [followUserLocation, isRouteMode, onFollowUserLocationChange],
     );
 
     const fitToCoordinates: LiveMapHandle["fitToCoordinates"] = useCallback(
       (points, options) => {
+        if (followUserLocation) {
+          onFollowUserLocationChange(false);
+          return;
+        }
         const validPoints = points.filter(
           (point) =>
             Number.isFinite(point.latitude) &&
@@ -155,7 +195,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: options?.animated === false ? "none" : "easeTo",
         });
       },
-      [isRouteMode],
+      [followUserLocation, isRouteMode, onFollowUserLocationChange],
     );
 
     useImperativeHandle(
@@ -215,6 +255,11 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             setHasError(true);
             setIsLoaded(false);
           }}
+          onCameraChanged={(state) => {
+            if (followUserLocation && state.gestures.isGestureActive) {
+              onFollowUserLocationChange(false);
+            }
+          }}
           pitchEnabled
           projection="mercator"
           rotateEnabled
@@ -231,6 +276,26 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               zoomLevel: DEFAULT_ZOOM,
               pitch: 28,
             }}
+            followPadding={{
+              paddingTop: 110,
+              paddingRight: spacing.xl,
+              paddingBottom: 260,
+              paddingLeft: spacing.xl,
+            }}
+            followPitch={54}
+            followUserLocation={
+              followUserLocation && Boolean(driverLocation) && isRouteMode
+            }
+            followUserMode={UserTrackingMode.FollowWithCourse}
+            followZoomLevel={ROUTE_FOLLOW_ZOOM}
+            onUserTrackingModeChange={(event) => {
+              if (
+                followUserLocation &&
+                !event.nativeEvent.payload.followUserLocation
+              ) {
+                onFollowUserLocationChange(false);
+              }
+            }}
           />
 
           <LocationPuck
@@ -239,34 +304,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             pulsing={{ color: colors.primary, isEnabled: true, radius: 42 }}
             visible={Boolean(driverLocation)}
           />
-
-          <ShapeSource id="noxa-route-source" shape={routeShape}>
-            <LineLayer
-              id="noxa-route-casing"
-              sourceID="noxa-route-source"
-              style={{
-                lineCap: "round",
-                lineColor: "rgba(18,3,5,0.94)",
-                lineElevationReference: "ground",
-                lineJoin: "round",
-                lineWidth: 12,
-                lineZOffset: 5,
-              }}
-            />
-            <LineLayer
-              id="noxa-route-line"
-              sourceID="noxa-route-source"
-              style={{
-                lineCap: "round",
-                lineColor: colors.primary,
-                lineElevationReference: "ground",
-                lineJoin: "round",
-                lineOpacity: 0.98,
-                lineWidth: 6,
-                lineZOffset: 5,
-              }}
-            />
-          </ShapeSource>
 
           {mapFilter !== "events" ? (
             <ShapeSource
@@ -329,7 +366,11 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
                     activeOpacity={0.82}
                     onPress={() => onDriverPress(driver.user_id)}
-                    style={styles.driverMarker}
+                    style={[
+                      styles.driverMarker,
+                      driver.is_relevant && styles.driverMarkerRelevant,
+                      driver.is_dimmed && styles.driverMarkerDimmed,
+                    ]}
                   >
                     <View style={styles.driverMarkerAccent} />
                     {driver.avatar_url ? (
@@ -407,6 +448,34 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 </MarkerView>
               ))
             : null}
+          {routeShape && routeRenderKey ? (
+            <ShapeSource
+              id="noxa-route-source"
+              key={`noxa-route-source:${routeRenderKey}`}
+              shape={routeShape}
+            >
+              <LineLayer
+                id="noxa-route-casing"
+                style={{
+                  lineCap: "round",
+                  lineColor: "rgba(18,3,5,0.94)",
+                  lineJoin: "round",
+                  lineWidth: 12,
+                }}
+              />
+              <LineLayer
+                id="noxa-route-line"
+                style={{
+                  lineCap: "round",
+                  lineColor: colors.primary,
+                  lineJoin: "round",
+                  lineOpacity: 0.98,
+                  lineWidth: 6,
+                }}
+              />
+            </ShapeSource>
+          ) : null}
+
         </MapView>
 
         {!isLoaded && !hasError ? (
@@ -495,6 +564,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
+  },
+  driverMarkerRelevant: {
+    borderColor: colors.primaryHover,
+    transform: [{ scale: 1.08 }],
+  },
+  driverMarkerDimmed: {
+    opacity: 0.38,
+    borderColor: colors.borderStrong,
+    shadowOpacity: 0.12,
+    elevation: 1,
   },
   driverMarkerAccent: {
     position: "absolute",

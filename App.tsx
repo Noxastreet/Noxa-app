@@ -3,6 +3,8 @@ import { ExpoRoot } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { View } from 'react-native';
 
+import { getClientEnvStatus } from './src/config/env';
+import { NoxaConfigurationErrorScreen } from './src/screens/NoxaConfigurationErrorScreen';
 import { NoxaSplashScreen } from './src/screens/NoxaSplashScreen';
 
 declare const require: NodeRequire & {
@@ -13,7 +15,10 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 console.log('[App] module loaded');
 
-const ctx = require.context('./app');
+const clientEnvStatus = getClientEnvStatus();
+const routerContext = clientEnvStatus.isReady
+  ? require.context('./app')
+  : undefined;
 
 export default function App() {
   console.log('[App] rendered');
@@ -62,10 +67,19 @@ export default function App() {
     setIsSplashComplete(true);
   }, []);
 
+  if (!clientEnvStatus.isReady || !routerContext) {
+    return (
+      <NoxaConfigurationErrorScreen
+        status={clientEnvStatus}
+        onLayoutReady={handleSplashLayout}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: '#080A0F' }}>
       {isSplashComplete ? (
-        <ExpoRoot context={ctx} />
+        <ExpoRoot context={routerContext} />
       ) : (
         <NoxaSplashScreen onFinish={handleSplashFinish} onLayoutReady={handleSplashLayout} />
       )}
