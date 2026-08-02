@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput } from 'react-native';
 
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { NoxaInput } from '@/src/components/ui';
+import { colors } from '@/src/theme';
 
 type NoxaAuthFieldProps = ComponentProps<typeof TextInput> & {
   error?: string;
@@ -31,25 +32,22 @@ export function NoxaAuthField({
   }, [label]);
 
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputShell, error && styles.inputError]}>
-        <TextInput
-          {...props}
-          accessibilityLabel={label}
-          onBlur={(event) => {
-            console.log(`[AuthField:${label}] blur`);
-            onBlur?.(event);
-          }}
-          onFocus={(event) => {
-            console.log(`[AuthField:${label}] focus`);
-            onFocus?.(event);
-          }}
-          placeholderTextColor={colors.textSubtle}
-          selectionColor={colors.primary}
-          style={[styles.input, onTogglePassword && styles.inputWithAction, style]}
-        />
-        {onTogglePassword ? (
+    <NoxaInput
+      {...props}
+      error={error}
+      label={label}
+      onBlur={(event) => {
+        console.log(`[AuthField:${label}] blur`);
+        onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        console.log(`[AuthField:${label}] focus`);
+        onFocus?.(event);
+      }}
+      placeholderTextColor={colors.textSubtle}
+      style={style}
+      trailing={
+        onTogglePassword ? (
           <Pressable
             accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
             accessibilityRole="button"
@@ -62,49 +60,13 @@ export function NoxaAuthField({
               size={20}
             />
           </Pressable>
-        ) : null}
-      </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
+        ) : null
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  field: {
-    gap: 6,
-  },
-  label: {
-    color: colors.textSubtle,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    lineHeight: 14,
-    textTransform: 'uppercase',
-  },
-  inputShell: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: radius.input,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  inputError: {
-    borderColor: colors.borderAccent,
-  },
-  input: {
-    flex: 1,
-    minHeight: 48,
-    paddingHorizontal: 14,
-    color: colors.text,
-    fontFamily: typography.fontFamily.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  inputWithAction: {
-    paddingRight: spacing.xs,
-  },
   passwordButton: {
     width: 44,
     height: 44,
@@ -113,11 +75,5 @@ const styles = StyleSheet.create({
   },
   passwordButtonPressed: {
     opacity: 0.7,
-  },
-  error: {
-    color: colors.primaryHover,
-    fontSize: typography.caption,
-    fontWeight: '600',
-    lineHeight: typography.lineHeight.caption,
   },
 });

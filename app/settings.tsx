@@ -3,7 +3,6 @@ import Constants from 'expo-constants';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -14,7 +13,15 @@ import {
   View,
 } from 'react-native';
 
-import { NoxaAvatar, NoxaHeader, NoxaScreen } from '@/src/components/ui';
+import {
+  NoxaAvatar,
+  NoxaButton,
+  NoxaIconButton,
+  NoxaListRow as SettingsRow,
+  NoxaLoadingState,
+  NoxaScreen,
+  NoxaTopBar,
+} from '@/src/components/ui';
 import { SUPPORT_EMAIL } from '@/src/legal/legalDocuments';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
@@ -52,53 +59,6 @@ function SettingsGroup({ children, label }: { children: ReactNode; label: string
       <Text style={styles.groupLabel}>{label}</Text>
       <View style={styles.groupCard}>{children}</View>
     </View>
-  );
-}
-
-function SettingsRow({
-  caption,
-  destructive = false,
-  disabled = false,
-  icon,
-  isLast = false,
-  label,
-  onPress,
-  value,
-}: {
-  caption?: string;
-  destructive?: boolean;
-  disabled?: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
-  isLast?: boolean;
-  label: string;
-  onPress?: () => void;
-  value?: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole={onPress ? 'button' : undefined}
-      disabled={!onPress || disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        !isLast && styles.rowBorder,
-        pressed && onPress && styles.rowPressed,
-        disabled && styles.disabled,
-      ]}>
-      <View style={[styles.rowIcon, destructive && styles.destructiveIcon]}>
-        <Ionicons
-          name={icon}
-          size={20}
-          color={destructive ? colors.primaryHover : colors.text}
-        />
-      </View>
-      <View style={styles.rowCopy}>
-        <Text style={[styles.rowLabel, destructive && styles.destructiveText]}>{label}</Text>
-        {caption ? <Text style={styles.rowCaption}>{caption}</Text> : null}
-      </View>
-      {value ? <Text style={styles.rowValue}>{value}</Text> : null}
-      {onPress ? <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} /> : null}
-    </Pressable>
   );
 }
 
@@ -209,15 +169,14 @@ export default function SettingsScreen() {
   return (
     <NoxaScreen padded={false}>
       <View style={styles.shell}>
-        <NoxaHeader
+        <NoxaTopBar
           left={
-            <Pressable
+            <NoxaIconButton
               accessibilityLabel="Go back"
-              accessibilityRole="button"
+              icon="chevron-back"
               onPress={() => router.back()}
-              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-              <Ionicons name="chevron-back" size={22} color={colors.text} />
-            </Pressable>
+              variant="ghost"
+            />
           }
           title="SETTINGS"
           subtitle="Your account and NOXA shortcuts"
@@ -262,9 +221,7 @@ export default function SettingsScreen() {
           ) : null}
 
           {isLoading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
+            <NoxaLoadingState label="Loading account…" />
           ) : (
             <>
               <SettingsGroup label="ACCOUNT">
@@ -388,12 +345,11 @@ export default function SettingsScreen() {
                   />
                 </SettingsGroup>
               ) : (
-                <Pressable
-                  accessibilityRole="button"
+                <NoxaButton
+                  fullWidth
                   onPress={() => router.push('/sign-in')}
-                  style={({ pressed }) => [styles.signInButton, pressed && styles.pressed]}>
-                  <Text style={styles.signInText}>SIGN IN TO NOXA</Text>
-                </Pressable>
+                  title="SIGN IN TO NOXA"
+                />
               )}
 
               <View accessible accessibilityLabel="NOXA, crafted by KARAKETIDIS" style={styles.signature}>
@@ -415,18 +371,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     backgroundColor: colors.background,
   },
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
   pressed: { opacity: 0.74, transform: [{ scale: 0.985 }] },
-  disabled: { opacity: 0.5 },
   content: { paddingTop: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.xl },
   profileCard: {
     minHeight: 88,
@@ -473,7 +418,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   errorText: { flex: 1, color: colors.textMuted, fontSize: 11, fontWeight: '700' },
-  loadingRow: { minHeight: 180, alignItems: 'center', justifyContent: 'center' },
   group: { gap: spacing.sm },
   groupLabel: {
     color: colors.textMuted,
@@ -488,37 +432,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  row: {
-    minHeight: 66,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
-  rowPressed: { backgroundColor: colors.surfacePressed },
-  rowIcon: {
-    width: 38,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceSoft,
-  },
-  destructiveIcon: { backgroundColor: colors.primarySubtle },
-  rowCopy: { flex: 1, minWidth: 0 },
-  rowLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
-  rowCaption: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '600' },
-  rowValue: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
-  destructiveText: { color: colors.primaryHover },
-  signInButton: {
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.button,
-    backgroundColor: colors.primary,
-  },
-  signInText: { color: colors.text, fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
   signature: { alignItems: 'center', gap: 3, paddingTop: spacing.xs },
   signatureBrand: {
     color: colors.textSubtle,
