@@ -13,13 +13,24 @@ import {
   View,
 } from 'react-native';
 
-import { NoxaAuthField } from '@/src/components/auth';
+import {
+  NoxaAppleAuthButton,
+  NoxaAuthField,
+  NoxaGoogleAuthButton,
+} from '@/src/components/auth';
 import { NoxaHeader, NoxaScreen } from '@/src/components/ui';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
+import {
+  getSocialAuthErrorMessage,
+  signInWithApple,
+  signInWithGoogle,
+} from '@/src/lib/socialAuth';
 import { supabase } from '@/src/lib/supabase';
+import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 const confirmationText = 'DELETE';
+type VerificationMode = 'apple' | 'google' | 'password';
 
 const consequences = [
   'Your profile, garage, posts, comments, follows, crews, and events will be removed.',
@@ -29,11 +40,15 @@ const consequences = [
 ];
 
 export default function DeleteAccountScreen() {
+  const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [verificationMode, setVerificationMode] = useState<VerificationMode | null>(null);
+  const [socialVerified, setSocialVerified] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loadingAccount, setLoadingAccount] = useState(true);
+  const [verifying, setVerifying] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +56,23 @@ export default function DeleteAccountScreen() {
     let active = true;
     void supabase.auth.getUser().then(({ data }) => {
       if (!active) return;
-      setEmail(data.user?.email ?? null);
+      const user = data.user;
+      const providers = new Set([
+        ...(user?.identities?.map((identity) => identity.provider) ?? []),
+        ...(Array.isArray(user?.app_metadata.providers) ? user.app_metadata.providers : []),
+      ]);
+      const primaryProvider = user?.app_metadata.provider;
+      const socialProvider = primaryProvider === 'apple' || primaryProvider === 'google'
+        ? primaryProvider
+        : providers.has('google')
+          ? 'google'
+          : providers.has('apple')
+            ? 'apple'
+            : null;
+
+      setUserId(user?.id ?? null);
+      setEmail(user?.email ?? null);
+      setVerificationMode(providers.has('email') ? 'password' : socialProvider);
       setLoadingAccount(false);
     });
     return () => {
@@ -49,22 +80,60 @@ export default function DeleteAccountScreen() {
     };
   }, []);
 
-  const canDelete =
-    Boolean(email && password) && confirmation.trim().toUpperCase() === confirmationText;
+  const identityVerified = verificationMode === 'password'
+    ? Boolean(email && password)
+    : socialVerified;
+  const canDelete = Boolean(userId && identityVerified) &&
+    confirmation.trim().toUpperCase() === confirmationText;
+
+  const verifySocialIdentity = async () => {
+    if (
+      !userId ||
+      (verificationMode !== 'apple' && verificationMode !== 'google') ||
+      verifying ||
+      deleting
+    ) {
+      return;
+    }
+
+    setVerifying(true);
+    setError(null);
+    try {
+      const result = verificationMode === 'google'
+        ? await signInWithGoogle({ expectedUserId: userId, loginHint: email })
+        : await signInWithApple({ expectedUserId: userId });
+
+      if (result.status === 'success') {
+        setSocialVerified(true);
+      }
+    } catch (verificationError) {
+      setError(getSocialAuthErrorMessage(verificationMode, verificationError));
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const deleteAccount = async () => {
-    if (!email || !canDelete || deleting) return;
+    if (!userId || !canDelete || deleting) return;
     setDeleting(true);
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (signInError) {
-      setError('Your password is incorrect. Sign in again to confirm account deletion.');
-      setDeleting(false);
-      return;
+    if (verificationMode === 'password') {
+      if (!email) {
+        setError('Sign in again before deleting your account.');
+        setDeleting(false);
+        return;
+      }
+
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (signInError || signInData.user?.id !== userId) {
+        setError('Your password is incorrect. Sign in again to confirm account deletion.');
+        setDeleting(false);
+        return;
+      }
     }
 
     await stopLiveDriveSession(true).catch(() => undefined);
@@ -76,13 +145,19 @@ export default function DeleteAccountScreen() {
     });
 
     if (functionError || !data?.success) {
-      setError(data?.error ?? functionError?.message ?? 'Your account could not be deleted.');
+      const message = data?.error ?? functionError?.message ?? 'Your account could not be deleted.';
+      if (message.toLowerCase().includes('sign in again')) {
+        setSocialVerified(false);
+        setError('Your identity verification expired. Verify again, then delete the account.');
+      } else {
+        setError(message);
+      }
       setDeleting(false);
       return;
     }
 
     await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-    router.replace('/welcome');
+    resetToSignedOutHome();
   };
 
   return (
@@ -146,19 +221,54 @@ export default function DeleteAccountScreen() {
                 <Text style={styles.errorText}>Sign in again before deleting your account.</Text>
               )}
 
-              <NoxaAuthField
-                autoCapitalize="none"
-                autoComplete="current-password"
-                editable={!deleting}
-                label="Current Password"
-                onChangeText={setPassword}
-                onTogglePassword={() => setPasswordVisible((current) => !current)}
-                passwordVisible={passwordVisible}
-                placeholder="Your NOXA password"
-                secureTextEntry={!passwordVisible}
-                textContentType="password"
-                value={password}
-              />
+              {verificationMode === 'password' ? (
+                <NoxaAuthField
+                  autoCapitalize="none"
+                  autoComplete="current-password"
+                  editable={!deleting}
+                  label="Current Password"
+                  onChangeText={setPassword}
+                  onTogglePassword={() => setPasswordVisible((current) => !current)}
+                  passwordVisible={passwordVisible}
+                  placeholder="Your NOXA password"
+                  secureTextEntry={!passwordVisible}
+                  textContentType="password"
+                  value={password}
+                />
+              ) : verificationMode === 'google' || verificationMode === 'apple' ? (
+                <View style={styles.socialVerification}>
+                  <Text style={styles.verificationText}>
+                    Confirm with {verificationMode === 'google' ? 'Google' : 'Apple'} before
+                    permanently deleting this account.
+                  </Text>
+                  {socialVerified ? (
+                    <View accessibilityLiveRegion="polite" style={styles.verifiedRow}>
+                      <Ionicons name="checkmark-circle" size={19} color={colors.success} />
+                      <Text style={styles.verifiedText}>Identity verified</Text>
+                    </View>
+                  ) : verificationMode === 'google' ? (
+                    <NoxaGoogleAuthButton
+                      disabled={deleting}
+                      loading={verifying}
+                      onPress={() => void verifySocialIdentity()}
+                    />
+                  ) : Platform.OS === 'ios' ? (
+                    <>
+                      <NoxaAppleAuthButton
+                        disabled={verifying || deleting}
+                        onPress={() => void verifySocialIdentity()}
+                      />
+                      {verifying ? <ActivityIndicator color={colors.textMuted} /> : null}
+                    </>
+                  ) : (
+                    <Text style={styles.errorText}>
+                      Verify this Apple account on an iPhone before deleting it.
+                    </Text>
+                  )}
+                </View>
+              ) : !loadingAccount ? (
+                <Text style={styles.errorText}>Sign in again before deleting your account.</Text>
+              ) : null}
 
               <View style={styles.confirmationGroup}>
                 <Text style={styles.confirmationLabel}>
@@ -293,6 +403,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   emailText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '700' },
+  socialVerification: {
+    gap: spacing.sm,
+  },
+  verificationText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  verifiedRow: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: 'rgba(48,209,88,0.3)',
+    backgroundColor: colors.successMuted,
+  },
+  verifiedText: {
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '800',
+  },
   confirmationGroup: { gap: spacing.xs },
   confirmationLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   confirmationWord: { color: colors.primaryHover },
