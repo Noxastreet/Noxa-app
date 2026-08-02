@@ -284,10 +284,8 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               style={{
                 lineCap: "round",
                 lineColor: "rgba(18,3,5,0.94)",
-                lineElevationReference: "ground",
                 lineJoin: "round",
                 lineWidth: 12,
-                lineZOffset: 5,
               }}
             />
             <LineLayer
@@ -296,11 +294,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               style={{
                 lineCap: "round",
                 lineColor: colors.primary,
-                lineElevationReference: "ground",
                 lineJoin: "round",
                 lineOpacity: 0.98,
                 lineWidth: 6,
-                lineZOffset: 5,
               }}
             />
           </ShapeSource>
