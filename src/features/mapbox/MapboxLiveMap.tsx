@@ -103,13 +103,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [events, selectedEventId],
     );
     const routeFeature = useMemo(() => createRouteFeature(route), [route]);
-    const routeShape = useMemo<GeoJSON.FeatureCollection<GeoJSON.LineString>>(
-      () => ({
-        type: "FeatureCollection",
-        features: routeFeature ? [routeFeature] : [],
-      }),
-      [routeFeature],
-    );
     const selectedEvent = useMemo(
       () => events.find((event) => event.id === selectedEventId) ?? null,
       [events, selectedEventId],
@@ -277,29 +270,29 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             visible={Boolean(driverLocation)}
           />
 
-          <ShapeSource id="noxa-route-source" shape={routeShape}>
-            <LineLayer
-              id="noxa-route-casing"
-              sourceID="noxa-route-source"
-              style={{
-                lineCap: "round",
-                lineColor: "rgba(18,3,5,0.94)",
-                lineJoin: "round",
-                lineWidth: 12,
-              }}
-            />
-            <LineLayer
-              id="noxa-route-line"
-              sourceID="noxa-route-source"
-              style={{
-                lineCap: "round",
-                lineColor: colors.primary,
-                lineJoin: "round",
-                lineOpacity: 0.98,
-                lineWidth: 6,
-              }}
-            />
-          </ShapeSource>
+          {routeFeature ? (
+            <ShapeSource id="noxa-route-source" shape={routeFeature}>
+              <LineLayer
+                id="noxa-route-casing"
+                style={{
+                  lineCap: "round",
+                  lineColor: "rgba(18,3,5,0.94)",
+                  lineJoin: "round",
+                  lineWidth: 12,
+                }}
+              />
+              <LineLayer
+                id="noxa-route-line"
+                style={{
+                  lineCap: "round",
+                  lineColor: colors.primary,
+                  lineJoin: "round",
+                  lineOpacity: 0.98,
+                  lineWidth: 6,
+                }}
+              />
+            </ShapeSource>
+          ) : null}
 
           {mapFilter !== "events" ? (
             <ShapeSource
