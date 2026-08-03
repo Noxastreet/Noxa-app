@@ -122,6 +122,11 @@ export function NoxaSplashScreen({ onFinish, onLayoutReady }: NoxaSplashScreenPr
     };
   }, [finishOnce]);
 
+  const progressTranslateX = progressScaleX.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-progressWidth / 2, 0],
+  });
+
   return (
     <Animated.View
       onLayout={handleLayout}
@@ -150,6 +155,7 @@ export function NoxaSplashScreen({ onFinish, onLayoutReady }: NoxaSplashScreenPr
           {
             bottom: Math.max(48, height * 0.065),
             width: progressWidth,
+            marginLeft: -progressWidth / 2,
             opacity: progressOpacity,
           },
         ]}
@@ -159,7 +165,10 @@ export function NoxaSplashScreen({ onFinish, onLayoutReady }: NoxaSplashScreenPr
             style={[
               styles.progress,
               {
-                transform: [{ scaleX: progressScaleX }],
+                transform: [
+                  { translateX: progressTranslateX },
+                  { scaleX: progressScaleX },
+                ],
               },
             ]}
           />
@@ -198,7 +207,6 @@ const styles = StyleSheet.create({
   progressArea: {
     position: 'absolute',
     left: '50%',
-    marginLeft: -80,
   },
   track: {
     width: '100%',
@@ -212,7 +220,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 99,
     backgroundColor: ACCENT,
-    transformOrigin: 'left',
     shadowColor: ACCENT,
     shadowOpacity: 0.7,
     shadowRadius: 8,
