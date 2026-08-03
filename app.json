@@ -45,13 +45,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/noxa-splash-logo.png",
-          "imageWidth": 180,
+          "image": "./assets/images/icon.png",
+          "imageWidth": 112,
           "resizeMode": "contain",
-          "backgroundColor": "#C8102E",
+          "backgroundColor": "#0A0A0A",
           "dark": {
-            "image": "./assets/images/noxa-splash-logo.png",
-            "backgroundColor": "#C8102E"
+            "image": "./assets/images/icon.png",
+            "backgroundColor": "#0A0A0A"
           }
         }
       ],
@@ -72,9 +72,9 @@
       "reactCompiler": true
     },
     "splash": {
-      "image": "./assets/images/noxa-splash-logo.png",
+      "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#C8102E"
+      "backgroundColor": "#0A0A0A"
     },
     "extra": {
       "router": {},
