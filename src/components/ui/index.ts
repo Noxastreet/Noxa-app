@@ -6,6 +6,8 @@ export { NoxaFloatingActionButton } from './NoxaFloatingActionButton';
 export { NoxaFloatingCard } from './NoxaFloatingCard';
 export type { NoxaFloatingCardAction } from './NoxaFloatingCard';
 export { NoxaHeader } from './NoxaHeader';
+export { IdentityOrb } from './IdentityOrb';
+export type { IdentityOrbSize } from './IdentityOrb';
 export { NoxaInput } from './NoxaInput';
 export { NoxaListRow } from './NoxaListRow';
 export { NoxaLoadingState } from './NoxaLoadingState';
