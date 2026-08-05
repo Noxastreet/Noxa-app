@@ -56,6 +56,23 @@ Validate safe areas, keyboard handling, small/medium Android layouts, large text
 
 Exit criterion: primary journeys pass on real Android and all P0 defects are fixed and re-tested.
 
+## Stage 1.5 — Group Drive / Live Drive
+
+**Status: not started.** Architecture and MVP scope are defined in `docs/GROUP_DRIVE.md`. No implementation phase has begun; nothing in this stage may be marked `Implemented` or `Done` from the architecture document alone.
+
+Goal: ship a minimal, complete Group Drive cycle (create, invite, join, active realtime map, end, basic summary) as a self-contained domain area that does not modify `driver_locations`, `events`, `crew_convoys`, or the existing Home/Map runtime systems.
+
+Phases (see `docs/GROUP_DRIVE.md` §13 for detail):
+
+0. Documentation and architecture — complete (this entry references it).
+1. Database schema and RLS (drafted and reviewed, not applied to production without separate explicit approval).
+2. Create/Invitation flows.
+3. Active Drive background location and realtime.
+4. Active Drive Map.
+5. Completion and summary.
+
+Exit criterion: same Definition of Done as above, evaluated per phase, with two-account Android runtime evidence for realtime/location/privacy behavior specifically (see `docs/GROUP_DRIVE.md` §12).
+
 ## Stage 2 — Production backend and security
 
 - Back up production and verify rollback.

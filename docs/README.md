@@ -11,6 +11,12 @@ This directory is the repository-owned source of truth for product, design, arch
 5. `ROADMAP.md` — ordered execution stages and Definition of Done.
 6. `AI_CONTEXT.md` — operating contract for Claude Code, ChatGPT, Codex and other agents.
 
+## Domain specifications
+
+Large features get their own canonical specification document instead of being folded into the core reading list above. Read the relevant one before working on that feature.
+
+- `GROUP_DRIVE.md` — Group Drive / Live Drive architecture, data model, privacy matrix and phased implementation plan. Documentation only; no code or migrations exist yet.
+
 ## Source-of-truth hierarchy
 
 1. Runtime evidence on a physical device or native development build.

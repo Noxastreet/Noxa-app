@@ -62,6 +62,10 @@ Conflicts are resolved in favor of the higher-ranked evidence. Update lower-rank
 - Use the rules in `docs/UI_RULES.md` and the existing design tokens/components.
 - Do not use “make it premium” as an implementation specification; translate it into measurable layout, state and motion requirements.
 
+## Group Drive / Live Drive
+
+Group Drive is an approved-architecture, not-yet-implemented feature. Its canonical specification is `docs/GROUP_DRIVE.md`: a new, self-contained domain area (`drive_sessions`, `drive_stops`, `drive_participants`, `drive_invitations`, `drive_location_state`, a new `drive-route` Edge Function) that does not modify `driver_locations`, `events`, `crew_convoys`, or the existing Home/Map runtime. Do not implement any part of it, add migrations for it, or wire it into `app/(tabs)/index.tsx` / `MapboxLiveMap.tsx` without following the phased plan in that document. Treat any code claiming to implement Group Drive as unverified until checked against that specification and the source-of-truth hierarchy above.
+
 ## Safety and production controls
 
 Never perform the following without explicit approval:
