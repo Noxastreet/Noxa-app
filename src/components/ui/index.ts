@@ -3,6 +3,8 @@ export { NoxaBadge } from './NoxaBadge';
 export { NoxaButton } from './NoxaButton';
 export { NoxaCard } from './NoxaCard';
 export { NoxaFloatingActionButton } from './NoxaFloatingActionButton';
+export { NoxaFloatingCard } from './NoxaFloatingCard';
+export type { NoxaFloatingCardAction } from './NoxaFloatingCard';
 export { NoxaHeader } from './NoxaHeader';
 export { NoxaInput } from './NoxaInput';
 export { NoxaListRow } from './NoxaListRow';
