@@ -2,20 +2,27 @@
 
 This directory is the repository-owned source of truth for product, design, architecture, execution and AI-agent context.
 
-## Reading order
+## Mandatory execution reading order
 
-1. `CURRENT_STATE.md` — verified status and immediate next action.
-2. `PRODUCT.md` — product identity, value and scope.
-3. `ARCHITECTURE.md` — technical stack and architectural rules.
-4. `UI_RULES.md` — mandatory UX/UI principles.
-5. `ROADMAP.md` — ordered execution stages and Definition of Done.
-6. `AI_CONTEXT.md` — operating contract for Claude Code, ChatGPT, Codex and other agents.
+1. `MVP_COMPLETION_MASTER.md` — complete MVP audit, scope, route inventory, quality gates and ordered completion program.
+2. `MVP_SCREEN_ACTION_REGISTER.md` — target contract for every known MVP screen, control, action and state.
+3. `AI_EXECUTION_PLAYBOOK.md` — shared operating protocol and prompts for ChatGPT, Claude Design and Claude Code.
+4. `CURRENT_STATE.md` — verified status, active integration work and immediate next checkpoint.
+5. `PRODUCT.md` — product identity, value and scope.
+6. `ARCHITECTURE.md` — technical stack and architectural rules.
+7. `UI_RULES.md` — mandatory UX/UI principles.
+8. `ROADMAP.md` — execution stages and Definition of Done.
+9. `AI_CONTEXT.md` — role boundaries, evidence hierarchy and completion-report contract.
 
-## Domain specifications
+## Domain and design specifications
 
-Large features get their own canonical specification document instead of being folded into the core reading list above. Read the relevant one before working on that feature.
+Read the relevant specification before touching a domain:
 
-- `GROUP_DRIVE.md` — Group Drive / Live Drive architecture, data model, privacy matrix and phased implementation plan. Documentation only; no code or migrations exist yet.
+- `GROUP_DRIVE.md` — Group Drive architecture, privacy model, state machines and phased delivery plan.
+- `ai-design-library/` — product constitution, Home/Map MVP, screen plan, MVP/V2 boundary and component-library policy.
+- `design/NOXA_APPLE_DESIGN_STANDARD.md` — interaction and visual quality standard.
+- `design/NOXA_MAP_UX_SIMPLIFICATION_PLAN.md` — Home/Map simplification intent.
+- `security/` — Live Drive security audit and production migration runbooks.
 
 ## Source-of-truth hierarchy
 
@@ -26,8 +33,13 @@ Large features get their own canonical specification document instead of being f
 5. Repository documentation in `docs/`.
 6. Notion and design planning artifacts.
 
-A mockup, branch, commit or pull request alone does not prove that a feature works.
+For intentionally accumulated work in an active integration branch, its exact branch/HEAD/PR is the working implementation snapshot, but it is not `Done` and must not be represented as merged or runtime-verified.
 
-## Migration note
+A mockup, branch, commit, pull request, passing lint or documentation claim alone does not prove that a feature works.
 
-The initial content was consolidated from the NOXA Notion Control Center, Master Execution Plan and Claude Code project context on 5 August 2026. Database-level exports from Roadmap, Design Bible, Screen Bible, Component Library and Feature Pipeline should be normalized into dedicated files instead of copied as raw Notion tables.
+## Documentation synchronization rule
+
+- GitHub records technical truth and executable contracts.
+- Notion records product/design planning and high-level progress.
+- When they disagree, use the evidence hierarchy above and update the stale lower-level source.
+- Every completed checkpoint must update `CURRENT_STATE.md` and any affected screen/component status.

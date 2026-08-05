@@ -2,50 +2,85 @@
 
 _Last consolidated: 5 August 2026._
 
-## Current focus
+## Current program
 
-**Crews & Events MVP canon — Android runtime validation.**
+**MVP completion and normalization before physical-device validation.**
 
-The implementation and GitHub Quality checks are complete and the changes are merged into `main`, but physical Android runtime PASS has not yet been confirmed. The correct status is therefore **Implemented / PASS WITH LIMITATIONS**, not Done.
+The product owner is intentionally completing the visual system, user flows, static behavior and documentation before purchasing Android and Apple developer accounts and dedicated test devices. Physical Android/iOS validation will then run against a fixed release-candidate commit, followed by defect correction.
 
-## Verified repository state
+The canonical completion program is:
 
-- Canonical repository: `Noxastreet/Noxa-app`.
-- Canonical branch: `main`.
-- Crews & Events canon: merged through PR #133.
-- Product merge commit referenced by the project context: `db9e525`.
-- A later housekeeping commit `e11e5d8` removed an erroneous Android Studio `.idea` file; runtime impact is not independently verified.
-- UI Foundation work for Sign in and Settings was merged through PR #132.
-- Migration A exists in code, but production application is not confirmed.
+1. `docs/MVP_COMPLETION_MASTER.md`;
+2. `docs/MVP_SCREEN_ACTION_REGISTER.md`;
+3. `docs/AI_EXECUTION_PLAYBOOK.md`.
 
-## Required Android validation
+## Verified active integration work
 
-- Crews Home and Crew Detail: loading, images, join/request/leave, errors and navigation.
-- Events Home and Event Detail: real Supabase data, images, Mapbox preview and route action.
-- Sign in and Settings after UI Foundation changes.
-- Red route line visibility.
-- Follow behavior and gesture cancellation.
-- Google sign-in completion.
-- Map, GPS and primary navigation regressions.
+- Repository: `Noxastreet/Noxa-app`.
+- Active integration branch: `feat/home-map-floating-card-foundation`.
+- Draft PR: `#135`.
+- Parent snapshot before the MVP-program documentation checkpoint: `2c7a045f2aaeb065e2f4d064157283af126c8959`.
+- PR state at verification: open, draft, mergeable, not merged.
+- Existing PR scope:
+  - `NoxaFloatingCard` foundation;
+  - EventCard/RouteCard migration and action-layout fix;
+  - `IdentityOrb` presentation foundation;
+  - canonical Group Drive architecture and privacy hardening.
+- No Group Drive application code, database migrations or production changes exist in this PR.
+- `IdentityOrb` is not wired into the general map.
 
-## Immediate next action
+## Group Drive design state
 
-Run the current `main` in a native Android development build and record either:
+- Architecture: approved in `docs/GROUP_DRIVE.md`.
+- Design Package v1.1: reviewed.
+- Remaining v1.1.1 micro-corrections:
+  1. pending invitation uses `IdentityOrb` and safe nickname, never host photo;
+  2. one sheet controller; confirmation replaces content instead of stacking sheets;
+  3. Minimize always goes to My Group Drives without stopping sharing;
+  4. Resume Active Drive is primary when a drive is active; Create remains secondary.
+- Implementation is blocked until that design contract is approved.
 
-1. runtime PASS with device/build/commit evidence; or
-2. a precise defect list with reproduction steps.
+## Static evidence already recorded for PR #135
 
-## Next product stage
+At the previous code checkpoint:
 
-After Android PASS for Crews & Events:
+- TypeScript: pass;
+- lint: pass with two pre-existing unrelated warnings in `CanonicalCrewDetailScreen.tsx`;
+- Expo Doctor: 18/18;
+- diff check: clean.
 
-1. Garage and Vehicles MVP;
-2. Profile MVP;
-3. remaining runtime P0 issues and release hardening;
-4. production publication and business layers.
+The documentation checkpoint itself does not prove runtime behavior.
 
-## Blocked work
+## Immediate next checkpoints
 
-- Production Supabase Migration A remains blocked until a manual database dump, rollback verification and explicit approval.
-- Apple authentication runtime validation requires an iOS environment and Apple Developer configuration.
-- New large features remain frozen until MVP runtime stability is proven.
+1. Commit and adopt the canonical MVP audit/action/playbook documents.
+2. Complete Group Drive Design Package v1.1.1 after Claude Design limits reset.
+3. Run Claude Code's documentation-only exact-source audit and create `docs/audit/CURRENT_ROUTE_ACTION_DATA_INVENTORY.md`.
+4. Reconcile GitHub and Notion status drift.
+5. Execute the ordered MVP waves from the master document with one scoped commit per checkpoint.
+6. Keep PR #135 draft and unmerged.
+7. After the static release candidate is complete, purchase/configure Android and Apple developer access and run physical-device validation.
+
+## Production and account restrictions
+
+Blocked without separate explicit approval:
+
+- production Supabase migrations or data changes;
+- production Edge Function deployment;
+- OAuth/secret changes;
+- Mapbox account-level mutations;
+- billing changes;
+- store submission;
+- PR merge or production release.
+
+## Honest status vocabulary
+
+- **Planned** — contract exists, implementation not started.
+- **Designed** — approved behavior and visual contract exist.
+- **Implemented** — code exists.
+- **Static PASS** — required static checks pass.
+- **Runtime pending** — native device behavior not tested.
+- **Runtime PASS** — exact build/commit/device evidence exists.
+- **Done** — acceptance, runtime, documentation and production evidence are complete.
+
+Until physical validation, the maximum honest product state is **Static PASS / Runtime pending**.

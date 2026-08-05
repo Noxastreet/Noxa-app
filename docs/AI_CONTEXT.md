@@ -1,90 +1,135 @@
 # NOXA — AI Agent Context
 
-This document is the common operating contract for Claude Code, ChatGPT, Codex and other engineering agents.
+This document is the common operating contract for Claude Code, Claude Design, ChatGPT, Codex and other agents working on NOXA.
 
-## Before changing code
+## Mandatory bootstrap
 
-1. Read `AGENTS.md` and this file.
-2. Read `docs/CURRENT_STATE.md`.
-3. Inspect the latest `main` and recent relevant pull requests.
-4. Read the product, architecture and UI rules relevant to the task.
-5. Determine the verified current state; do not infer Done from plans or mockups.
-6. Define a minimal scope, validation plan and rollback path.
+Before proposing or changing anything:
+
+1. Read `AGENTS.md`.
+2. Read `docs/MVP_COMPLETION_MASTER.md`.
+3. Read `docs/MVP_SCREEN_ACTION_REGISTER.md`.
+4. Read `docs/AI_EXECUTION_PLAYBOOK.md`.
+5. Read `docs/CURRENT_STATE.md`.
+6. Read the product, architecture, UI and domain documents relevant to the task.
+7. Inspect the actual current branch, exact HEAD, working tree and open pull request.
+8. Inspect production Supabase only when the task depends on production behavior.
+9. Report conflicts before acting.
+10. Define one measurable outcome, validation plan and rollback path.
+
+Do not infer `Done` from plans, generated design, code presence, static checks or an open pull request.
 
 ## Responsibilities
+
+### Claude Design
+
+- translate approved product behavior into visual and interaction specifications;
+- design complete state coverage, not isolated hero screenshots;
+- use the canonical information architecture, tokens and component family;
+- document navigation, hierarchy, motion, accessibility and responsive behavior;
+- report conflicts instead of inventing product decisions;
+- never authorize code, database, production or account mutations.
 
 ### Claude Code
 
 - inspect and modify the repository;
-- implement scoped tasks;
+- implement only the approved scoped checkpoint;
+- preserve working behavior outside scope;
 - run available static checks;
-- report changed files, assumptions, limitations and validation evidence;
-- avoid broad autonomous redesigns or unrelated refactors.
+- report exact changed files, assumptions, limitations and evidence;
+- avoid autonomous broad redesigns, speculative abstractions and unrelated refactors.
 
 ### ChatGPT
 
-- clarify product intent and UX behavior;
-- define architecture and acceptance criteria;
-- produce implementation briefs;
-- review diffs, UI evidence and runtime results;
-- maintain cross-feature consistency and documentation.
+- maintain product intent, architecture, UX behavior and cross-feature consistency;
+- create scoped briefs and acceptance criteria;
+- review design packages, diffs, documentation and runtime evidence;
+- resolve ambiguity using the source-of-truth hierarchy;
+- keep the MVP boundary and execution sequence controlled.
 
 ### Product owner
 
 - chooses priorities and approves product behavior;
+- authorizes production migrations, secrets, external account mutations, releases and destructive operations;
+- purchases/configures distribution accounts and devices when the static release candidate is ready;
 - performs or coordinates physical-device validation;
-- authorizes production migrations, secrets, releases and destructive operations;
-- decides when a limitation is acceptable.
+- decides whether a documented limitation is acceptable.
 
 ## Source-of-truth hierarchy
 
 1. physical-device/native runtime evidence;
 2. code merged in `main`;
-3. CI and pull-request evidence;
+3. GitHub CI and pull-request evidence;
 4. production Supabase evidence;
-5. repository docs;
-6. Notion and design planning.
+5. repository documentation;
+6. Notion and generated design artifacts;
+7. conversational memory.
 
-Conflicts are resolved in favor of the higher-ranked evidence. Update lower-ranked documentation after verification.
+For work intentionally accumulated in an active integration branch, inspect its exact branch/HEAD/PR. It may be the current working implementation snapshot, but it remains unmerged and runtime-unverified until evidence says otherwise.
 
 ## Scope discipline
 
-- One task should have one measurable outcome.
-- Do not combine visual polishing, architecture refactoring and new feature behavior without necessity.
-- Preserve working product behavior unless the task explicitly changes it.
-- Prefer reusable primitives when repetition is proven, not speculative abstraction.
-- Do not introduce dependencies without documenting the reason and maintenance cost.
+- One checkpoint has one measurable user-visible or documentation outcome.
+- Do not mix visual polish, architecture refactoring, backend mutation and new behavior unless technically inseparable.
+- Preserve existing routes, auth, Mapbox, personal Live Drive and Supabase behavior unless the brief explicitly changes them.
+- Prefer shared primitives where repetition is proven.
+- Do not add a dependency without an approved reason, maintenance assessment and rollback.
+- Frozen/V2 modules remain frozen unless product explicitly promotes them.
+- Never fabricate users, activity, density, urgency or successful runtime evidence.
 
 ## UX/UI discipline
 
-- Preserve the established information architecture unless evidence shows it is wrong.
-- Fix overlap, spacing, safe-area, keyboard, transparency and hierarchy issues systematically.
-- Use the rules in `docs/UI_RULES.md` and the existing design tokens/components.
-- Do not use “make it premium” as an implementation specification; translate it into measurable layout, state and motion requirements.
+- Follow `docs/UI_RULES.md`, `AGENTS.md` and the master screen/action contracts.
+- One primary action per interaction level.
+- Every screen requires loading, empty, error and relevant offline/permission states.
+- Every control requires deterministic behavior, disabled/loading treatment and accessibility semantics.
+- Respect safe areas, keyboard, long text, text scaling, small Android layouts and Reduced Motion.
+- Privacy and driving safety override decorative ambition.
+- “Make it premium” must be translated into measurable hierarchy, spacing, geometry, typography, motion and removal.
 
-## Group Drive / Live Drive
+## Group Drive
 
-Group Drive is an approved-architecture, not-yet-implemented feature. Its canonical specification is `docs/GROUP_DRIVE.md`: a new, self-contained domain area (`drive_sessions`, `drive_stops`, `drive_participants`, `drive_invitations`, `drive_location_state`, a new `drive-route` Edge Function) that does not modify `driver_locations`, `events`, `crew_convoys`, or the existing Home/Map runtime. Do not implement any part of it, add migrations for it, or wire it into `app/(tabs)/index.tsx` / `MapboxLiveMap.tsx` without following the phased plan in that document. Treat any code claiming to implement Group Drive as unverified until checked against that specification and the source-of-truth hierarchy above.
+Group Drive is a new self-contained domain governed by `docs/GROUP_DRIVE.md`.
+
+It does not reuse or extend:
+
+- `driver_locations`;
+- the personal four-hour Live Drive in `src/lib/liveDrive.ts`;
+- `events`;
+- `crew_convoys`;
+- `event-route`;
+- the general Home/Map runtime.
+
+The approved design is currently a reviewed v1.1 package with a final v1.1.1 micro-correction still required before implementation. Do not implement Group Drive UI, schema, RLS, realtime, routing or map integration outside its documented phases and approved design contract.
 
 ## Safety and production controls
 
-Never perform the following without explicit approval:
+Never perform without explicit approval:
 
-- production database migrations;
-- destructive SQL or data cleanup;
-- secret or OAuth-provider changes;
+- production database migration or destructive SQL;
+- production data cleanup;
+- secret/token/OAuth-provider changes;
+- Mapbox token, style, dataset, tileset, billing or account mutation;
 - store submission or production release;
 - force-push to `main`;
+- merge of the active draft PR;
 - deletion of rollback branches or user data.
+
+A public client Mapbox token may be used only through the existing approved application configuration. Never print or expose token values.
 
 ## Required completion report
 
-Every implementation response should include:
+Every implementation checkpoint must report:
 
+- verified branch, starting HEAD and resulting HEAD;
 - task outcome;
 - changed files;
-- checks executed and their results;
-- runtime validation performed or still required;
+- user-visible behavior changed;
+- checks executed and results;
+- runtime validation performed or deferred;
 - known limitations;
 - rollback instructions;
-- recommended documentation updates.
+- documentation/Notion updates;
+- whether the PR remains draft and whether merge is authorized.
+
+Use only verified facts.
