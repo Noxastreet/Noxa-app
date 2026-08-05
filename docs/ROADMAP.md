@@ -62,7 +62,7 @@ Exit criterion: primary journeys pass on real Android and all P0 defects are fix
 
 Goal: ship a minimal, complete Group Drive cycle (create, invite, join, active realtime map, end, basic summary) as a self-contained domain area that does not modify `driver_locations`, `events`, `crew_convoys`, or the existing Home/Map runtime systems.
 
-Phases (see `docs/GROUP_DRIVE.md` §13 for detail):
+Phases (see `docs/GROUP_DRIVE.md` §13.2 for detail):
 
 0. Documentation and architecture — complete (this entry references it).
 1. Database schema and RLS (drafted and reviewed, not applied to production without separate explicit approval).
@@ -70,6 +70,8 @@ Phases (see `docs/GROUP_DRIVE.md` §13 for detail):
 3. Active Drive background location and realtime.
 4. Active Drive Map.
 5. Completion and summary.
+
+Delivery process (see `docs/GROUP_DRIVE.md` §13.1): all phases accumulate on one integration branch and one draft PR, one commit per phase/logical step, each commit reviewed independently; the PR stays draft/unmerged until Android runtime validation is recorded; production Supabase apply still requires a separate explicit approval and runbook regardless of how many phases share the branch; sharing a branch does not waive the Definition of Done for any individual phase.
 
 Exit criterion: same Definition of Done as above, evaluated per phase, with two-account Android runtime evidence for realtime/location/privacy behavior specifically (see `docs/GROUP_DRIVE.md` §12).
 
