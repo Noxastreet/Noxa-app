@@ -49,7 +49,15 @@ type NoxaFloatingCardProps = {
 const ACTION_HIT_SLOP = { top: 6, bottom: 6, left: 4, right: 4 };
 const CLOSE_HIT_SLOP = { top: 6, bottom: 6, left: 6, right: 6 };
 
-function ActionButton({ action, isPrimary }: { action: NoxaFloatingCardAction; isPrimary: boolean }) {
+function ActionButton({
+  action,
+  isPrimary,
+  layout,
+}: {
+  action: NoxaFloatingCardAction;
+  isPrimary: boolean;
+  layout: 'row' | 'single';
+}) {
   const variant = action.variant ?? (isPrimary ? 'solid' : 'outline');
   return (
     <TouchableOpacity
@@ -63,7 +71,7 @@ function ActionButton({ action, isPrimary }: { action: NoxaFloatingCardAction; i
       style={[
         styles.action,
         styles[`action_${variant}`],
-        isPrimary ? styles.actionFlex : styles.actionFull,
+        layout === 'row' ? styles.actionFlex : styles.actionFull,
         action.disabled && styles.actionDisabled,
         action.style,
       ]}
@@ -136,12 +144,12 @@ export function NoxaFloatingCard({
 
       {primaryAction && secondaryAction ? (
         <View style={styles.actionRow}>
-          <ActionButton action={primaryAction} isPrimary />
-          <ActionButton action={secondaryAction} isPrimary={false} />
+          <ActionButton action={primaryAction} isPrimary layout="row" />
+          <ActionButton action={secondaryAction} isPrimary={false} layout="row" />
         </View>
       ) : primaryAction ? (
         <View style={styles.actionSingle}>
-          <ActionButton action={primaryAction} isPrimary />
+          <ActionButton action={primaryAction} isPrimary layout="single" />
         </View>
       ) : null}
     </View>
