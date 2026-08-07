@@ -5,7 +5,6 @@ import {
   Alert,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
 
@@ -18,7 +17,7 @@ import {
   type CoverEntityKind,
 } from "@/src/lib/entityCover";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing } from "@/src/theme";
+import { colors, radius, shadows } from "@/src/theme";
 
 type Props = {
   kind: CoverEntityKind;
@@ -120,10 +119,7 @@ export function EntityCoverControl({ kind, entityId, onChanged }: Props) {
     setBusy(true);
     try {
       const asset = await chooseCoverAsset();
-      if (!asset) {
-        setBusy(false);
-        return;
-      }
+      if (!asset) return;
 
       const uploaded = await uploadEntityCover(asset, kind, entityId);
       try {
@@ -193,7 +189,14 @@ export function EntityCoverControl({ kind, entityId, onChanged }: Props) {
       "Only authorized organizers can change this image.",
       actions,
     );
-  }, [busy, kind, permission.canManage, permission.currentCoverUrl, removeCover, replaceCover]);
+  }, [
+    busy,
+    kind,
+    permission.canManage,
+    permission.currentCoverUrl,
+    removeCover,
+    replaceCover,
+  ]);
 
   if (loading || !permission.canManage) return null;
 
@@ -208,7 +211,9 @@ export function EntityCoverControl({ kind, entityId, onChanged }: Props) {
       ]}
     >
       <Pressable
-        accessibilityLabel={kind === "crew" ? "Change crew cover" : "Change event cover"}
+        accessibilityLabel={
+          kind === "crew" ? "Change crew cover" : "Change event cover"
+        }
         accessibilityRole="button"
         disabled={busy}
         onPress={openMenu}
@@ -224,9 +229,6 @@ export function EntityCoverControl({ kind, entityId, onChanged }: Props) {
           <Ionicons name="camera-outline" size={18} color={colors.text} />
         )}
       </Pressable>
-      <Text style={styles.srHint} accessibilityElementsHidden>
-        Cover
-      </Text>
     </View>
   );
 }
@@ -250,11 +252,4 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   disabled: { opacity: 0.5 },
-  srHint: {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    opacity: 0,
-    padding: spacing.none,
-  },
 });
