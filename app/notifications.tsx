@@ -17,8 +17,8 @@ import { NoxaEmptyState, NoxaHeader, NoxaScreen } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
-type ActivityFilter = 'all' | 'events' | 'social' | 'crews';
-type ActivityKind = 'event' | 'follow' | 'crew';
+type ActivityFilter = 'all' | 'crews' | 'events' | 'social';
+type ActivityKind = 'crew' | 'event' | 'follow';
 
 type ActivityItem = {
   id: string;
@@ -27,6 +27,7 @@ type ActivityItem = {
   title: string;
   subtitle: string;
   timestamp: string;
+  startsAt?: string;
   imageUrl: string | null;
   routeId: string;
 };
@@ -54,29 +55,29 @@ type EventRow = {
 
 const filters: { label: string; value: ActivityFilter; kind?: ActivityKind }[] = [
   { label: 'All', value: 'all' },
+  { label: 'Crews', value: 'crews', kind: 'crew' },
   { label: 'Events', value: 'events', kind: 'event' },
   { label: 'Social', value: 'social', kind: 'follow' },
-  { label: 'Crews', value: 'crews', kind: 'crew' },
 ];
 
 const activityVisuals: Record<
   ActivityKind,
   { color: string; icon: keyof typeof Ionicons.glyphMap; background: string }
 > = {
-  follow: {
-    color: colors.info,
-    icon: 'person-add-outline',
-    background: 'rgba(10,132,255,0.12)',
+  crew: {
+    color: colors.primaryHover,
+    icon: 'people-outline',
+    background: colors.primarySubtle,
   },
   event: {
     color: colors.primaryHover,
     icon: 'calendar-outline',
-    background: colors.primaryMuted,
+    background: colors.primarySubtle,
   },
-  crew: {
-    color: colors.purple,
-    icon: 'people-outline',
-    background: 'rgba(191,90,242,0.12)',
+  follow: {
+    color: colors.text,
+    icon: 'person-add-outline',
+    background: colors.surfaceSoft,
   },
 };
 
@@ -86,7 +87,7 @@ function BackButton() {
       accessibilityLabel="Go back"
       accessibilityRole="button"
       onPress={() => router.back()}
-      style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}>
       <Ionicons name="chevron-back" size={22} color={colors.text} />
     </Pressable>
   );
@@ -124,9 +125,7 @@ function formatRelativeTime(value: string) {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
 
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(
-    new Date(value),
-  );
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value));
 }
 
 function formatEventDate(value: string) {
@@ -139,35 +138,15 @@ function formatEventDate(value: string) {
   }).format(new Date(value));
 }
 
-function isToday(value: string) {
-  const date = new Date(value);
-  const now = new Date();
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  );
-}
-
-function FilterChip({
-  isActive,
-  label,
-  onPress,
-}: {
-  isActive: boolean;
-  label: string;
-  onPress: () => void;
-}) {
+function FilterTab({ isActive, label, onPress }: { isActive: boolean; label: string; onPress: () => void }) {
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.filterChip,
-        isActive && styles.filterChipActive,
-        pressed && styles.pressed,
-      ]}>
+      style={({ pressed }) => [styles.filterTab, pressed && styles.pressed]}>
       <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{label}</Text>
+      <View style={[styles.filterIndicator, isActive && styles.filterIndicatorActive]} />
     </Pressable>
   );
 }
@@ -182,16 +161,14 @@ function ActivityArtwork({ item }: { item: ActivityItem }) {
       ) : (
         <View style={[styles.artworkFallback, { backgroundColor: visual.background }]}>
           {item.kind === 'follow' ? (
-            <Text style={[styles.artworkInitials, { color: visual.color }]}>
-              {getInitials(item.title)}
-            </Text>
+            <Text style={[styles.artworkInitials, { color: visual.color }]}>{getInitials(item.title)}</Text>
           ) : (
             <Ionicons name={visual.icon} size={21} color={visual.color} />
           )}
         </View>
       )}
       <View style={[styles.typeBadge, { backgroundColor: visual.background }]}>
-        <Ionicons name={visual.icon} size={12} color={visual.color} />
+        <Ionicons name={visual.icon} size={11} color={visual.color} />
       </View>
     </View>
   );
@@ -209,6 +186,9 @@ function ActivityRow({
   onRespond: (invitationId: string, accept: boolean) => void;
 }) {
   const isBusy = item.kind === 'crew' && busyInvitationId === item.sourceId;
+  const meta = item.kind === 'event' && item.startsAt
+    ? formatEventDate(item.startsAt)
+    : formatRelativeTime(item.timestamp);
 
   return (
     <Pressable
@@ -218,11 +198,10 @@ function ActivityRow({
       style={({ pressed }) => [styles.activityRow, pressed && styles.rowPressed]}>
       <ActivityArtwork item={item} />
       <View style={styles.activityCopy}>
-        <Text numberOfLines={1} style={styles.activityTitle}>
-          {item.title}
-        </Text>
-        <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
-        <Text style={styles.activityTime}>{formatRelativeTime(item.timestamp)}</Text>
+        <Text numberOfLines={1} style={styles.activityTitle}>{item.title}</Text>
+        <Text numberOfLines={2} style={styles.activitySubtitle}>{item.subtitle}</Text>
+        {meta ? <Text style={styles.activityMeta}>{meta}</Text> : null}
+
         {item.kind === 'crew' ? (
           <View style={styles.invitationActions}>
             <Pressable
@@ -232,12 +211,7 @@ function ActivityRow({
                 event.stopPropagation();
                 onRespond(item.sourceId, true);
               }}
-              style={({ pressed }) => [
-                styles.invitationButton,
-                styles.acceptButton,
-                pressed && styles.pressed,
-                isBusy && styles.disabled,
-              ]}>
+              style={({ pressed }) => [styles.acceptButton, pressed && styles.pressed, isBusy && styles.disabled]}>
               <Text style={styles.acceptText}>{isBusy ? 'Working…' : 'Accept'}</Text>
             </Pressable>
             <Pressable
@@ -247,12 +221,7 @@ function ActivityRow({
                 event.stopPropagation();
                 onRespond(item.sourceId, false);
               }}
-              style={({ pressed }) => [
-                styles.invitationButton,
-                styles.declineButton,
-                pressed && styles.pressed,
-                isBusy && styles.disabled,
-              ]}>
+              style={({ pressed }) => [styles.declineButton, pressed && styles.pressed, isBusy && styles.disabled]}>
               <Text style={styles.declineText}>Decline</Text>
             </Pressable>
           </View>
@@ -260,6 +229,49 @@ function ActivityRow({
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
     </Pressable>
+  );
+}
+
+function InboxSection({
+  title,
+  eyebrow,
+  items,
+  busyInvitationId,
+  onOpen,
+  onRespond,
+}: {
+  title: string;
+  eyebrow: string;
+  items: ActivityItem[];
+  busyInvitationId: string | null;
+  onOpen: (item: ActivityItem) => void;
+  onRespond: (invitationId: string, accept: boolean) => void;
+}) {
+  if (!items.length) return null;
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeading}>
+        <View>
+          <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        <Text style={styles.sectionCount}>{items.length}</Text>
+      </View>
+      <View style={styles.activityList}>
+        {items.map((item, index) => (
+          <View key={item.id}>
+            <ActivityRow
+              busyInvitationId={busyInvitationId}
+              item={item}
+              onOpen={onOpen}
+              onRespond={onRespond}
+            />
+            {index < items.length - 1 ? <View style={styles.rowDivider} /> : null}
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -318,12 +330,10 @@ export default function NotificationsScreen() {
       const followRows = followsResult.data ?? [];
       const invitationRows = invitationsResult.data ?? [];
       const attendanceRows = attendanceResult.data ?? [];
-      const profileIds = Array.from(
-        new Set([
-          ...followRows.map((row) => row.follower_id),
-          ...invitationRows.map((row) => row.invited_by),
-        ]),
-      );
+      const profileIds = Array.from(new Set([
+        ...followRows.map((row) => row.follower_id),
+        ...invitationRows.map((row) => row.invited_by),
+      ]));
       const crewIds = Array.from(new Set(invitationRows.map((row) => row.crew_id)));
       const eventIds = Array.from(new Set(attendanceRows.map((row) => row.event_id)));
 
@@ -380,7 +390,7 @@ export default function NotificationsScreen() {
           return {
             id: `crew-${row.id}`,
             sourceId: row.id,
-            kind: 'crew' as const,
+            kind: 'crew',
             title: crew.name,
             subtitle: `${formatProfileName(profilesById.get(row.invited_by))} invited you to join`,
             timestamp: row.created_at,
@@ -397,21 +407,23 @@ export default function NotificationsScreen() {
           return {
             id: `event-${row.event_id}`,
             sourceId: row.event_id,
-            kind: 'event' as const,
+            kind: 'event',
             title: event.title,
-            subtitle: `${formatEventDate(event.starts_at)} · ${event.location_name}`,
+            subtitle: event.location_name,
             timestamp: row.joined_at,
+            startsAt: event.starts_at,
             imageUrl: event.cover_image_url,
             routeId: row.event_id,
           };
         })
-        .filter((item): item is ActivityItem => item !== null);
+        .filter((item): item is ActivityItem => item !== null)
+        .sort((a, b) => new Date(a.startsAt ?? 0).getTime() - new Date(b.startsAt ?? 0).getTime());
 
-      setActivities(
-        [...invitationActivities, ...followActivities, ...eventActivities].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-        ),
-      );
+      setActivities([
+        ...invitationActivities,
+        ...eventActivities,
+        ...followActivities,
+      ]);
     } catch {
       setErrorMessage('Activity could not be loaded. Check your connection and try again.');
     } finally {
@@ -431,11 +443,18 @@ export default function NotificationsScreen() {
     return filter?.kind ? activities.filter((item) => item.kind === filter.kind) : activities;
   }, [activeFilter, activities]);
 
-  const sections = useMemo(
-    () => [
-      { title: 'Today', items: visibleActivities.filter((item) => isToday(item.timestamp)) },
-      { title: 'Earlier', items: visibleActivities.filter((item) => !isToday(item.timestamp)) },
-    ],
+  const needsAttention = useMemo(
+    () => visibleActivities.filter((item) => item.kind === 'crew'),
+    [visibleActivities],
+  );
+  const upcoming = useMemo(
+    () => visibleActivities.filter((item) => item.kind === 'event'),
+    [visibleActivities],
+  );
+  const community = useMemo(
+    () => visibleActivities
+      .filter((item) => item.kind === 'follow')
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
     [visibleActivities],
   );
 
@@ -477,17 +496,17 @@ export default function NotificationsScreen() {
               accessibilityLabel="Refresh activity"
               accessibilityRole="button"
               onPress={() => void loadActivities(true)}
-              style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}>
+              style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}>
               <Ionicons name="refresh" size={18} color={colors.textMuted} />
             </Pressable>
           }
-          title="ACTIVITY"
-          subtitle={activities.length === 1 ? '1 live update' : `${activities.length} live updates`}
+          title="NOTIFICATIONS"
+          subtitle="Real activity from your NOXA world"
         />
 
-        <View style={styles.filterRow}>
+        <View style={styles.filterRow} accessibilityRole="tablist">
           {filters.map((filter) => (
-            <FilterChip
+            <FilterTab
               key={filter.value}
               isActive={activeFilter === filter.value}
               label={filter.label}
@@ -499,7 +518,7 @@ export default function NotificationsScreen() {
         {isLoading ? (
           <View style={styles.centerState}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={styles.stateText}>Loading live activity…</Text>
+            <Text style={styles.stateText}>Loading activity…</Text>
           </View>
         ) : (
           <ScrollView
@@ -517,54 +536,58 @@ export default function NotificationsScreen() {
                 <NoxaEmptyState
                   icon="lock-closed-outline"
                   title="Sign in to see activity"
-                  body="Followers, crew invitations, and your upcoming events will appear here."
+                  body="Followers, Crew invitations and upcoming Events will appear here."
                 />
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => router.push('/sign-in')}
-                  style={({ pressed }) => [styles.signInButton, pressed && styles.pressed]}>
-                  <Text style={styles.signInText}>SIGN IN</Text>
+                  style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
+                  <Text style={styles.primaryActionText}>SIGN IN</Text>
                 </Pressable>
               </View>
             ) : errorMessage ? (
               <View style={styles.emptyStack}>
-                <NoxaEmptyState icon="cloud-offline-outline" title="Activity unavailable" body={errorMessage} />
+                <NoxaEmptyState icon="cloud-offline-outline" title="Notifications unavailable" body={errorMessage} />
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => void loadActivities()}
-                  style={({ pressed }) => [styles.signInButton, pressed && styles.pressed]}>
-                  <Text style={styles.signInText}>TRY AGAIN</Text>
+                  style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
+                  <Text style={styles.primaryActionText}>TRY AGAIN</Text>
                 </Pressable>
               </View>
             ) : visibleActivities.length === 0 ? (
               <NoxaEmptyState
-                icon="notifications-off-outline"
+                icon="checkmark-circle-outline"
                 title={activeFilter === 'all' ? 'You’re all caught up' : `No ${activeFilter} activity`}
-                body="New followers, crew invitations, and upcoming events will show here automatically."
+                body="New Crew invitations, upcoming Events and community activity will show here automatically."
               />
             ) : (
-              sections.map((section) =>
-                section.items.length > 0 ? (
-                  <View key={section.title} style={styles.section}>
-                    <Text style={styles.sectionTitle}>{section.title}</Text>
-                    <View style={styles.activityCard}>
-                      {section.items.map((item, index) => (
-                        <View key={item.id}>
-                          <ActivityRow
-                            busyInvitationId={busyInvitationId}
-                            item={item}
-                            onOpen={openActivity}
-                            onRespond={(invitationId, accept) =>
-                              void respondToInvitation(invitationId, accept)
-                            }
-                          />
-                          {index < section.items.length - 1 ? <View style={styles.rowDivider} /> : null}
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ) : null,
-              )
+              <>
+                <InboxSection
+                  eyebrow="ACTION REQUIRED"
+                  title="Needs attention"
+                  items={needsAttention}
+                  busyInvitationId={busyInvitationId}
+                  onOpen={openActivity}
+                  onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
+                />
+                <InboxSection
+                  eyebrow="YOU’RE GOING"
+                  title="Upcoming"
+                  items={upcoming}
+                  busyInvitationId={busyInvitationId}
+                  onOpen={openActivity}
+                  onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
+                />
+                <InboxSection
+                  eyebrow="SOCIAL"
+                  title="Community"
+                  items={community}
+                  busyInvitationId={busyInvitationId}
+                  onOpen={openActivity}
+                  onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
+                />
+              </>
             )}
           </ScrollView>
         )}
@@ -580,56 +603,44 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     backgroundColor: colors.background,
   },
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  refreshButton: {
+  headerAction: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   pressed: {
     opacity: 0.72,
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: 0.985 }],
   },
   disabled: { opacity: 0.48 },
   filterRow: {
+    minHeight: 46,
     flexDirection: 'row',
-    gap: spacing.xs,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  filterChip: {
+  filterTab: {
     flex: 1,
-    minHeight: 36,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  filterChipActive: {
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    justifyContent: 'flex-end',
+    paddingTop: spacing.sm,
   },
   filterText: {
-    color: colors.textMuted,
+    paddingBottom: spacing.sm,
+    color: colors.textSubtle,
     fontSize: 10,
     fontWeight: '800',
   },
   filterTextActive: { color: colors.text },
+  filterIndicator: {
+    width: '100%',
+    height: 2,
+    backgroundColor: 'transparent',
+  },
+  filterIndicatorActive: { backgroundColor: colors.primary },
   centerState: {
     flex: 1,
     alignItems: 'center',
@@ -640,66 +651,81 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: spacing.xl,
     paddingBottom: spacing.xxxl,
+    gap: spacing.xxl,
   },
   emptyStack: { gap: spacing.md },
-  signInButton: {
-    minHeight: 48,
+  primaryAction: {
+    minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  signInText: { color: colors.text, fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
-  section: { marginBottom: spacing.xxl },
-  sectionTitle: {
-    marginBottom: spacing.sm,
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: typography.letterSpacing.label,
-    textTransform: 'uppercase',
+  primaryActionText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  section: { gap: spacing.sm },
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
-  activityCard: {
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  sectionEyebrow: {
+    color: colors.primaryHover,
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
+  sectionTitle: {
+    marginTop: 2,
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.title,
+    fontWeight: '900',
+  },
+  sectionCount: {
+    color: colors.textSubtle,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.subtitle,
+    fontWeight: '900',
+  },
+  activityList: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   activityRow: {
-    minHeight: 88,
+    minHeight: 82,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
-  rowPressed: { backgroundColor: colors.surfacePressed },
-  rowDivider: { height: 1, marginLeft: 82, backgroundColor: colors.divider },
-  artworkShell: { width: 50, height: 50 },
-  artworkImage: { width: 46, height: 46, borderRadius: radius.pill },
+  rowPressed: { opacity: 0.78 },
+  rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 64, backgroundColor: colors.divider },
+  artworkShell: { width: 48, height: 48 },
+  artworkImage: { width: 44, height: 44, borderRadius: radius.pill },
   artworkFallback: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
   },
-  artworkInitials: { fontSize: 13, fontWeight: '900' },
+  artworkInitials: { fontSize: 12, fontWeight: '900' },
   typeBadge: {
     position: 'absolute',
     right: 0,
     bottom: 0,
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
     borderWidth: 2,
-    borderColor: colors.surface,
+    borderColor: colors.background,
   },
   activityCopy: { flex: 1, minWidth: 0 },
-  activityTitle: { color: colors.text, fontSize: 13, fontWeight: '800', lineHeight: 18 },
+  activityTitle: { color: colors.text, fontSize: 13, fontWeight: '900', lineHeight: 18 },
   activitySubtitle: {
     marginTop: 2,
     color: colors.textMuted,
@@ -707,24 +733,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 17,
   },
-  activityTime: {
+  activityMeta: {
     marginTop: spacing.xxs,
     color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
-  invitationButton: {
+  acceptButton: {
     minHeight: 32,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
+    borderRadius: radius.button,
+    backgroundColor: colors.primary,
   },
-  acceptButton: { backgroundColor: colors.primary, borderColor: colors.primary },
-  declineButton: { backgroundColor: colors.surfaceSoft, borderColor: colors.borderStrong },
-  acceptText: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  declineText: { color: colors.textMuted, fontSize: 11, fontWeight: '900' },
+  declineButton: {
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  acceptText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  declineText: { color: colors.textMuted, fontSize: 10, fontWeight: '900' },
 });
