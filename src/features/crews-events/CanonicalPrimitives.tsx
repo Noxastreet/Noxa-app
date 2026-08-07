@@ -44,6 +44,7 @@ export function CanonicalPill({
       ]}
     >
       <Text
+        numberOfLines={1}
         style={[
           styles.pillText,
           tone === "accent" && styles.pillTextStrong,
@@ -84,10 +85,14 @@ export function CanonicalArtwork({
 
   return (
     <View style={[styles.artwork, styles.fallback, style]}>
-      <View style={styles.fallbackRingLarge} />
-      <View style={styles.fallbackRingSmall} />
-      <View style={styles.fallbackRoad} />
-      <Ionicons name={icon} size={58} color={colors.primaryMuted} />
+      <View pointerEvents="none" style={styles.fallbackDecoration}>
+        <View style={styles.fallbackRingLarge} />
+        <View style={styles.fallbackRingSmall} />
+        <View style={styles.fallbackRoad} />
+        <View style={styles.fallbackIcon}>
+          <Ionicons name={icon} size={58} color={colors.primaryMuted} />
+        </View>
+      </View>
       {children}
     </View>
   );
@@ -259,7 +264,7 @@ export function CanonicalPrimaryButton({
           color={colors.text}
         />
       ) : null}
-      <Text style={[styles.primaryButtonText, compact && styles.primaryButtonTextCompact]}>
+      <Text numberOfLines={1} style={[styles.primaryButtonText, compact && styles.primaryButtonTextCompact]}>
         {loading ? "PLEASE WAIT…" : label}
       </Text>
     </Pressable>
@@ -304,6 +309,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.hero,
   },
   fallback: {
+    position: "relative",
+  },
+  fallbackDecoration: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  fallbackIcon: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },
