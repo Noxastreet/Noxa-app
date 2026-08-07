@@ -78,6 +78,8 @@ vehicles + vehicle-images
 
 Quick add does not require horsepower. Performance/build details remain optional follow-up work in Garage.
 
+Production schema support is migration `20260807153807_extend_vehicles_for_catalog_picker.sql`.
+
 ## Future animation rule
 
 Add Reanimated motion around the semantic components only after static runtime behavior is accepted. Catalog helpers and persistence functions must remain animation-agnostic.
