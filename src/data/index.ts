@@ -26,3 +26,14 @@ export {
   getCompleteVehicleModel,
   getCompleteVehicleYears,
 } from "./completeVehicleCatalog";
+export { motorcycleCatalog } from "./motorcycleCatalog";
+export {
+  getCatalogForVehicleType,
+  getCatalogVehicleGeneration,
+  getCatalogVehicleMake,
+  getCatalogVehicleModel,
+  getCatalogVehicleYears,
+  supportedVehicleTypes,
+  vehicleCatalogRegistry,
+  type SupportedVehicleType,
+} from "./vehicleCatalogRegistry";
