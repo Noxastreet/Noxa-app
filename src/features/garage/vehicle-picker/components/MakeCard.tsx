@@ -19,11 +19,8 @@ export function MakeCard({ item, onPress }: MakeCardProps) {
       motionKey={item.motionKey}
       onPress={onPress}>
       <View style={styles.row}>
-        <View style={styles.copy}>
-          <Text numberOfLines={1} style={styles.label}>{item.label}</Text>
-          {item.popular ? <Text style={styles.meta}>POPULAR</Text> : null}
-        </View>
-        <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+        <Text numberOfLines={1} style={styles.label}>{item.label}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
       </View>
     </PickerCardFrame>
   );
@@ -36,20 +33,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  copy: {
-    flex: 1,
-  },
   label: {
+    flex: 1,
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     fontSize: typography.subtitle,
     fontWeight: '800',
-  },
-  meta: {
-    marginTop: 2,
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
   },
 });
