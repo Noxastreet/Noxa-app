@@ -3,6 +3,7 @@ export {
   getVehicleGenerationPickerItems,
   getVehicleMakePickerItems,
   getVehicleModelPickerItems,
+  getVehicleTypePickerItems,
   getVehicleYearPickerItems,
   hasVehiclePickerGenerationStep,
   isValidVehiclePickerSelection,
@@ -16,5 +17,6 @@ export {
   type VehiclePickerCardKind,
   type VehiclePickerSelection,
   type VehiclePickerStep,
+  type VehicleTypePickerItem,
   type VehicleYearPickerItem,
 } from "./types";
