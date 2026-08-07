@@ -72,7 +72,7 @@ function ManualEntryAction({ onPress }: { onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.manualAction, pressed && styles.pressed]}>
       <Ionicons name="create-outline" size={17} color={colors.textMuted} />
-      <Text style={styles.manualText}>CAN'T FIND IT? ADD MANUALLY</Text>
+      <Text style={styles.manualText}>CAN’T FIND IT? ADD MANUALLY</Text>
     </Pressable>
   );
 }
