@@ -1,4 +1,5 @@
-export { vehiclePickerMotionKey, isVehiclePickerMotionKey } from "./keys";
+export { VehiclePicker } from './VehiclePicker';
+export { vehiclePickerMotionKey, isVehiclePickerMotionKey } from './keys';
 export {
   getVehicleGenerationPickerItems,
   getVehicleMakePickerItems,
@@ -7,7 +8,7 @@ export {
   getVehicleYearPickerItems,
   hasVehiclePickerGenerationStep,
   isValidVehiclePickerSelection,
-} from "./selectors";
+} from './selectors';
 export {
   emptyVehiclePickerSelection,
   type VehicleGenerationPickerItem,
@@ -19,4 +20,4 @@ export {
   type VehiclePickerStep,
   type VehicleTypePickerItem,
   type VehicleYearPickerItem,
-} from "./types";
+} from './types';
