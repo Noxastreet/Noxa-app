@@ -20,70 +20,63 @@ export function VehicleIdentityPreview({
   vehicleType,
   year,
 }: VehicleIdentityPreviewProps) {
-  const title = [make, model].filter(Boolean).join(' ') || 'YOUR VEHICLE';
+  const title = [make, model].filter(Boolean).join(' ') || (vehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR');
   const details = [generation, year ? String(year) : null].filter(Boolean).join(' · ');
   const isMotorcycle = vehicleType === 'motorcycle';
 
   return (
-    <View style={styles.card}>
+    <View style={styles.row}>
       <View style={styles.iconWrap}>
         <Ionicons
           name={isMotorcycle ? 'speedometer-outline' : 'car-sport-outline'}
-          size={28}
+          size={20}
           color={colors.primaryHover}
         />
       </View>
       <View style={styles.copy}>
-        <Text style={styles.eyebrow}>{vehicleType ? vehicleType.toUpperCase() : 'VEHICLE'}</Text>
-        <Text numberOfLines={2} style={styles.title}>{title}</Text>
-        <Text numberOfLines={1} style={styles.details}>{details || 'Build your NOXA identity'}</Text>
+        <Text numberOfLines={1} style={styles.title}>{title}</Text>
+        {details ? <Text numberOfLines={1} style={styles.details}>{details}</Text> : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    minHeight: 92,
+  row: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.hero,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceBase,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
   iconWrap: {
-    width: 54,
-    height: 54,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     backgroundColor: colors.primarySubtle,
   },
   copy: {
     flex: 1,
     minWidth: 0,
   },
-  eyebrow: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
   title: {
-    marginTop: spacing.xxs,
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
+    fontSize: typography.subtitle,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   details: {
-    marginTop: 2,
+    marginTop: 1,
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontSize: 11,
     fontWeight: '700',
   },
 });
