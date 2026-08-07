@@ -1,0 +1,112 @@
+name: Claude Design Bridge
+
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  trigger-claude-design:
+    if: >-
+      startsWith(github.event.issue.title, '[Claude Design]') &&
+      (github.event.issue.author_association == 'OWNER' ||
+       github.event.issue.author_association == 'MEMBER' ||
+       github.event.issue.author_association == 'COLLABORATOR')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      ROUTINE_FIRE_URL: ${{ secrets.CLAUDE_ROUTINE_FIRE_URL }}
+      ROUTINE_TOKEN: ${{ secrets.CLAUDE_ROUTINE_TOKEN }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title }}
+      ISSUE_BODY: ${{ github.event.issue.body }}
+      ISSUE_URL: ${{ github.event.issue.html_url }}
+      REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Validate bridge secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${ROUTINE_FIRE_URL:-}" || -z "${ROUTINE_TOKEN:-}" ]]; then
+            echo "Claude Routine secrets are missing."
+            exit 1
+          fi
+
+      - name: Build Claude task payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          TASK_TEXT=$(cat <<EOF
+          NOXA Design task requested through the GitHub bridge.
+
+          Repository: ${REPOSITORY}
+          GitHub issue: #${ISSUE_NUMBER}
+          Issue URL: ${ISSUE_URL}
+
+          ${ISSUE_TITLE}
+
+          ${ISSUE_BODY}
+
+          Safety and delivery rules:
+          - Treat the repository default branch as stable; never push directly to main.
+          - Inspect the current implementation before changing anything.
+          - Keep work strictly scoped to this issue.
+          - Do not make destructive Supabase, database, authentication, credential, or production changes.
+          - Prefer an isolated branch and a PR-ready result when code changes are appropriate.
+          - Do not claim runtime PASS without real runtime evidence.
+          - At the end, clearly report what changed, what you intentionally did not change, and what needs Android runtime validation.
+          EOF
+          )
+
+          jq -n --arg text "$TASK_TEXT" '{text: $text}' > claude-payload.json
+
+      - name: Trigger NOXA Design Agent
+        id: claude
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HTTP_CODE=$(curl -sS \
+            -o claude-response.json \
+            -w "%{http_code}" \
+            -X POST "$ROUTINE_FIRE_URL" \
+            -H "Authorization: Bearer $ROUTINE_TOKEN" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+            -H "Content-Type: application/json" \
+            --data-binary @claude-payload.json)
+
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "Claude Routine returned HTTP $HTTP_CODE"
+            cat claude-response.json
+            exit 1
+          fi
+
+          SESSION_URL=$(jq -r '.claude_code_session_url // empty' claude-response.json)
+          SESSION_ID=$(jq -r '.claude_code_session_id // empty' claude-response.json)
+
+          if [[ -z "$SESSION_URL" || -z "$SESSION_ID" ]]; then
+            echo "Claude Routine response did not contain a session URL/ID."
+            cat claude-response.json
+            exit 1
+          fi
+
+          echo "session_url=$SESSION_URL" >> "$GITHUB_OUTPUT"
+          echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Comment Claude session on issue
+        shell: bash
+        env:
+          SESSION_URL: ${{ steps.claude.outputs.session_url }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE_NUMBER" \
+            --repo "$REPOSITORY" \
+            --body "Claude Design Agent started successfully.\n\nSession: ${SESSION_URL}\nSession ID: \`${SESSION_ID}\`\n\nThe Claude session is separate from runtime validation; review its branch/PR before merging into main."
