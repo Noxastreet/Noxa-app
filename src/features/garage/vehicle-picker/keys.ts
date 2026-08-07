@@ -1,18 +1,27 @@
+import type { SupportedVehicleType } from "@/src/data/vehicleCatalogRegistry";
+
 const ROOT = "vehicle-picker";
 
 export const vehiclePickerMotionKey = {
-  make: (makeId: string) => `${ROOT}:make:${makeId}`,
-  model: (makeId: string, modelId: string) =>
-    `${ROOT}:model:${makeId}:${modelId}`,
-  generation: (makeId: string, modelId: string, generationId: string) =>
-    `${ROOT}:generation:${makeId}:${modelId}:${generationId}`,
+  type: (vehicleType: SupportedVehicleType) => `${ROOT}:type:${vehicleType}`,
+  make: (vehicleType: SupportedVehicleType, makeId: string) =>
+    `${ROOT}:make:${vehicleType}:${makeId}`,
+  model: (vehicleType: SupportedVehicleType, makeId: string, modelId: string) =>
+    `${ROOT}:model:${vehicleType}:${makeId}:${modelId}`,
+  generation: (
+    vehicleType: SupportedVehicleType,
+    makeId: string,
+    modelId: string,
+    generationId: string,
+  ) => `${ROOT}:generation:${vehicleType}:${makeId}:${modelId}:${generationId}`,
   year: (
+    vehicleType: SupportedVehicleType,
     makeId: string,
     modelId: string,
     generationId: string | null,
     year: number,
   ) =>
-    `${ROOT}:year:${makeId}:${modelId}:${generationId ?? "all"}:${year}`,
+    `${ROOT}:year:${vehicleType}:${makeId}:${modelId}:${generationId ?? "all"}:${year}`,
 } as const;
 
 /**
