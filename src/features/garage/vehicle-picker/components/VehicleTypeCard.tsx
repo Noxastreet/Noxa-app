@@ -25,15 +25,15 @@ export function VehicleTypeCard({ item, onPress, selected = false }: VehicleType
         <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
           <Ionicons
             name={isCar ? 'car-sport-outline' : 'speedometer-outline'}
-            size={30}
+            size={28}
             color={selected ? colors.primaryHover : colors.textMuted}
           />
         </View>
         <View style={styles.copy}>
           <Text style={styles.label}>{item.label}</Text>
-          <Text style={styles.caption}>{isCar ? 'Cars & builds' : 'Bikes & builds'}</Text>
+          <Text style={styles.caption}>{isCar ? 'Cars' : 'Bikes'}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+        <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
       </View>
     </PickerCardFrame>
   );
@@ -47,8 +47,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   iconWrap: {
-    width: 54,
-    height: 54,
+    width: 50,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.lg,
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   copy: {
     flex: 1,
-    gap: spacing.xxs,
+    gap: 2,
   },
   label: {
     color: colors.text,
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   caption: {
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontSize: 11,
     fontWeight: '700',
   },
 });
