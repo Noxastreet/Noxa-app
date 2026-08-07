@@ -16,6 +16,9 @@ import {
 
 import { NoxaCompactLogo } from '@/src/components/brand';
 import { NoxaButton, NoxaScreen } from '@/src/components/ui';
+import { VehicleFinalizeFlow } from '@/src/features/garage/vehicle-picker/VehicleFinalizeFlow';
+import { VehiclePicker, type VehiclePickerSelection } from '@/src/features/garage/vehicle-picker';
+import { OnboardingIdentitySetup } from '@/src/features/onboarding/OnboardingIdentitySetup';
 import { markOnboardingComplete } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -25,6 +28,8 @@ type OnboardingPage = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
 };
+
+type OnboardingStage = 'intro' | 'identity' | 'vehicle';
 
 const pages: readonly OnboardingPage[] = [
   {
@@ -44,8 +49,8 @@ const pages: readonly OnboardingPage[] = [
   },
   {
     icon: 'car-sport-outline',
-    title: 'Show your garage',
-    body: 'Add your cars and make your driver profile your own.',
+    title: 'Build your identity',
+    body: 'Add your profile and Garage now, or finish them later whenever you want.',
   },
 ];
 
@@ -55,7 +60,9 @@ export default function OnboardingScreen() {
   const { width } = useWindowDimensions();
   const listRef = useRef<FlatList<OnboardingPage>>(null);
   const isFinishingRef = useRef(false);
+  const [stage, setStage] = useState<OnboardingStage>('intro');
   const [pageIndex, setPageIndex] = useState(0);
+  const [vehicleSelection, setVehicleSelection] = useState<VehiclePickerSelection | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
@@ -91,26 +98,58 @@ export default function OnboardingScreen() {
     if (isFinishingRef.current || !userId) return;
 
     isFinishingRef.current = true;
-    markOnboardingComplete(userId);
     if (isReplay) {
       router.back();
       return;
     }
 
+    markOnboardingComplete(userId);
     router.replace('/(tabs)');
   }, [isReplay, userId]);
 
+  const continueFromIntro = useCallback(() => {
+    if (isReplay) {
+      finish();
+      return;
+    }
+
+    setVehicleSelection(null);
+    setStage('identity');
+  }, [finish, isReplay]);
+
+  const openVehicleSetup = useCallback(() => {
+    setVehicleSelection(null);
+    setStage('vehicle');
+  }, []);
+
+  const backToIntro = useCallback(() => {
+    setPageIndex(pages.length - 1);
+    setStage('intro');
+  }, []);
+
   const handleBack = useCallback(() => {
+    if (stage === 'vehicle') {
+      if (vehicleSelection) {
+        setVehicleSelection(null);
+      } else {
+        setStage('identity');
+      }
+      return true;
+    }
+
+    if (stage === 'identity') {
+      backToIntro();
+      return true;
+    }
+
     if (pageIndex > 0) {
       goToPage(pageIndex - 1);
       return true;
     }
 
-    if (isReplay) {
-      router.back();
-    }
+    if (isReplay) router.back();
     return true;
-  }, [goToPage, isReplay, pageIndex]);
+  }, [backToIntro, goToPage, isReplay, pageIndex, stage, vehicleSelection]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
@@ -126,17 +165,48 @@ export default function OnboardingScreen() {
     return <NoxaScreen padded={false}><View style={styles.loading} /></NoxaScreen>;
   }
 
+  if (stage === 'identity' && !isReplay) {
+    return (
+      <NoxaScreen padded={false}>
+        <OnboardingIdentitySetup onContinue={openVehicleSetup} onSkip={openVehicleSetup} />
+      </NoxaScreen>
+    );
+  }
+
+  if (stage === 'vehicle' && !isReplay) {
+    return (
+      <NoxaScreen padded={false}>
+        {vehicleSelection ? (
+          <VehicleFinalizeFlow
+            onBackToPicker={() => setVehicleSelection(null)}
+            onSaved={() => finish()}
+            selection={vehicleSelection}
+          />
+        ) : (
+          <VehiclePicker
+            onCancel={() => setStage('identity')}
+            onComplete={setVehicleSelection}
+            onSkip={finish}
+          />
+        )}
+      </NoxaScreen>
+    );
+  }
+
   return (
     <NoxaScreen padded={false}>
       <View style={styles.screen}>
         <View style={styles.header}>
           <NoxaCompactLogo size="sm" />
+          {isReplay ? <Text style={styles.replayLabel}>REPLAY</Text> : null}
         </View>
 
         <FlatList
           ref={listRef}
           data={pages}
+          getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
           horizontal
+          initialScrollIndex={pageIndex}
           keyExtractor={(item) => item.title}
           onMomentumScrollEnd={handleMomentumEnd}
           pagingEnabled
@@ -179,11 +249,11 @@ export default function OnboardingScreen() {
             </View>
             {pageIndex < pages.length - 1 ? (
               <Pressable
-                accessibilityLabel="Skip onboarding"
+                accessibilityLabel={isReplay ? 'Close onboarding replay' : 'Skip introduction'}
                 accessibilityRole="button"
-                onPress={finish}
+                onPress={continueFromIntro}
                 style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
-                <Text maxFontSizeMultiplier={1.6} style={styles.skipText}>Skip</Text>
+                <Text maxFontSizeMultiplier={1.6} style={styles.skipText}>{isReplay ? 'Close' : 'Skip'}</Text>
               </Pressable>
             ) : (
               <View style={styles.skipPlaceholder} />
@@ -192,8 +262,8 @@ export default function OnboardingScreen() {
           <NoxaButton
             disabled={!userId || isFinishingRef.current}
             fullWidth
-            onPress={pageIndex === pages.length - 1 ? finish : () => goToPage(pageIndex + 1)}
-            title={pageIndex === pages.length - 1 ? 'Get started' : 'Next'}
+            onPress={pageIndex === pages.length - 1 ? continueFromIntro : () => goToPage(pageIndex + 1)}
+            title={pageIndex === pages.length - 1 ? (isReplay ? 'Done' : 'Set up my profile') : 'Next'}
           />
         </View>
       </View>
@@ -208,9 +278,11 @@ const styles = StyleSheet.create({
     minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
+  replayLabel: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   skipButton: {
     minWidth: 44,
     minHeight: 44,
