@@ -35,6 +35,7 @@ type VehiclePickerProps = {
   onCancel: () => void;
   onComplete: (selection: VehiclePickerSelection) => void;
   onManualEntry?: (vehicleType: SupportedVehicleType | null) => void;
+  onSkip?: () => void;
 };
 
 const stepNumber: Partial<Record<VehiclePickerStep, number>> = {
@@ -86,7 +87,7 @@ function ManualEntryAction({ onPress }: { onPress: () => void }) {
   );
 }
 
-export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePickerProps) {
+export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: VehiclePickerProps) {
   const [step, setStep] = useState<VehiclePickerStep>('type');
   const [selection, setSelection] = useState<VehiclePickerSelection>(emptyVehiclePickerSelection);
   const [query, setQuery] = useState('');
@@ -237,6 +238,11 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
                 <VehicleTypeCard key={item.motionKey} item={item} onPress={() => selectType(item.vehicleType)} />
               ))}
             </View>
+            {onSkip ? (
+              <Pressable accessibilityRole="button" onPress={onSkip} style={({ pressed }) => [styles.skipAction, pressed && styles.pressed]}>
+                <Text style={styles.skipText}>SKIP FOR NOW</Text>
+              </Pressable>
+            ) : null}
           </VehiclePickerStage>
         ) : null}
 
@@ -449,6 +455,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.75,
+  },
+  skipAction: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+  },
+  skipText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   yearGrid: {
     flexDirection: 'row',
