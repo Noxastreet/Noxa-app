@@ -3,7 +3,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
 
-import { NoxaAvatar, NoxaBadge, NoxaButton, NoxaScreen } from '@/src/components/ui';
+import { NoxaAvatar, NoxaBadge, NoxaScreen } from '@/src/components/ui';
+import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -89,19 +90,11 @@ function HeaderAction({ icon, label, onPress }: { icon: keyof typeof Ionicons.gl
   );
 }
 
-function Header({ vehicleId, ownsVehicle }: { vehicleId: string | null; ownsVehicle: boolean }) {
+function Header({ onMenu, showMenu }: { onMenu: () => void; showMenu: boolean }) {
   return (
     <View style={styles.header}>
       <HeaderAction icon="chevron-back" label="Go back" onPress={() => router.back()} />
-      {ownsVehicle && vehicleId ? (
-        <Pressable
-          accessibilityLabel="Edit vehicle"
-          accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/vehicle-editor', params: { id: vehicleId } })}
-          style={({ pressed }) => [styles.editHeaderButton, pressed && styles.pressed]}>
-          <Text style={styles.editHeaderText}>EDIT</Text>
-        </Pressable>
-      ) : <View style={styles.headerSpacer} />}
+      {showMenu ? <HeaderAction icon="ellipsis-horizontal" label="Vehicle actions" onPress={onMenu} /> : <View style={styles.headerSpacer} />}
     </View>
   );
 }
@@ -124,7 +117,7 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
         <View>
           <Text numberOfLines={1} style={styles.heroTitle}>{vehicle.brand || 'VEHICLE'}</Text>
           <Text numberOfLines={1} style={styles.heroSubtitle}>
-            {[vehicle.year, vehicle.model].filter(isPresent).join(' ') || 'NOXA garage'}
+            {[vehicle.model, vehicle.year].filter(isPresent).join(' · ') || 'NOXA garage'}
           </Text>
         </View>
       </View>
@@ -184,7 +177,7 @@ function Information({ rows }: { rows: VehicleInfoRow[] }) {
 
   return (
     <View style={styles.sectionBlock}>
-      <Text style={styles.sectionEyebrow}>SPECIFICATIONS</Text>
+      <Text style={styles.sectionEyebrow}>DETAILS</Text>
       <View style={styles.infoList}>
         {rows.map((row, index) => (
           <View key={row.label} style={[styles.infoRow, index < rows.length - 1 && styles.infoRowBorder]}>
@@ -225,18 +218,6 @@ function StateCard({ title, message, onRetry, loading }: { title: string; messag
   );
 }
 
-function QuickStat({ label, value, unit, bordered = false }: { label: string; value: string; unit?: string; bordered?: boolean }) {
-  return (
-    <View style={[styles.quickStat, bordered && styles.quickStatBorder]}>
-      <View style={styles.quickStatValueRow}>
-        <Text style={styles.quickStatValue}>{value}</Text>
-        {unit ? <Text style={styles.quickStatUnit}>{unit}</Text> : null}
-      </View>
-      <Text style={styles.quickStatLabel}>{label}</Text>
-    </View>
-  );
-}
-
 export default function VehicleDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const vehicleId = getParamId(id);
@@ -246,6 +227,7 @@ export default function VehicleDetailsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [actionsVisible, setActionsVisible] = useState(false);
 
   const informationRows = useMemo<VehicleInfoRow[]>(() => {
     if (!vehicle) {
@@ -254,10 +236,13 @@ export default function VehicleDetailsScreen() {
 
     return [
       { label: 'Type', value: vehicle.vehicle_type === 'motorcycle' ? 'Motorcycle' : 'Car' },
+      { label: 'Year', value: vehicle.year },
+      { label: 'Power', value: vehicle.horsepower === null ? null : `${vehicle.horsepower} HP` },
+      { label: '0–100 km/h', value: vehicle.zero_to_hundred === null ? null : `${vehicle.zero_to_hundred} s` },
       { label: 'Color', value: vehicle.color },
       { label: 'Transmission', value: vehicle.transmission },
       { label: 'Drivetrain', value: vehicle.drivetrain },
-      { label: 'Tuning Stage', value: vehicle.tuning_stage },
+      { label: 'Tuning', value: vehicle.tuning_stage },
       { label: 'Visibility', value: typeof vehicle.is_public === 'boolean' ? (vehicle.is_public ? 'Public' : 'Private') : null },
     ].filter((row) => isPresent(row.value));
   }, [vehicle]);
@@ -363,42 +348,57 @@ export default function VehicleDetailsScreen() {
   }, [deleteVehicle, isDeleting]);
 
   const ownsVehicle = Boolean(vehicle && currentUserId && currentUserId === vehicle.owner_id);
+  const vehicleTitle = [vehicle?.brand, vehicle?.model].filter(Boolean).join(' ') || 'Vehicle';
+  const ownerActions = useMemo<EntityAction[]>(() => {
+    if (!vehicle || !ownsVehicle) {
+      return [];
+    }
+
+    return [
+      {
+        key: 'edit',
+        label: 'Edit vehicle',
+        icon: 'create-outline',
+        onPress: () => router.push({ pathname: '/vehicle-editor', params: { id: vehicle.id } }),
+      },
+      {
+        key: 'delete',
+        label: isDeleting ? 'Deleting…' : 'Delete vehicle',
+        icon: 'trash-outline',
+        destructive: true,
+        disabled: isDeleting,
+        onPress: confirmDeleteVehicle,
+      },
+    ];
+  }, [confirmDeleteVehicle, isDeleting, ownsVehicle, vehicle]);
 
   return (
     <NoxaScreen padded={false}>
-      <Header vehicleId={vehicle?.id ?? null} ownsVehicle={ownsVehicle} />
+      <Header onMenu={() => setActionsVisible(true)} showMenu={ownsVehicle} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {isLoading ? <StateCard loading title="Loading vehicle..." /> : null}
         {!isLoading && error ? <StateCard title={error} onRetry={loadVehicle} /> : null}
         {!isLoading && !error && vehicle ? (
           <>
-            <View>
-              <VehicleHero vehicle={vehicle} />
-              <View style={styles.quickStats}>
-                <QuickStat label="POWER" value={isPresent(vehicle.horsepower) ? String(vehicle.horsepower) : '—'} unit={isPresent(vehicle.horsepower) ? 'HP' : undefined} />
-                <QuickStat label="0–100" value={isPresent(vehicle.zero_to_hundred) ? String(vehicle.zero_to_hundred) : '—'} unit={isPresent(vehicle.zero_to_hundred) ? 'S' : undefined} bordered />
-                <QuickStat label="YEAR" value={isPresent(vehicle.year) ? String(vehicle.year) : '—'} bordered />
-              </View>
-            </View>
+            <VehicleHero vehicle={vehicle} />
             {owner ? <OwnerCard owner={owner} /> : null}
             <Information rows={informationRows} />
             <About description={vehicle.description} />
-            {ownsVehicle ? (
-              <View style={styles.managementCard}>
-                <Text style={styles.sectionEyebrow}>OWNER CONTROLS</Text>
-                <NoxaButton title="Edit Vehicle" fullWidth variant="secondary" onPress={() => router.push({ pathname: '/vehicle-editor', params: { id: vehicle.id } })} />
-                <NoxaButton title={isDeleting ? 'Deleting...' : 'Delete Vehicle'} fullWidth variant="danger" disabled={isDeleting} onPress={confirmDeleteVehicle} />
-              </View>
-            ) : null}
           </>
         ) : null}
       </ScrollView>
+      <EntityActionSheet
+        actions={ownerActions}
+        onClose={() => setActionsVisible(false)}
+        title={vehicleTitle}
+        visible={actionsVisible && ownsVehicle}
+      />
     </NoxaScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 64, gap: spacing.lg },
+  content: { paddingBottom: 72, gap: spacing.lg },
   header: {
     position: 'absolute',
     top: spacing.md,
@@ -410,70 +410,50 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerButton: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(6,6,10,0.76)',
+    backgroundColor: 'rgba(6,6,10,0.72)',
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
-  editHeaderButton: {
-    minHeight: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
-    backgroundColor: 'rgba(6,6,10,0.76)',
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  editHeaderText: { color: colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
-  headerSpacer: { width: 38, height: 38 },
+  headerSpacer: { width: 40, height: 40 },
   pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.98 }] },
-  heroCard: { height: 300, overflow: 'hidden', backgroundColor: colors.surface },
+  heroCard: { height: 330, overflow: 'hidden', backgroundColor: colors.surface },
   heroImage: { flex: 1 },
   heroImageRadius: { borderBottomLeftRadius: radius.hero, borderBottomRightRadius: radius.hero },
   vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft },
-  heroTopFade: { ...StyleSheet.absoluteFillObject, bottom: undefined, height: 130, backgroundColor: 'rgba(6,6,10,0.26)' },
-  heroBottomFade: { ...StyleSheet.absoluteFillObject, top: undefined, height: 190, backgroundColor: 'rgba(6,6,10,0.72)' },
-  heroContent: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: 66, paddingBottom: spacing.lg },
+  heroTopFade: { ...StyleSheet.absoluteFillObject, bottom: undefined, height: 130, backgroundColor: 'rgba(6,6,10,0.22)' },
+  heroBottomFade: { ...StyleSheet.absoluteFillObject, top: undefined, height: 190, backgroundColor: 'rgba(6,6,10,0.68)' },
+  heroContent: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: 68, paddingBottom: spacing.lg },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     fontSize: 46,
     fontWeight: '900',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
     lineHeight: 48,
     textTransform: 'uppercase',
   },
   heroSubtitle: {
     marginTop: spacing.xxs,
-    color: 'rgba(240,240,244,0.62)',
+    color: 'rgba(240,240,244,0.72)',
     fontFamily: typography.fontFamily.display,
     fontSize: typography.title,
     fontWeight: '700',
   },
-  quickStats: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.divider },
-  quickStat: { flex: 1, minHeight: 78, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm },
-  quickStatBorder: { borderLeftWidth: 1, borderLeftColor: colors.divider },
-  quickStatValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 3 },
-  quickStatValue: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: '900' },
-  quickStatUnit: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
-  quickStatLabel: { marginTop: spacing.xxs, color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   ownerCard: {
     marginHorizontal: spacing.lg,
-    minHeight: 76,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   ownerAvatar: { width: 48, height: 48, borderRadius: radius.pill },
   ownerCopy: { flex: 1 },
@@ -482,9 +462,9 @@ const styles = StyleSheet.create({
   ownerMeta: { marginTop: spacing.xxs, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   sectionBlock: { marginHorizontal: spacing.lg, gap: spacing.sm },
   sectionEyebrow: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: typography.letterSpacing.label },
-  infoList: { paddingHorizontal: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  infoRow: { minHeight: 52, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.lg },
-  infoRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  infoList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
+  infoRow: { minHeight: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.lg },
+  infoRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   infoLabel: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   infoValue: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800', textAlign: 'right' },
   bodyText: { color: colors.text, fontSize: 14, fontWeight: '600', lineHeight: 23 },
@@ -506,13 +486,4 @@ const styles = StyleSheet.create({
   stateText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700', textAlign: 'center' },
   retryButton: { marginTop: spacing.xs, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.button, backgroundColor: colors.primary },
   retryText: { color: colors.text, fontSize: typography.caption, fontWeight: '900' },
-  managementCard: {
-    marginHorizontal: spacing.lg,
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
 });
