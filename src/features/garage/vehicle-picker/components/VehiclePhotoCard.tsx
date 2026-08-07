@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 import type { SupportedVehicleType } from '@/src/data/vehicleCatalogRegistry';
+import { pickerMotion } from '../motion';
 import { VehicleTypeIcon } from './VehicleTypeIcon';
 
 type VehiclePhotoCardProps = {
@@ -15,23 +17,31 @@ type VehiclePhotoCardProps = {
 
 export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUri, vehicleType }: VehiclePhotoCardProps) {
   return (
-    <View style={styles.root} testID="vehicle-picker:photo:cover">
+    <Animated.View layout={pickerMotion.layout} style={styles.root} testID="vehicle-picker:photo:cover">
       <View style={styles.preview}>
         {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.image} />
+          <Animated.Image
+            entering={pickerMotion.contentEnter}
+            exiting={pickerMotion.contentExit}
+            source={{ uri: photoUri }}
+            style={styles.image}
+          />
         ) : (
-          <View style={styles.placeholder}>
+          <Animated.View
+            entering={pickerMotion.contentEnter}
+            exiting={pickerMotion.contentExit}
+            style={styles.placeholder}>
             <VehicleTypeIcon vehicleType={vehicleType} size={46} color={colors.primaryHover} />
             <Text style={styles.placeholderTitle}>YOUR VEHICLE</Text>
             <Text style={styles.placeholderCopy}>A cover photo is optional.</Text>
-          </View>
+          </Animated.View>
         )}
         <View style={styles.scrim} />
         {photoUri ? (
-          <View style={styles.photoBadge}>
+          <Animated.View entering={pickerMotion.contentEnter} style={styles.photoBadge}>
             <Ionicons name="checkmark" size={13} color={colors.text} />
             <Text style={styles.photoBadgeText}>COVER READY</Text>
-          </View>
+          </Animated.View>
         ) : null}
       </View>
 
@@ -45,17 +55,19 @@ export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUr
           <Text style={styles.actionText}>{photoUri ? 'CHANGE PHOTO' : 'CHOOSE PHOTO'}</Text>
         </Pressable>
         {photoUri ? (
-          <Pressable
-            accessibilityRole="button"
-            disabled={disabled}
-            onPress={onRemove}
-            style={({ pressed }) => [styles.removeAction, pressed && styles.pressed, disabled && styles.disabled]}>
-            <Ionicons name="trash-outline" size={17} color={colors.primaryHover} />
-          </Pressable>
+          <Animated.View entering={pickerMotion.contentEnter} exiting={pickerMotion.contentExit}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={disabled}
+              onPress={onRemove}
+              style={({ pressed }) => [styles.removeAction, pressed && styles.pressed, disabled && styles.disabled]}>
+              <Ionicons name="trash-outline" size={17} color={colors.primaryHover} />
+            </Pressable>
+          </Animated.View>
         ) : null}
       </View>
       <Text style={styles.help}>JPEG, PNG, WEBP, HEIC or HEIF · up to 6 MB</Text>
-    </View>
+    </Animated.View>
   );
 }
 

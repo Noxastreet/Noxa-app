@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import {
   getCatalogVehicleGeneration,
@@ -26,7 +27,9 @@ import { PopularMakeCard } from './components/PopularMakeCard';
 import { VehicleIdentityPreview } from './components/VehicleIdentityPreview';
 import { VehiclePickerStage } from './components/VehiclePickerStage';
 import { VehicleTypeCard } from './components/VehicleTypeCard';
+import { VehicleTypeIcon } from './components/VehicleTypeIcon';
 import { YearCard } from './components/YearCard';
+import { pickerMotion } from './motion';
 
 type VehiclePickerProps = {
   onCancel: () => void;
@@ -216,7 +219,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
   return (
     <View style={styles.root}>
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: progressWidth }]} />
+        <Animated.View layout={pickerMotion.layout} style={[styles.progressFill, { width: progressWidth }]} />
       </View>
 
       <ScrollView
@@ -349,11 +352,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
             <View style={styles.confirmCard}>
               <View style={styles.confirmTopline}>
                 <View style={styles.confirmIcon}>
-                  <Ionicons
-                    name={selection.vehicleType === 'motorcycle' ? 'speedometer-outline' : 'car-sport-outline'}
-                    size={24}
-                    color={colors.primaryHover}
-                  />
+                  <VehicleTypeIcon vehicleType={selection.vehicleType} size={24} color={colors.primaryHover} />
                 </View>
                 <Text style={styles.confirmEyebrow}>{selection.vehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
               </View>

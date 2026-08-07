@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { colors, spacing, typography } from '@/src/theme';
+
+import { pickerMotion } from '../motion';
 
 type VehiclePickerStageProps = {
   children: ReactNode;
@@ -20,7 +23,12 @@ export function VehiclePickerStage({
   title,
 }: VehiclePickerStageProps) {
   return (
-    <View style={styles.root}>
+    <Animated.View
+      collapsable={false}
+      entering={pickerMotion.stageEnter}
+      exiting={pickerMotion.stageExit}
+      layout={pickerMotion.layout}
+      style={styles.root}>
       <View style={styles.headerRow}>
         {onBack ? (
           <Pressable
@@ -38,7 +46,7 @@ export function VehiclePickerStage({
         </View>
       </View>
       {children}
-    </View>
+    </Animated.View>
   );
 }
 
