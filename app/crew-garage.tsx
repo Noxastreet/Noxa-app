@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -35,10 +35,11 @@ type ProfileRow = {
 type VehicleRow = {
   id: string;
   owner_id: string;
+  vehicle_type: "car" | "motorcycle";
   brand: string;
   model: string | null;
   year: number | null;
-  horsepower: number;
+  horsepower: number | null;
   color: string;
   transmission: string | null;
   drivetrain: string | null;
@@ -49,7 +50,7 @@ type VehicleRow = {
 type CrewVehicle = VehicleRow & { owner?: ProfileRow };
 
 const vehicleSelect =
-  "id,owner_id,brand,model,year,horsepower,color,transmission,drivetrain,tuning_stage,cover_image_url,created_at";
+  "id,owner_id,vehicle_type,brand,model,year,horsepower,color,transmission,drivetrain,tuning_stage,cover_image_url,created_at";
 
 function profileName(profile?: ProfileRow) {
   return profile?.display_name || profile?.username || "NOXA driver";
@@ -78,6 +79,14 @@ function Spec({ label, value }: { label: string; value: string }) {
       <Text style={styles.specLabel}>{label}</Text>
     </View>
   );
+}
+
+function VehicleFallback({ vehicleType }: { vehicleType: VehicleRow["vehicle_type"] }) {
+  if (vehicleType === "motorcycle") {
+    return <FontAwesome5 name="motorcycle" size={68} color={colors.primaryMuted} />;
+  }
+
+  return <Ionicons name="car-sport" size={84} color={colors.primaryMuted} />;
 }
 
 function VehicleCard({ vehicle }: { vehicle: CrewVehicle }) {
@@ -122,7 +131,7 @@ function VehicleCard({ vehicle }: { vehicle: CrewVehicle }) {
         </ImageBackground>
       ) : (
         <View style={[styles.artwork, styles.artworkFallback]}>
-          <Ionicons name="car-sport" size={84} color={colors.primaryMuted} />
+          <VehicleFallback vehicleType={vehicle.vehicle_type} />
           {artwork}
         </View>
       )}
@@ -137,7 +146,7 @@ function VehicleCard({ vehicle }: { vehicle: CrewVehicle }) {
       </View>
 
       <View style={styles.specRow}>
-        <Spec label="POWER" value={`${vehicle.horsepower} HP`} />
+        <Spec label="POWER" value={vehicle.horsepower === null ? "—" : `${vehicle.horsepower} HP`} />
         <Spec label="DRIVETRAIN" value={vehicle.drivetrain || "—"} />
         <Spec label="COLOR" value={vehicle.color} />
       </View>
@@ -284,7 +293,7 @@ export default function CrewGarageScreen() {
     );
   }, [query, vehicles]);
 
-  const driversWithCars = useMemo(
+  const driversWithVehicles = useMemo(
     () => new Set(vehicles.map((vehicle) => vehicle.owner_id)).size,
     [vehicles],
   );
@@ -355,7 +364,7 @@ export default function CrewGarageScreen() {
                 <Text style={styles.summaryLabel}>BUILDS</Text>
               </View>
               <View style={[styles.summaryCell, styles.summaryBorder]}>
-                <Text style={styles.summaryValue}>{driversWithCars}</Text>
+                <Text style={styles.summaryValue}>{driversWithVehicles}</Text>
                 <Text style={styles.summaryLabel}>DRIVERS</Text>
               </View>
               <View style={[styles.summaryCell, styles.summaryBorder]}>
@@ -392,7 +401,7 @@ export default function CrewGarageScreen() {
             <View style={styles.vehicleList}>
               <View style={styles.listHeading}>
                 <Text style={styles.listTitle}>PUBLIC BUILDS</Text>
-                <Text style={styles.listCount}>{visibleVehicles.length} CARS</Text>
+                <Text style={styles.listCount}>{visibleVehicles.length} VEHICLES</Text>
               </View>
               {visibleVehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} vehicle={vehicle} />
@@ -407,7 +416,7 @@ export default function CrewGarageScreen() {
                   ? "No crew build matches this search."
                   : "No member has shared a public vehicle yet."
               }
-              onAction={() => query ? setQuery("") : router.push("/vehicle-editor")}
+              onAction={() => query ? setQuery("") : router.push("/vehicle-picker")}
               title={query ? "No matches" : "Garage is empty"}
             />
           )}
