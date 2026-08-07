@@ -45,12 +45,13 @@ export function VehiclePickerStage({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   backButton: {
     width: 42,
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     flex: 1,
-    paddingRight: spacing.xl,
+    paddingRight: spacing.md,
   },
   eyebrow: {
     color: colors.primaryHover,
