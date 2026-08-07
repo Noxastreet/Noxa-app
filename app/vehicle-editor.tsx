@@ -5,6 +5,7 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
+import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -18,6 +19,7 @@ const colorsAvailable = [
 const vehicleImagesBucket = 'vehicle-images';
 const maxCoverImageBytes = 6 * 1024 * 1024;
 const supportedCoverMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] as const;
+type VehicleType = 'car' | 'motorcycle';
 
 type VehicleForm = {
   brand: string;
@@ -38,6 +40,7 @@ type VehicleErrors = Partial<Record<keyof VehicleForm | 'form', string>>;
 
 type VehicleRecord = {
   id: string;
+  vehicle_type: VehicleType;
   brand: string | null;
   model: string | null;
   year: number | null;
@@ -56,7 +59,7 @@ type NormalizedVehicle = {
   brand: string;
   model: string | null;
   year: number | null;
-  horsepower: number;
+  horsepower: number | null;
   color: string;
   transmission: string | null;
   drivetrain: string | null;
@@ -127,6 +130,7 @@ function validateForm(form: VehicleForm): { errors: VehicleErrors; values?: Norm
   const tuningStage = optionalText(form.tuningStage);
   const zeroToHundred = parseOptionalNumber(form.zeroToHundred);
   const description = optionalText(form.description);
+
   if (!brand) {
     errors.brand = 'Brand is required.';
   } else if (brand.length > 60) {
@@ -143,9 +147,7 @@ function validateForm(form: VehicleForm): { errors: VehicleErrors; values?: Norm
 
   if (Number.isNaN(horsepower)) {
     errors.horsepower = 'Horsepower must be an integer.';
-  } else if (horsepower === null) {
-    errors.horsepower = 'Horsepower is required.';
-  } else if (horsepower < 1 || horsepower > 5000) {
+  } else if (horsepower !== null && (horsepower < 1 || horsepower > 5000)) {
     errors.horsepower = 'Horsepower must be between 1 and 5000.';
   }
 
@@ -175,7 +177,7 @@ function validateForm(form: VehicleForm): { errors: VehicleErrors; values?: Norm
     errors.description = 'Description must be 1000 characters or less.';
   }
 
-  if (Object.keys(errors).length > 0 || horsepower === null || Number.isNaN(horsepower)) {
+  if (Object.keys(errors).length > 0) {
     return { errors };
   }
 
@@ -185,7 +187,7 @@ function validateForm(form: VehicleForm): { errors: VehicleErrors; values?: Norm
       brand,
       model,
       year: Number.isNaN(year) ? null : year,
-      horsepower,
+      horsepower: Number.isNaN(horsepower) ? null : horsepower,
       color,
       transmission,
       drivetrain,
@@ -304,6 +306,7 @@ function VehicleCoverEditor({
   onChoose,
   onRemove,
   previewUri,
+  vehicleType,
   year,
 }: {
   brand: string;
@@ -315,6 +318,7 @@ function VehicleCoverEditor({
   onChoose: () => void;
   onRemove: () => void;
   previewUri: string | null;
+  vehicleType: VehicleType;
   year: string;
 }) {
   const hasImage = Boolean(previewUri);
@@ -328,25 +332,29 @@ function VehicleCoverEditor({
         ) : (
           <View style={styles.coverPlaceholder}>
             <View style={styles.coverGlow} />
-            <Ionicons name="car-sport" size={54} color={colors.primaryHover} />
+            <VehicleTypeIcon vehicleType={vehicleType} size={54} color={colors.primaryHover} />
           </View>
         )}
         <View style={styles.coverScrim} />
         <View style={styles.coverTopline}>
           <View style={styles.garageBadge}>
-            <Ionicons name="speedometer-outline" size={14} color={colors.primaryHover} />
-            <Text style={styles.garageBadgeText}>GARAGE PROFILE</Text>
+            <VehicleTypeIcon vehicleType={vehicleType} size={14} color={colors.primaryHover} />
+            <Text style={styles.garageBadgeText}>{vehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
           </View>
           <Text style={styles.coverVisibility}>{isPublic ? 'PUBLIC' : 'PRIVATE'}</Text>
         </View>
         <View style={styles.coverCopy}>
           <Text numberOfLines={2} style={styles.coverVehicleName}>
-            {vehicleName || 'YOUR NEXT BUILD'}
+            {vehicleName || 'YOUR VEHICLE'}
           </Text>
           <View style={styles.coverSpecs}>
             <Text style={styles.coverSpec}>{year.trim() || 'YEAR'}</Text>
-            <View style={styles.specDot} />
-            <Text style={styles.coverSpec}>{horsepower.trim() ? `${horsepower.trim()} HP` : 'POWER'}</Text>
+            {horsepower.trim() ? (
+              <>
+                <View style={styles.specDot} />
+                <Text style={styles.coverSpec}>{horsepower.trim()} HP</Text>
+              </>
+            ) : null}
           </View>
         </View>
       </View>
@@ -416,6 +424,7 @@ export default function VehicleEditorScreen() {
   const vehicleId = getParamId(id);
   const isEditMode = Boolean(vehicleId);
   const [form, setForm] = useState<VehicleForm>(initialForm);
+  const [vehicleType, setVehicleType] = useState<VehicleType>('car');
   const [errors, setErrors] = useState<VehicleErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
@@ -519,10 +528,10 @@ export default function VehicleEditorScreen() {
     }
   };
 
-
   const loadVehicleForEdit = useCallback(async () => {
     if (!vehicleId) {
       setForm(initialForm);
+      setVehicleType('car');
       setLoadError(null);
       setIsLoadingVehicle(false);
       return;
@@ -542,7 +551,7 @@ export default function VehicleEditorScreen() {
 
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
-      .select('id, brand, model, year, horsepower, color, transmission, drivetrain, tuning_stage, zero_to_hundred, description, cover_image_url, is_public')
+      .select('id, vehicle_type, brand, model, year, horsepower, color, transmission, drivetrain, tuning_stage, zero_to_hundred, description, cover_image_url, is_public')
       .eq('id', vehicleId)
       .eq('owner_id', userData.user.id)
       .maybeSingle();
@@ -559,7 +568,9 @@ export default function VehicleEditorScreen() {
       return;
     }
 
-    setForm(formFromVehicle(vehicle as VehicleRecord));
+    const loadedVehicle = vehicle as VehicleRecord;
+    setForm(formFromVehicle(loadedVehicle));
+    setVehicleType(loadedVehicle.vehicle_type === 'motorcycle' ? 'motorcycle' : 'car');
     setSelectedCoverAsset(null);
     setIsCoverRemoved(false);
     setIsLoadingVehicle(false);
@@ -732,12 +743,13 @@ export default function VehicleEditorScreen() {
             onChoose={chooseCoverImage}
             onRemove={removeCoverImage}
             previewUri={coverPreviewUri}
+            vehicleType={vehicleType}
             year={form.year}
           />
 
           {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
-          <FormSection eyebrow="01 / IDENTITY" title="Name the machine">
+          <FormSection eyebrow="01 / VEHICLE" title="Vehicle identity">
             <FieldError message={errors.brand}>
               <NoxaInput editable={!isSubmitting} label="Brand · required" maxLength={60} onChangeText={(value) => setField('brand', value)} placeholder="Porsche" value={form.brand} autoCapitalize="words" />
             </FieldError>
@@ -752,9 +764,9 @@ export default function VehicleEditorScreen() {
 
           {errors.coverImageUrl ? <Text style={styles.formError}>{errors.coverImageUrl}</Text> : null}
 
-          <FormSection eyebrow="02 / PERFORMANCE" title="Define the build">
+          <FormSection eyebrow="02 / PERFORMANCE" title="Performance details">
             <FieldError message={errors.horsepower}>
-              <NoxaInput editable={!isSubmitting} label="Horsepower · required" onChangeText={(value) => setField('horsepower', value)} placeholder="518" value={form.horsepower} keyboardType="number-pad" />
+              <NoxaInput editable={!isSubmitting} label="Horsepower · optional" onChangeText={(value) => setField('horsepower', value)} placeholder="518" value={form.horsepower} keyboardType="number-pad" />
             </FieldError>
             <FieldError message={errors.tuningStage}>
               <NoxaInput editable={!isSubmitting} label="Tuning stage" maxLength={40} onChangeText={(value) => setField('tuningStage', value)} placeholder="Stage 2 / Track build / OEM+" value={form.tuningStage} />
@@ -770,7 +782,7 @@ export default function VehicleEditorScreen() {
             </FieldError>
           </FormSection>
 
-          <FormSection eyebrow="03 / STORY" title="Give it context">
+          <FormSection eyebrow="03 / PROFILE" title="Story & visibility">
             <FieldError message={errors.description}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Description</Text>
@@ -778,9 +790,6 @@ export default function VehicleEditorScreen() {
                 <Text style={styles.characterCount}>{form.description.length} / 1000</Text>
               </View>
             </FieldError>
-          </FormSection>
-
-          <FormSection eyebrow="04 / VISIBILITY" title="Choose the audience">
             <View style={styles.visibilityOptions}>
               <VisibilityOption active={form.isPublic} description="Visible to every NOXA driver" disabled={isSubmitting} icon="earth-outline" label="Public" onPress={() => setField('isPublic', true)} />
               <VisibilityOption active={!form.isPublic} description="Visible only to you" disabled={isSubmitting} icon="lock-closed-outline" label="Private" onPress={() => setField('isPublic', false)} />
@@ -805,7 +814,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
     backgroundColor: colors.surfaceBase,
   },
@@ -831,10 +840,6 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   pressed: {
     opacity: 0.82,
@@ -851,7 +856,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: radius.hero,
     borderWidth: 1,
-    borderColor: colors.borderAccent,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
     ...shadows.card,
   },
@@ -878,7 +883,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.28)',
+    backgroundColor: 'rgba(0,0,0,0.24)',
   },
   coverTopline: {
     position: 'absolute',
@@ -897,20 +902,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: 'rgba(10,10,14,0.78)',
+    borderColor: colors.borderStrong,
+    backgroundColor: 'rgba(10,10,14,0.72)',
   },
   garageBadgeText: {
     color: colors.primaryHover,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
   },
   coverVisibility: {
     color: colors.text,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
   },
   coverCopy: {
     position: 'absolute',
@@ -965,10 +970,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     backgroundColor: colors.surfaceSoft,
     borderWidth: 1,
-    borderColor: colors.borderAccent,
+    borderColor: colors.border,
   },
   coverRemoveButton: {
-    borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   coverActionText: {
@@ -986,18 +990,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionCard: {
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
   },
   eyebrow: {
     color: colors.primaryHover,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.4,
   },
   sectionTitle: {
     marginTop: spacing.xxs,
@@ -1112,7 +1113,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   visibilityOption: {
-    minHeight: 154,
+    minHeight: 132,
     flex: 1,
     gap: spacing.xs,
     padding: spacing.md,
@@ -1126,8 +1127,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   visibilityIcon: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xxs,
@@ -1174,7 +1175,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.glass,
   },
