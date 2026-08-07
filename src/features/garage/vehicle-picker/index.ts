@@ -1,3 +1,4 @@
+// Public VehiclePicker API. Semantic card components remain internal motion boundaries.
 export { VehiclePicker } from './VehiclePicker';
 export { vehiclePickerMotionKey, isVehiclePickerMotionKey } from './keys';
 export {
