@@ -26,7 +26,7 @@ import { SUPPORT_EMAIL } from '@/src/legal/legalDocuments';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type SettingsProfile = {
   id: string;
@@ -53,19 +53,20 @@ function formatHandle(username: string | null) {
   return username.startsWith('@') ? username : `@${username}`;
 }
 
-function SettingsGroup({ children, label }: { children: ReactNode; label: string }) {
+function SettingsGroup({ children, label, description }: { children: ReactNode; label: string; description?: string }) {
   return (
     <View style={styles.group}>
-      <Text style={styles.groupLabel}>{label}</Text>
-      <View style={styles.groupCard}>{children}</View>
+      <View style={styles.groupHeading}>
+        <Text style={styles.groupLabel}>{label}</Text>
+        {description ? <Text style={styles.groupDescription}>{description}</Text> : null}
+      </View>
+      <View style={styles.groupList}>{children}</View>
     </View>
   );
 }
 
 export default function SettingsScreen() {
   const [profile, setProfile] = useState<SettingsProfile | null>(null);
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
   const [vehiclesCount, setVehiclesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -85,42 +86,30 @@ export default function SettingsScreen() {
     const user = authData.user;
     if (!user) {
       setProfile(null);
-      setFollowersCount(0);
-      setFollowingCount(0);
       setVehiclesCount(0);
       setIsLoading(false);
       return;
     }
 
-    const [profileResult, followersResult, followingResult, vehiclesResult] = await Promise.all([
+    const [profileResult, vehiclesResult] = await Promise.all([
       supabase
         .from('profiles')
         .select('id,display_name,username,avatar_url,city')
         .eq('id', user.id)
         .single(),
       supabase
-        .from('follows')
-        .select('follower_id', { count: 'exact', head: true })
-        .eq('following_id', user.id),
-      supabase
-        .from('follows')
-        .select('following_id', { count: 'exact', head: true })
-        .eq('follower_id', user.id),
-      supabase
         .from('vehicles')
         .select('id', { count: 'exact', head: true })
         .eq('owner_id', user.id),
     ]);
 
-    if (profileResult.error || followersResult.error || followingResult.error || vehiclesResult.error) {
+    if (profileResult.error || vehiclesResult.error) {
       setErrorMessage('Account settings could not be loaded.');
       setIsLoading(false);
       return;
     }
 
     setProfile(profileResult.data as SettingsProfile);
-    setFollowersCount(followersResult.count ?? 0);
-    setFollowingCount(followingResult.count ?? 0);
     setVehiclesCount(vehiclesResult.count ?? 0);
     setIsLoading(false);
   }, []);
@@ -148,6 +137,8 @@ export default function SettingsScreen() {
   };
 
   const confirmSignOut = () => {
+    if (isSigningOut) return;
+
     Alert.alert('Sign out of NOXA?', 'You will need to sign in again on this device.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: () => void signOut() },
@@ -179,7 +170,7 @@ export default function SettingsScreen() {
             />
           }
           title="SETTINGS"
-          subtitle="Your account and NOXA shortcuts"
+          subtitle="Account, privacy and app controls"
         />
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -187,7 +178,7 @@ export default function SettingsScreen() {
             accessibilityRole={profile ? 'button' : undefined}
             disabled={!profile}
             onPress={() => router.push('/edit-profile')}
-            style={({ pressed }) => [styles.profileCard, pressed && profile && styles.pressed]}>
+            style={({ pressed }) => [styles.profileRow, pressed && profile && styles.pressed]}>
             <View style={styles.avatarRing}>
               {profile?.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
@@ -196,9 +187,7 @@ export default function SettingsScreen() {
               )}
             </View>
             <View style={styles.profileCopy}>
-              <Text numberOfLines={1} style={styles.profileName}>
-                {displayName}
-              </Text>
+              <Text numberOfLines={1} style={styles.profileName}>{displayName}</Text>
               <Text numberOfLines={1} style={styles.profileMeta}>
                 {isLoading
                   ? 'Loading account…'
@@ -207,14 +196,14 @@ export default function SettingsScreen() {
                     : 'Sign in to manage your account'}
               </Text>
             </View>
-            {profile ? <Ionicons name="create-outline" size={19} color={colors.textMuted} /> : null}
+            {profile ? <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} /> : null}
           </Pressable>
 
           {errorMessage ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => void loadSettings()}
-              style={({ pressed }) => [styles.errorCard, pressed && styles.pressed]}>
+              style={({ pressed }) => [styles.errorRow, pressed && styles.pressed]}>
               <Ionicons name="cloud-offline-outline" size={18} color={colors.primaryHover} />
               <Text style={styles.errorText}>{errorMessage} Tap to retry.</Text>
             </Pressable>
@@ -224,70 +213,56 @@ export default function SettingsScreen() {
             <NoxaLoadingState label="Loading account…" />
           ) : (
             <>
-              <SettingsGroup label="ACCOUNT">
+              <SettingsGroup label="ACCOUNT" description="Your public identity and Garage">
                 <SettingsRow
-                  caption="Name, bio, avatar, and city"
+                  caption="Name, username, bio, city and photo"
                   icon="person-outline"
                   label="Edit Profile"
                   onPress={profile ? () => router.push('/edit-profile') : undefined}
                 />
                 <SettingsRow
-                  caption="Your saved builds"
+                  caption="Cars and motorcycles connected to your identity"
                   icon="car-sport-outline"
-                  label="Connected Vehicles"
+                  isLast
+                  label="Garage"
                   onPress={() => router.push('/(tabs)/garage')}
                   value={String(vehiclesCount)}
                 />
-                <SettingsRow
-                  caption={`${followersCount} followers · ${followingCount} following`}
-                  icon="people-outline"
-                  isLast
-                  label="Social Connections"
-                  onPress={
-                    profile
-                      ? () =>
-                          router.push({
-                            pathname: '/social-list',
-                            params: { userId: profile.id, mode: 'followers' },
-                          })
-                      : undefined
-                  }
-                />
               </SettingsGroup>
 
-              <SettingsGroup label="YOUR NOXA">
+              <SettingsGroup label="PRIVACY & SAFETY" description="Visibility, moderation and legal controls">
                 <SettingsRow
-                  caption="Followers, invitations, and upcoming events"
+                  caption="Real Crew, Event and community activity"
                   icon="notifications-outline"
-                  label="Activity"
+                  label="Notifications"
                   onPress={() => router.push('/notifications')}
                 />
                 <SettingsRow
-                  caption="Meets you host or attend"
-                  icon="calendar-outline"
-                  label="Events"
-                  onPress={() => router.push('/(tabs)/events')}
+                  caption="People hidden from your NOXA experience"
+                  icon="ban-outline"
+                  label="Blocked Users"
+                  onPress={profile ? () => router.push('/blocked-users') : undefined}
                 />
                 <SettingsRow
-                  caption="Your automotive communities"
-                  icon="people-circle-outline"
+                  caption="How NOXA handles your data"
+                  icon="shield-checkmark-outline"
+                  label="Privacy Policy"
+                  onPress={() => router.push('/privacy-policy')}
+                />
+                <SettingsRow
+                  caption="Rules for using NOXA"
+                  icon="document-text-outline"
                   isLast
-                  label="Crews"
-                  onPress={() => router.push('/(tabs)/crews')}
+                  label="Terms of Service"
+                  onPress={() => router.push('/terms-of-service')}
                 />
               </SettingsGroup>
 
-              <SettingsGroup label="APP">
-                <SettingsRow
-                  caption="Live map and nearby drivers"
-                  icon="map-outline"
-                  label="Open Map"
-                  onPress={() => router.push('/(tabs)')}
-                />
+              <SettingsGroup label="APP & SUPPORT" description="Help, introduction and app information">
                 <SettingsRow
                   caption="Review the NOXA introduction"
                   icon="play-circle-outline"
-                  label="Replay onboarding"
+                  label="Replay Onboarding"
                   onPress={() => router.push('/onboarding?replay=1' as Href)}
                 />
                 <SettingsRow
@@ -304,39 +279,9 @@ export default function SettingsScreen() {
                 />
               </SettingsGroup>
 
-              <SettingsGroup label="PRIVACY & SAFETY">
-                <SettingsRow
-                  caption="Review people hidden from your account"
-                  icon="ban-outline"
-                  label="Blocked Users"
-                  onPress={profile ? () => router.push('/blocked-users') : undefined}
-                />
-                <SettingsRow
-                  caption="How NOXA handles your data"
-                  icon="shield-checkmark-outline"
-                  label="Privacy Policy"
-                  onPress={() => router.push('/privacy-policy')}
-                />
-                <SettingsRow
-                  caption="The rules for using NOXA"
-                  icon="document-text-outline"
-                  label="Terms of Service"
-                  onPress={() => router.push('/terms-of-service')}
-                />
-                <SettingsRow
-                  caption="Permanently remove your account and data"
-                  destructive
-                  icon="trash-outline"
-                  isLast
-                  label="Delete Account"
-                  onPress={profile ? () => router.push('/delete-account') : undefined}
-                />
-              </SettingsGroup>
-
               {profile ? (
                 <SettingsGroup label="SESSION">
                   <SettingsRow
-                    destructive
                     disabled={isSigningOut}
                     icon="log-out-outline"
                     isLast
@@ -345,12 +290,25 @@ export default function SettingsScreen() {
                   />
                 </SettingsGroup>
               ) : (
-                <NoxaButton
-                  fullWidth
-                  onPress={() => router.push('/sign-in')}
-                  title="SIGN IN TO NOXA"
-                />
+                <NoxaButton fullWidth onPress={() => router.push('/sign-in')} title="SIGN IN TO NOXA" />
               )}
+
+              {profile ? (
+                <View style={styles.dangerZone}>
+                  <Text style={styles.dangerLabel}>ACCOUNT DELETION</Text>
+                  <Text style={styles.dangerDescription}>
+                    Permanently remove your NOXA account and associated data. Identity verification is required before deletion.
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.push('/delete-account')}
+                    style={({ pressed }) => [styles.deleteAccountButton, pressed && styles.pressed]}>
+                    <Ionicons name="trash-outline" size={17} color={colors.primaryHover} />
+                    <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
+                    <Ionicons name="chevron-forward" size={16} color={colors.primaryHover} />
+                  </Pressable>
+                </View>
+              ) : null}
 
               <View accessible accessibilityLabel="NOXA, crafted by KARAKETIDIS" style={styles.signature}>
                 <Text style={styles.signatureBrand}>NOXA</Text>
@@ -373,17 +331,14 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.74, transform: [{ scale: 0.985 }] },
   content: { paddingTop: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.xl },
-  profileCard: {
-    minHeight: 88,
+  profileRow: {
+    minHeight: 82,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   avatarRing: {
     width: 62,
@@ -391,9 +346,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
   avatarImage: { width: 56, height: 56, borderRadius: radius.pill },
   profileCopy: { flex: 1, minWidth: 0 },
@@ -403,35 +358,53 @@ const styles = StyleSheet.create({
     fontSize: typography.title,
     fontWeight: '900',
     lineHeight: typography.lineHeight.title,
-    textTransform: 'uppercase',
   },
   profileMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: '700' },
-  errorCard: {
-    minHeight: 52,
+  errorRow: {
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   errorText: { flex: 1, color: colors.textMuted, fontSize: 11, fontWeight: '700' },
   group: { gap: spacing.sm },
+  groupHeading: { gap: 2 },
   groupLabel: {
-    color: colors.textMuted,
+    color: colors.text,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: typography.letterSpacing.label,
   },
-  groupCard: {
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  groupDescription: { color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
+  groupList: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
+  dangerZone: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderAccent,
+  },
+  dangerLabel: {
+    color: colors.primaryHover,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  dangerDescription: { color: colors.textMuted, fontSize: 10, fontWeight: '700', lineHeight: 16 },
+  deleteAccountButton: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderAccent,
+  },
+  deleteAccountText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
   signature: { alignItems: 'center', gap: 3, paddingTop: spacing.xs },
   signatureBrand: {
     color: colors.textSubtle,
