@@ -61,6 +61,7 @@ function formatDay(value: string) {
 function formatMonth(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short" })
     .format(new Date(value))
+    .replace(".", "")
     .toUpperCase();
 }
 
@@ -77,6 +78,17 @@ function formatWeekday(value: string) {
   );
 }
 
+function compactLocation(value: string) {
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const meaningful = parts.filter(
+    (part) => !/^(unnamed\s+road\s*)+$/i.test(part),
+  );
+  return meaningful[meaningful.length - 1] || parts[parts.length - 1] || "Location";
+}
+
 function eventType(event: EventRow) {
   if (event.category === "meet") return "CAR MEET";
   if (event.category === "drive") return "DRIVE";
@@ -86,8 +98,7 @@ function eventType(event: EventRow) {
 
 function urgency(event: EventRow) {
   const starts = new Date(event.starts_at).getTime();
-  const now = Date.now();
-  const diff = starts - now;
+  const diff = starts - Date.now();
   if (diff <= 0) return "LIVE";
   if (diff <= 12 * 60 * 60 * 1000) return "TONIGHT";
   if (diff <= 24 * 60 * 60 * 1000) return "TODAY";
@@ -105,7 +116,7 @@ function HeroEvent({
   busy: boolean;
   onRsvp: (event: EventCardModel) => void;
 }) {
-  const responseLabel = event.myResponse === "going" ? "YOU'RE GOING" : "I'M GOING";
+  const responseLabel = event.myResponse === "going" ? "GOING ✓" : "I'M GOING";
 
   return (
     <Pressable
@@ -132,7 +143,9 @@ function HeroEvent({
           </View>
           <View style={styles.heroDate}>
             <Text style={styles.heroDateDay}>{formatDay(event.starts_at)}</Text>
-            <Text style={styles.heroDateMonth}>{formatMonth(event.starts_at)}</Text>
+            <Text numberOfLines={1} style={styles.heroDateMonth}>
+              {formatMonth(event.starts_at)}
+            </Text>
           </View>
         </View>
 
@@ -140,8 +153,8 @@ function HeroEvent({
           <Text numberOfLines={2} style={styles.heroTitle}>
             {event.title.toUpperCase()}
           </Text>
-          <Text numberOfLines={1} style={styles.heroUrgency}>
-            {formatTime(event.starts_at)} · {event.location_name.toUpperCase()}
+          <Text numberOfLines={1} style={styles.heroMeta}>
+            {formatTime(event.starts_at)} · {compactLocation(event.location_name)}
           </Text>
 
           <View style={styles.heroSocialRow}>
@@ -149,11 +162,11 @@ function HeroEvent({
               profiles={attendees}
               total={event.attendeeCount}
               max={3}
-              size={30}
+              size={28}
             />
             <Text numberOfLines={1} style={styles.heroSocialText}>
               {event.attendeeCount
-                ? `${event.attendeeCount} drivers are going`
+                ? `${event.attendeeCount} driver${event.attendeeCount === 1 ? "" : "s"} going`
                 : "Be the first driver going"}
             </Text>
           </View>
@@ -204,7 +217,7 @@ function EventListCard({ event }: { event: EventCardModel }) {
         </Text>
         <Text numberOfLines={1} style={styles.eventMeta}>
           {formatWeekday(event.starts_at)} · {formatTime(event.starts_at)} ·{" "}
-          {event.location_name}
+          {compactLocation(event.location_name)}
         </Text>
         <View style={styles.eventBottomRow}>
           <CanonicalPill label={eventType(event)} />
@@ -289,22 +302,18 @@ export default function CanonicalEventsScreen() {
       const currentUserId = authData.user?.id ?? null;
       setUserId(currentUserId);
 
-      const eventsQuery = supabase
-        .from("events")
-        .select(
-          "id,creator_id,crew_id,title,description,category,location_name,starts_at,ends_at,cover_image_url,is_public,status",
-        )
-        .eq("status", "scheduled")
-        .gte("starts_at", new Date().toISOString())
-        .order("starts_at", { ascending: true });
-
-      const attendanceQuery = supabase
-        .from("event_attendees")
-        .select("event_id,user_id,response,joined_at");
-
       const [eventsResult, attendanceResult] = await Promise.all([
-        eventsQuery,
-        attendanceQuery,
+        supabase
+          .from("events")
+          .select(
+            "id,creator_id,crew_id,title,description,category,location_name,starts_at,ends_at,cover_image_url,is_public,status",
+          )
+          .eq("status", "scheduled")
+          .gte("starts_at", new Date().toISOString())
+          .order("starts_at", { ascending: true }),
+        supabase
+          .from("event_attendees")
+          .select("event_id,user_id,response,joined_at"),
       ]);
 
       if (eventsResult.error || attendanceResult.error) {
@@ -377,13 +386,11 @@ export default function CanonicalEventsScreen() {
                 .update({ response: "going" })
                 .eq("event_id", event.id)
                 .eq("user_id", userId)
-            : await supabase
-                .from("event_attendees")
-                .insert({
-                  event_id: event.id,
-                  user_id: userId,
-                  response: "going",
-                });
+            : await supabase.from("event_attendees").insert({
+                event_id: event.id,
+                user_id: userId,
+                response: "going",
+              });
 
       if (result.error) setError(result.error.message);
       else await load(false);
@@ -652,35 +659,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   heroArtwork: {
-    minHeight: 300,
-    justifyContent: "space-between",
+    minHeight: 286,
+    justifyContent: "flex-end",
     padding: spacing.md,
+    paddingTop: 84,
   },
   heroArtworkImage: { borderRadius: radius.hero - 1 },
   heroShadeTop: {
     ...StyleSheet.absoluteFillObject,
-    bottom: "52%",
-    backgroundColor: "rgba(0,0,0,0.08)",
+    bottom: "48%",
+    backgroundColor: "rgba(0,0,0,0.12)",
   },
   heroShadeBottom: {
     ...StyleSheet.absoluteFillObject,
     top: "30%",
-    backgroundColor: "rgba(0,0,0,0.76)",
+    backgroundColor: "rgba(0,0,0,0.78)",
   },
   heroTopRow: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.sm,
   },
   pillRow: {
+    flex: 1,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.xs,
+    paddingRight: spacing.sm,
   },
   heroDate: {
-    width: 58,
-    height: 64,
+    width: 50,
+    height: 56,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.md,
@@ -689,27 +703,28 @@ const styles = StyleSheet.create({
   heroDateDay: {
     color: colors.background,
     fontFamily: typography.fontFamily.display,
-    fontSize: 27,
-    lineHeight: 29,
+    fontSize: 23,
+    lineHeight: 25,
     fontWeight: "900",
   },
   heroDateMonth: {
+    maxWidth: 42,
     color: colors.primary,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 8,
+    lineHeight: 10,
     fontWeight: "900",
-    letterSpacing: 0.4,
+    letterSpacing: 0.25,
   },
   heroCopy: { gap: spacing.sm },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 27,
+    lineHeight: 31,
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
-  heroUrgency: {
+  heroMeta: {
     color: colors.primaryHover,
     fontSize: 11,
     lineHeight: 15,
@@ -754,8 +769,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   dateTile: {
-    width: 54,
-    height: 68,
+    width: 50,
+    height: 62,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.md,
@@ -764,16 +779,16 @@ const styles = StyleSheet.create({
   dateDay: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 25,
-    lineHeight: 28,
+    fontSize: 23,
+    lineHeight: 26,
     fontWeight: "900",
   },
   dateMonth: {
     color: colors.primaryHover,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 8,
+    lineHeight: 11,
     fontWeight: "900",
-    letterSpacing: 0.4,
+    letterSpacing: 0.35,
   },
   eventAccent: {
     width: 2,
