@@ -1,27 +1,31 @@
-import { Alert } from 'react-native';
 import { router } from 'expo-router';
+import { useState } from 'react';
 
 import { NoxaScreen } from '@/src/components/ui';
-import { VehiclePicker, type VehiclePickerSelection } from '@/src/features/garage/vehicle-picker';
+import {
+  VehicleFinalizeFlow,
+  VehiclePicker,
+  type VehiclePickerSelection,
+} from '@/src/features/garage/vehicle-picker';
 
-function closePreview() {
+function closePicker() {
   router.replace('/garage');
 }
 
-function finishPreview(selection: VehiclePickerSelection) {
-  const typeLabel = selection.vehicleType === 'motorcycle' ? 'Motorcycle' : 'Car';
+export default function VehiclePickerScreen() {
+  const [selection, setSelection] = useState<VehiclePickerSelection | null>(null);
 
-  Alert.alert(
-    'Vehicle selected',
-    `${typeLabel} selection is working. Garage persistence will be connected after the picker runtime check.`,
-    [{ text: 'OK', onPress: closePreview }],
-  );
-}
-
-export default function VehiclePickerPreviewScreen() {
   return (
     <NoxaScreen padded={false}>
-      <VehiclePicker onCancel={closePreview} onComplete={finishPreview} />
+      {selection ? (
+        <VehicleFinalizeFlow
+          selection={selection}
+          onBackToPicker={() => setSelection(null)}
+          onSaved={() => router.replace('/garage')}
+        />
+      ) : (
+        <VehiclePicker onCancel={closePicker} onComplete={setSelection} />
+      )}
     </NoxaScreen>
   );
 }
