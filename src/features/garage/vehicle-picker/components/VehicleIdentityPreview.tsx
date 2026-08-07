@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 import type { SupportedVehicleType } from '@/src/data/vehicleCatalogRegistry';
+import { VehicleTypeIcon } from './VehicleTypeIcon';
 
 type VehicleIdentityPreviewProps = {
   generation?: string | null;
@@ -20,18 +20,14 @@ export function VehicleIdentityPreview({
   vehicleType,
   year,
 }: VehicleIdentityPreviewProps) {
-  const title = [make, model].filter(Boolean).join(' ') || (vehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR');
+  const resolvedVehicleType = vehicleType ?? 'car';
+  const title = [make, model].filter(Boolean).join(' ') || (resolvedVehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR');
   const details = [generation, year ? String(year) : null].filter(Boolean).join(' · ');
-  const isMotorcycle = vehicleType === 'motorcycle';
 
   return (
     <View style={styles.row}>
       <View style={styles.iconWrap}>
-        <Ionicons
-          name={isMotorcycle ? 'speedometer-outline' : 'car-sport-outline'}
-          size={20}
-          color={colors.primaryHover}
-        />
+        <VehicleTypeIcon vehicleType={resolvedVehicleType} size={20} color={colors.primaryHover} />
       </View>
       <View style={styles.copy}>
         <Text numberOfLines={1} style={styles.title}>{title}</Text>
