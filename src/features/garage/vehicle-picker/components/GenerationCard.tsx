@@ -19,11 +19,8 @@ export function GenerationCard({ item, onPress }: GenerationCardProps) {
       motionKey={item.motionKey}
       onPress={onPress}>
       <View style={styles.row}>
-        <View style={styles.copy}>
-          <Text style={styles.eyebrow}>GENERATION</Text>
-          <Text numberOfLines={1} style={styles.label}>{item.label}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+        <Text numberOfLines={1} style={styles.label}>{item.label}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
       </View>
     </PickerCardFrame>
   );
@@ -36,17 +33,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
-  copy: {
-    flex: 1,
-  },
-  eyebrow: {
-    color: colors.textSubtle,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.85,
-  },
   label: {
-    marginTop: 2,
+    flex: 1,
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     fontSize: typography.title,
