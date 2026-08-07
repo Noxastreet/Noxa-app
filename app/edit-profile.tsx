@@ -14,12 +14,7 @@ import {
   View,
 } from "react-native";
 
-import {
-  NoxaButton,
-  NoxaHeader,
-  NoxaInput,
-  NoxaScreen,
-} from "@/src/components/ui";
+import { NoxaButton, NoxaHeader, NoxaInput, NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -41,13 +36,7 @@ type SelectedAvatar = {
 
 const avatarBucket = "avatars";
 const maxAvatarBytes = 5 * 1024 * 1024;
-const supportedAvatarMimeTypes = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-] as const;
+const supportedAvatarMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"] as const;
 
 const initialForm: ProfileForm = {
   displayName: "",
@@ -89,15 +78,7 @@ function validateForm(form: ProfileForm) {
     errors.bio = "Bio must be 300 characters or less.";
   }
 
-  return {
-    errors,
-    values: {
-      displayName,
-      username,
-      city,
-      bio,
-    },
-  };
+  return { errors, values: { displayName, username, city, bio } };
 }
 
 function getInitials(displayName: string) {
@@ -112,10 +93,7 @@ function getInitials(displayName: string) {
 }
 
 function normalizeMimeType(mimeType?: string | null) {
-  if (!mimeType) {
-    return null;
-  }
-
+  if (!mimeType) return null;
   const normalized = mimeType.toLowerCase();
   return normalized === "image/jpg" ? "image/jpeg" : normalized;
 }
@@ -128,30 +106,20 @@ function getAvatarExtension(mimeType: string, fileName?: string) {
   }
 
   switch (mimeType) {
-    case "image/png":
-      return "png";
-    case "image/webp":
-      return "webp";
-    case "image/heic":
-      return "heic";
-    case "image/heif":
-      return "heif";
-    default:
-      return "jpg";
+    case "image/png": return "png";
+    case "image/webp": return "webp";
+    case "image/heic": return "heic";
+    case "image/heif": return "heif";
+    default: return "jpg";
   }
 }
 
 function getOwnedAvatarPath(avatarUrl: string | null, userId: string) {
-  if (!avatarUrl || !avatarUrl.startsWith("https://")) {
-    return null;
-  }
+  if (!avatarUrl || !avatarUrl.startsWith("https://")) return null;
 
   const marker = `/object/public/${avatarBucket}/`;
   const markerIndex = avatarUrl.indexOf(marker);
-
-  if (markerIndex === -1) {
-    return null;
-  }
+  if (markerIndex === -1) return null;
 
   const path = decodeURIComponent(avatarUrl.slice(markerIndex + marker.length).split("?")[0]);
   return path.startsWith(`${userId}/`) ? path : null;
@@ -163,25 +131,35 @@ function getErrorMessage(error: unknown) {
 
 function mapSaveError(error: { code?: string; message?: string } | unknown) {
   const code = typeof error === "object" && error && "code" in error ? error.code : undefined;
-  const errorMessage =
-    typeof error === "object" && error && "message" in error
-      ? String(error.message)
-      : getErrorMessage(error);
+  const errorMessage = typeof error === "object" && error && "message" in error ? String(error.message) : getErrorMessage(error);
 
-  if (code === "23505") {
-    return "This username is already taken.";
-  }
+  if (code === "23505") return "This username is already taken.";
 
   const message = errorMessage.toLowerCase();
-  if (
-    message.includes("network") ||
-    message.includes("fetch") ||
-    message.includes("connection")
-  ) {
+  if (message.includes("network") || message.includes("fetch") || message.includes("connection")) {
     return "Unable to connect. Check your internet connection.";
   }
 
   return "Unable to save profile. Please try again.";
+}
+
+function FieldError({ children, message }: { children: ReactNode; message?: string }) {
+  return (
+    <View style={styles.fieldWrap}>
+      {children}
+      {message ? <Text style={styles.errorText}>{message}</Text> : null}
+    </View>
+  );
+}
+
+function Section({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionLabel}>{eyebrow}</Text>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionContent}>{children}</View>
+    </View>
+  );
 }
 
 export default function EditProfileScreen() {
@@ -239,20 +217,14 @@ export default function EditProfileScreen() {
     void loadProfile();
   }, [loadProfile]);
 
-
   const chooseAvatar = async () => {
-    if (isLoading || isSubmitting) {
-      return;
-    }
+    if (isLoading || isSubmitting) return;
 
     setErrors((current) => ({ ...current, avatar: undefined, form: undefined }));
-
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
     if (!permission.granted) {
-      setErrors((current) => ({
-        ...current,
-        avatar: "Allow photo access to choose an avatar.",
-      }));
+      setErrors((current) => ({ ...current, avatar: "Allow photo access to choose an avatar." }));
       return;
     }
 
@@ -265,9 +237,7 @@ export default function EditProfileScreen() {
       allowsMultipleSelection: false,
     });
 
-    if (result.canceled) {
-      return;
-    }
+    if (result.canceled) return;
 
     const asset = result.assets[0];
     const mimeType = normalizeMimeType(asset.mimeType);
@@ -292,34 +262,25 @@ export default function EditProfileScreen() {
   };
 
   const removeAvatar = () => {
-    if (isLoading || isSubmitting) {
-      return;
-    }
-
+    if (isLoading || isSubmitting) return;
     setSelectedAvatar(null);
     setShouldRemoveAvatar(true);
     setErrors((current) => ({ ...current, avatar: undefined, form: undefined }));
   };
 
   const uploadAvatar = async (userId: string, avatar: SelectedAvatar) => {
-    const arrayBuffer = await fetch(avatar.uri).then((response) =>
-      response.arrayBuffer()
-    );
-
-    if (arrayBuffer.byteLength > maxAvatarBytes) {
-      throw new Error("Avatar must be 5 MB or less.");
-    }
+    const arrayBuffer = await fetch(avatar.uri).then((response) => response.arrayBuffer());
+    if (arrayBuffer.byteLength > maxAvatarBytes) throw new Error("Avatar must be 5 MB or less.");
 
     const extension = getAvatarExtension(avatar.mimeType, avatar.fileName);
     const random = Math.random().toString(36).slice(2, 10);
     const path = `${userId}/${Date.now()}-${random}.${extension}`;
-    const { error } = await supabase.storage
-      .from(avatarBucket)
-      .upload(path, arrayBuffer, { contentType: avatar.mimeType, upsert: false });
+    const { error } = await supabase.storage.from(avatarBucket).upload(path, arrayBuffer, {
+      contentType: avatar.mimeType,
+      upsert: false,
+    });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     const { data } = supabase.storage.from(avatarBucket).getPublicUrl(path);
     if (!data.publicUrl.startsWith("https://")) {
@@ -331,9 +292,7 @@ export default function EditProfileScreen() {
   };
 
   const saveProfile = async () => {
-    if (isSubmitting) {
-      return;
-    }
+    if (isSubmitting) return;
 
     const validation = validateForm(form);
     if (Object.keys(validation.errors).length > 0) {
@@ -380,9 +339,7 @@ export default function EditProfileScreen() {
         .single();
 
       if (error) {
-        if (uploadedPath) {
-          await supabase.storage.from(avatarBucket).remove([uploadedPath]);
-        }
+        if (uploadedPath) await supabase.storage.from(avatarBucket).remove([uploadedPath]);
         setErrors({ form: error instanceof Error && error.message.includes("5 MB") ? error.message : mapSaveError(error) });
         setIsSubmitting(false);
         return;
@@ -397,74 +354,48 @@ export default function EditProfileScreen() {
       router.back();
     } catch (error) {
       setIsSubmitting(false);
-      setErrors({
-        form:
-          error instanceof Error && error.message.includes("5 MB")
-            ? error.message
-            : mapSaveError(error),
-      });
+      setErrors({ form: error instanceof Error && error.message.includes("5 MB") ? error.message : mapSaveError(error) });
     }
   };
 
+  const previewUri = selectedAvatar?.uri ?? (avatarUrl && !shouldRemoveAvatar ? avatarUrl : null);
+
   return (
     <NoxaScreen padded={false}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoiding}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoiding}>
         <View style={styles.shell}>
           <NoxaHeader
             title="EDIT PROFILE"
-            subtitle="Your public NOXA identity"
+            subtitle="Identity only · privacy stays in Settings"
             left={
-              <Pressable
-                accessibilityLabel="Back to profile"
-                accessibilityRole="button"
-                onPress={() => router.back()}
-                style={({ pressed }) => [
-                  styles.iconButton,
-                  pressed && styles.pressed,
-                ]}
-              >
+              <Pressable accessibilityLabel="Back to profile" accessibilityRole="button" onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
                 <Ionicons name="chevron-back" size={22} color={colors.text} />
               </Pressable>
             }
           />
 
-          <ScrollView
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
             {isLoading ? (
-              <View style={styles.loadingCard}>
+              <View style={styles.loadingRow}>
                 <ActivityIndicator color={colors.primary} />
                 <Text style={styles.helperText}>Loading your profile…</Text>
               </View>
             ) : null}
 
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>PROFILE PHOTO</Text>
-              <View style={styles.profilePreviewCard}>
+            <Section eyebrow="01 / PHOTO" title="Profile photo">
+              <View style={styles.photoRow}>
                 <View style={styles.avatarPreview}>
-                  {selectedAvatar ? (
-                    <Image source={{ uri: selectedAvatar.uri }} style={styles.avatarImage} />
-                  ) : avatarUrl && !shouldRemoveAvatar ? (
-                    <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.avatarInitials}>{getInitials(form.displayName)}</Text>
-                  )}
+                  {previewUri ? <Image source={{ uri: previewUri }} style={styles.avatarImage} /> : <Text style={styles.avatarInitials}>{getInitials(form.displayName)}</Text>}
                 </View>
-                <View style={styles.previewCopy}>
-                  <Text numberOfLines={1} style={styles.previewName}>
-                    {form.displayName || "NOXA Driver"}
-                  </Text>
+                <View style={styles.photoCopy}>
+                  <Text numberOfLines={1} style={styles.previewName}>{form.displayName || "NOXA Driver"}</Text>
                   <Text numberOfLines={1} style={styles.previewMeta}>
                     {form.username ? `@${normalizeUsername(form.username)}` : "Add a username"}
                     {form.city.trim() ? ` · ${form.city.trim()}` : ""}
                   </Text>
-                  <Text style={styles.photoHint}>Square image · JPEG, PNG, WebP, HEIC · up to 5 MB</Text>
+                  <Text style={styles.photoHint}>Square image · up to 5 MB</Text>
                 </View>
               </View>
               <View style={styles.avatarActions}>
@@ -472,111 +403,72 @@ export default function EditProfileScreen() {
                   accessibilityRole="button"
                   disabled={isLoading || isSubmitting}
                   onPress={chooseAvatar}
-                  style={({ pressed }) => [
-                    styles.avatarActionButton,
-                    pressed && !isSubmitting && styles.pressed,
-                    (isLoading || isSubmitting) && styles.disabledAction,
-                  ]}>
+                  style={({ pressed }) => [styles.avatarActionButton, pressed && !isSubmitting && styles.pressed, (isLoading || isSubmitting) && styles.disabledAction]}>
                   <Ionicons name="camera-outline" size={16} color={colors.text} />
-                  <Text style={styles.avatarActionText}>
-                    {selectedAvatar || (avatarUrl && !shouldRemoveAvatar) ? "Change Photo" : "Choose Photo"}
-                  </Text>
+                  <Text style={styles.avatarActionText}>{previewUri ? "Change Photo" : "Choose Photo"}</Text>
                 </Pressable>
-                {selectedAvatar || (avatarUrl && !shouldRemoveAvatar) ? (
+                {previewUri ? (
                   <Pressable
                     accessibilityRole="button"
                     disabled={isLoading || isSubmitting}
                     onPress={removeAvatar}
-                    style={({ pressed }) => [
-                      styles.avatarActionButton,
-                      styles.avatarRemoveButton,
-                      pressed && !isSubmitting && styles.pressed,
-                      (isLoading || isSubmitting) && styles.disabledAction,
-                    ]}>
+                    style={({ pressed }) => [styles.avatarActionButton, styles.removeButton, pressed && !isSubmitting && styles.pressed, (isLoading || isSubmitting) && styles.disabledAction]}>
                     <Ionicons name="trash-outline" size={16} color={colors.primaryHover} />
-                    <Text style={[styles.avatarActionText, styles.removeText]}>Remove</Text>
+                    <Text style={styles.removeText}>Remove</Text>
                   </Pressable>
                 ) : null}
               </View>
               {errors.avatar ? <Text style={styles.errorText}>{errors.avatar}</Text> : null}
-            </View>
+            </Section>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>IDENTITY</Text>
-              <View style={styles.formCard}>
-                <FieldError message={errors.displayName}>
-                  <NoxaInput
-                    autoCapitalize="words"
-                    editable={!isLoading && !isSubmitting}
-                    label="Display name"
-                    maxLength={40}
-                    onChangeText={(value) => setField("displayName", value)}
-                    placeholder="Your display name"
-                    value={form.displayName}
-                  />
-                  <Text style={styles.counter}>{form.displayName.length}/40</Text>
-                </FieldError>
+            <Section eyebrow="02 / IDENTITY" title="How drivers know you">
+              <FieldError message={errors.displayName}>
+                <NoxaInput autoCapitalize="words" editable={!isLoading && !isSubmitting} label="Display name" maxLength={40} onChangeText={(value) => setField("displayName", value)} placeholder="Your display name" value={form.displayName} />
+                <Text style={styles.counter}>{form.displayName.length}/40</Text>
+              </FieldError>
 
-                <FieldError message={errors.username}>
-                  <NoxaInput
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!isLoading && !isSubmitting}
-                    label="Username"
-                    maxLength={21}
-                    onBlur={() => setField("username", normalizeUsername(form.username))}
-                    onChangeText={(value) => setField("username", value)}
-                    placeholder="noxa_driver"
-                    value={form.username}
-                  />
-                  <Text style={styles.counter}>{normalizeUsername(form.username).length}/20</Text>
-                </FieldError>
+              <FieldError message={errors.username}>
+                <NoxaInput autoCapitalize="none" autoCorrect={false} editable={!isLoading && !isSubmitting} label="Username" maxLength={21} onBlur={() => setField("username", normalizeUsername(form.username))} onChangeText={(value) => setField("username", value)} placeholder="noxa_driver" value={form.username} />
+                <Text style={styles.counter}>{normalizeUsername(form.username).length}/20</Text>
+              </FieldError>
 
-                <FieldError message={errors.city}>
-                  <NoxaInput
-                    autoCapitalize="words"
-                    editable={!isLoading && !isSubmitting}
-                    label="City"
-                    maxLength={60}
-                    onChangeText={(value) => setField("city", value)}
-                    placeholder="Los Angeles"
-                    value={form.city}
-                  />
-                  <Text style={styles.counter}>{form.city.length}/60</Text>
-                </FieldError>
-              </View>
-            </View>
+              <FieldError message={errors.city}>
+                <NoxaInput autoCapitalize="words" editable={!isLoading && !isSubmitting} label="City" maxLength={60} onChangeText={(value) => setField("city", value)} placeholder="Thessaloniki" value={form.city} />
+                <Text style={styles.counter}>{form.city.length}/60</Text>
+              </FieldError>
+            </Section>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>ABOUT</Text>
-              <View style={styles.formCard}>
-                <FieldError message={errors.bio}>
-                  <NoxaInput
-                    editable={!isLoading && !isSubmitting}
-                    label="Bio"
-                    maxLength={300}
-                    multiline
-                    onChangeText={(value) => setField("bio", value)}
-                    placeholder="Tell the community about your garage."
-                    style={styles.bioInput}
-                    textAlignVertical="top"
-                    value={form.bio}
-                  />
-                  <Text style={styles.counter}>{form.bio.length}/300</Text>
-                </FieldError>
-              </View>
-            </View>
+            <Section eyebrow="03 / ABOUT" title="Short introduction">
+              <FieldError message={errors.bio}>
+                <NoxaInput
+                  editable={!isLoading && !isSubmitting}
+                  label="Bio"
+                  maxLength={300}
+                  multiline
+                  onChangeText={(value) => setField("bio", value)}
+                  placeholder="Tell drivers about you, your garage or your automotive life."
+                  style={styles.bioInput}
+                  textAlignVertical="top"
+                  value={form.bio}
+                />
+                <Text style={styles.counter}>{form.bio.length}/300</Text>
+              </FieldError>
+            </Section>
+
+            <Section eyebrow="PRIVACY" title="Visibility & account settings">
+              <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={({ pressed }) => [styles.settingsRow, pressed && styles.pressed]}>
+                <View style={styles.settingsIcon}><Ionicons name="shield-checkmark-outline" size={20} color={colors.text} /></View>
+                <View style={styles.settingsCopy}>
+                  <Text style={styles.settingsTitle}>Open Settings</Text>
+                  <Text style={styles.settingsText}>Manage visibility, privacy and account controls separately.</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+              </Pressable>
+            </Section>
           </ScrollView>
 
           <View style={styles.saveBar}>
-            <Text style={styles.saveHint}>Changes sync across your NOXA profile.</Text>
-            <NoxaButton
-              disabled={isLoading || isSubmitting}
-              fullWidth
-              loading={isSubmitting}
-              onPress={saveProfile}
-              title="Save Changes"
-            />
+            <NoxaButton disabled={isLoading || isSubmitting} fullWidth loading={isSubmitting} onPress={saveProfile} title="Save Changes" />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -584,212 +476,41 @@ export default function EditProfileScreen() {
   );
 }
 
-function FieldError({
-  children,
-  message,
-}: {
-  children: ReactNode;
-  message?: string;
-}) {
-  return (
-    <View style={styles.fieldWrap}>
-      {children}
-      {message ? <Text style={styles.errorText}>{message}</Text> : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  keyboardAvoiding: {
-    flex: 1,
-  },
-  shell: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxl,
-    gap: spacing.xl,
-  },
-  iconButton: {
-    width: 42,
-    height: 42,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pressed: {
-    opacity: 0.78,
-    transform: [{ translateY: 1 }, { scale: 0.98 }],
-  },
-  fieldWrap: {
-    gap: spacing.xs,
-  },
-  section: {
-    gap: spacing.sm,
-  },
-  sectionLabel: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: typography.letterSpacing.label,
-  },
-  loadingCard: {
-    minHeight: 72,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  profilePreviewCard: {
-    minHeight: 104,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  avatarPreview: {
-    width: 72,
-    height: 72,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surfaceSoft,
-  },
-  avatarImage: {
-    width: "100%",
-    height: "100%",
-  },
-  avatarInitials: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 26,
-    fontWeight: "900",
-  },
-  previewCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  previewName: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
-    lineHeight: typography.lineHeight.title,
-    textTransform: "uppercase",
-  },
-  previewMeta: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  photoHint: {
-    marginTop: spacing.sm,
-    color: colors.textSubtle,
-    fontSize: 9,
-    fontWeight: "700",
-    lineHeight: 13,
-  },
-  avatarActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  avatarActionButton: {
-    minHeight: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
-  },
-  avatarRemoveButton: {
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
-  },
-  avatarActionText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  removeText: {
-    color: colors.primaryHover,
-  },
-  disabledAction: {
-    opacity: 0.5,
-  },
-  formCard: {
-    gap: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  bioInput: {
-    minHeight: 118,
-    paddingTop: spacing.md,
-  },
-  counter: {
-    alignSelf: "flex-end",
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  helperText: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  errorText: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  formError: {
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    backgroundColor: colors.primarySubtle,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  saveBar: {
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-    backgroundColor: colors.background,
-  },
-  saveHint: {
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: "700",
-    textAlign: "center",
-  },
+  keyboardAvoiding: { flex: 1 },
+  shell: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, backgroundColor: colors.background },
+  content: { paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
+  iconButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
+  pressed: { opacity: 0.78, transform: [{ translateY: 1 }, { scale: 0.985 }] },
+  fieldWrap: { gap: spacing.xs },
+  section: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+  sectionLabel: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
+  sectionTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900" },
+  sectionContent: { marginTop: spacing.xs, gap: spacing.md },
+  loadingRow: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  photoRow: { minHeight: 88, flexDirection: "row", alignItems: "center", gap: spacing.md },
+  avatarPreview: { width: 76, height: 76, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
+  avatarImage: { width: "100%", height: "100%" },
+  avatarInitials: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 27, fontWeight: "900" },
+  photoCopy: { flex: 1, minWidth: 0 },
+  previewName: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900" },
+  previewMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: "700" },
+  photoHint: { marginTop: spacing.sm, color: colors.textSubtle, fontSize: 9, fontWeight: "700" },
+  avatarActions: { flexDirection: "row", gap: spacing.sm },
+  avatarActionButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
+  avatarActionText: { color: colors.text, fontSize: 10, fontWeight: "900" },
+  removeButton: { backgroundColor: colors.primarySubtle, borderColor: colors.borderAccent },
+  removeText: { color: colors.primaryHover, fontSize: 10, fontWeight: "900" },
+  disabledAction: { opacity: 0.5 },
+  bioInput: { minHeight: 118, paddingTop: spacing.md },
+  counter: { alignSelf: "flex-end", color: colors.textSubtle, fontSize: 10, fontWeight: "800" },
+  helperText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "800" },
+  errorText: { color: colors.primary, fontSize: typography.caption, fontWeight: "800" },
+  formError: { padding: spacing.md, borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.primarySubtle, borderWidth: 1, borderColor: colors.borderAccent, color: colors.text, fontSize: typography.caption, fontWeight: "800" },
+  settingsRow: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  settingsIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
+  settingsCopy: { flex: 1 },
+  settingsTitle: { color: colors.text, fontSize: typography.body, fontWeight: "800" },
+  settingsText: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: "700", lineHeight: 15 },
+  saveBar: { paddingTop: spacing.md, paddingBottom: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider, backgroundColor: colors.background },
 });
