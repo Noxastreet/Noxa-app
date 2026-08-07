@@ -15,6 +15,10 @@ import {
 
 import { NoxaScreen } from "@/src/components/ui";
 import {
+  EntityActionSheet,
+  type EntityAction,
+} from "@/src/features/crews-events/EntityActionSheet";
+import {
   CanonicalArtwork,
   CanonicalAvatar,
   CanonicalAvatarStack,
@@ -25,6 +29,13 @@ import {
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
 import { MapboxEventPreviewCompat } from "@/src/features/mapbox/MapboxEventPreviewCompat";
+import {
+  chooseCoverAsset,
+  removeEntityCoverObject,
+  removeUploadedEntityCover,
+  setEntityCover,
+  uploadEntityCover,
+} from "@/src/lib/entityCover";
 import {
   eventLifecycle,
   formatEventDate,
@@ -87,21 +98,7 @@ function validCoordinates(
   );
 }
 
-function EventHeader({
-  saved,
-  saving,
-  onSave,
-  onShare,
-  isHost,
-  onEdit,
-}: {
-  saved: boolean;
-  saving: boolean;
-  onSave: () => void;
-  onShare: () => void;
-  isHost: boolean;
-  onEdit: () => void;
-}) {
+function EventHeader({ onMore }: { onMore?: () => void }) {
   return (
     <View style={styles.header}>
       <Pressable
@@ -112,43 +109,18 @@ function EventHeader({
       >
         <Ionicons name="chevron-back" size={23} color={colors.text} />
       </Pressable>
-      <View style={styles.headerActions}>
+      {onMore ? (
         <Pressable
-          accessibilityLabel={saved ? "Remove saved event" : "Save event"}
+          accessibilityLabel="More event actions"
           accessibilityRole="button"
-          disabled={saving}
-          onPress={onSave}
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed && styles.pressed,
-            saving && styles.disabled,
-          ]}
-        >
-          <Ionicons
-            name={saved ? "bookmark" : "bookmark-outline"}
-            size={19}
-            color={saved ? colors.primaryHover : colors.text}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Share event"
-          accessibilityRole="button"
-          onPress={onShare}
+          onPress={onMore}
           style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
         >
-          <Ionicons name="share-outline" size={19} color={colors.text} />
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
         </Pressable>
-        {isHost ? (
-          <Pressable
-            accessibilityLabel="Edit event"
-            accessibilityRole="button"
-            onPress={onEdit}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-          </Pressable>
-        ) : null}
-      </View>
+      ) : (
+        <View style={styles.headerButtonPlaceholder} />
+      )}
     </View>
   );
 }
@@ -258,6 +230,8 @@ export default function CanonicalEventDetailScreen() {
   const [myResponse, setMyResponse] = useState<EventResponse | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [canManageCover, setCanManageCover] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [organizerEventCount, setOrganizerEventCount] = useState(0);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -268,6 +242,7 @@ export default function CanonicalEventDetailScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setCanManageCover(false);
 
     if (!uuidPattern.test(eventId)) {
       setError("This event link is invalid.");
@@ -297,6 +272,7 @@ export default function CanonicalEventDetailScreen() {
     const [
       creatorResult,
       crewResult,
+      managerResult,
       attendanceResult,
       savedResult,
       historyResult,
@@ -312,6 +288,14 @@ export default function CanonicalEventDetailScreen() {
             .from("crews")
             .select("id,name,logo_url,city")
             .eq("id", nextEvent.crew_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      userId && nextEvent.crew_id
+        ? supabase
+            .from("crew_members")
+            .select("role")
+            .eq("crew_id", nextEvent.crew_id)
+            .eq("user_id", userId)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       supabase
@@ -348,6 +332,15 @@ export default function CanonicalEventDetailScreen() {
 
     if (detailError) setError(detailError.message);
 
+    const managerRole = managerResult.data?.role;
+    setCanManageCover(
+      Boolean(
+        userId &&
+          (nextEvent.creator_id === userId ||
+            managerRole === "owner" ||
+            managerRole === "admin"),
+      ),
+    );
     setCreator((creatorResult.data as CanonicalProfile | null) ?? null);
     setCrew((crewResult.data as EventCrew | null) ?? null);
     setIsSaved(savedResult.error ? false : Boolean(savedResult.data));
@@ -475,15 +468,122 @@ export default function CanonicalEventDetailScreen() {
 
   const edit = useCallback(() => {
     if (!event) return;
-    Alert.alert("Manage event", undefined, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Edit Event",
-        onPress: () =>
-          router.push({ pathname: "/event-editor", params: { id: event.id } }),
-      },
-    ]);
+    router.push({ pathname: "/event-editor", params: { id: event.id } });
   }, [event]);
+
+  const changeCover = useCallback(async () => {
+    if (!event || !canManageCover || saving) return;
+    setSaving(true);
+    try {
+      const asset = await chooseCoverAsset();
+      if (!asset) return;
+
+      const uploaded = await uploadEntityCover(asset, "event", event.id);
+      try {
+        await setEntityCover("event", event.id, uploaded.publicUrl);
+      } catch (coverError) {
+        await removeUploadedEntityCover(uploaded.path);
+        throw coverError;
+      }
+
+      await removeEntityCoverObject(event.cover_image_url, "event", event.id);
+      await load();
+    } catch (coverError) {
+      Alert.alert(
+        "Cover not changed",
+        coverError instanceof Error
+          ? coverError.message
+          : "Unable to change this cover.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [canManageCover, event, load, saving]);
+
+  const removeCover = useCallback(async () => {
+    if (!event || !canManageCover || !event.cover_image_url || saving) return;
+    setSaving(true);
+    try {
+      const previous = event.cover_image_url;
+      await setEntityCover("event", event.id, null);
+      await removeEntityCoverObject(previous, "event", event.id);
+      await load();
+    } catch (coverError) {
+      Alert.alert(
+        "Cover not removed",
+        coverError instanceof Error
+          ? coverError.message
+          : "Unable to remove this cover.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [canManageCover, event, load, saving]);
+
+  const menuActions = useMemo<EntityAction[]>(() => {
+    if (!event) return [];
+
+    const actions: EntityAction[] = [];
+    if (currentUserId) {
+      actions.push({
+        key: "save",
+        label: isSaved ? "Remove from saved" : "Save event",
+        icon: isSaved ? "bookmark" : "bookmark-outline",
+        disabled: saving,
+        onPress: () => void toggleSaved(),
+      });
+    }
+
+    actions.push({
+      key: "share",
+      label: "Share event",
+      icon: "share-outline",
+      onPress: () => void share(),
+    });
+
+    if (isHost) {
+      actions.push({
+        key: "edit",
+        label: "Edit event",
+        icon: "create-outline",
+        onPress: edit,
+      });
+    }
+
+    if (canManageCover) {
+      actions.push({
+        key: "cover",
+        label: event.cover_image_url ? "Change cover" : "Choose cover",
+        icon: "image-outline",
+        disabled: saving,
+        onPress: () => void changeCover(),
+      });
+      if (event.cover_image_url) {
+        actions.push({
+          key: "remove-cover",
+          label: "Remove cover",
+          icon: "trash-outline",
+          destructive: true,
+          disabled: saving,
+          onPress: () => void removeCover(),
+        });
+      }
+    }
+
+    return actions;
+  }, [
+    canManageCover,
+    changeCover,
+    currentUserId,
+    edit,
+    event,
+    isHost,
+    isSaved,
+    removeCover,
+    saving,
+    share,
+    toggleSaved,
+  ]);
 
   const organizerName = crew?.name || profileName(creator);
   const canChat = isHost || myResponse !== null;
@@ -503,14 +603,7 @@ export default function CanonicalEventDetailScreen() {
   if (!event) {
     return (
       <NoxaScreen>
-        <EventHeader
-          isHost={false}
-          onEdit={() => undefined}
-          onSave={() => undefined}
-          onShare={() => undefined}
-          saved={false}
-          saving={false}
-        />
+        <EventHeader />
         <View style={styles.state}>
           <Ionicons name="calendar-outline" size={38} color={colors.primary} />
           <Text style={styles.stateTitle}>Event unavailable</Text>
@@ -525,9 +618,8 @@ export default function CanonicalEventDetailScreen() {
     );
   }
 
-  const goingLabel = isHost
-    ? "YOU'RE HOSTING"
-    : myResponse === "going"
+  const goingLabel =
+    myResponse === "going"
       ? "YOU'RE GOING"
       : rsvpClosed
         ? "RSVP CLOSED"
@@ -537,16 +629,9 @@ export default function CanonicalEventDetailScreen() {
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, isHost && styles.contentHost]}
       >
-        <EventHeader
-          isHost={isHost}
-          onEdit={edit}
-          onSave={toggleSaved}
-          onShare={share}
-          saved={isSaved}
-          saving={saving}
-        />
+        <EventHeader onMore={() => setActionsOpen(true)} />
 
         <Hero event={event} attendees={attendees} goingCount={goingCount} />
 
@@ -681,30 +766,39 @@ export default function CanonicalEventDetailScreen() {
         ) : null}
       </ScrollView>
 
-      <View style={styles.stickyFooter}>
-        <CanonicalPrimaryButton
-          disabled={isHost || rsvpClosed}
-          icon={myResponse === "going" || isHost ? "checkmark" : undefined}
-          label={goingLabel}
-          loading={rsvpBusy}
-          variant={myResponse === "going" || isHost ? "surface" : "accent"}
-          onPress={toggleGoing}
-        />
-        {myResponse === "going" && !isHost ? (
-          <Text style={styles.manageHint}>Tap again to cancel attendance</Text>
-        ) : null}
-      </View>
+      <EntityActionSheet
+        actions={menuActions}
+        onClose={() => setActionsOpen(false)}
+        title={event.title}
+        visible={actionsOpen}
+      />
+
+      {!isHost ? (
+        <View style={styles.stickyFooter}>
+          <CanonicalPrimaryButton
+            disabled={rsvpClosed}
+            icon={myResponse === "going" ? "checkmark" : undefined}
+            label={goingLabel}
+            loading={rsvpBusy}
+            variant={myResponse === "going" ? "surface" : "accent"}
+            onPress={toggleGoing}
+          />
+          {myResponse === "going" ? (
+            <Text style={styles.manageHint}>Tap again to cancel attendance</Text>
+          ) : null}
+        </View>
+      ) : null}
     </NoxaScreen>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 150, gap: spacing.lg },
+  contentHost: { paddingBottom: 80 },
   pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
-  disabled: { opacity: 0.45 },
   header: { height: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md },
-  headerActions: { flexDirection: "row", gap: spacing.xs },
   headerButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surface },
+  headerButtonPlaceholder: { width: 42, height: 42 },
   hero: { minHeight: 286, justifyContent: "space-between", marginHorizontal: spacing.md, padding: spacing.md, borderRadius: radius.hero, borderWidth: 1, borderColor: colors.borderStrong },
   heroImage: { borderRadius: radius.hero - 1 },
   heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.66)" },

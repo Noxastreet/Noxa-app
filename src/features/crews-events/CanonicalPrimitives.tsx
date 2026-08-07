@@ -44,6 +44,7 @@ export function CanonicalPill({
       ]}
     >
       <Text
+        numberOfLines={1}
         style={[
           styles.pillText,
           tone === "accent" && styles.pillTextStrong,
@@ -84,10 +85,14 @@ export function CanonicalArtwork({
 
   return (
     <View style={[styles.artwork, styles.fallback, style]}>
-      <View style={styles.fallbackRingLarge} />
-      <View style={styles.fallbackRingSmall} />
-      <View style={styles.fallbackRoad} />
-      <Ionicons name={icon} size={58} color={colors.primaryMuted} />
+      <View pointerEvents="none" style={styles.fallbackDecoration}>
+        <View style={styles.fallbackRingLarge} />
+        <View style={styles.fallbackRingSmall} />
+        <View style={styles.fallbackRoad} />
+        <View style={styles.fallbackIcon}>
+          <Ionicons name={icon} size={58} color={colors.primaryMuted} />
+        </View>
+      </View>
       {children}
     </View>
   );
@@ -238,6 +243,17 @@ export function CanonicalPrimaryButton({
   variant?: "accent" | "surface" | "danger";
   compact?: boolean;
 }) {
+  if (disabled && label === "YOU'RE HOSTING") return null;
+
+  if (disabled && label === "OWNER") {
+    return (
+      <View accessibilityLabel="Crew owner" style={styles.ownerStatus}>
+        <Ionicons name={icon || "shield-checkmark-outline"} size={14} color={colors.textMuted} />
+        <Text numberOfLines={1} style={styles.ownerStatusText}>OWNER</Text>
+      </View>
+    );
+  }
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -259,7 +275,7 @@ export function CanonicalPrimaryButton({
           color={colors.text}
         />
       ) : null}
-      <Text style={[styles.primaryButtonText, compact && styles.primaryButtonTextCompact]}>
+      <Text numberOfLines={1} style={[styles.primaryButtonText, compact && styles.primaryButtonTextCompact]}>
         {loading ? "PLEASE WAIT…" : label}
       </Text>
     </Pressable>
@@ -304,6 +320,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.hero,
   },
   fallback: {
+    position: "relative",
+  },
+  fallbackDecoration: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  fallbackIcon: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -424,5 +447,25 @@ const styles = StyleSheet.create({
   },
   primaryButtonTextCompact: {
     fontSize: 11,
+  },
+  ownerStatus: {
+    minHeight: 30,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(18,18,24,0.72)",
+  },
+  ownerStatusText: {
+    color: colors.textMuted,
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: "900",
+    letterSpacing: 0.45,
   },
 });
