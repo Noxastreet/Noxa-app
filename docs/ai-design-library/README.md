@@ -18,6 +18,7 @@
 6. `06-decision-log.md` — краткий журнал окончательных решений.
 7. `07-mvp-screen-plan.md` — план редизайна и реализации всех экранов MVP.
 8. `08-ui-foundation-and-library-policy.md` — правила компонентов, анимаций и внешних UI-библиотек.
+9. `09-final-mvp-consistency-audit.md` — финальный static/code audit, runtime evidence/waivers и обязательный Android gate перед закрытием #128.
 
 ## Как AI должен использовать библиотеку
 
@@ -30,6 +31,8 @@
 5. использовать component/library policy из `08-ui-foundation-and-library-policy.md`;
 6. сверить решение с актуальным `main` и реальным runtime;
 7. реализовать один связный пользовательский путь в отдельном PR.
+
+Перед закрытием всего MVP-дизайн rollout дополнительно прочитать `09-final-mvp-consistency-audit.md` и не считать CI/runtime waiver Android PASS.
 
 ## Рабочий процесс
 
