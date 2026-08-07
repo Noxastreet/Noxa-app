@@ -52,12 +52,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   regular: {
-    minHeight: 96,
+    minHeight: 92,
     borderRadius: radius.lg,
     padding: spacing.md,
   },
   compact: {
-    minHeight: 58,
+    minHeight: 54,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
