@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -20,10 +20,11 @@ import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 type GarageVehicle = {
   id: string;
   owner_id: string;
+  vehicle_type: 'car' | 'motorcycle';
   brand: string;
   model: string | null;
   year: number | null;
-  horsepower: number;
+  horsepower: number | null;
   color: string;
   transmission: string | null;
   drivetrain: string | null;
@@ -39,6 +40,7 @@ type GarageVehicle = {
 const vehicleSelect = `
   id,
   owner_id,
+  vehicle_type,
   brand,
   model,
   year,
@@ -81,6 +83,14 @@ function SpecCell({ label, value, unit, bordered = false }: { label: string; val
   );
 }
 
+function VehicleFallbackIcon({ vehicleType }: { vehicleType: GarageVehicle['vehicle_type'] }) {
+  if (vehicleType === 'motorcycle') {
+    return <FontAwesome5 name="motorcycle" size={72} color={colors.primaryMuted} />;
+  }
+
+  return <Ionicons name="car-sport" size={86} color={colors.primaryMuted} />;
+}
+
 function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
   const content = (
     <>
@@ -111,7 +121,7 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
 
   return (
     <View style={[styles.heroImage, styles.vehiclePlaceholder]}>
-      <Ionicons name="car-sport" size={86} color={colors.primaryMuted} />
+      <VehicleFallbackIcon vehicleType={vehicle.vehicle_type} />
       {content}
     </View>
   );
@@ -139,7 +149,11 @@ function VehicleCard({ vehicle, index }: { vehicle: GarageVehicle; index: number
         style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
         <VehicleArtwork vehicle={vehicle} />
         <View style={styles.specStrip}>
-          <SpecCell label="POWER" value={String(vehicle.horsepower)} unit="HP" />
+          <SpecCell
+            label="POWER"
+            value={vehicle.horsepower === null ? '—' : String(vehicle.horsepower)}
+            unit={vehicle.horsepower === null ? undefined : 'HP'}
+          />
           <SpecCell label="0–100" value={formatAcceleration(vehicle.zero_to_hundred)} unit={vehicle.zero_to_hundred === null ? undefined : 'S'} bordered />
           <SpecCell label="YEAR" value={formatYear(vehicle.year)} bordered />
         </View>
@@ -184,9 +198,9 @@ function GarageState({ error, isLoading, onRetry }: { error: boolean; isLoading:
     <View style={styles.collectionState}>
       <View style={styles.stateIcon}><Ionicons name="car-sport-outline" size={30} color={colors.primary} /></View>
       <Text style={styles.stateTitle}>Your garage is empty</Text>
-      <Text style={styles.stateText}>Add your first car and start building your NOXA identity.</Text>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/vehicle-editor')} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-        <Text style={styles.retryText}>ADD FIRST CAR</Text>
+      <Text style={styles.stateText}>Add a car or motorcycle and start building your NOXA identity.</Text>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/vehicle-picker')} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+        <Text style={styles.retryText}>ADD FIRST VEHICLE</Text>
       </Pressable>
     </View>
   );
@@ -248,7 +262,7 @@ export default function GarageScreen() {
           <Pressable
             accessibilityLabel="Add Vehicle"
             accessibilityRole="button"
-            onPress={() => router.push('/vehicle-editor')}
+            onPress={() => router.push('/vehicle-picker')}
             style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
             <Ionicons name="add" size={17} color={colors.text} />
             <Text style={styles.addText}>ADD</Text>
@@ -267,7 +281,7 @@ export default function GarageScreen() {
           <Pressable
             accessibilityLabel="Add another vehicle"
             accessibilityRole="button"
-            onPress={() => router.push('/vehicle-editor')}
+            onPress={() => router.push('/vehicle-picker')}
             style={({ pressed }) => [styles.addSlot, pressed && styles.pressed]}>
             <View style={styles.addSlotIcon}><Ionicons name="add" size={18} color={colors.textMuted} /></View>
             <Text style={styles.addSlotText}>Add another vehicle</Text>
