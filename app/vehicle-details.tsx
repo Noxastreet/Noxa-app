@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
@@ -15,6 +15,7 @@ type VehicleInfoRow = {
 type VehicleDetails = {
   id: string;
   owner_id: string;
+  vehicle_type: 'car' | 'motorcycle';
   brand: string | null;
   model: string | null;
   year: number | null;
@@ -40,6 +41,7 @@ type VehicleOwner = {
 const vehicleSelect = `
   id,
   owner_id,
+  vehicle_type,
   brand,
   model,
   year,
@@ -104,6 +106,14 @@ function Header({ vehicleId, ownsVehicle }: { vehicleId: string | null; ownsVehi
   );
 }
 
+function VehicleFallback({ vehicleType }: { vehicleType: VehicleDetails['vehicle_type'] }) {
+  if (vehicleType === 'motorcycle') {
+    return <FontAwesome5 name="motorcycle" size={78} color={colors.primaryMuted} />;
+  }
+
+  return <Ionicons name="car-sport" size={96} color={colors.primaryMuted} />;
+}
+
 function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
   const content = (
     <>
@@ -129,7 +139,7 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
         </ImageBackground>
       ) : (
         <View style={[styles.heroImage, styles.vehiclePlaceholder]}>
-          <Ionicons name="car-sport" size={96} color={colors.primaryMuted} />
+          <VehicleFallback vehicleType={vehicle.vehicle_type} />
           {content}
         </View>
       )}
@@ -243,6 +253,7 @@ export default function VehicleDetailsScreen() {
     }
 
     return [
+      { label: 'Type', value: vehicle.vehicle_type === 'motorcycle' ? 'Motorcycle' : 'Car' },
       { label: 'Color', value: vehicle.color },
       { label: 'Transmission', value: vehicle.transmission },
       { label: 'Drivetrain', value: vehicle.drivetrain },
