@@ -1,4 +1,7 @@
+import type { SupportedVehicleType } from "@/src/data/vehicleCatalogRegistry";
+
 export type VehiclePickerStep =
+  | "type"
   | "make"
   | "model"
   | "generation"
@@ -7,9 +10,10 @@ export type VehiclePickerStep =
   | "photo"
   | "confirm";
 
-export type VehiclePickerCardKind = "make" | "model" | "generation" | "year";
+export type VehiclePickerCardKind = "type" | "make" | "model" | "generation" | "year";
 
 export type VehiclePickerSelection = {
+  vehicleType: SupportedVehicleType | null;
   makeId: string | null;
   modelId: string | null;
   generationId: string | null;
@@ -23,14 +27,21 @@ type BasePickerCardItem = {
   kind: VehiclePickerCardKind;
 };
 
+export type VehicleTypePickerItem = BasePickerCardItem & {
+  kind: "type";
+  vehicleType: SupportedVehicleType;
+};
+
 export type VehicleMakePickerItem = BasePickerCardItem & {
   kind: "make";
+  vehicleType: SupportedVehicleType;
   makeId: string;
   popular: boolean;
 };
 
 export type VehicleModelPickerItem = BasePickerCardItem & {
   kind: "model";
+  vehicleType: SupportedVehicleType;
   makeId: string;
   modelId: string;
   hasGenerations: boolean;
@@ -38,6 +49,7 @@ export type VehicleModelPickerItem = BasePickerCardItem & {
 
 export type VehicleGenerationPickerItem = BasePickerCardItem & {
   kind: "generation";
+  vehicleType: SupportedVehicleType;
   makeId: string;
   modelId: string;
   generationId: string;
@@ -45,6 +57,7 @@ export type VehicleGenerationPickerItem = BasePickerCardItem & {
 
 export type VehicleYearPickerItem = BasePickerCardItem & {
   kind: "year";
+  vehicleType: SupportedVehicleType;
   makeId: string;
   modelId: string;
   generationId: string | null;
@@ -52,12 +65,14 @@ export type VehicleYearPickerItem = BasePickerCardItem & {
 };
 
 export type VehiclePickerCardItem =
+  | VehicleTypePickerItem
   | VehicleMakePickerItem
   | VehicleModelPickerItem
   | VehicleGenerationPickerItem
   | VehicleYearPickerItem;
 
 export const emptyVehiclePickerSelection: VehiclePickerSelection = {
+  vehicleType: null,
   makeId: null,
   modelId: null,
   generationId: null,
