@@ -31,6 +31,7 @@ import { colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type JoinPolicy = "open" | "approval" | "invite_only";
+type CrewFilter = "mine" | "discover";
 
 type CrewRow = {
   id: string;
@@ -79,7 +80,7 @@ type Crew = CrewRow & {
   pendingJoinRequestId: string | null;
 };
 
-function ownerName(row: CrewRow) {
+function getOwnerName(row: CrewRow) {
   const relation = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   return relation?.display_name || relation?.username || "NOXA driver";
 }
@@ -101,6 +102,7 @@ function CrewLogo({ crew, size = 42 }: { crew: Crew; size?: number }) {
       />
     );
   }
+
   return (
     <View
       style={[
@@ -119,7 +121,57 @@ function actionLabel(crew: Crew) {
   if (crew.pendingJoinRequestId) return "REQUESTED";
   if (!crew.is_public || crew.join_policy === "invite_only") return "INVITE ONLY";
   if (crew.join_policy === "approval") return "REQUEST";
-  return "JOIN CREW";
+  return "JOIN";
+}
+
+function CrewFilterControl({
+  value,
+  myCount,
+  discoverCount,
+  onChange,
+}: {
+  value: CrewFilter;
+  myCount: number;
+  discoverCount: number;
+  onChange: (value: CrewFilter) => void;
+}) {
+  return (
+    <View style={styles.filterControl}>
+      {[
+        { value: "mine" as const, label: "YOUR CREWS", count: myCount },
+        { value: "discover" as const, label: "DISCOVER", count: discoverCount },
+      ].map((item) => {
+        const active = item.value === value;
+        return (
+          <Pressable
+            key={item.value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(item.value)}
+            style={({ pressed }) => [
+              styles.filterButton,
+              active && styles.filterButtonActive,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={[styles.filterText, active && styles.filterTextActive]}>
+              {item.label}
+            </Text>
+            <View style={[styles.filterCount, active && styles.filterCountActive]}>
+              <Text
+                style={[
+                  styles.filterCountText,
+                  active && styles.filterCountTextActive,
+                ]}
+              >
+                {item.count}
+              </Text>
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
 
 function HeroCrew({
@@ -135,34 +187,39 @@ function HeroCrew({
 }) {
   const label = actionLabel(crew);
   const canAction = !["OWNER", "INVITE ONLY"].includes(label);
+  const artworkUri = crew.cover_image_url || event?.cover_image_url || null;
 
   return (
     <Pressable
       accessibilityLabel={`Open ${crew.name}`}
       accessibilityRole="button"
-      onPress={() => router.push({ pathname: "/crew/[id]", params: { id: crew.id } })}
+      onPress={() =>
+        router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
+      }
       style={({ pressed }) => [styles.heroCard, pressed && styles.pressed]}
     >
       <CanonicalArtwork
-        uri={crew.cover_image_url}
+        uri={artworkUri}
         style={styles.heroArtwork}
         imageStyle={styles.heroArtworkImage}
         icon="people-outline"
       >
         <View style={styles.heroShadeTop} />
         <View style={styles.heroShadeBottom} />
+
         <View style={styles.heroTopRow}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOUR CREW" : "FEATURED"}
-          />
-          <CanonicalPill
-            label={event ? "ACTIVE" : "DISCOVER"}
+            label={crew.isCurrentUserMember ? "YOUR CREW" : "NEARBY"}
             tone={event ? "accent" : "neutral"}
           />
+          <View style={styles.heroMenuButton}>
+            <Ionicons name="ellipsis-horizontal" size={18} color={colors.text} />
+          </View>
         </View>
+
         <View style={styles.heroCopy}>
           <View style={styles.heroIdentity}>
-            <CrewLogo crew={crew} size={42} />
+            <CrewLogo crew={crew} size={46} />
             <View style={styles.heroNameBlock}>
               <Text numberOfLines={1} style={styles.heroTitle}>
                 {crew.name.toUpperCase()}
@@ -173,64 +230,72 @@ function HeroCrew({
             </View>
           </View>
 
-          <View style={styles.heroSocialRow}>
-            <CanonicalAvatarStack total={crew.memberCount} max={3} size={30} />
+          {event ? (
             <Text numberOfLines={1} style={styles.heroSignal}>
-              {event ? `${event.title} · ${formatDrive(event.starts_at)}` : "New activity this week"}
+              NEXT: {event.title.toUpperCase()} · {formatDrive(event.starts_at)}
             </Text>
-          </View>
+          ) : null}
 
-          <CanonicalPrimaryButton
-            compact
-            disabled={!canAction || busy}
-            loading={busy}
-            label={label}
-            variant={crew.isCurrentUserMember ? "surface" : "accent"}
-            onPress={() => onAction(crew)}
-          />
+          <View style={styles.heroFooter}>
+            <View style={styles.organizerBlock}>
+              <Text style={styles.organizerEyebrow}>ORGANIZER</Text>
+              <Text numberOfLines={1} style={styles.organizerName}>
+                {crew.ownerName}
+              </Text>
+            </View>
+            <View style={styles.heroActionArea}>
+              <CanonicalAvatarStack total={crew.memberCount} max={3} size={27} />
+              <CanonicalPrimaryButton
+                compact
+                disabled={!canAction || busy}
+                loading={busy}
+                label={label}
+                variant={crew.isCurrentUserMember ? "surface" : "accent"}
+                onPress={() => onAction(crew)}
+              />
+            </View>
+          </View>
         </View>
       </CanonicalArtwork>
     </Pressable>
   );
 }
 
-function CompactCrewCard({ crew }: { crew: Crew }) {
+function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
   return (
     <Pressable
       accessibilityLabel={`Open ${crew.name}`}
       accessibilityRole="button"
-      onPress={() => router.push({ pathname: "/crew/[id]", params: { id: crew.id } })}
+      onPress={() =>
+        router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
+      }
       style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}
     >
       <CanonicalArtwork
-        uri={crew.cover_image_url}
+        uri={crew.cover_image_url || event?.cover_image_url}
         style={styles.compactArtwork}
         imageStyle={styles.compactArtworkImage}
         icon="car-sport-outline"
       >
         <View style={styles.compactShade} />
-        <View style={styles.compactAccent} />
-      </CanonicalArtwork>
-      <View style={styles.compactBody}>
-        <View style={styles.compactTitleRow}>
-          <Text numberOfLines={1} style={styles.compactTitle}>
-            {crew.name.toUpperCase()}
-          </Text>
-          <CrewLogo crew={crew} size={30} />
+        <View style={styles.compactTop}>
+          <CanonicalPill
+            label={crew.isCurrentUserMember ? "YOURS" : "NEARBY"}
+          />
+          <Text style={styles.compactMemberCount}>{crew.memberCount}</Text>
         </View>
-        <Text numberOfLines={1} style={styles.compactMeta}>
-          {crew.city || "NOXA"} · {crew.memberCount}
-        </Text>
-        <Text numberOfLines={1} style={styles.compactSignal}>
-          {crew.pendingJoinRequestId
-            ? "Join request pending"
-            : crew.isCurrentUserMember
-              ? "Your community"
-              : crew.join_policy === "open"
-                ? "Open to join"
-                : "Active this week"}
-        </Text>
-      </View>
+        <View style={styles.compactBottom}>
+          <CrewLogo crew={crew} size={34} />
+          <View style={styles.compactCopy}>
+            <Text numberOfLines={1} style={styles.compactTitle}>
+              {crew.name.toUpperCase()}
+            </Text>
+            <Text numberOfLines={1} style={styles.compactMeta}>
+              {crew.city || "NOXA"} · {crew.ownerName}
+            </Text>
+          </View>
+        </View>
+      </CanonicalArtwork>
     </Pressable>
   );
 }
@@ -240,13 +305,16 @@ function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
   const day = new Intl.DateTimeFormat(undefined, { day: "2-digit" }).format(date);
   const month = new Intl.DateTimeFormat(undefined, { month: "short" })
     .format(date)
+    .replace(".", "")
     .toUpperCase();
 
   return (
     <Pressable
       accessibilityLabel={`Open ${event.title}`}
       accessibilityRole="button"
-      onPress={() => router.push({ pathname: "/event-details", params: { id: event.id } })}
+      onPress={() =>
+        router.push({ pathname: "/event-details", params: { id: event.id } })
+      }
       style={({ pressed }) => [styles.driveCard, pressed && styles.pressed]}
     >
       <View style={styles.dateTile}>
@@ -254,19 +322,16 @@ function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
         <Text style={styles.dateMonth}>{month}</Text>
       </View>
       <View style={styles.driveCopy}>
-        <Text style={styles.driveEyebrow}>UPCOMING CREW DRIVE</Text>
+        <Text style={styles.driveEyebrow}>UPCOMING FROM YOUR CREW</Text>
         <Text numberOfLines={1} style={styles.driveTitle}>
           {event.title.toUpperCase()}
         </Text>
         <Text numberOfLines={1} style={styles.driveMeta}>
           {formatDrive(event.starts_at)} · {event.location_name}
         </Text>
-        <View style={styles.driveFooter}>
-          <CanonicalAvatarStack total={crew?.memberCount ?? 0} max={3} size={25} />
-          <Text style={styles.driveSignal}>
-            {crew ? `${crew.name} is going` : "Crew members are going"}
-          </Text>
-        </View>
+        <Text numberOfLines={1} style={styles.driveSignal}>
+          {crew ? `Hosted by ${crew.name}` : "Crew members are invited"}
+        </Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
     </Pressable>
@@ -306,8 +371,6 @@ function CreateCrewModal({
     onClose();
   };
 
-  const canSubmit = name.trim().length >= 2 && !creating;
-
   return (
     <Modal
       animationType="slide"
@@ -333,19 +396,24 @@ function CreateCrewModal({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.modalContent}
         >
-          <View style={styles.previewCard}>
-            <View style={styles.previewLogo}>
-              <Text style={styles.previewLogoText}>
-                {initials(name || "NOXA")}
-              </Text>
+          <CanonicalArtwork style={styles.previewCard} icon="people-outline">
+            <View style={styles.previewShade} />
+            <View style={styles.previewCopy}>
+              <View style={styles.previewLogo}>
+                <Text style={styles.previewLogoText}>
+                  {initials(name || "NOXA")}
+                </Text>
+              </View>
+              <View>
+                <Text numberOfLines={1} style={styles.previewTitle}>
+                  {(name || "YOUR CREW").toUpperCase()}
+                </Text>
+                <Text style={styles.previewMeta}>
+                  {(city || "YOUR CITY").toUpperCase()}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.previewTitle}>
-              {(name || "YOUR CREW").toUpperCase()}
-            </Text>
-            <Text style={styles.previewMeta}>
-              {(city || "YOUR CITY").toUpperCase()}
-            </Text>
-          </View>
+          </CanonicalArtwork>
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>CREW NAME</Text>
@@ -457,7 +525,7 @@ function CreateCrewModal({
 
         <View style={styles.modalFooter}>
           <CanonicalPrimaryButton
-            disabled={!canSubmit}
+            disabled={name.trim().length < 2 || creating}
             loading={creating}
             label="CREATE CREW"
             onPress={() =>
@@ -481,6 +549,7 @@ export default function CanonicalCrewsScreen() {
   const [events, setEvents] = useState<CrewEvent[]>([]);
   const [profiles, setProfiles] = useState<CanonicalProfile[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<CrewFilter>("mine");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -496,17 +565,6 @@ export default function CanonicalCrewsScreen() {
     const currentUserId = authData.user?.id ?? null;
     setUserId(currentUserId);
 
-    const crewsQuery = supabase
-      .from("crews")
-      .select(
-        "id,owner_id,name,description,city,logo_url,cover_image_url,is_public,join_policy,created_at,profiles:owner_id(display_name,username)",
-      )
-      .order("created_at", { ascending: false });
-
-    const membersQuery = supabase
-      .from("crew_members")
-      .select("crew_id,user_id,role");
-
     const requestsQuery = currentUserId
       ? supabase
           .from("crew_join_requests")
@@ -515,27 +573,28 @@ export default function CanonicalCrewsScreen() {
           .eq("status", "pending")
       : Promise.resolve({ data: [], error: null });
 
-    const eventsQuery = supabase
-      .from("events")
-      .select("id,crew_id,title,location_name,starts_at,cover_image_url")
-      .not("crew_id", "is", null)
-      .eq("status", "scheduled")
-      .gte("starts_at", new Date().toISOString())
-      .order("starts_at", { ascending: true })
-      .limit(8);
-
-    const profilesQuery = supabase
-      .from("profiles")
-      .select("id,display_name,username,avatar_url")
-      .limit(8);
-
     const [crewsResult, membersResult, requestsResult, eventsResult, profilesResult] =
       await Promise.all([
-        crewsQuery,
-        membersQuery,
+        supabase
+          .from("crews")
+          .select(
+            "id,owner_id,name,description,city,logo_url,cover_image_url,is_public,join_policy,created_at,profiles:owner_id(display_name,username)",
+          )
+          .order("created_at", { ascending: false }),
+        supabase.from("crew_members").select("crew_id,user_id,role"),
         requestsQuery,
-        eventsQuery,
-        profilesQuery,
+        supabase
+          .from("events")
+          .select("id,crew_id,title,location_name,starts_at,cover_image_url")
+          .not("crew_id", "is", null)
+          .eq("status", "scheduled")
+          .gte("starts_at", new Date().toISOString())
+          .order("starts_at", { ascending: true })
+          .limit(8),
+        supabase
+          .from("profiles")
+          .select("id,display_name,username,avatar_url")
+          .limit(8),
       ]);
 
     const firstError =
@@ -555,32 +614,35 @@ export default function CanonicalCrewsScreen() {
     const memberRows = (membersResult.data ?? []) as CrewMemberRow[];
     const requestRows = (requestsResult.data ?? []) as JoinRequestRow[];
     const rows = (crewsResult.data ?? []) as CrewRow[];
-
     const memberCount = new Map<string, number>();
     const roleByCrew = new Map<string, CrewRole>();
+
     for (const member of memberRows) {
       memberCount.set(member.crew_id, (memberCount.get(member.crew_id) ?? 0) + 1);
-      if (member.user_id === currentUserId) roleByCrew.set(member.crew_id, member.role);
+      if (member.user_id === currentUserId) {
+        roleByCrew.set(member.crew_id, member.role);
+      }
     }
+
     const requestByCrew = new Map(
       requestRows.map((request) => [request.crew_id, request.id]),
     );
+    const models = rows.map((row) => {
+      const role = roleByCrew.get(row.id) ?? null;
+      return {
+        ...row,
+        ownerName: getOwnerName(row),
+        memberCount: memberCount.get(row.id) ?? 0,
+        currentUserRole: role,
+        isCurrentUserMember: role !== null,
+        pendingJoinRequestId: requestByCrew.get(row.id) ?? null,
+      } satisfies Crew;
+    });
 
-    setCrews(
-      rows.map((row) => {
-        const role = roleByCrew.get(row.id) ?? null;
-        return {
-          ...row,
-          ownerName: ownerName(row),
-          memberCount: memberCount.get(row.id) ?? 0,
-          currentUserRole: role,
-          isCurrentUserMember: role !== null,
-          pendingJoinRequestId: requestByCrew.get(row.id) ?? null,
-        };
-      }),
-    );
+    setCrews(models);
     setEvents((eventsResult.data ?? []) as CrewEvent[]);
     setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
+    if (!models.some((crew) => crew.isCurrentUserMember)) setFilter("discover");
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -593,12 +655,21 @@ export default function CanonicalCrewsScreen() {
 
   const myCrews = crews.filter((crew) => crew.isCurrentUserMember);
   const discovery = crews.filter((crew) => !crew.isCurrentUserMember);
-  const hero = myCrews[0] ?? discovery[0] ?? null;
-  const activeNear = (hero ? crews.filter((crew) => crew.id !== hero.id) : crews).slice(0, 4);
-  const nextEvent = events[0] ?? null;
+  const visibleCrews = filter === "mine" ? myCrews : discovery;
+  const hero = visibleCrews[0] ?? null;
+  const secondaryCrews = visibleCrews.slice(1, 5);
+  const nextEvent =
+    filter === "mine"
+      ? events.find((event) => myCrews.some((crew) => crew.id === event.crew_id)) ?? null
+      : null;
   const nextEventCrew = nextEvent
     ? crews.find((crew) => crew.id === nextEvent.crew_id)
     : undefined;
+
+  const eventForCrew = useCallback(
+    (crewId: string) => events.find((event) => event.crew_id === crewId),
+    [events],
+  );
 
   const handleAction = useCallback(
     async (crew: Crew) => {
@@ -665,6 +736,7 @@ export default function CanonicalCrewsScreen() {
       if (!userId || creating) return;
       setCreating(true);
       setError(null);
+
       const { data, error: createError } = await supabase
         .from("crews")
         .insert({
@@ -692,6 +764,7 @@ export default function CanonicalCrewsScreen() {
         setError(membershipError.message);
       } else {
         setCreateVisible(false);
+        setFilter("mine");
         await load(false);
         router.push({ pathname: "/crew/[id]", params: { id: data.id } });
       }
@@ -714,13 +787,20 @@ export default function CanonicalCrewsScreen() {
       return (
         <View style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
-          <Text style={styles.stateTitle}>Build the first crew</Text>
+          <Text style={styles.stateTitle}>
+            {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
+          </Text>
           <Text style={styles.stateText}>
-            Create a place for drivers, cars and upcoming drives.
+            {filter === "mine"
+              ? "Create a crew or discover a community that matches your road."
+              : "New public crews will appear here when drivers create them."}
           </Text>
           <CanonicalPrimaryButton
-            label="CREATE CREW"
-            onPress={() => setCreateVisible(true)}
+            label={filter === "mine" ? "CREATE CREW" : "REFRESH"}
+            variant={filter === "mine" ? "accent" : "surface"}
+            onPress={() =>
+              filter === "mine" ? setCreateVisible(true) : void load(false)
+            }
           />
         </View>
       );
@@ -731,20 +811,26 @@ export default function CanonicalCrewsScreen() {
         <HeroCrew
           busy={busyCrewId === hero.id}
           crew={hero}
-          event={events.find((event) => event.crew_id === hero.id) ?? null}
+          event={eventForCrew(hero.id) ?? null}
           onAction={handleAction}
         />
 
-        {activeNear.length ? (
+        {secondaryCrews.length ? (
           <>
-            <CanonicalSectionHeader title="ACTIVE NEAR YOU" action="SEE ALL" />
+            <CanonicalSectionHeader
+              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE NEAR YOU"}
+            />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalList}
             >
-              {activeNear.map((crew) => (
-                <CompactCrewCard key={crew.id} crew={crew} />
+              {secondaryCrews.map((crew) => (
+                <CompactCrewCard
+                  key={crew.id}
+                  crew={crew}
+                  event={eventForCrew(crew.id)}
+                />
               ))}
             </ScrollView>
           </>
@@ -754,67 +840,40 @@ export default function CanonicalCrewsScreen() {
           <UpcomingDrive event={nextEvent} crew={nextEventCrew} />
         ) : null}
 
-        <View style={styles.activityStrip}>
-          <View>
-            <Text style={styles.activityEyebrow}>PEOPLE & ACTIVITY</Text>
-            <Text style={styles.activityText}>
-              {myCrews.length
-                ? `${myCrews.length} crew${myCrews.length === 1 ? "" : "s"} in your garage`
-                : "Discover drivers who share your road"}
+        <View style={styles.peopleStrip}>
+          <View style={styles.peopleCopy}>
+            <Text style={styles.peopleEyebrow}>
+              {filter === "mine" ? "YOUR COMMUNITY" : "PEOPLE NEARBY"}
+            </Text>
+            <Text style={styles.peopleText}>
+              {filter === "mine"
+                ? `${myCrews.length} crew${myCrews.length === 1 ? "" : "s"} connected to your garage`
+                : `${discovery.length} public crew${discovery.length === 1 ? "" : "s"} to discover`}
             </Text>
           </View>
-          <CanonicalAvatarStack profiles={profiles} total={profiles.length} max={4} size={30} />
+          <CanonicalAvatarStack
+            profiles={profiles}
+            total={profiles.length}
+            max={4}
+            size={30}
+          />
         </View>
-
-        {discovery.length > activeNear.length ? (
-          <>
-            <CanonicalSectionHeader title="DISCOVERY" />
-            <View style={styles.discoveryList}>
-              {discovery.slice(4, 7).map((crew) => (
-                <Pressable
-                  key={crew.id}
-                  accessibilityRole="button"
-                  onPress={() =>
-                    router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
-                  }
-                  style={({ pressed }) => [
-                    styles.discoveryRow,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <CrewLogo crew={crew} size={42} />
-                  <View style={styles.discoveryCopy}>
-                    <Text numberOfLines={1} style={styles.discoveryTitle}>
-                      {crew.name}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.discoveryMeta}>
-                      {crew.city || "NOXA"} · {crew.memberCount} members
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={colors.textSubtle}
-                  />
-                </Pressable>
-              ))}
-            </View>
-          </>
-        ) : null}
       </>
     );
   }, [
-    activeNear,
     busyCrewId,
-    discovery,
-    events,
+    discovery.length,
+    eventForCrew,
+    filter,
     handleAction,
     hero,
+    load,
     loading,
     myCrews.length,
     nextEvent,
     nextEventCrew,
     profiles,
+    secondaryCrews,
   ]);
 
   return (
@@ -852,10 +911,23 @@ export default function CanonicalCrewsScreen() {
           </Pressable>
         </View>
 
+        <CrewFilterControl
+          discoverCount={discovery.length}
+          myCount={myCrews.length}
+          onChange={setFilter}
+          value={filter}
+        />
+
         {error ? (
           <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
-            <Ionicons name="alert-circle-outline" size={16} color={colors.primaryHover} />
-            <Text numberOfLines={2} style={styles.errorText}>{error}</Text>
+            <Ionicons
+              name="alert-circle-outline"
+              size={16}
+              color={colors.primaryHover}
+            />
+            <Text numberOfLines={2} style={styles.errorText}>
+              {error}
+            </Text>
           </Pressable>
         ) : null}
 
@@ -920,6 +992,44 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.6,
   },
+  filterControl: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    padding: spacing.xxs,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  filterButton: {
+    minHeight: 42,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: radius.button,
+  },
+  filterButtonActive: { backgroundColor: colors.surfaceRaised },
+  filterText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.45,
+  },
+  filterTextActive: { color: colors.text },
+  filterCount: {
+    minWidth: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xxs,
+    borderRadius: 11,
+    backgroundColor: colors.surfacePressed,
+  },
+  filterCountActive: { backgroundColor: colors.primaryMuted },
+  filterCountText: { color: colors.textSubtle, fontSize: 9, fontWeight: "900" },
+  filterCountTextActive: { color: colors.text },
   errorBanner: {
     minHeight: 48,
     flexDirection: "row",
@@ -932,12 +1042,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  errorText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 12,
-    lineHeight: 16,
-  },
+  errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
   stateCard: {
     minHeight: 260,
     alignItems: "center",
@@ -971,40 +1076,48 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   heroArtwork: {
-    minHeight: 286,
-    justifyContent: "space-between",
+    minHeight: 278,
+    justifyContent: "flex-end",
     padding: spacing.md,
+    paddingTop: 80,
   },
   heroArtworkImage: { borderRadius: radius.hero - 1 },
   heroShadeTop: {
     ...StyleSheet.absoluteFillObject,
-    bottom: "44%",
+    bottom: "48%",
     backgroundColor: "rgba(0,0,0,0.12)",
   },
   heroShadeBottom: {
     ...StyleSheet.absoluteFillObject,
-    top: "38%",
-    backgroundColor: "rgba(0,0,0,0.72)",
+    top: "34%",
+    backgroundColor: "rgba(0,0,0,0.78)",
   },
   heroTopRow: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
     flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.sm,
   },
-  heroCopy: {
-    gap: spacing.sm,
-  },
-  heroIdentity: {
-    flexDirection: "row",
+  heroMenuButton: {
+    width: 36,
+    height: 36,
     alignItems: "center",
-    gap: spacing.sm,
+    justifyContent: "center",
+    borderRadius: 18,
+    backgroundColor: "rgba(6,6,10,0.62)",
   },
+  heroCopy: { gap: spacing.sm },
+  heroIdentity: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   heroNameBlock: { flex: 1 },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 27,
+    lineHeight: 31,
     fontWeight: "900",
     letterSpacing: -0.4,
   },
@@ -1015,17 +1128,35 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.2,
   },
-  heroSocialRow: {
+  heroSignal: {
+    color: colors.primaryHover,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  heroFooter: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
     gap: spacing.sm,
   },
-  heroSignal: {
-    flex: 1,
-    color: colors.textMuted,
+  organizerBlock: { flex: 1, minWidth: 0 },
+  organizerEyebrow: {
+    color: colors.textSubtle,
+    fontSize: 8,
+    lineHeight: 10,
+    fontWeight: "900",
+    letterSpacing: 0.45,
+  },
+  organizerName: {
+    marginTop: 2,
+    color: colors.text,
     fontSize: 11,
     lineHeight: 15,
+    fontWeight: "700",
   },
+  heroActionArea: { alignItems: "flex-end", gap: spacing.xs },
   logoFallback: {
     alignItems: "center",
     justifyContent: "center",
@@ -1033,72 +1164,50 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceRaised,
   },
-  logoFallbackText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  horizontalList: {
-    gap: spacing.md,
-    paddingRight: spacing.md,
-  },
+  logoFallbackText: { color: colors.text, fontSize: 11, fontWeight: "900" },
+  horizontalList: { gap: spacing.md, paddingRight: spacing.md },
   compactCard: {
-    width: 176,
+    width: 190,
+    height: 158,
     overflow: "hidden",
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
   },
   compactArtwork: {
-    height: 96,
-  },
-  compactArtworkImage: {
-    borderTopLeftRadius: radius.lg - 1,
-    borderTopRightRadius: radius.lg - 1,
-  },
-  compactShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.20)",
-  },
-  compactAccent: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 7,
-    backgroundColor: colors.primary,
-    opacity: 0.68,
-  },
-  compactBody: {
-    gap: spacing.xxs,
+    flex: 1,
+    justifyContent: "space-between",
     padding: spacing.sm,
   },
-  compactTitleRow: {
+  compactArtworkImage: { borderRadius: radius.lg - 1 },
+  compactShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  compactTop: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
     gap: spacing.xs,
   },
-  compactTitle: {
-    flex: 1,
+  compactMemberCount: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 17,
-    lineHeight: 20,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: "900",
   },
-  compactMeta: {
-    color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
+  compactBottom: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  compactCopy: { flex: 1, minWidth: 0 },
+  compactTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 16,
+    lineHeight: 19,
+    fontWeight: "900",
   },
-  compactSignal: {
-    color: colors.textSubtle,
-    fontSize: 10,
-    lineHeight: 14,
-  },
+  compactMeta: { color: colors.textMuted, fontSize: 9, lineHeight: 12 },
   driveCard: {
-    minHeight: 142,
+    minHeight: 126,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -1109,8 +1218,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   dateTile: {
-    width: 58,
-    height: 74,
+    width: 50,
+    height: 62,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.md,
@@ -1119,21 +1228,18 @@ const styles = StyleSheet.create({
   dateDay: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 27,
-    lineHeight: 30,
+    fontSize: 23,
+    lineHeight: 26,
     fontWeight: "900",
   },
   dateMonth: {
     color: colors.primaryHover,
-    fontSize: 10,
-    lineHeight: 13,
+    fontSize: 8,
+    lineHeight: 11,
     fontWeight: "900",
-    letterSpacing: 0.6,
+    letterSpacing: 0.35,
   },
-  driveCopy: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
+  driveCopy: { flex: 1, gap: spacing.xxs },
   driveEyebrow: {
     color: colors.primaryHover,
     fontSize: 9,
@@ -1144,28 +1250,13 @@ const styles = StyleSheet.create({
   driveTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 19,
-    lineHeight: 23,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: "900",
   },
-  driveMeta: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  driveFooter: {
-    marginTop: spacing.xxs,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  driveSignal: {
-    flex: 1,
-    color: colors.textSubtle,
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  activityStrip: {
+  driveMeta: { color: colors.textMuted, fontSize: 11, lineHeight: 15 },
+  driveSignal: { color: colors.textSubtle, fontSize: 10, lineHeight: 14 },
+  peopleStrip: {
     minHeight: 78,
     flexDirection: "row",
     alignItems: "center",
@@ -1176,48 +1267,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  activityEyebrow: {
+  peopleCopy: { flex: 1 },
+  peopleEyebrow: {
     color: colors.textMuted,
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "900",
     letterSpacing: 0.6,
   },
-  activityText: {
+  peopleText: {
     marginTop: spacing.xxs,
-    maxWidth: 220,
+    maxWidth: 230,
     color: colors.text,
     fontSize: 12,
     lineHeight: 16,
   },
-  discoveryList: {
-    gap: spacing.xs,
-  },
-  discoveryRow: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-  },
-  discoveryCopy: { flex: 1 },
-  discoveryTitle: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: "800",
-  },
-  discoveryMeta: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  modalScreen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  modalScreen: { flex: 1, backgroundColor: colors.background },
   modalHeader: {
     height: 58,
     flexDirection: "row",
@@ -1243,42 +1308,37 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.4,
   },
-  modalContent: {
-    padding: spacing.lg,
-    paddingBottom: 120,
-    gap: spacing.lg,
-  },
+  modalContent: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
   previewCard: {
-    minHeight: 170,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    overflow: "hidden",
+    minHeight: 176,
+    justifyContent: "flex-end",
+    padding: spacing.md,
     borderRadius: radius.hero,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
+  previewShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.52)",
+  },
+  previewCopy: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   previewLogo: {
-    width: 64,
-    height: 64,
+    width: 54,
+    height: 54,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 32,
+    borderRadius: 27,
     borderWidth: 1,
     borderColor: colors.primary,
     backgroundColor: colors.primaryMuted,
   },
-  previewLogoText: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "900",
-  },
+  previewLogoText: { color: colors.text, fontSize: 15, fontWeight: "900" },
   previewTitle: {
+    maxWidth: 230,
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 23,
-    lineHeight: 27,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: "900",
   },
   previewMeta: {
@@ -1288,9 +1348,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.6,
   },
-  field: {
-    gap: spacing.xs,
-  },
+  field: { gap: spacing.xs },
   fieldLabel: {
     color: colors.textMuted,
     fontSize: 10,
@@ -1313,11 +1371,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     textAlignVertical: "top",
   },
-  optionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
+  optionRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   option: {
     minHeight: 40,
     flexGrow: 1,
@@ -1339,9 +1393,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.5,
   },
-  optionTextActive: {
-    color: colors.text,
-  },
+  optionTextActive: { color: colors.text },
   modalFooter: {
     position: "absolute",
     left: 0,
