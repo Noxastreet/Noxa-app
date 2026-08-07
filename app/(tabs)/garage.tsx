@@ -57,30 +57,15 @@ const vehicleSelect = `
   updated_at
 `;
 
-function formatAcceleration(value: number | null) {
-  return value === null ? '—' : String(value);
-}
+function vehicleMeta(vehicle: GarageVehicle) {
+  const items = [
+    vehicle.color?.trim() || null,
+    vehicle.horsepower === null ? null : `${vehicle.horsepower} HP`,
+    vehicle.tuning_stage?.trim() || null,
+    vehicle.zero_to_hundred === null ? null : `${vehicle.zero_to_hundred}s 0–100`,
+  ].filter((value): value is string => Boolean(value));
 
-function formatYear(value: number | null) {
-  return value === null ? '—' : String(value);
-}
-
-function vehicleTags(vehicle: GarageVehicle) {
-  return [vehicle.color, vehicle.tuning_stage, vehicle.transmission, vehicle.drivetrain].filter(
-    (value): value is string => Boolean(value?.trim()),
-  );
-}
-
-function SpecCell({ label, value, unit, bordered = false }: { label: string; value: string; unit?: string; bordered?: boolean }) {
-  return (
-    <View style={[styles.specCell, bordered && styles.specCellBorder]}>
-      <View style={styles.specValueRow}>
-        <Text style={styles.specValue}>{value}</Text>
-        {unit ? <Text style={styles.specUnit}>{unit}</Text> : null}
-      </View>
-      <Text style={styles.specLabel}>{label}</Text>
-    </View>
-  );
+  return items.slice(0, 3);
 }
 
 function VehicleFallbackIcon({ vehicleType }: { vehicleType: GarageVehicle['vehicle_type'] }) {
@@ -101,7 +86,7 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
       <View style={styles.heroContent}>
         <Text numberOfLines={1} style={styles.brand}>{vehicle.brand}</Text>
         <Text numberOfLines={1} style={styles.model}>
-          {[vehicle.year, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}
+          {[vehicle.model, vehicle.year].filter(Boolean).join(' · ') || 'Vehicle'}
         </Text>
       </View>
     </>
@@ -130,13 +115,13 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
 function VehicleCard({ vehicle, index }: { vehicle: GarageVehicle; index: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(18)).current;
-  const tags = vehicleTags(vehicle);
+  const meta = vehicleMeta(vehicle);
   const modelName = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 460, delay: index * 55, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 460, delay: index * 55, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 420, delay: index * 50, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 420, delay: index * 50, useNativeDriver: true }),
     ]).start();
   }, [index, opacity, translateY]);
 
@@ -148,24 +133,15 @@ function VehicleCard({ vehicle, index }: { vehicle: GarageVehicle; index: number
         onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
         style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
         <VehicleArtwork vehicle={vehicle} />
-        <View style={styles.specStrip}>
-          <SpecCell
-            label="POWER"
-            value={vehicle.horsepower === null ? '—' : String(vehicle.horsepower)}
-            unit={vehicle.horsepower === null ? undefined : 'HP'}
-          />
-          <SpecCell label="0–100" value={formatAcceleration(vehicle.zero_to_hundred)} unit={vehicle.zero_to_hundred === null ? undefined : 'S'} bordered />
-          <SpecCell label="YEAR" value={formatYear(vehicle.year)} bordered />
-        </View>
-        {tags.length > 0 ? (
-          <View style={styles.tagList}>
-            {tags.map((tag, tagIndex) => (
-              <View key={`${tag}-${tagIndex}`} style={styles.tag}>
-                <Text style={styles.tagText}>{tag}</Text>
-              </View>
-            ))}
+        <View style={styles.identityFooter}>
+          <View style={styles.identityCopy}>
+            <Text style={styles.vehicleType}>{vehicle.vehicle_type === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
+            <Text numberOfLines={1} style={styles.metaText}>
+              {meta.length > 0 ? meta.join('  ·  ') : 'Add build details anytime'}
+            </Text>
           </View>
-        ) : null}
+          <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -283,7 +259,7 @@ export default function GarageScreen() {
             accessibilityRole="button"
             onPress={() => router.push('/vehicle-picker')}
             style={({ pressed }) => [styles.addSlot, pressed && styles.pressed]}>
-            <View style={styles.addSlotIcon}><Ionicons name="add" size={18} color={colors.textMuted} /></View>
+            <Ionicons name="add" size={17} color={colors.textMuted} />
             <Text style={styles.addSlotText}>Add another vehicle</Text>
           </Pressable>
         ) : null}
@@ -300,7 +276,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   topBar: {
-    minHeight: 76,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -331,10 +307,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.button,
     backgroundColor: colors.primary,
-    ...shadows.redGlow,
   },
   addText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
-  pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.985 }] },
+  pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.988 }] },
   vehicleList: { gap: spacing.md },
   vehicleCard: {
     overflow: 'hidden',
@@ -344,53 +319,51 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     ...shadows.card,
   },
-  heroImage: { height: 210, justifyContent: 'flex-end', backgroundColor: colors.surfaceSoft },
+  heroImage: { height: 228, justifyContent: 'flex-end', backgroundColor: colors.surfaceSoft },
   heroImageRadius: { borderTopLeftRadius: radius.hero, borderTopRightRadius: radius.hero },
   vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.35)' },
+  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.30)' },
   vehicleBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm },
   heroContent: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md },
   brand: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: '900',
-    letterSpacing: 0.7,
-    lineHeight: 36,
+    letterSpacing: 0.5,
+    lineHeight: 38,
     textTransform: 'uppercase',
   },
   model: {
     marginTop: spacing.xxs,
-    color: 'rgba(240,240,244,0.68)',
+    color: 'rgba(240,240,244,0.72)',
     fontFamily: typography.fontFamily.display,
     fontSize: typography.subtitle,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
-  specStrip: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.divider },
-  specCell: { flex: 1, minHeight: 68, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm },
-  specCellBorder: { borderLeftWidth: 1, borderLeftColor: colors.divider },
-  specValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 3 },
-  specValue: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '900',
-  },
-  specUnit: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
-  specLabel: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
-  tagList: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  tag: {
-    minHeight: 25,
+  identityFooter: {
+    minHeight: 64,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
   },
-  tagText: { color: colors.textMuted, fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
+  identityCopy: { flex: 1, minWidth: 0 },
+  vehicleType: {
+    color: colors.textSubtle,
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  metaText: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
   collectionState: {
     minHeight: 280,
     alignItems: 'center',
@@ -430,23 +403,13 @@ const styles = StyleSheet.create({
   },
   retryText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
   addSlot: {
-    minHeight: 88,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.borderStrong,
-  },
-  addSlotIcon: {
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
+    gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
   },
   addSlotText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
 });
