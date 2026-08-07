@@ -86,16 +86,17 @@ export function getVehicleQuickAddErrorMessage(error: unknown) {
 }
 
 export async function createVehicleFromPicker({ color, coverAsset, selection }: CreateVehicleFromPickerInput) {
-  if (!isValidVehiclePickerSelection(selection)) {
-    throw new Error('Vehicle selection is incomplete.');
-  }
-
   const vehicleType = selection.vehicleType;
   const makeId = selection.makeId;
   const modelId = selection.modelId;
+  const year = selection.year;
 
-  if (!vehicleType || !makeId || !modelId || !selection.year) {
+  if (!vehicleType || !makeId || !modelId || !year) {
     throw new Error('Vehicle selection is incomplete.');
+  }
+
+  if (!isValidVehiclePickerSelection(vehicleType, makeId, modelId, selection.generationId, year)) {
+    throw new Error('Vehicle selection is no longer valid for the catalog.');
   }
 
   const make = getCatalogVehicleMake(vehicleType, makeId);
@@ -129,7 +130,7 @@ export async function createVehicleFromPicker({ color, coverAsset, selection }: 
         catalog_generation_id: selection.generationId,
         brand: make.name,
         model: model.name,
-        year: selection.year,
+        year,
         horsepower: null,
         color: color.name,
         color_hex: color.hex,
