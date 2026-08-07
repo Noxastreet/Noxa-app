@@ -15,6 +15,10 @@ import {
 
 import { NoxaScreen } from "@/src/components/ui";
 import {
+  EntityActionSheet,
+  type EntityAction,
+} from "@/src/features/crews-events/EntityActionSheet";
+import {
   CanonicalArtwork,
   CanonicalAvatar,
   CanonicalAvatarStack,
@@ -24,6 +28,13 @@ import {
   profileName,
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
+import {
+  chooseCoverAsset,
+  removeEntityCoverObject,
+  removeUploadedEntityCover,
+  setEntityCover,
+  uploadEntityCover,
+} from "@/src/lib/entityCover";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -316,11 +327,7 @@ function TabBar({ value, onChange }: { value: CrewTab; onChange: (tab: CrewTab) 
   ];
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.tabs}
-    >
+    <View style={styles.tabs}>
       {tabs.map((tab) => {
         const active = tab.value === value;
         return (
@@ -335,13 +342,16 @@ function TabBar({ value, onChange }: { value: CrewTab; onChange: (tab: CrewTab) 
               pressed && styles.pressed,
             ]}
           >
-            <Text style={[styles.tabText, active && styles.tabTextActive]}>
+            <Text
+              numberOfLines={1}
+              style={[styles.tabText, active && styles.tabTextActive]}
+            >
               {tab.label}
             </Text>
           </Pressable>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -592,6 +602,7 @@ export default function CanonicalCrewDetailScreen() {
   const [myMembership, setMyMembership] = useState<Membership | null>(null);
   const [joinRequest, setJoinRequest] = useState<JoinRequest | null>(null);
   const [activeTab, setActiveTab] = useState<CrewTab>("activity");
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -718,6 +729,7 @@ export default function CanonicalCrewDetailScreen() {
 
   const isOwner = Boolean(crew && currentUserId === crew.owner_id);
   const isMember = myMembership !== null;
+  const canManageCover = isOwner || myMembership?.role === "admin";
 
   const join = useCallback(async () => {
     if (!crew || !currentUserId || busy) return;
@@ -784,18 +796,109 @@ export default function CanonicalCrewDetailScreen() {
     });
   }, [crew]);
 
-  const showMore = useCallback(() => {
-    if (!crew) return;
-    const actions: Parameters<typeof Alert.alert>[2] = [
-      { text: "Share crew", onPress: () => void shareCrew() },
-    ];
+  const changeCover = useCallback(async () => {
+    if (!crew || !canManageCover || busy) return;
+    setBusy(true);
+    try {
+      const asset = await chooseCoverAsset();
+      if (!asset) return;
+
+      const uploaded = await uploadEntityCover(asset, "crew", crew.id);
+      try {
+        await setEntityCover("crew", crew.id, uploaded.publicUrl);
+      } catch (coverError) {
+        await removeUploadedEntityCover(uploaded.path);
+        throw coverError;
+      }
+
+      await removeEntityCoverObject(crew.cover_image_url, "crew", crew.id);
+      await load();
+    } catch (coverError) {
+      Alert.alert(
+        "Cover not changed",
+        coverError instanceof Error
+          ? coverError.message
+          : "Unable to change this cover.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, canManageCover, crew, load]);
+
+  const removeCover = useCallback(async () => {
+    if (!crew || !canManageCover || !crew.cover_image_url || busy) return;
+    setBusy(true);
+    try {
+      const previous = crew.cover_image_url;
+      await setEntityCover("crew", crew.id, null);
+      await removeEntityCoverObject(previous, "crew", crew.id);
+      await load();
+    } catch (coverError) {
+      Alert.alert(
+        "Cover not removed",
+        coverError instanceof Error
+          ? coverError.message
+          : "Unable to remove this cover.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, canManageCover, crew, load]);
+
+  const menuActions = useMemo<EntityAction[]>(() => {
+    if (!crew) return [];
+
+    const actions: EntityAction[] = [];
+    if (canManageCover) {
+      actions.push({
+        key: "cover",
+        label: crew.cover_image_url ? "Change cover" : "Choose cover",
+        icon: "image-outline",
+        disabled: busy,
+        onPress: () => void changeCover(),
+      });
+      if (crew.cover_image_url) {
+        actions.push({
+          key: "remove-cover",
+          label: "Remove cover",
+          icon: "trash-outline",
+          destructive: true,
+          disabled: busy,
+          onPress: () => void removeCover(),
+        });
+      }
+    }
+
+    actions.push({
+      key: "share",
+      label: "Share crew",
+      icon: "share-outline",
+      onPress: () => void shareCrew(),
+    });
 
     if (isMember && !isOwner) {
-      actions.push({ text: "Leave crew", style: "destructive", onPress: leave });
+      actions.push({
+        key: "leave",
+        label: "Leave crew",
+        icon: "exit-outline",
+        destructive: true,
+        disabled: busy,
+        onPress: leave,
+      });
     }
-    actions.push({ text: "Cancel", style: "cancel" });
-    Alert.alert(crew.name, undefined, actions);
-  }, [crew, isMember, isOwner, leave, shareCrew]);
+
+    return actions;
+  }, [
+    busy,
+    canManageCover,
+    changeCover,
+    crew,
+    isMember,
+    isOwner,
+    leave,
+    removeCover,
+    shareCrew,
+  ]);
 
   const artworkUri = useMemo(
     () =>
@@ -856,7 +959,7 @@ export default function CanonicalCrewDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        <CrewHeader onMore={showMore} />
+        <CrewHeader onMore={() => setActionsOpen(true)} />
 
         <CrewHero
           artworkUri={artworkUri}
@@ -895,6 +998,13 @@ export default function CanonicalCrewDetailScreen() {
         ) : null}
         {activeTab === "about" ? <AboutTab crew={crew} owner={owner} /> : null}
       </ScrollView>
+
+      <EntityActionSheet
+        actions={menuActions}
+        onClose={() => setActionsOpen(false)}
+        title={crew.name}
+        visible={actionsOpen}
+      />
     </NoxaScreen>
   );
 }
@@ -1011,15 +1121,18 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
   tabs: {
+    flexDirection: "row",
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xxs,
   },
   tab: {
+    flex: 1,
+    minWidth: 0,
     minHeight: 40,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.button,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1034,7 +1147,8 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "900",
-    letterSpacing: 0.45,
+    letterSpacing: 0.25,
+    textAlign: "center",
   },
   tabTextActive: { color: colors.text },
   tabContent: { paddingHorizontal: spacing.md, gap: spacing.md },
