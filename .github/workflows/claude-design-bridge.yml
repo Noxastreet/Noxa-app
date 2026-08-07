@@ -107,6 +107,15 @@ jobs:
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           set -euo pipefail
+          cat > claude-session-comment.md <<EOF
+          Claude Design Agent started successfully.
+
+          Session: ${SESSION_URL}
+          Session ID: \`${SESSION_ID}\`
+
+          The Claude session is separate from runtime validation; review its branch/PR before merging into main.
+          EOF
+
           gh issue comment "$ISSUE_NUMBER" \
             --repo "$REPOSITORY" \
-            --body "Claude Design Agent started successfully.\n\nSession: ${SESSION_URL}\nSession ID: \`${SESSION_ID}\`\n\nThe Claude session is separate from runtime validation; review its branch/PR before merging into main."
+            --body-file claude-session-comment.md
