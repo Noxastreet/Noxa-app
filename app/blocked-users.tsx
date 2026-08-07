@@ -13,11 +13,7 @@ import {
 } from 'react-native';
 
 import { NoxaHeader, NoxaScreen } from '@/src/components/ui';
-import {
-  loadBlockedUsers,
-  unblockUser,
-  type BlockedUser,
-} from '@/src/lib/moderation';
+import { loadBlockedUsers, unblockUser, type BlockedUser } from '@/src/lib/moderation';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 function initials(name: string) {
@@ -68,9 +64,7 @@ export default function BlockedUsersScreen() {
             setBusyId(user.blocked_id);
             try {
               await unblockUser(user.blocked_id);
-              setUsers((current) =>
-                current.filter((item) => item.blocked_id !== user.blocked_id),
-              );
+              setUsers((current) => current.filter((item) => item.blocked_id !== user.blocked_id));
             } catch {
               Alert.alert('Unblock failed', 'Please try again.');
             } finally {
@@ -100,88 +94,64 @@ export default function BlockedUsersScreen() {
         />
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.infoCard}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="shield-checkmark-outline" size={22} color={colors.primaryHover} />
-            </View>
-            <Text style={styles.infoText}>
-              Blocked users cannot see your profile or content, follow you, or view your Live Drive.
-              Their content is hidden from you too.
+          <View style={styles.explainer}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.primaryHover} />
+            <Text style={styles.explainerText}>
+              Blocking hides profiles, public content and Live Drive visibility in both directions. Unblocking does not restore old follows.
             </Text>
           </View>
 
           {loading ? (
-            <View style={styles.stateCard}>
+            <View style={styles.state}>
               <ActivityIndicator color={colors.primary} />
-              <Text style={styles.stateText}>Loading safety settings…</Text>
+              <Text style={styles.stateText}>Loading blocked users…</Text>
             </View>
           ) : error ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void load()}
-              style={({ pressed }) => [styles.stateCard, pressed && styles.pressed]}>
-              <Ionicons name="cloud-offline-outline" size={27} color={colors.primaryHover} />
+            <Pressable accessibilityRole="button" onPress={() => void load()} style={({ pressed }) => [styles.state, pressed && styles.pressed]}>
+              <Ionicons name="cloud-offline-outline" size={25} color={colors.primaryHover} />
               <Text style={styles.stateTitle}>Unable to load</Text>
               <Text style={styles.stateText}>{error} Tap to retry.</Text>
             </Pressable>
           ) : users.length ? (
-            <View style={styles.listCard}>
+            <View style={styles.list}>
               {users.map((user, index) => {
                 const handle = user.blocked_username
                   ? user.blocked_username.startsWith('@')
                     ? user.blocked_username
                     : `@${user.blocked_username}`
                   : 'NOXA driver';
+                const busy = busyId === user.blocked_id;
+
                 return (
-                  <View
-                    key={user.blocked_id}
-                    style={[styles.userRow, index > 0 && styles.userBorder]}>
+                  <View key={user.blocked_id} style={[styles.userRow, index < users.length - 1 && styles.userBorder]}>
                     {user.blocked_avatar_url ? (
                       <Image source={{ uri: user.blocked_avatar_url }} style={styles.avatar} />
                     ) : (
                       <View style={styles.avatarFallback}>
-                        <Text style={styles.avatarInitials}>
-                          {initials(user.blocked_display_name)}
-                        </Text>
+                        <Text style={styles.avatarInitials}>{initials(user.blocked_display_name)}</Text>
                       </View>
                     )}
                     <View style={styles.userCopy}>
-                      <Text numberOfLines={1} style={styles.userName}>
-                        {user.blocked_display_name}
-                      </Text>
-                      <Text numberOfLines={1} style={styles.userHandle}>
-                        {handle}
-                      </Text>
+                      <Text numberOfLines={1} style={styles.userName}>{user.blocked_display_name}</Text>
+                      <Text numberOfLines={1} style={styles.userHandle}>{handle}</Text>
                     </View>
                     <Pressable
                       accessibilityLabel={`Unblock ${user.blocked_display_name}`}
                       accessibilityRole="button"
-                      disabled={busyId === user.blocked_id}
+                      disabled={busy}
                       onPress={() => confirmUnblock(user)}
-                      style={({ pressed }) => [
-                        styles.unblockButton,
-                        pressed && styles.pressed,
-                        busyId === user.blocked_id && styles.disabled,
-                      ]}>
-                      {busyId === user.blocked_id ? (
-                        <ActivityIndicator color={colors.textMuted} size="small" />
-                      ) : (
-                        <Text style={styles.unblockText}>UNBLOCK</Text>
-                      )}
+                      style={({ pressed }) => [styles.unblockButton, pressed && styles.pressed, busy && styles.disabled]}>
+                      {busy ? <ActivityIndicator color={colors.textMuted} size="small" /> : <Text style={styles.unblockText}>UNBLOCK</Text>}
                     </Pressable>
                   </View>
                 );
               })}
             </View>
           ) : (
-            <View style={styles.stateCard}>
-              <View style={styles.emptyIcon}>
-                <Ionicons name="people-outline" size={29} color={colors.textSubtle} />
-              </View>
+            <View style={styles.state}>
+              <Ionicons name="checkmark-circle-outline" size={30} color={colors.textMuted} />
               <Text style={styles.stateTitle}>No blocked users</Text>
-              <Text style={styles.stateText}>
-                People you block from profiles or posts will appear here.
-              </Text>
+              <Text style={styles.stateText}>People you block from profiles or content will appear here.</Text>
             </View>
           )}
         </ScrollView>
@@ -203,48 +173,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
-  content: { gap: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xxxl },
-  infoCard: {
+  content: { gap: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxxl },
+  explainer: {
+    minHeight: 64,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
-  infoIcon: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryMuted,
-  },
-  infoText: { flex: 1, color: colors.textMuted, fontSize: 11, fontWeight: '600', lineHeight: 17 },
-  stateCard: {
-    minHeight: 220,
+  explainerText: { flex: 1, color: colors.textMuted, fontSize: 11, fontWeight: '600', lineHeight: 18 },
+  state: {
+    minHeight: 210,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  emptyIcon: {
-    width: 58,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: spacing.xl,
   },
   stateTitle: {
     color: colors.text,
@@ -253,27 +200,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   stateText: {
+    maxWidth: 280,
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
     lineHeight: 17,
     textAlign: 'center',
   },
-  listCard: {
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  list: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   userRow: {
-    minHeight: 76,
+    minHeight: 74,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
   },
-  userBorder: { borderTopWidth: 1, borderTopColor: colors.divider },
+  userBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   avatar: { width: 44, height: 44, borderRadius: radius.pill },
   avatarFallback: {
     width: 44,
@@ -281,16 +226,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    backgroundColor: colors.surfaceSoft,
   },
   avatarInitials: { color: colors.text, fontSize: 12, fontWeight: '900' },
   userCopy: { flex: 1, minWidth: 0 },
   userName: { color: colors.text, fontSize: 13, fontWeight: '900' },
   userHandle: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   unblockButton: {
-    minWidth: 84,
+    minWidth: 82,
     minHeight: 36,
     alignItems: 'center',
     justifyContent: 'center',
@@ -298,7 +241,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
   },
   unblockText: { color: colors.text, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   disabled: { opacity: 0.45 },
