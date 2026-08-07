@@ -61,12 +61,13 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
       dragX.value = 0;
       dragY.value = 0;
       isTransitioningRef.current = false;
-      setActiveIndex((current) => {
-        const next = Math.min(current + 1, pages.length - 1);
-        onIndexChange(next);
-        return next;
-      });
-    }, [dragX, dragY, onIndexChange, pages.length]);
+
+      const next = Math.min(activeIndex + 1, pages.length - 1);
+      if (next === activeIndex) return;
+
+      setActiveIndex(next);
+      onIndexChange(next);
+    }, [activeIndex, dragX, dragY, onIndexChange, pages.length]);
 
     const springBack = useCallback(() => {
       dragX.value = withSpring(0, introDeckMotion.springBack);
