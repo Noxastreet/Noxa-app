@@ -5,6 +5,7 @@ import { colors, radius, spacing, typography } from '@/src/theme';
 
 import type { VehicleTypePickerItem } from '../types';
 import { PickerCardFrame } from './PickerCardFrame';
+import { VehicleTypeIcon } from './VehicleTypeIcon';
 
 type VehicleTypeCardProps = {
   item: VehicleTypePickerItem;
@@ -23,8 +24,8 @@ export function VehicleTypeCard({ item, onPress, selected = false }: VehicleType
       selected={selected}>
       <View style={styles.content}>
         <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
-          <Ionicons
-            name={isCar ? 'car-sport-outline' : 'speedometer-outline'}
+          <VehicleTypeIcon
+            vehicleType={item.vehicleType}
             size={28}
             color={selected ? colors.primaryHover : colors.textMuted}
           />
