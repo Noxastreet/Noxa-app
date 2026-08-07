@@ -22,6 +22,7 @@ import { emptyVehiclePickerSelection, type VehiclePickerSelection, type VehicleP
 import { GenerationCard } from './components/GenerationCard';
 import { MakeCard } from './components/MakeCard';
 import { ModelCard } from './components/ModelCard';
+import { PopularMakeCard } from './components/PopularMakeCard';
 import { VehicleIdentityPreview } from './components/VehicleIdentityPreview';
 import { VehiclePickerStage } from './components/VehiclePickerStage';
 import { VehicleTypeCard } from './components/VehicleTypeCard';
@@ -40,6 +41,11 @@ const stepNumber: Partial<Record<VehiclePickerStep, number>> = {
   generation: 4,
   year: 5,
   confirm: 6,
+};
+
+const preferredPopularMakeIds: Record<SupportedVehicleType, string[]> = {
+  car: ['bmw', 'mercedes-benz', 'audi', 'volkswagen', 'toyota', 'honda', 'mazda', 'nissan'],
+  motorcycle: ['honda', 'yamaha', 'kawasaki', 'suzuki', 'ducati', 'bmw-motorrad', 'ktm', 'triumph'],
 };
 
 function matchesQuery(label: string, query: string) {
@@ -118,6 +124,24 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
   const filteredMakes = useMemo(() => makeItems.filter((item) => matchesQuery(item.label, query)), [makeItems, query]);
   const filteredModels = useMemo(() => modelItems.filter((item) => matchesQuery(item.label, query)), [modelItems, query]);
 
+  const popularMakes = useMemo(() => {
+    if (!selection.vehicleType) return [];
+    const preferredIds = preferredPopularMakeIds[selection.vehicleType];
+    const itemsById = new Map(makeItems.map((item) => [item.makeId, item]));
+    const preferred = preferredIds.flatMap((makeId) => {
+      const item = itemsById.get(makeId);
+      return item ? [item] : [];
+    });
+    const preferredSet = new Set(preferred.map((item) => item.makeId));
+    const fallback = makeItems.filter((item) => item.popular && !preferredSet.has(item.makeId));
+    return [...preferred, ...fallback].slice(0, 8);
+  }, [makeItems, selection.vehicleType]);
+
+  const otherMakes = useMemo(() => {
+    const popularIds = new Set(popularMakes.map((item) => item.makeId));
+    return makeItems.filter((item) => !popularIds.has(item.makeId));
+  }, [makeItems, popularMakes]);
+
   const selectType = (vehicleType: SupportedVehicleType) => {
     setSelection({ ...emptyVehiclePickerSelection, vehicleType });
     setQuery('');
@@ -187,6 +211,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
 
   const progress = stepNumber[step] ?? 1;
   const progressWidth = `${Math.min(progress, 6) / 6 * 100}%` as `${number}%`;
+  const hasMakeQuery = query.trim().length > 0;
 
   return (
     <View style={styles.root}>
@@ -202,9 +227,8 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
           <VehiclePickerStage
             eyebrow="NOXA GARAGE"
             onBack={goBack}
-            subtitle="Choose the kind of machine you want to add."
+            subtitle="Start with the machine that represents you."
             title="What do you drive?">
-            <VehicleIdentityPreview vehicleType={selection.vehicleType} />
             <View style={styles.stack}>
               {getVehicleTypePickerItems().map((item) => (
                 <VehicleTypeCard key={item.motionKey} item={item} onPress={() => selectType(item.vehicleType)} />
@@ -215,17 +239,47 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
 
         {step === 'make' && selection.vehicleType ? (
           <VehiclePickerStage
-            eyebrow="MAKE"
+            eyebrow={selection.vehicleType === 'car' ? 'CAR' : 'MOTORCYCLE'}
             onBack={goBack}
-            subtitle={`Choose your ${selection.vehicleType === 'car' ? 'car' : 'motorcycle'} manufacturer.`}
+            subtitle="Search or pick a familiar manufacturer."
             title="Choose make">
-            <VehicleIdentityPreview vehicleType={selection.vehicleType} />
             <SearchField onChangeText={setQuery} placeholder="Search make" value={query} />
-            <View style={styles.stack}>
-              {filteredMakes.map((item) => (
-                <MakeCard key={item.motionKey} item={item} onPress={() => selectMake(item.makeId)} />
-              ))}
-            </View>
+
+            {hasMakeQuery ? (
+              <View style={styles.sectionBlock}>
+                <Text style={styles.sectionLabel}>SEARCH RESULTS</Text>
+                <View style={styles.stack}>
+                  {filteredMakes.map((item) => (
+                    <MakeCard key={item.motionKey} item={item} onPress={() => selectMake(item.makeId)} />
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <>
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionLabel}>POPULAR</Text>
+                  <View style={styles.popularGrid}>
+                    {popularMakes.map((item) => (
+                      <View key={`${item.motionKey}:popular-cell`} style={styles.popularCell}>
+                        <PopularMakeCard item={item} onPress={() => selectMake(item.makeId)} />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+
+                {otherMakes.length > 0 ? (
+                  <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionLabel}>MORE MAKES</Text>
+                    <View style={styles.stack}>
+                      {otherMakes.map((item) => (
+                        <MakeCard key={item.motionKey} item={item} onPress={() => selectMake(item.makeId)} />
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+              </>
+            )}
+
             {filteredMakes.length === 0 ? <Text style={styles.emptyText}>No matching makes.</Text> : null}
             {onManualEntry ? <ManualEntryAction onPress={() => onManualEntry(selection.vehicleType)} /> : null}
           </VehiclePickerStage>
@@ -253,7 +307,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
           <VehiclePickerStage
             eyebrow={model?.name ?? 'GENERATION'}
             onBack={goBack}
-            subtitle="Generations keep similar models distinct and make year selection faster."
+            subtitle="Pick the generation that matches your vehicle."
             title="Choose generation">
             <VehicleIdentityPreview make={make?.name} model={model?.name} vehicleType={selection.vehicleType} />
             <View style={styles.stack}>
@@ -268,7 +322,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
           <VehiclePickerStage
             eyebrow={generation?.label ?? model?.name ?? 'YEAR'}
             onBack={goBack}
-            subtitle="Choose the production year for your vehicle."
+            subtitle="Choose the production year."
             title="Choose year">
             <VehicleIdentityPreview
               generation={generation?.label}
@@ -290,17 +344,19 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry }: VehiclePi
           <VehiclePickerStage
             eyebrow="YOUR VEHICLE"
             onBack={goBack}
-            subtitle="Check the identity before continuing to Garage details."
+            subtitle="Confirm the identity before adding details."
             title="Looks right?">
-            <VehicleIdentityPreview
-              generation={generation?.label}
-              make={make?.name}
-              model={model?.name}
-              vehicleType={selection.vehicleType}
-              year={selection.year}
-            />
             <View style={styles.confirmCard}>
-              <Text style={styles.confirmEyebrow}>READY FOR GARAGE</Text>
+              <View style={styles.confirmTopline}>
+                <View style={styles.confirmIcon}>
+                  <Ionicons
+                    name={selection.vehicleType === 'motorcycle' ? 'speedometer-outline' : 'car-sport-outline'}
+                    size={24}
+                    color={colors.primaryHover}
+                  />
+                </View>
+                <Text style={styles.confirmEyebrow}>{selection.vehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
+              </View>
               <Text style={styles.confirmTitle}>{[make?.name, model?.name].filter(Boolean).join(' ')}</Text>
               <Text style={styles.confirmMeta}>{[generation?.label, selection.year].filter(Boolean).join(' · ')}</Text>
               <Pressable
@@ -338,6 +394,23 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: spacing.sm,
+  },
+  sectionBlock: {
+    gap: spacing.sm,
+  },
+  sectionLabel: {
+    color: colors.textSubtle,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  popularGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  popularCell: {
+    width: '48%',
   },
   searchWrap: {
     minHeight: 48,
@@ -393,6 +466,19 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.surface,
   },
+  confirmTopline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  confirmIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySubtle,
+  },
   confirmEyebrow: {
     color: colors.primaryHover,
     fontSize: 9,
@@ -400,11 +486,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
   },
   confirmTitle: {
-    marginTop: spacing.xs,
+    marginTop: spacing.lg,
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '900',
+    lineHeight: 34,
     textTransform: 'uppercase',
   },
   confirmMeta: {
