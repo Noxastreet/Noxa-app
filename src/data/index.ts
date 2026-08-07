@@ -17,3 +17,12 @@ export {
   type VehicleCatalogModel,
   type VehicleYearRange,
 } from "./vehicleCatalog";
+export { vehicleCatalogPhase2 } from "./vehicleCatalogPhase2";
+export {
+  completeVehicleCatalog,
+  findVehicleCatalogIdentityIssues,
+  getCompleteVehicleGeneration,
+  getCompleteVehicleMake,
+  getCompleteVehicleModel,
+  getCompleteVehicleYears,
+} from "./completeVehicleCatalog";
