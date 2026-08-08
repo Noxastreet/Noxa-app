@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaButton, NoxaInput } from '@/src/components/ui';
+import { CityField } from '@/src/features/city-picker';
 import { CountryField } from '@/src/features/country-picker';
 import {
   isMissingColumnError,
@@ -122,8 +123,10 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
   };
 
   const setCountryCode = (countryCode: string | null) => {
-    setValues((current) => ({ ...current, countryCode }));
-    setErrors((current) => ({ ...current, countryCode: undefined, form: undefined }));
+    setValues((current) =>
+      current.countryCode === countryCode ? current : { ...current, countryCode, city: '' },
+    );
+    setErrors((current) => ({ ...current, countryCode: undefined, city: undefined, form: undefined }));
   };
 
   const chooseAvatar = async () => {
@@ -266,22 +269,19 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
               </View>
 
               <View style={styles.fieldWrap}>
-                <NoxaInput
-                  autoCapitalize="words"
-                  editable={!isSaving}
-                  label="City · optional"
-                  maxLength={60}
-                  onChangeText={(value) => setField('city', value)}
-                  placeholder="Thessaloniki"
+                <CountryField disabled={isSaving} onChange={setCountryCode} value={values.countryCode} />
+                {errors.countryCode ? <Text style={styles.errorText}>{errors.countryCode}</Text> : null}
+              </View>
+
+              <View style={styles.fieldWrap}>
+                <CityField
+                  countryCode={values.countryCode}
+                  disabled={isSaving}
+                  onChange={(value) => setField('city', value)}
                   value={values.city}
                 />
                 <Text style={styles.helper}>City only — never your precise address.</Text>
                 {errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
-              </View>
-
-              <View style={styles.fieldWrap}>
-                <CountryField disabled={isSaving} onChange={setCountryCode} value={values.countryCode} />
-                {errors.countryCode ? <Text style={styles.errorText}>{errors.countryCode}</Text> : null}
               </View>
             </View>
 
