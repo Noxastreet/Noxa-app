@@ -45,6 +45,17 @@ function rubberBand(distance: number, max: number) {
   return max * (1 - 1 / (distance / max + 1));
 }
 
+/**
+ * Scales a raw gesture velocity down to a fraction of itself and clamps the
+ * result to +/-max — keeps a fast flick's release velocity from being fed
+ * unbounded into a spring, which is what made release feel explosive.
+ */
+function transferVelocity(rawVelocity: number, transfer: number, max: number) {
+  'worklet';
+  const scaled = rawVelocity * transfer;
+  return Math.max(-max, Math.min(max, scaled));
+}
+
 export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>(
   function IntroCardDeck({ initialIndex = 0, onIndexChange, pages }, ref) {
     const { width: windowWidth } = useWindowDimensions();
@@ -93,9 +104,18 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
       (velocityX = 0) => {
         'worklet';
         isAnimating.value = true;
+        const transferred = transferVelocity(
+          velocityX,
+          introDeckMotion.exitVelocityTransfer,
+          introDeckMotion.exitVelocityMax
+        );
+        // Exit always travels left (-exitDistance); a transferred velocity that
+        // points right would fight the spring's own direction, so it's clamped
+        // to <= 0 rather than trusting the raw gesture sign.
+        const exitVelocity = Math.min(transferred, 0);
         dragX.value = withSpring(
           -exitDistance,
-          { ...introDeckMotion.exitSpring, velocity: velocityX },
+          { ...introDeckMotion.exitSpring, velocity: exitVelocity },
           (finished) => {
             if (finished) runOnJS(commitAdvance)();
           }
@@ -107,7 +127,12 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
     const springBack = useCallback(
       (velocityX = 0) => {
         'worklet';
-        dragX.value = withSpring(0, { ...introDeckMotion.springBack, velocity: velocityX });
+        const transferred = transferVelocity(
+          velocityX,
+          introDeckMotion.springBackVelocityTransfer,
+          introDeckMotion.springBackVelocityMax
+        );
+        dragX.value = withSpring(0, { ...introDeckMotion.springBack, velocity: transferred });
       },
       [dragX]
     );
