@@ -8,15 +8,22 @@ export const introDeckMotion = {
   /** How far the outgoing card travels off-screen before the transition completes. */
   exitDistanceFactor: 1.2,
   /**
-   * Spring (not timing) so release velocity carries continuously into the exit —
-   * a time-based curve restarting from zero velocity is what produced the
-   * release-point pause/jank. overshootClamping keeps a fast flick from
-   * bouncing back into view once it passes the exit distance.
+   * Transfer only a restrained portion of finger velocity into the settle spring.
+   * Raw gesture velocity can be several thousand pt/s and made the card shoot away
+   * abruptly after an otherwise smooth drag.
+   */
+  releaseVelocityTransfer: 0.28,
+  releaseVelocityMax: 650,
+  springBackVelocityTransfer: 0.25,
+  springBackVelocityMax: 500,
+  /**
+   * Slightly heavier/softer than the previous spring so a committed card keeps
+   * moving continuously after release but decelerates into a controlled exit.
    */
   exitSpring: {
-    damping: 26,
-    stiffness: 130,
-    mass: 1,
+    damping: 30,
+    stiffness: 105,
+    mass: 1.15,
     overshootClamping: true,
     reduceMotion: ReduceMotion.System,
   },
@@ -25,9 +32,9 @@ export const introDeckMotion = {
   /** Caps how far a wrong-direction drag (right) can rubber-band before resisting further. */
   rubberBandMax: 36,
   springBack: {
-    damping: 26,
-    stiffness: 190,
-    mass: 0.9,
+    damping: 28,
+    stiffness: 165,
+    mass: 1,
     overshootClamping: true,
     reduceMotion: ReduceMotion.System,
   },
