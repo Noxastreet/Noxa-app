@@ -93,9 +93,17 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
       (velocityX = 0) => {
         'worklet';
         isAnimating.value = true;
+
+        // Preserve continuity from the finger without allowing a high-velocity
+        // flick to turn into an explosive post-release acceleration.
+        const transferredVelocity = Math.max(
+          -introDeckMotion.releaseVelocityMax,
+          Math.min(0, velocityX * introDeckMotion.releaseVelocityTransfer)
+        );
+
         dragX.value = withSpring(
           -exitDistance,
-          { ...introDeckMotion.exitSpring, velocity: velocityX },
+          { ...introDeckMotion.exitSpring, velocity: transferredVelocity },
           (finished) => {
             if (finished) runOnJS(commitAdvance)();
           }
@@ -107,7 +115,17 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
     const springBack = useCallback(
       (velocityX = 0) => {
         'worklet';
-        dragX.value = withSpring(0, { ...introDeckMotion.springBack, velocity: velocityX });
+        const transferredVelocity = Math.max(
+          -introDeckMotion.springBackVelocityMax,
+          Math.min(
+            introDeckMotion.springBackVelocityMax,
+            velocityX * introDeckMotion.springBackVelocityTransfer
+          )
+        );
+        dragX.value = withSpring(0, {
+          ...introDeckMotion.springBack,
+          velocity: transferredVelocity,
+        });
       },
       [dragX]
     );
@@ -144,9 +162,6 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
         if (isAnimating.value) return;
         const passedDistance = event.translationX <= -swipeThreshold;
         const passedVelocity = event.velocityX <= -introDeckMotion.velocityThreshold;
-        // Called directly (no runOnJS): both are worklets, so the settle/exit
-        // spring starts on the UI thread in the same frame as release, carrying
-        // the release velocity through instead of pausing for a JS thread hop.
         if (passedDistance || passedVelocity) {
           runExit(event.velocityX);
         } else {
