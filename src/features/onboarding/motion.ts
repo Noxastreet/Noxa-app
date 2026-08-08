@@ -1,6 +1,4 @@
-import { Easing, ReduceMotion } from 'react-native-reanimated';
-
-const easeOut = Easing.out(Easing.cubic);
+import { ReduceMotion } from 'react-native-reanimated';
 
 export const introDeckMotion = {
   /** Fraction of screen width a card must travel to count as a committed swipe. */
@@ -9,16 +7,28 @@ export const introDeckMotion = {
   velocityThreshold: 800,
   /** How far the outgoing card travels off-screen before the transition completes. */
   exitDistanceFactor: 1.2,
-  exitDurationMs: 240,
-  exitEasing: easeOut,
+  /**
+   * Spring (not timing) so release velocity carries continuously into the exit —
+   * a time-based curve restarting from zero velocity is what produced the
+   * release-point pause/jank. overshootClamping keeps a fast flick from
+   * bouncing back into view once it passes the exit distance.
+   */
+  exitSpring: {
+    damping: 26,
+    stiffness: 130,
+    mass: 1,
+    overshootClamping: true,
+    reduceMotion: ReduceMotion.System,
+  },
   /** Maximum card tilt in degrees, reached only once the card has traveled a full exit distance. */
   rotationMaxDeg: 4,
   /** Caps how far a wrong-direction drag (right) can rubber-band before resisting further. */
   rubberBandMax: 36,
   springBack: {
-    damping: 22,
-    stiffness: 260,
+    damping: 26,
+    stiffness: 190,
     mass: 0.9,
+    overshootClamping: true,
     reduceMotion: ReduceMotion.System,
   },
   /** Scale of the next card at rest, before it glides in and reaches 1.0. */

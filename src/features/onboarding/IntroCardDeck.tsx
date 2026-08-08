@@ -1,17 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
   interpolate,
-  ReduceMotion,
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 
 import { NoxaCard } from '@/src/components/ui';
@@ -70,32 +68,49 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
 
     const commitAdvance = useCallback(() => {
       const next = Math.min(activeIndex + 1, pages.length - 1);
-      dragX.value = 0;
-      isAnimating.value = false;
-      if (next === activeIndex) return;
+      if (next === activeIndex) {
+        // Safety fallback only (gesture/advance() are already gated by canAdvance) —
+        // activeIndex isn't changing here, so the settle effect below won't fire.
+        dragX.value = 0;
+        isAnimating.value = false;
+        return;
+      }
 
       setActiveIndex(next);
       onIndexChange(next);
     }, [activeIndex, dragX, isAnimating, onIndexChange, pages.length]);
 
-    const runExit = useCallback(() => {
-      isAnimating.value = true;
-      dragX.value = withTiming(
-        -exitDistance,
-        {
-          duration: introDeckMotion.exitDurationMs,
-          easing: introDeckMotion.exitEasing,
-          reduceMotion: ReduceMotion.System,
-        },
-        (finished) => {
-          if (finished) runOnJS(commitAdvance)();
-        }
-      );
-    }, [commitAdvance, dragX, exitDistance, isAnimating]);
+    // Reset the drag/animating shared values only after React has committed the
+    // new activeIndex. Resetting them eagerly (inside commitAdvance) let the still
+    // stale-content top card snap back to center before its text updated —
+    // the visible flash/hitch on settle.
+    useLayoutEffect(() => {
+      dragX.value = 0;
+      isAnimating.value = false;
+    }, [activeIndex, dragX, isAnimating]);
 
-    const springBack = useCallback(() => {
-      dragX.value = withSpring(0, introDeckMotion.springBack);
-    }, [dragX]);
+    const runExit = useCallback(
+      (velocityX = 0) => {
+        'worklet';
+        isAnimating.value = true;
+        dragX.value = withSpring(
+          -exitDistance,
+          { ...introDeckMotion.exitSpring, velocity: velocityX },
+          (finished) => {
+            if (finished) runOnJS(commitAdvance)();
+          }
+        );
+      },
+      [commitAdvance, dragX, exitDistance, isAnimating]
+    );
+
+    const springBack = useCallback(
+      (velocityX = 0) => {
+        'worklet';
+        dragX.value = withSpring(0, { ...introDeckMotion.springBack, velocity: velocityX });
+      },
+      [dragX]
+    );
 
     useImperativeHandle(
       ref,
@@ -129,10 +144,13 @@ export const IntroCardDeck = forwardRef<IntroCardDeckHandle, IntroCardDeckProps>
         if (isAnimating.value) return;
         const passedDistance = event.translationX <= -swipeThreshold;
         const passedVelocity = event.velocityX <= -introDeckMotion.velocityThreshold;
+        // Called directly (no runOnJS): both are worklets, so the settle/exit
+        // spring starts on the UI thread in the same frame as release, carrying
+        // the release velocity through instead of pausing for a JS thread hop.
         if (passedDistance || passedVelocity) {
-          runOnJS(runExit)();
+          runExit(event.velocityX);
         } else {
-          runOnJS(springBack)();
+          springBack(event.velocityX);
         }
       });
 
