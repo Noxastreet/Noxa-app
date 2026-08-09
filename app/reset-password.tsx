@@ -5,36 +5,17 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { NoxaAuthField, NoxaAuthScreen } from '@/src/components/auth';
 import { NoxaButton } from '@/src/components/ui';
+import {
+  acceptPasswordRecoveryUrl,
+  isPasswordRecoveryUrl,
+} from '@/src/lib/passwordRecoveryLink';
 import { supabase } from '@/src/lib/supabase';
 import { colors, spacing, typography } from '@/src/theme';
 
 type RecoveryState = 'verifying' | 'ready' | 'invalid' | 'saved';
 
-function parseLinkParams(url: string) {
-  const values: Record<string, string> = {};
-  const queryStart = url.indexOf('?');
-  const hashStart = url.indexOf('#');
-  const chunks = [
-    queryStart >= 0
-      ? url.slice(queryStart + 1, hashStart >= 0 ? hashStart : undefined)
-      : '',
-    hashStart >= 0 ? url.slice(hashStart + 1) : '',
-  ];
-
-  for (const chunk of chunks) {
-    for (const pair of chunk.split('&')) {
-      if (!pair) continue;
-      const separator = pair.indexOf('=');
-      const rawKey = separator >= 0 ? pair.slice(0, separator) : pair;
-      const rawValue = separator >= 0 ? pair.slice(separator + 1) : '';
-      values[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue.replace(/\+/g, ' '));
-    }
-  }
-
-  return values;
-}
-
 export default function ResetPasswordScreen() {
+  const incomingUrl = Linking.useLinkingURL();
   const [recoveryState, setRecoveryState] = useState<RecoveryState>('verifying');
   const [linkError, setLinkError] = useState<string | null>(null);
   const [password, setPassword] = useState('');
@@ -47,68 +28,76 @@ export default function ResetPasswordScreen() {
 
   useEffect(() => {
     let active = true;
+    let invalidTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const acceptRecoveryLink = async (url?: string | null) => {
+    const markReady = () => {
       if (!active) return;
-
-      const { data: existing } = await supabase.auth.getSession();
-      if (existing.session) {
-        setRecoveryState('ready');
-        return;
-      }
-
-      if (!url) {
-        setLinkError('Open this screen from the password reset email.');
-        setRecoveryState('invalid');
-        return;
-      }
-
-      const params = parseLinkParams(url);
-      if (params.error_description) {
-        setLinkError(params.error_description);
-        setRecoveryState('invalid');
-        return;
-      }
-
-      let error: { message: string } | null = null;
-
-      if (params.access_token && params.refresh_token) {
-        ({ error } = await supabase.auth.setSession({
-          access_token: params.access_token,
-          refresh_token: params.refresh_token,
-        }));
-      } else if (params.code) {
-        ({ error } = await supabase.auth.exchangeCodeForSession(params.code));
-      } else if (params.token_hash) {
-        ({ error } = await supabase.auth.verifyOtp({
-          token_hash: params.token_hash,
-          type: 'recovery',
-        }));
-      } else {
-        error = { message: 'The recovery link is incomplete or has expired.' };
-      }
-
-      if (!active) return;
-      if (error) {
-        setLinkError(error.message);
-        setRecoveryState('invalid');
-      } else {
-        setRecoveryState('ready');
-      }
+      if (invalidTimer) clearTimeout(invalidTimer);
+      setLinkError(null);
+      setRecoveryState('ready');
     };
 
-    void Linking.getInitialURL().then(acceptRecoveryLink);
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      setRecoveryState('verifying');
-      setLinkError(null);
-      void acceptRecoveryLink(url);
-    });
+    const subscription = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) markReady();
+    }).data.subscription;
+
+    const verifyRecovery = async () => {
+      const { data: existing } = await supabase.auth.getSession();
+      if (!active) return;
+      if (existing.session) {
+        markReady();
+        return;
+      }
+
+      const initialUrl = incomingUrl ?? (await Linking.getInitialURL());
+      if (!active) return;
+
+      if (initialUrl && isPasswordRecoveryUrl(initialUrl)) {
+        const result = await acceptPasswordRecoveryUrl(initialUrl);
+        if (!active) return;
+
+        if (result.error) {
+          setLinkError(result.error);
+          setRecoveryState('invalid');
+          return;
+        }
+
+        if (result.handled) {
+          const { data } = await supabase.auth.getSession();
+          if (!active) return;
+          if (data.session) {
+            markReady();
+            return;
+          }
+        }
+      }
+
+      // Expo Router can navigate before this screen subscribes to a warm deep-link event.
+      // The root bridge receives that event and creates the recovery session; give it a
+      // short window before declaring the link invalid.
+      invalidTimer = setTimeout(() => {
+        void supabase.auth.getSession().then(({ data }) => {
+          if (!active) return;
+          if (data.session) {
+            markReady();
+            return;
+          }
+          setLinkError('The recovery link is incomplete or has expired.');
+          setRecoveryState('invalid');
+        });
+      }, 1500);
+    };
+
+    setRecoveryState('verifying');
+    setLinkError(null);
+    void verifyRecovery();
 
     return () => {
       active = false;
-      subscription.remove();
+      if (invalidTimer) clearTimeout(invalidTimer);
+      subscription.unsubscribe();
     };
-  }, []);
+  }, [incomingUrl]);
 
   const updatePassword = async () => {
     if (isSaving) return;
