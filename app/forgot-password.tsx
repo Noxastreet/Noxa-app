@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -10,6 +9,7 @@ import { supabase } from '@/src/lib/supabase';
 import { colors, spacing, typography } from '@/src/theme';
 
 const emailPattern = /^\S+@\S+\.\S+$/;
+const PASSWORD_RECOVERY_REDIRECT_URI = 'noxa://reset-password';
 
 function backToSignIn() {
   router.replace('/sign-in');
@@ -41,7 +41,7 @@ export default function ForgotPasswordScreen() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo: Linking.createURL('/reset-password'),
+        redirectTo: PASSWORD_RECOVERY_REDIRECT_URI,
       });
 
       if (error) {
