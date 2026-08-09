@@ -1,5 +1,6 @@
 import type * as ImagePicker from 'expo-image-picker';
 
+import { isValidCountryCode } from '@/src/data/countryCatalog';
 import { supabase } from '@/src/lib/supabase';
 
 const avatarBucket = 'avatars';
@@ -10,6 +11,7 @@ export type ProfileIdentityValues = {
   displayName: string;
   username: string;
   city: string;
+  countryCode: string | null;
 };
 
 export type ProfileIdentityErrors = Partial<Record<keyof ProfileIdentityValues | 'avatar' | 'form', string>>;
@@ -18,11 +20,18 @@ export function normalizeProfileUsername(value: string) {
   return value.trim().replace(/^@+/, '').toLowerCase();
 }
 
+export function normalizeProfileCountryCode(value: string | null | undefined) {
+  if (!value) return null;
+  const normalized = value.trim().toUpperCase();
+  return normalized || null;
+}
+
 export function validateProfileIdentity(values: ProfileIdentityValues) {
   const errors: ProfileIdentityErrors = {};
   const displayName = values.displayName.trim();
   const username = normalizeProfileUsername(values.username);
   const city = values.city.trim();
+  const countryCode = normalizeProfileCountryCode(values.countryCode);
 
   if (!displayName) {
     errors.displayName = 'Display name is required.';
@@ -42,9 +51,13 @@ export function validateProfileIdentity(values: ProfileIdentityValues) {
     errors.city = 'City must be 60 characters or less.';
   }
 
+  if (countryCode && !isValidCountryCode(countryCode)) {
+    errors.countryCode = 'Choose a country from the list.';
+  }
+
   return {
     errors,
-    values: { displayName, username, city },
+    values: { displayName, username, city, countryCode },
   };
 }
 
@@ -133,6 +146,12 @@ export function getProfileIdentityErrorMessage(error: unknown) {
   return message || 'Unable to save profile. Please try again.';
 }
 
+// Postgres undefined_column (42703) — lets callers retry a select without country_code pre-migration.
+export function isMissingColumnError(error: unknown) {
+  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+  return code === '42703';
+}
+
 export async function saveProfileIdentity({
   avatarAsset,
   currentAvatarUrl,
@@ -163,6 +182,7 @@ export async function saveProfileIdentity({
         display_name: validation.values.displayName,
         username: validation.values.username || null,
         city: validation.values.city || null,
+        country_code: validation.values.countryCode,
         avatar_url: nextAvatarUrl,
         updated_at: new Date().toISOString(),
       })
