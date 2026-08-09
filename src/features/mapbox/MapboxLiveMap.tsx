@@ -1,6 +1,8 @@
 import Mapbox, {
   Camera,
   CircleLayer,
+  Image as MapboxImage,
+  Images,
   LineLayer,
   LocationPuck,
   MapView,
@@ -28,6 +30,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Svg, { Path as SvgPath } from "react-native-svg";
 
 import { colors, radius, spacing } from "@/src/theme";
 
@@ -51,6 +54,37 @@ import type {
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
 const ROUTE_FOLLOW_ZOOM = 16.5;
 const DRIVER_CLUSTER_LIMIT = 80;
+
+const NOXA_LOCATION_ARROW_IMAGE = "noxa-location-arrow";
+const NOXA_LOCATION_TRANSPARENT_IMAGE = "noxa-location-transparent";
+
+function NoxaNavigationArrowAsset() {
+  return (
+    <View
+      collapsable={false}
+      style={{
+        width: 44,
+        height: 44,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Svg height={44} width={44} viewBox="0 0 44 44">
+        <SvgPath
+          d="M22 3.5L37 37L22 31.8L7 37L22 3.5Z"
+          fill={colors.primary}
+          stroke={colors.background}
+          strokeLinejoin="round"
+          strokeWidth={2}
+        />
+        <SvgPath
+          d="M22 12L28 29L22 26.8L16 29L22 12Z"
+          fill={colors.text}
+        />
+      </Svg>
+    </View>
+  );
+}
 
 function eventIconName(
   category: string | null | undefined,
@@ -267,6 +301,23 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           style={StyleSheet.absoluteFillObject}
           styleURL={NOXA_MAPBOX_STYLE_URL}
         >
+          <Images>
+            <MapboxImage name={NOXA_LOCATION_ARROW_IMAGE}>
+              <NoxaNavigationArrowAsset />
+            </MapboxImage>
+
+            <MapboxImage name={NOXA_LOCATION_TRANSPARENT_IMAGE}>
+              <View
+                collapsable={false}
+                style={{
+                  width: 2,
+                  height: 2,
+                  backgroundColor: "transparent",
+                }}
+              />
+            </MapboxImage>
+          </Images>
+
           <Camera
             ref={cameraRef}
             animationDuration={650}
@@ -299,9 +350,13 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           />
 
           <LocationPuck
+            bearingImage={NOXA_LOCATION_ARROW_IMAGE}
             puckBearing={isRouteMode ? "course" : "heading"}
             puckBearingEnabled
-            pulsing={{ color: colors.primary, isEnabled: true, radius: 42 }}
+            pulsing={{ color: colors.primary, isEnabled: true, radius: 34 }}
+            scale={isRouteMode ? 0.84 : 0.74}
+            shadowImage={NOXA_LOCATION_TRANSPARENT_IMAGE}
+            topImage={NOXA_LOCATION_TRANSPARENT_IMAGE}
             visible={Boolean(driverLocation)}
           />
 
