@@ -80,6 +80,7 @@ type RouteResult = {
   durationSeconds: number;
 };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
+type MapDataRequestState = "loading" | "ready" | "error";
 type MapLens = "all" | "mine";
 type LocationVisibilityMode = "crew" | "friends" | "global" | "ghost";
 
@@ -232,6 +233,21 @@ function hasValidCoordinates(
 function createDriverLocationsMapTopic() {
   driverLocationsMapChannelSequence += 1;
   return `driver-locations-map:${Date.now()}:${driverLocationsMapChannelSequence}`;
+}
+
+function mapDataErrorCode(error: unknown) {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return "REQUEST_FAILED";
+  }
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && code.trim() ? code : "REQUEST_FAILED";
+}
+
+function logMapDataFailure(resource: "events" | "drivers", error: unknown) {
+  console.warn("[map-data] request failed", {
+    resource,
+    code: mapDataErrorCode(error),
+  });
 }
 
 function formatDistance(meters: number) {
@@ -442,6 +458,8 @@ export default function LiveMapScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventMarkerRow[]>([]);
+  const [eventsRequestState, setEventsRequestState] =
+    useState<MapDataRequestState>("loading");
   const [selectedEvent, setSelectedEvent] = useState<EventMarkerRow | null>(
     null,
   );
@@ -453,6 +471,7 @@ export default function LiveMapScreen() {
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
   const driverLocationRef = useRef<LatLng | null>(null);
+  const eventsRef = useRef<EventMarkerRow[]>([]);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
@@ -475,6 +494,8 @@ export default function LiveMapScreen() {
   const [liveDriveClock, setLiveDriveClock] = useState(Date.now());
   const [sharingError, setSharingError] = useState<string | null>(null);
   const [activeDrivers, setActiveDrivers] = useState<ActiveDriver[]>([]);
+  const [activeDriversRequestState, setActiveDriversRequestState] =
+    useState<MapDataRequestState>("loading");
   const [currentProfile, setCurrentProfile] = useState<ProfileMarkerRow | null>(null);
   const [myDriverIds, setMyDriverIds] = useState<Set<string>>(() => new Set());
   const [mapLens, setMapLens] = useState<MapLens>("all");
@@ -838,29 +859,48 @@ export default function LiveMapScreen() {
   }, []);
 
   const loadEvents = useCallback(async () => {
-    const { data } = await supabase
-      .from("events")
-      .select("id,title,category,starts_at,location_name,latitude,longitude")
-      .eq("status", "scheduled")
-      .gte("starts_at", new Date().toISOString())
-      .not("latitude", "is", null)
-      .not("longitude", "is", null)
-      .order("starts_at", { ascending: true });
-    const rows = (
-      (data ?? []) as (
-        | EventMarkerRow
-        | (Omit<EventMarkerRow, "latitude" | "longitude"> & {
-            latitude: number | null;
-            longitude: number | null;
-          })
-      )[]
-    ).filter(
-      (event): event is EventMarkerRow =>
-        typeof event.latitude === "number" &&
-        typeof event.longitude === "number",
-    );
-    setEvents(rows);
-    return rows;
+    if (isMountedRef.current) setEventsRequestState("loading");
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("id,title,category,starts_at,location_name,latitude,longitude")
+        .eq("status", "scheduled")
+        .gte("starts_at", new Date().toISOString())
+        .not("latitude", "is", null)
+        .not("longitude", "is", null)
+        .order("starts_at", { ascending: true });
+
+      if (error) {
+        logMapDataFailure("events", error);
+        if (isMountedRef.current) setEventsRequestState("error");
+        return eventsRef.current;
+      }
+
+      const rows = (
+        (data ?? []) as (
+          | EventMarkerRow
+          | (Omit<EventMarkerRow, "latitude" | "longitude"> & {
+              latitude: number | null;
+              longitude: number | null;
+            })
+        )[]
+      ).filter(
+        (event): event is EventMarkerRow =>
+          typeof event.latitude === "number" &&
+          typeof event.longitude === "number",
+      );
+
+      eventsRef.current = rows;
+      if (isMountedRef.current) {
+        setEvents(rows);
+        setEventsRequestState("ready");
+      }
+      return rows;
+    } catch (error) {
+      logMapDataFailure("events", error);
+      if (isMountedRef.current) setEventsRequestState("error");
+      return eventsRef.current;
+    }
   }, []);
 
   const refreshActiveDrivers = useCallback(async () => {
@@ -871,16 +911,39 @@ export default function LiveMapScreen() {
     activeDriversRefreshInFlightRef.current = true;
     const requestId = activeDriversRequestIdRef.current + 1;
     activeDriversRequestIdRef.current = requestId;
+    if (isMountedRef.current) setActiveDriversRequestState("loading");
+
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user.id;
-      if (!userId) {
-        if (isMountedRef.current) setActiveDrivers([]);
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError) {
+        logMapDataFailure("drivers", sessionError);
+        if (
+          isMountedRef.current &&
+          activeDriversRequestIdRef.current === requestId
+        ) {
+          setActiveDriversRequestState("error");
+        }
         return;
       }
+
+      const userId = sessionData.session?.user.id;
+      if (!userId) {
+        if (
+          isMountedRef.current &&
+          activeDriversRequestIdRef.current === requestId
+        ) {
+          setActiveDrivers([]);
+          setActiveDriversRequestState("ready");
+        }
+        return;
+      }
+
       const since = new Date(
         Date.now() - ACTIVE_DRIVER_WINDOW_MS,
       ).toISOString();
+
       const { data, error } = await supabase
         .from("driver_locations")
         .select(
@@ -889,16 +952,34 @@ export default function LiveMapScreen() {
         .gte("updated_at", since)
         .neq("user_id", userId)
         .order("updated_at", { ascending: false });
+
       if (
-        error ||
         !isMountedRef.current ||
         activeDriversRequestIdRef.current !== requestId
-      )
+      ) {
         return;
+      }
+
+      if (error) {
+        logMapDataFailure("drivers", error);
+        setActiveDriversRequestState("error");
+        return;
+      }
+
       const drivers = ((data ?? []) as ActiveDriverRow[])
         .map(normalizeActiveDriver)
         .filter((driver): driver is ActiveDriver => driver !== null);
+
       setActiveDrivers(drivers);
+      setActiveDriversRequestState("ready");
+    } catch (error) {
+      logMapDataFailure("drivers", error);
+      if (
+        isMountedRef.current &&
+        activeDriversRequestIdRef.current === requestId
+      ) {
+        setActiveDriversRequestState("error");
+      }
     } finally {
       activeDriversRefreshInFlightRef.current = false;
       if (activeDriversRefreshQueuedRef.current) {
@@ -907,6 +988,11 @@ export default function LiveMapScreen() {
       }
     }
   }, []);
+
+  const retryMapData = useCallback(() => {
+    void loadEvents();
+    void refreshActiveDrivers();
+  }, [loadEvents, refreshActiveDrivers]);
 
   useEffect(() => {
     let isActive = true;
@@ -1325,6 +1411,14 @@ export default function LiveMapScreen() {
   const pendingVisibility = VISIBILITY_MODES.find(
     (mode) => mode.id === pendingVisibilityMode,
   );
+  const mapDataHasError =
+    eventsRequestState === "error" || activeDriversRequestState === "error";
+  const mapDataNoticeMessage =
+    eventsRequestState === "error" && activeDriversRequestState === "error"
+      ? "Events and drivers couldn't refresh. Existing markers are preserved."
+      : eventsRequestState === "error"
+        ? "Events couldn't refresh. Existing event markers are preserved."
+        : "Drivers couldn't refresh. Existing driver markers are preserved.";
   const activeNotice = sharingError
     ? {
         icon: "warning-outline" as const,
@@ -1341,6 +1435,9 @@ export default function LiveMapScreen() {
           }
         : null;
   const noticesTop = headerBottom + spacing.sm;
+  const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
+  const topScrimHeight =
+    mapDataNoticeTop + (mapDataHasError ? 58 : activeNotice ? 40 : 28);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
@@ -1368,7 +1465,7 @@ export default function LiveMapScreen() {
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
         <Svg
-          height={noticesTop + (activeNotice ? 68 : 28)}
+          height={topScrimHeight}
           pointerEvents="none"
           style={styles.topScrim}
           width="100%"
@@ -1549,6 +1646,33 @@ export default function LiveMapScreen() {
               color={colors.primaryHover}
             />
             <Text style={styles.mapNoticeText}>{activeNotice.message}</Text>
+          </View>
+        ) : null}
+
+        {mapDataHasError ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={[styles.mapDataNotice, { top: mapDataNoticeTop }]}
+          >
+            <View style={styles.mapDataNoticeCopy}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={15}
+                color={colors.primaryHover}
+              />
+              <Text style={styles.mapDataNoticeText}>
+                {mapDataNoticeMessage}
+              </Text>
+            </View>
+            <TouchableOpacity
+              accessibilityLabel="Retry map data"
+              accessibilityRole="button"
+              activeOpacity={0.78}
+              onPress={retryMapData}
+              style={styles.mapDataRetryButton}
+            >
+              <Text style={styles.mapDataRetryText}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -1886,6 +2010,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     textAlign: "center",
+  },
+  mapDataNotice: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: 7,
+    paddingLeft: spacing.sm,
+    paddingRight: 7,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primaryMuted,
+    backgroundColor: "rgba(12,12,16,0.96)",
+  },
+  mapDataNoticeCopy: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  mapDataNoticeText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "600",
+    lineHeight: 14,
+  },
+  mapDataRetryButton: {
+    minWidth: 52,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primaryMuted,
+  },
+  mapDataRetryText: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: "800",
   },
   recenterButton: {
     width: 44,
