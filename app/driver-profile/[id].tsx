@@ -18,6 +18,7 @@ import { ReportModal } from "@/src/components/moderation/ReportModal";
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { EntityActionSheet, type EntityAction } from "@/src/features/crews-events/EntityActionSheet";
 import { VehicleTypeIcon } from "@/src/features/garage/vehicle-picker/components/VehicleTypeIcon";
+import { formatProfileLocation } from "@/src/features/profile/formatProfileLocation";
 import { blockUser } from "@/src/lib/moderation";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
@@ -31,6 +32,7 @@ type DriverProfile = {
   avatar_url: string | null;
   bio: string | null;
   city: string | null;
+  country_code: string | null;
 };
 
 type PublicVehicle = {
@@ -118,6 +120,8 @@ function IdentityBlock({
   isFollowLoading: boolean;
   onFollow: () => void;
 }) {
+  const location = formatProfileLocation(profile.country_code, profile.city);
+
   return (
     <View style={styles.identityBlock}>
       <View style={styles.identityTop}>
@@ -131,10 +135,16 @@ function IdentityBlock({
         <View style={styles.identityCopy}>
           <Text numberOfLines={1} style={styles.name}>{displayName}</Text>
           {username ? <Text numberOfLines={1} style={styles.username}>{username}</Text> : null}
-          {profile.city ? (
+          {location ? (
             <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-              <Text numberOfLines={1} style={styles.location}>{profile.city}</Text>
+              {location.flag ? (
+                <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.locationFlag}>
+                  {location.flag}
+                </Text>
+              ) : (
+                <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+              )}
+              <Text numberOfLines={1} style={styles.location}>{location.text}</Text>
             </View>
           ) : null}
         </View>
@@ -345,7 +355,7 @@ export default function PublicDriverProfileScreen() {
 
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
-      .select("id, display_name, username, avatar_url, bio, city")
+      .select("id, display_name, username, avatar_url, bio, city, country_code")
       .eq("id", driverId)
       .maybeSingle();
 
@@ -649,6 +659,7 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.h2, fontWeight: "900", lineHeight: typography.lineHeight.h2 },
   username: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
   locationRow: { marginTop: spacing.xs, flexDirection: "row", alignItems: "center", gap: spacing.xxs },
+  locationFlag: { fontSize: 14, lineHeight: 16 },
   location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
   bio: { color: colors.text, fontSize: 13, fontWeight: "600", lineHeight: 20 },
   followButton: { minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.button, backgroundColor: colors.primary },
