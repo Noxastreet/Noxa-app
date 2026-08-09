@@ -105,9 +105,9 @@ if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
       const heading = finiteOrNull(latestLocation.coords.heading);
       const speed = finiteOrNull(latestLocation.coords.speed);
       const accuracy = finiteOrNull(latestLocation.coords.accuracy);
-      await supabase.from('driver_locations').upsert(
-        {
-          user_id: session.userId,
+      await supabase
+        .from('driver_locations')
+        .update({
           latitude,
           longitude,
           heading: heading !== null && heading >= 0 && heading < 360 ? heading : null,
@@ -116,9 +116,8 @@ if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
           visibility_mode: session.visibilityMode,
           share_expires_at: session.expiresAt,
           updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' },
-      );
+        })
+        .eq('user_id', session.userId);
     },
   );
 }
