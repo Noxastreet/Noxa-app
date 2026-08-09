@@ -15,6 +15,10 @@ import {
 } from "react-native";
 
 import { NoxaButton, NoxaHeader, NoxaInput, NoxaScreen } from "@/src/components/ui";
+import { isValidCountryCode } from "@/src/data/countryCatalog";
+import { CityField } from "@/src/features/city-picker";
+import { CountryField } from "@/src/features/country-picker";
+import { isMissingColumnError, normalizeProfileCountryCode } from "@/src/features/profile/profileIdentityPersistence";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -23,6 +27,7 @@ type ProfileForm = {
   username: string;
   city: string;
   bio: string;
+  countryCode: string | null;
 };
 
 type ProfileErrors = Partial<Record<keyof ProfileForm | "avatar" | "form", string>>;
@@ -43,6 +48,7 @@ const initialForm: ProfileForm = {
   username: "",
   city: "",
   bio: "",
+  countryCode: null,
 };
 
 function normalizeUsername(value: string) {
@@ -55,6 +61,7 @@ function validateForm(form: ProfileForm) {
   const username = normalizeUsername(form.username);
   const city = form.city.trim();
   const bio = form.bio.trim();
+  const countryCode = normalizeProfileCountryCode(form.countryCode);
 
   if (!displayName) {
     errors.displayName = "Display name is required.";
@@ -78,7 +85,11 @@ function validateForm(form: ProfileForm) {
     errors.bio = "Bio must be 300 characters or less.";
   }
 
-  return { errors, values: { displayName, username, city, bio } };
+  if (countryCode && !isValidCountryCode(countryCode)) {
+    errors.countryCode = "Choose a country from the list.";
+  }
+
+  return { errors, values: { displayName, username, city, bio, countryCode } };
 }
 
 function getInitials(displayName: string) {
@@ -171,9 +182,14 @@ export default function EditProfileScreen() {
   const [selectedAvatar, setSelectedAvatar] = useState<SelectedAvatar | null>(null);
   const [shouldRemoveAvatar, setShouldRemoveAvatar] = useState(false);
 
-  const setField = (field: keyof ProfileForm, value: string) => {
+  const setField = (field: keyof Omit<ProfileForm, "countryCode">, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined, form: undefined }));
+  };
+
+  const setCountryCode = (countryCode: string | null) => {
+    setForm((current) => (current.countryCode === countryCode ? current : { ...current, countryCode, city: "" }));
+    setErrors((current) => ({ ...current, countryCode: undefined, city: undefined, form: undefined }));
   };
 
   const loadProfile = useCallback(async () => {
@@ -189,13 +205,21 @@ export default function EditProfileScreen() {
       return;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, username, city, bio, avatar_url")
+      .select("id, display_name, username, city, bio, avatar_url, country_code")
       .eq("id", user.id)
       .single();
 
-    if (error) {
+    if (error && isMissingColumnError(error)) {
+      ({ data, error } = await supabase
+        .from("profiles")
+        .select("id, display_name, username, city, bio, avatar_url")
+        .eq("id", user.id)
+        .single());
+    }
+
+    if (error || !data) {
       setErrors({ form: "Unable to load profile. Please try again." });
       setIsLoading(false);
       return;
@@ -206,6 +230,7 @@ export default function EditProfileScreen() {
       username: data.username ?? "",
       city: data.city ?? "",
       bio: data.bio ?? "",
+      countryCode: (data as { country_code?: string | null }).country_code ?? null,
     });
     setAvatarUrl(data.avatar_url ?? null);
     setSelectedAvatar(null);
@@ -331,11 +356,12 @@ export default function EditProfileScreen() {
           username: validation.values.username || null,
           city: validation.values.city || null,
           bio: validation.values.bio || null,
+          country_code: validation.values.countryCode,
           avatar_url: nextAvatarUrl,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
-        .select("id, display_name, username, avatar_url, bio, city")
+        .select("id, display_name, username, avatar_url, bio, city, country_code")
         .single();
 
       if (error) {
@@ -432,8 +458,18 @@ export default function EditProfileScreen() {
                 <Text style={styles.counter}>{normalizeUsername(form.username).length}/20</Text>
               </FieldError>
 
+              <FieldError message={errors.countryCode}>
+                <CountryField disabled={isLoading || isSubmitting} label="Country" onChange={setCountryCode} value={form.countryCode} />
+              </FieldError>
+
               <FieldError message={errors.city}>
-                <NoxaInput autoCapitalize="words" editable={!isLoading && !isSubmitting} label="City" maxLength={60} onChangeText={(value) => setField("city", value)} placeholder="Thessaloniki" value={form.city} />
+                <CityField
+                  countryCode={form.countryCode}
+                  disabled={isLoading || isSubmitting}
+                  label="City"
+                  onChange={(value) => setField("city", value)}
+                  value={form.city}
+                />
                 <Text style={styles.counter}>{form.city.length}/60</Text>
               </FieldError>
             </Section>

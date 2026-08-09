@@ -14,7 +14,10 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaButton, NoxaInput } from '@/src/components/ui';
+import { CityField } from '@/src/features/city-picker';
+import { CountryField } from '@/src/features/country-picker';
 import {
+  isMissingColumnError,
   isSupportedProfileAvatarMimeType,
   maxProfileAvatarBytes,
   normalizeProfileAvatarMimeType,
@@ -35,6 +38,7 @@ const initialValues: ProfileIdentityValues = {
   displayName: '',
   username: '',
   city: '',
+  countryCode: null,
 };
 
 function initials(value: string) {
@@ -72,11 +76,19 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
     }
 
     setUserId(user.id);
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('profiles')
-      .select('display_name,username,city,avatar_url')
+      .select('display_name,username,city,avatar_url,country_code')
       .eq('id', user.id)
       .maybeSingle();
+
+    if (error && isMissingColumnError(error)) {
+      ({ data, error } = await supabase
+        .from('profiles')
+        .select('display_name,username,city,avatar_url')
+        .eq('id', user.id)
+        .maybeSingle());
+    }
 
     if (error) {
       setErrors({ form: 'Profile could not be loaded. You can skip this step and edit it later.' });
@@ -84,6 +96,7 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
         displayName: String(user.user_metadata?.display_name ?? 'Driver'),
         username: '',
         city: '',
+        countryCode: null,
       });
       setIsLoading(false);
       return;
@@ -93,6 +106,7 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
       displayName: data?.display_name || String(user.user_metadata?.display_name ?? 'Driver'),
       username: data?.username ?? '',
       city: data?.city ?? '',
+      countryCode: (data as { country_code?: string | null } | null)?.country_code ?? null,
     });
     setAvatarUrl(data?.avatar_url ?? null);
     setAvatarAsset(null);
@@ -103,9 +117,16 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
     void loadIdentity();
   }, [loadIdentity]);
 
-  const setField = (field: keyof ProfileIdentityValues, value: string) => {
+  const setField = (field: keyof Omit<ProfileIdentityValues, 'countryCode'>, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: undefined, form: undefined }));
+  };
+
+  const setCountryCode = (countryCode: string | null) => {
+    setValues((current) =>
+      current.countryCode === countryCode ? current : { ...current, countryCode, city: '' },
+    );
+    setErrors((current) => ({ ...current, countryCode: undefined, city: undefined, form: undefined }));
   };
 
   const chooseAvatar = async () => {
@@ -248,13 +269,15 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
               </View>
 
               <View style={styles.fieldWrap}>
-                <NoxaInput
-                  autoCapitalize="words"
-                  editable={!isSaving}
-                  label="City · optional"
-                  maxLength={60}
-                  onChangeText={(value) => setField('city', value)}
-                  placeholder="Thessaloniki"
+                <CountryField disabled={isSaving} onChange={setCountryCode} value={values.countryCode} />
+                {errors.countryCode ? <Text style={styles.errorText}>{errors.countryCode}</Text> : null}
+              </View>
+
+              <View style={styles.fieldWrap}>
+                <CityField
+                  countryCode={values.countryCode}
+                  disabled={isSaving}
+                  onChange={(value) => setField('city', value)}
                   value={values.city}
                 />
                 <Text style={styles.helper}>City only — never your precise address.</Text>

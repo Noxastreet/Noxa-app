@@ -2,17 +2,23 @@ import { router } from 'expo-router';
 
 import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 
+function dismissStackIfPossible() {
+  if (router.canDismiss()) {
+    router.dismissAll();
+  }
+}
+
 export function resetToAuthenticatedApp(userId: string) {
-  router.dismissAll();
+  dismissStackIfPossible();
   router.replace(hasCompletedOnboarding(userId) ? '/(tabs)' : '/onboarding');
 }
 
 export function resetToSignedOutHome() {
-  router.dismissAll();
+  dismissStackIfPossible();
   router.replace('/welcome');
 }
 
 export function resetToSignIn() {
-  router.dismissAll();
+  dismissStackIfPossible();
   router.replace('/sign-in');
 }

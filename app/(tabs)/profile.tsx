@@ -16,6 +16,7 @@ import {
 
 import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
+import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
@@ -28,6 +29,7 @@ type CurrentUserProfile = {
   avatar_url: string | null;
   bio: string | null;
   city: string | null;
+  country_code: string | null;
 };
 
 type ProfileVehicle = {
@@ -106,6 +108,7 @@ function Identity({
   const displayName = profile?.display_name ?? 'NOXA Driver';
   const username = formatUsername(profile?.username ?? null);
   const bio = profile?.bio?.trim() || 'Tell the community about yourself.';
+  const location = formatProfileLocation(profile?.country_code, profile?.city);
 
   return (
     <Animated.View style={[styles.identity, useEntryAnimation(40, 12)]}>
@@ -120,10 +123,16 @@ function Identity({
         <View style={styles.identityNames}>
           <Text numberOfLines={1} style={styles.name}>{displayName}</Text>
           <Text numberOfLines={1} style={styles.username}>{isLoading ? 'Loading profile…' : username}</Text>
-          {profile?.city ? (
+          {location ? (
             <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textMuted} />
-              <Text numberOfLines={1} style={styles.location}>{profile.city}</Text>
+              {location.flag ? (
+                <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.locationFlag}>
+                  {location.flag}
+                </Text>
+              ) : (
+                <Ionicons name="location-outline" size={14} color={colors.textMuted} />
+              )}
+              <Text numberOfLines={1} style={styles.location}>{location.text}</Text>
             </View>
           ) : null}
         </View>
@@ -414,7 +423,7 @@ export default function ProfileScreen() {
     const [profileResult, followersResult, followingResult, vehiclesResult, postsResult] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, display_name, username, avatar_url, bio, city')
+        .select('id, display_name, username, avatar_url, bio, city, country_code')
         .eq('id', user.id)
         .single(),
       supabase
@@ -555,6 +564,7 @@ const styles = StyleSheet.create({
   },
   username: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   locationRow: { marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.xxs },
+  locationFlag: { fontSize: 14, lineHeight: 16 },
   location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   bio: { color: colors.text, fontSize: 13, fontWeight: '600', lineHeight: 20 },
   editButton: {
