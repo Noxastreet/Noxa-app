@@ -1,10 +1,16 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import '@/src/lib/liveDrive';
+import {
+  acceptPasswordRecoveryUrl,
+  isPasswordRecoveryUrl,
+} from '@/src/lib/passwordRecoveryLink';
 import { colors } from '@/src/theme/colors';
 
 SplashScreen.setOptions({
@@ -24,9 +30,21 @@ const noxaTheme = {
   },
 };
 
+function AuthDeepLinkBridge() {
+  const url = Linking.useLinkingURL();
+
+  useEffect(() => {
+    if (!url || !isPasswordRecoveryUrl(url)) return;
+    void acceptPasswordRecoveryUrl(url);
+  }, [url]);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <ThemeProvider value={noxaTheme}>
+      <AuthDeepLinkBridge />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="welcome" />
