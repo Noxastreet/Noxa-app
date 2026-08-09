@@ -71,14 +71,14 @@ function NoxaNavigationArrowAsset() {
     >
       <Svg height={44} width={44} viewBox="0 0 44 44">
         <SvgPath
-          d="M22 2.5L39 39L22 33L5 39L22 2.5Z"
+          d="M22 3.5L37 37L22 31.8L7 37L22 3.5Z"
           fill={colors.primary}
           stroke={colors.background}
           strokeLinejoin="round"
-          strokeWidth={3.2}
+          strokeWidth={2}
         />
         <SvgPath
-          d="M22 10L31.5 31L22 27.6L12.5 31L22 10Z"
+          d="M22 12L28 29L22 26.8L16 29L22 12Z"
           fill={colors.text}
         />
       </Svg>
@@ -353,8 +353,8 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             bearingImage={NOXA_LOCATION_ARROW_IMAGE}
             puckBearing={isRouteMode ? "course" : "heading"}
             puckBearingEnabled
-            pulsing={{ color: colors.primary, isEnabled: true, radius: 42 }}
-            scale={isRouteMode ? 0.92 : 0.82}
+            pulsing={{ color: colors.primary, isEnabled: true, radius: 34 }}
+            scale={isRouteMode ? 0.84 : 0.74}
             shadowImage={NOXA_LOCATION_TRANSPARENT_IMAGE}
             topImage={NOXA_LOCATION_TRANSPARENT_IMAGE}
             visible={Boolean(driverLocation)}
