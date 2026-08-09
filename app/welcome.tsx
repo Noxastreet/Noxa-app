@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Defs, LinearGradient, Rect, Stop, Svg } from 'react-native-svg';
 
@@ -106,13 +106,6 @@ export default function WelcomeScreen() {
             <NoxaButton fullWidth onPress={() => router.push('/sign-in')} title="Sign In" variant="overlay" />
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.replace('/(tabs)')}
-            style={({ pressed }) => [styles.guestButton, pressed && styles.guestButtonPressed]}>
-            <Text style={styles.guestText}>Continue as Guest</Text>
-          </Pressable>
-
           <Text style={styles.legal}>
             By continuing you agree to our Terms of Service{'\n'}and Privacy Policy
           </Text>
@@ -165,21 +158,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 10,
-  },
-  guestButton: {
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.xs,
-  },
-  guestButtonPressed: {
-    opacity: 0.6,
-  },
-  guestText: {
-    color: colors.textMuted,
-    fontFamily: typography.fontFamily.body,
-    fontSize: 12,
-    fontWeight: '500',
   },
   legal: {
     marginTop: spacing.xs,
