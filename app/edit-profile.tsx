@@ -16,6 +16,7 @@ import {
 
 import { NoxaButton, NoxaHeader, NoxaInput, NoxaScreen } from "@/src/components/ui";
 import { isValidCountryCode } from "@/src/data/countryCatalog";
+import { CityField } from "@/src/features/city-picker";
 import { CountryField } from "@/src/features/country-picker";
 import { isMissingColumnError, normalizeProfileCountryCode } from "@/src/features/profile/profileIdentityPersistence";
 import { supabase } from "@/src/lib/supabase";
@@ -187,8 +188,8 @@ export default function EditProfileScreen() {
   };
 
   const setCountryCode = (countryCode: string | null) => {
-    setForm((current) => ({ ...current, countryCode }));
-    setErrors((current) => ({ ...current, countryCode: undefined, form: undefined }));
+    setForm((current) => (current.countryCode === countryCode ? current : { ...current, countryCode, city: "" }));
+    setErrors((current) => ({ ...current, countryCode: undefined, city: undefined, form: undefined }));
   };
 
   const loadProfile = useCallback(async () => {
@@ -457,13 +458,19 @@ export default function EditProfileScreen() {
                 <Text style={styles.counter}>{normalizeUsername(form.username).length}/20</Text>
               </FieldError>
 
-              <FieldError message={errors.city}>
-                <NoxaInput autoCapitalize="words" editable={!isLoading && !isSubmitting} label="City" maxLength={60} onChangeText={(value) => setField("city", value)} placeholder="Thessaloniki" value={form.city} />
-                <Text style={styles.counter}>{form.city.length}/60</Text>
-              </FieldError>
-
               <FieldError message={errors.countryCode}>
                 <CountryField disabled={isLoading || isSubmitting} label="Country" onChange={setCountryCode} value={form.countryCode} />
+              </FieldError>
+
+              <FieldError message={errors.city}>
+                <CityField
+                  countryCode={form.countryCode}
+                  disabled={isLoading || isSubmitting}
+                  label="City"
+                  onChange={(value) => setField("city", value)}
+                  value={form.city}
+                />
+                <Text style={styles.counter}>{form.city.length}/60</Text>
               </FieldError>
             </Section>
 
