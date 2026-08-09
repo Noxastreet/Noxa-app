@@ -1332,11 +1332,31 @@ export default function LiveMapScreen() {
     }
   }, [animateTo, isRouteFollowing, loadDriverLocation]);
   const toggleRouteFollow = useCallback(() => {
+    const point = driverLocationRef.current;
+
     if (isRouteFollowing) {
       setIsRouteFollowing(false);
+
+      if (
+        route &&
+        point &&
+        hasValidCoordinates(selectedEvent) &&
+        hasValidLatLng(point.latitude, point.longitude)
+      ) {
+        requestAnimationFrame(() =>
+          fitRouteToMap(
+            route.coordinates,
+            {
+              latitude: selectedEvent.latitude,
+              longitude: selectedEvent.longitude,
+            },
+            point,
+          ),
+        );
+      }
       return;
     }
-    const point = driverLocationRef.current;
+
     if (
       !isRouteMode ||
       routeStatus !== "ready" ||
@@ -1346,9 +1366,17 @@ export default function LiveMapScreen() {
     ) {
       return;
     }
+
     mapRef.current?.animateToRegion(pointRegion(point), 250);
     setIsRouteFollowing(true);
-  }, [isRouteFollowing, isRouteMode, route, routeStatus]);
+  }, [
+    fitRouteToMap,
+    isRouteFollowing,
+    isRouteMode,
+    route,
+    routeStatus,
+    selectedEvent,
+  ]);
 
   const nearbyDrivers = useMemo(
     () =>
