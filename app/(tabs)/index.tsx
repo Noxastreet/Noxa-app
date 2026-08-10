@@ -34,6 +34,10 @@ import {
 import type { EventCategory } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import {
+  NoxaFloatingCard,
+  type NoxaFloatingCardAction,
+} from "@/src/components/ui";
 
 type ProfileMarkerRow = {
   id: string;
@@ -278,71 +282,53 @@ function EventCard({
 }) {
   const canRoute = hasValidCoordinates(event);
   return (
-    <View style={[styles.eventCard, { bottom: bottomOffset }]}>
-      <View style={styles.eventCardHeader}>
-        <View style={styles.eventCardCopy}>
-          <Text style={styles.cardKicker}>Upcoming event</Text>
-          <Text style={styles.cardTitle} numberOfLines={2}>
-            {event.title}
-          </Text>
-          <Text style={styles.cardSubtitle}>
-            {formatEventTime(event.starts_at)}
-          </Text>
+    <View style={[styles.floatingCardSlot, { bottom: bottomOffset }]}>
+      <NoxaFloatingCard
+        kicker="Upcoming event"
+        title={event.title}
+        titleNumberOfLines={2}
+        subtitle={formatEventTime(event.starts_at)}
+        headerContent={
           <Text style={styles.cardLocation} numberOfLines={1}>
             {event.location_name ?? "Exact location selected"}
           </Text>
-        </View>
-        <View style={styles.eventCardHeaderActions}>
+        }
+        headerAccessory={
           <View style={styles.eventCardIcon}>
             <Ionicons name="calendar-outline" size={18} color={colors.text} />
           </View>
-          <TouchableOpacity
-            accessibilityLabel="Close event preview"
-            activeOpacity={0.78}
-            hitSlop={2}
-            onPress={onClose}
-            style={styles.eventCardCloseControl}
-          >
-            <Ionicons name="close" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View style={styles.eventActions}>
-        <TouchableOpacity
-          activeOpacity={0.82}
-          onPress={() =>
+        }
+        headerAlignItems="flex-start"
+        headerGap={spacing.sm}
+        onClose={onClose}
+        closeAccessibilityLabel="Close event preview"
+        closeButtonSize={40}
+        style={styles.eventCardSurface}
+        primaryAction={{
+          label: "View Event",
+          onPress: () =>
             router.push({
               pathname: "/event-details",
               params: { id: event.id },
-            })
-          }
-          style={styles.eventButton}
-        >
-          <Text style={styles.eventButtonText}>View Event</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityLabel="Route to event"
-          accessibilityState={{ disabled: !canRoute }}
-          activeOpacity={0.78}
-          disabled={!canRoute}
-          onPress={onRoute}
-          style={[styles.eventRouteButton, !canRoute && styles.eventButtonDisabled]}
-        >
-          <Ionicons
-            name="navigate"
-            size={15}
-            color={canRoute ? colors.text : colors.textSubtle}
-          />
-          <Text
-            style={[
-              styles.eventRouteButtonText,
-              !canRoute && styles.eventRouteButtonTextDisabled,
-            ]}
-          >
-            Route
-          </Text>
-        </TouchableOpacity>
-      </View>
+            }),
+          variant: "solid",
+        }}
+        secondaryAction={{
+          label: "Route",
+          onPress: onRoute,
+          disabled: !canRoute,
+          variant: "outline",
+          activeOpacity: 0.78,
+          accessibilityLabel: "Route to event",
+          icon: (
+            <Ionicons
+              name="navigate"
+              size={15}
+              color={canRoute ? colors.text : colors.textSubtle}
+            />
+          ),
+        }}
+      />
     </View>
   );
 }
@@ -371,77 +357,69 @@ function RouteCard({
   onRetry: () => void;
 }) {
   const loading = status === "loading";
-  return (
-    <View style={[styles.routeCard, { bottom: bottomOffset }]}>
-      <View style={styles.routeHeader}>
-        <View style={styles.routeTitleWrap}>
-          <Text style={styles.cardKicker}>NOXA route</Text>
-          <Text style={styles.routeTitle} numberOfLines={1}>
-            {event.title}
-          </Text>
-        </View>
-        <TouchableOpacity
-          accessibilityLabel="Exit route mode"
-          activeOpacity={0.78}
-          onPress={onClose}
-          style={styles.routeCloseButton}
-        >
-          <Ionicons name="close" size={18} color={colors.text} />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
-        <View style={styles.routeStatusRow}>
-          <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={styles.routeStatusText}>Building road route…</Text>
-        </View>
-      ) : route ? (
-        <View style={styles.routeMetrics}>
-          <Text style={styles.routeMetric}>
-            {formatDistance(route.distanceMeters)}
-          </Text>
-          <Text style={styles.routeMetricMuted}>•</Text>
-          <Text style={styles.routeMetric}>
-            ~{formatDuration(route.durationSeconds)}
-          </Text>
-        </View>
-      ) : (
-        <Text style={styles.routeStatusText}>
-          {message ?? "Route unavailable. Keep exploring the NOXA map."}
-        </Text>
-      )}
-      {route && canFollow ? (
-        <TouchableOpacity
-          accessibilityLabel={
-            following ? "Stop following current location" : "Follow route"
+  const primaryAction: NoxaFloatingCardAction | undefined =
+    route && canFollow
+      ? {
+          label: following ? "Following" : "Follow",
+          onPress: onFollowToggle,
+          variant: following ? "active" : "outline",
+          accessibilityLabel: following
+            ? "Stop following current location"
+            : "Follow route",
+          accessibilityState: { selected: following },
+          icon: (
+            <Ionicons
+              name={following ? "navigate" : "navigate-outline"}
+              size={16}
+              color={following ? colors.text : colors.primaryHover}
+            />
+          ),
+          textStyle: styles.routeFollowText,
+          style: styles.routeFollowActionSize,
+        }
+      : status === "error"
+        ? {
+            label: "Retry route",
+            onPress: onRetry,
+            variant: "outline",
+            textStyle: styles.routeRetryText,
           }
-          accessibilityRole="button"
-          accessibilityState={{ selected: following }}
-          activeOpacity={0.82}
-          onPress={onFollowToggle}
-          style={[
-            styles.routeFollowButton,
-            following && styles.routeFollowButtonActive,
-          ]}
-        >
-          <Ionicons
-            name={following ? "navigate" : "navigate-outline"}
-            size={16}
-            color={following ? colors.text : colors.primaryHover}
-          />
-          <Text style={styles.routeFollowText}>
-            {following ? "Following" : "Follow"}
+        : undefined;
+
+  return (
+    <View style={[styles.floatingCardSlot, { bottom: bottomOffset }]}>
+      <NoxaFloatingCard
+        kicker="NOXA route"
+        title={event.title}
+        titleNumberOfLines={1}
+        onClose={onClose}
+        closeAccessibilityLabel="Exit route mode"
+        closeButtonSize={38}
+        closeIconColor={colors.text}
+        style={styles.routeCardSurface}
+        primaryAction={primaryAction}
+      >
+        {loading ? (
+          <View style={styles.routeStatusRow}>
+            <ActivityIndicator color={colors.primary} size="small" />
+            <Text style={styles.routeStatusText}>Building road route…</Text>
+          </View>
+        ) : route ? (
+          <View style={styles.routeMetrics}>
+            <Text style={styles.routeMetric}>
+              {formatDistance(route.distanceMeters)}
+            </Text>
+            <Text style={styles.routeMetricMuted}>•</Text>
+            <Text style={styles.routeMetric}>
+              ~{formatDuration(route.durationSeconds)}
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.routeStatusText}>
+            {message ?? "Route unavailable. Keep exploring the NOXA map."}
           </Text>
-        </TouchableOpacity>
-      ) : null}
-      {status === "error" ? (
-        <TouchableOpacity
-          activeOpacity={0.82}
-          onPress={onRetry}
-          style={styles.routeRetryButton}
-        >
-          <Text style={styles.routeRetryText}>Retry route</Text>
-        </TouchableOpacity>
-      ) : null}
+        )}
+      </NoxaFloatingCard>
     </View>
   );
 }
@@ -1882,52 +1860,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
-  driverMarker: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    backgroundColor: "rgba(17,17,22,0.96)",
-    shadowColor: colors.black,
-    shadowOpacity: 0.42,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  driverMarkerAccent: {
-    position: "absolute",
-    right: -1,
-    bottom: -1,
-    width: 7,
-    height: 7,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.surface,
-    backgroundColor: colors.success,
-  },
-  markerDot: {
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.sm,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: colors.primary,
-    shadowColor: colors.black,
-    shadowOpacity: 0.4,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  markerDotSelected: {
-    borderColor: colors.white,
-    backgroundColor: colors.primaryHover,
-    transform: [{ scale: 1.1 }],
-  },
   locationControlStack: {
     position: "absolute",
     right: spacing.md,
@@ -2177,24 +2109,14 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.7,
   },
-  eventCard: {
+  floatingCardSlot: {
     position: "absolute",
     left: spacing.md,
     right: spacing.md,
+  },
+  eventCardSurface: {
     padding: 14,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: "rgba(17,17,22,0.94)",
-    ...shadows.card,
-  },
-  eventCardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.sm,
-  },
-  eventCardCopy: {
-    flex: 1,
   },
   eventCardIcon: {
     width: 40,
@@ -2204,128 +2126,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primary,
   },
-  eventCardHeaderActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  eventCardCloseControl: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
-  },
-  cardKicker: {
-    color: colors.primaryHover,
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 1.3,
-    textTransform: "uppercase",
-  },
-  cardTitle: {
-    marginTop: 4,
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-    lineHeight: 20,
-  },
-  cardSubtitle: {
-    marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "500",
-  },
   cardLocation: {
     marginTop: 2,
     color: colors.textSubtle,
     fontSize: 11,
     fontWeight: "500",
   },
-  eventActions: {
-    marginTop: spacing.sm,
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  eventButton: {
-    flex: 1,
-    height: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  eventButtonText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  eventRouteButton: {
-    flex: 1,
-    height: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
-  },
-  eventRouteButtonText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  eventButtonDisabled: {
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
-    opacity: 0.55,
-  },
-  eventRouteButtonTextDisabled: {
-    color: colors.textSubtle,
-  },
-  routeCard: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
+  routeCardSurface: {
     borderColor: colors.borderAccent,
     backgroundColor: "rgba(17,17,22,0.96)",
-    ...shadows.card,
-  },
-  routeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  routeTitleWrap: { flex: 1 },
-  routeTitle: {
-    marginTop: 3,
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-  },
-  routeCloseButton: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   routeStatusRow: {
     marginTop: spacing.md,
@@ -2355,39 +2164,13 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: "600",
   },
-  routeFollowButton: {
-    marginTop: spacing.md,
+  routeFollowActionSize: {
     height: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
-  },
-  routeFollowButtonActive: {
-    backgroundColor: colors.primary,
   },
   routeFollowText: {
-    color: colors.text,
-    fontSize: 13,
     fontWeight: "700",
   },
-  routeRetryButton: {
-    marginTop: spacing.md,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
-  },
   routeRetryText: {
-    color: colors.text,
     fontSize: typography.caption,
-    fontWeight: "600",
   },
 });
