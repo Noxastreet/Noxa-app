@@ -13,28 +13,52 @@ This document is the common operating contract for Claude Code, ChatGPT, Codex a
 
 ## Responsibilities
 
-### Claude Code
+### Product owner
 
-- inspect and modify the repository;
-- implement scoped tasks;
-- run available static checks;
-- report changed files, assumptions, limitations and validation evidence;
-- avoid broad autonomous redesigns or unrelated refactors.
+- makes final product decisions;
+- chooses priorities and approves product behavior;
+- authorizes production migrations, secrets, releases and destructive operations;
+- performs or coordinates physical-device validation and accepts runtime evidence;
+- decides when a limitation is acceptable.
 
 ### ChatGPT
 
-- clarify product intent and UX behavior;
-- define architecture and acceptance criteria;
-- produce implementation briefs;
-- review diffs, UI evidence and runtime results;
-- maintain cross-feature consistency and documentation.
+- maintains product and UX coherence;
+- defines architecture;
+- owns privacy and safety contracts;
+- defines acceptance criteria;
+- produces implementation briefs;
+- reviews design packages, diffs, UI evidence and runtime results;
+- maintains cross-feature consistency and documentation.
 
-### Product owner
+### Claude Design
 
-- chooses priorities and approves product behavior;
-- performs or coordinates physical-device validation;
-- authorizes production migrations, secrets, releases and destructive operations;
-- decides when a limitation is acceptable.
+- produces the approved visual architecture;
+- specifies screen composition and information hierarchy;
+- specifies interaction flows;
+- specifies component behavior, including all required states;
+- specifies motion and accessibility design;
+- runs design correction passes against approved contracts.
+
+Claude Design must **not** autonomously:
+
+- change product scope;
+- invent new features;
+- change backend architecture;
+- change privacy architecture;
+- change the database, Mapbox or Supabase;
+- implement application code;
+- override a contract approved by the Product Owner or ChatGPT.
+
+A design package expresses approved intent. It is never evidence that a screen works.
+
+### Claude Code
+
+- inspects the real repository before acting;
+- implements approved scoped tasks;
+- runs available static checks;
+- reports changed files, assumptions, limitations and exact validation evidence;
+- avoids broad autonomous redesigns or unrelated refactors.
 
 ## Source-of-truth hierarchy
 
@@ -61,6 +85,7 @@ Conflicts are resolved in favor of the higher-ranked evidence. Update lower-rank
 - Fix overlap, spacing, safe-area, keyboard, transparency and hierarchy issues systematically.
 - Use the rules in `docs/UI_RULES.md` and the existing design tokens/components.
 - Do not use “make it premium” as an implementation specification; translate it into measurable layout, state and motion requirements.
+- `docs/VISUAL_ARCHITECTURE_V2.md` (status: approved for implementation) is the canonical visual-layer contract for Onboarding, Home/Map, Event Detail, Garage/Vehicle and Active Drive. Read it and `docs/audit/VISUAL_V2_RECONCILIATION.md` before touching any of those five screens. It operates inside `docs/UI_RULES.md` and the product laws — it does not override them.
 
 ## Safety and production controls
 

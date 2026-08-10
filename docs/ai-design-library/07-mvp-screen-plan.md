@@ -529,6 +529,38 @@
 
 ---
 
+# Release Wave 8 — Group Drive / Active Drive
+
+**Статус: обязательная часть MVP** (решение Product Owner, Stage 0A finalization). Group Drive — последняя крупная функциональная система MVP; она идёт после privacy P0 и после Visual Architecture V2 foundation с пятью reference experiences.
+
+**Канонические документы:** `docs/GROUP_DRIVE.md` (домен, data model, state machines, privacy matrix, RLS, фазы 0–5) и `docs/VISUAL_ARCHITECTURE_V2.md` §10.5/§13 (визуальный контракт Active Drive).
+
+**Терминология:** Group Drive — функция/сущность; Active Drive — полноэкранный runtime; Live — только статус; Live Drive — исключительно существующая персональная функция шеринга геопозиции.
+
+**Экраны (детальный per-action контракт — `docs/GROUP_DRIVE.md` §14):**
+
+- My Group Drives;
+- Drive Details;
+- Route Builder;
+- Add Participants;
+- Scheduling;
+- Route Review;
+- Invitation Detail;
+- Active Drive Map;
+- Completed Drive Summary.
+
+**Ключевые правила:**
+
+- участник: `Leave Drive`; хост: `End Drive`. У хоста в MVP нет действия Leave;
+- никакой точной скорости, телеметрии, лидербордов и игрового HUD;
+- только приблизительные статусы: Moving / Stopped / Arrived / Stale;
+- Minimize не выходит из поездки и не завершает её;
+- Group Drive не получает вкладку в bottom navigation.
+
+**Ограничения:** реализация начинается только после явной авторизации и подготовки backend/security-плана. Схема, RLS, RPC и Edge Function проходят отдельный scoped review и существующие production-гейты. Crew Convoy (`app/convoy-setup.tsx`) остаётся frozen V2 и не переиспользуется как домен Group Drive.
+
+---
+
 # Замороженные V2-экраны
 
 Эти экраны могут существовать в коде, но не получают приоритет редизайна до завершения MVP:
@@ -542,7 +574,7 @@
 - `app/crew-calendar.tsx`;
 - `app/crew-polls.tsx`;
 - `app/crew-garage.tsx`;
-- `app/convoy-setup.tsx`;
+- `app/convoy-setup.tsx` — Crew Convoy; остаётся frozen V2 и **не** является Group Drive (Wave 8) и не переиспользуется как его домен;
 - `app/post-editor.tsx`;
 - `app/post-details.tsx`;
 - advanced scoped coordination / Plan Card / Result Card flows.
@@ -559,7 +591,8 @@
 6. Garage.
 7. Profile and public identity.
 8. Settings, safety, legal.
-9. Whole-MVP consistency pass.
-10. Android acceptance build.
+9. Group Drive / Active Drive (Wave 8) — только после явной авторизации.
+10. Whole-MVP consistency pass.
+11. Android acceptance build.
 
 Каждый PR должен менять один связный пользовательский путь, а не одновременно пять несвязанных экранов.

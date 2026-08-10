@@ -35,6 +35,24 @@
 - block/report;
 - production-ready auth and data flows.
 
+### Group Drive — обязательная часть MVP
+
+**Решение Product Owner (Stage 0A finalization): Group Drive входит в MVP и не является V2.**
+
+Group Drive — это **последняя крупная функциональная система MVP**. Она обязательна, но не прерывает текущий порядок работ:
+
+1. privacy P0 (подтверждение расширения аудитории активного персонального Live Drive);
+2. Visual Architecture V2 foundation и пять reference experiences;
+3. Group Drive как финальная крупная функция MVP;
+4. статический MVP release candidate;
+5. физическая Android/iOS runtime-валидация.
+
+Каноническая архитектура и границы: `docs/GROUP_DRIVE.md`. Каноническая терминология: **Group Drive** — функция/сущность, **Active Drive** — полноэкранный runtime, **Live** — только статус, **Live Drive** — исключительно существующая персональная функция временного шеринга геопозиции.
+
+Group Drive **не является** развитием Crew Convoy. `app/convoy-setup.tsx` и таблицы `crew_convoys`/`crew_convoy_participants` остаются frozen/legacy V2 и не переиспользуются как домен Group Drive.
+
+Статус MVP-required **не** авторизует production-изменения Supabase: схема, RLS, RPC и Edge Function Group Drive проходят отдельный scoped review и существующие production-гейты. Реализация начинается только после явной авторизации.
+
 ### Quality gate
 
 MVP не считается готовым только потому, что компонент существует в коде. Нужны:
@@ -58,7 +76,8 @@ MVP не считается готовым только потому, что к�
 - сложные временные Live-аудитории;
 - синтетическое присутствие внутри больших публичных Meets;
 - Pioneer status и исторические городские статусы;
-- расширенная репутация, если она вообще будет доказана безопасной и полезной.
+- расширенная репутация, если она вообще будет доказана безопасной и полезной;
+- **Crew Convoy** (`app/convoy-setup.tsx`, `crew_convoys`) — остаётся frozen/legacy V2 и не переиспользуется как домен Group Drive. Group Drive, в отличие от Crew Convoy, входит в MVP.
 
 ## Explicitly out of scope for MVP
 

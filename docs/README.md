@@ -8,8 +8,11 @@ This directory is the repository-owned source of truth for product, design, arch
 2. `PRODUCT.md` — product identity, value and scope.
 3. `ARCHITECTURE.md` — technical stack and architectural rules.
 4. `UI_RULES.md` — mandatory UX/UI principles.
-5. `ROADMAP.md` — ordered execution stages and Definition of Done.
-6. `AI_CONTEXT.md` — operating contract for Claude Code, ChatGPT, Codex and other agents.
+5. `VISUAL_ARCHITECTURE_V2.md` — approved visual-layer contract for Onboarding, Home/Map, Event Detail, Garage/Vehicle and Active Drive; read alongside `UI_RULES.md`, not instead of it.
+6. `ROADMAP.md` — ordered execution stages and Definition of Done.
+7. `AI_CONTEXT.md` — operating contract for Claude Code, ChatGPT, Codex and other agents.
+
+Reconciliation evidence for Visual Architecture V2 against the current codebase lives in `audit/VISUAL_V2_RECONCILIATION.md`. `GROUP_DRIVE.md` is the canonical Group Drive architecture (documentation only, no application code yet); `audit/PR135_CONTRACT_RECONCILIATION.md` records which decisions from the former `feat/home-map-floating-card-foundation` integration branch (PR #135) were preserved, superseded, or left as open product decisions.
 
 ## Source-of-truth hierarchy
 
