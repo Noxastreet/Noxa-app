@@ -1,27 +1,26 @@
-# NOXA — Group Drive / Live Drive Architecture
+# NOXA — Group Drive Architecture
 
 ## Status
 
 **Approved architecture and MVP scope. Documentation only.**
 
-This document is the canonical specification for the Group Drive feature. No application code, no database migrations and no Supabase configuration have been created or changed as part of this document. Implementation proceeds only through the phased plan defined below, each phase as its own scoped, reviewed change.
+Group Drive is **required for the NOXA MVP** (Product Owner decision, Stage 0A finalization). It is the **final major functional MVP system**: it is sequenced after the personal Live Drive privacy P0 and after the Visual Architecture V2 foundation and core reference experiences, and it begins only on explicit implementation authorization. See `docs/CURRENT_STATE.md` for the canonical stage ordering.
 
-**Provenance note:** this document was authored on the `feat/home-map-floating-card-foundation` integration branch (PR #135) and is imported into `main` here, classified **STILL VALID**, by the Stage 0 Visual Architecture V2 reconciliation (see `docs/audit/PR135_CONTRACT_RECONCILIATION.md`). It describes a domain that does not exist in application code on `main` at all, so nothing here is superseded by runtime evidence — it remains the target architecture, unchanged, except for two additions: §13.1's "single long-lived branch" delivery process is no longer how this repository ships work (see the reconciliation doc) and is superseded by whatever branch/PR strategy is current when Group Drive implementation is actually scheduled; and §14 below, which imports the still-valid Group Drive rows of PR #135's `docs/MVP_SCREEN_ACTION_REGISTER.md` so the per-screen action/state contract isn't lost. Two items remain explicitly **open, unresolved product decisions** — flagged inline at §1 (the "Live Drive" naming collision) and in the reconciliation doc (whether Group Drive is MVP-required or Post-MVP/V2, which `docs/ai-design-library/04-mvp-v2-boundary.md` and `docs/ai-design-library/07-mvp-screen-plan.md` on `main` do not currently resolve in Group Drive's favor).
+This document is the canonical specification for the Group Drive feature. No application code, no database migrations and no Supabase configuration have been created or changed as part of this document. Implementation proceeds only through the phased plan defined below, each phase as its own scoped, reviewed change. **Being MVP-required does not authorize any production Supabase change** — Group Drive's schema, RLS, RPCs and Edge Function each still require their own scoped review and the existing production approval gates (§8, §11, §13).
+
+**Provenance note:** this document was authored on the `feat/home-map-floating-card-foundation` integration branch (PR #135) and imported into `main`, classified **STILL VALID**, by the Stage 0A Visual Architecture V2 reconciliation (see `docs/audit/PR135_CONTRACT_RECONCILIATION.md`). It describes a domain that does not exist in application code on `main` at all, so nothing here is superseded by runtime evidence. Three changes were made on import: §14 was added (the still-valid Group Drive rows of PR #135's `docs/MVP_SCREEN_ACTION_REGISTER.md`, so the per-screen action/state contract isn't lost); §13.1's branch-mechanics instructions were removed in favor of a delivery rule that defers to current repository policy; and the terminology in §1 was finalized per the Product Owner naming decision below. No open product decisions remain in this document.
 
 ## 1. Terminology
 
-- **Group Drive** — the user-facing entity representing a planned or in-progress shared drive between multiple NOXA users. This is the product noun shown in UI copy and used for the data model (`drive_sessions` and related tables).
-- **Live Drive (Group Drive context)** — the active runtime state of a Group Drive, i.e. the period during which `drive_sessions.status = 'active'` and participants broadcast realtime location to each other.
-- **`crew_convoys`** — an existing, already-shipped V2/legacy entity (`supabase/migrations/20260714230525_add_crew_experience.sql`, `app/convoy-setup.tsx`) with its own `lobby → live → completed/cancelled` lifecycle. It is **not** extended, renamed or reused for Group Drive. It remains a separate, frozen, Crew-only coordination feature until a future decision explicitly changes that.
+Canonical and final:
 
-### Known naming collision — must be resolved before user-facing copy ships
+- **Group Drive** — the feature and the user-facing entity: a planned or in-progress shared drive between multiple NOXA users. This is the product noun shown in UI copy and used for the data model (`drive_sessions` and related tables).
+- **Active Drive** — the fullscreen runtime screen/state while a Group Drive is active, i.e. the period during which `drive_sessions.status = 'active'` and participants broadcast realtime location to each other.
+- **Live** — a status label only (e.g. a card badge on a Group Drive that is currently active). It is not a feature name.
+- **Live Drive** — reserved exclusively for the **existing personal temporary location-sharing feature** (`src/lib/liveDrive.ts`, `driver_locations`, the four-hour Ghost/Friends/Crew/Global session). The Group Drive feature must never be called "Live Drive", and no part of this document's domain reuses that name.
+- **`crew_convoys` / "Crew Convoy"** — an existing, already-shipped V2/legacy entity (`supabase/migrations/20260714230525_add_crew_experience.sql`, `app/convoy-setup.tsx`) with its own `lobby → live → completed/cancelled` lifecycle. It is **not** extended, renamed or reused as the Group Drive domain, and Group Drive must not be conflated with it. Crew Convoy remains a separate, frozen, Crew-only coordination feature until a future decision explicitly changes that.
 
-"Live Drive" already has an established meaning in the shipped product: the personal 4-hour location-sharing session defined in `src/lib/liveDrive.ts` and surfaced in `app/(tabs)/index.tsx` (visibility modes `crew`/`friends`/`global`/`ghost`, the "Start a 4-hour Live Drive?" modal, `driver_locations`). This document reuses "Live Drive" for a structurally different concept (the active state of a Group Drive) because the task that produced this document specified that mapping. **This is a deliberate documentation decision, not a resolved product decision.** Before Phase 4 ships user-facing copy, product must confirm whether:
-
-- both concepts keep the same name and are disambiguated only by context ("Live Drive" personal sharing vs. "Group Drive" plus "Live" status badge), or
-- one of the two runtime states is renamed in-product to avoid confusing two unrelated 4-hour-session-shaped features.
-
-Nothing about the existing personal Live Drive system (`src/lib/liveDrive.ts`, `driver_locations`) changes because of this document.
+Nothing about the existing personal Live Drive implementation (`src/lib/liveDrive.ts`, `driver_locations`) is renamed or modified by this document.
 
 ## 2. Relationship to existing systems
 
@@ -359,17 +358,11 @@ To be executed per relevant phase, on a physical Android device or native develo
 
 ## 13. Phased implementation plan
 
-### 13.1 Delivery process
+### 13.1 Delivery rule
 
-**Superseded note:** the paragraph below describes the delivery process as it stood on PR #135 (a single long-lived integration branch/PR accumulating every phase). That is no longer how this repository ships work — recent history on `main` shows many independent `feat/*` branches merged through their own individual PRs (see `docs/audit/PR135_CONTRACT_RECONCILIATION.md`). Whichever branch/PR strategy is current when Group Drive implementation is actually scheduled applies instead; the phase boundaries, commit-per-step discipline, and Definition-of-Done gating below remain valid regardless of branch strategy.
-
-Group Drive implementation accumulates on the single existing integration branch `feat/home-map-floating-card-foundation`, tracked through the single existing draft PR #135, rather than a new branch/PR per phase. Within that arrangement:
-
-- every phase, and every distinct logical step within a phase, is its own commit;
-- each commit is its own review checkpoint, assessed on its own contents rather than deferred to a later "final" review of the whole branch;
-- the PR is not marked ready for review, and is not merged, until Android runtime validation has been recorded for the phase(s) it contains (§11, §12);
-- applying any resulting migration to production Supabase still requires a separate, explicit owner approval and a `docs/security/NOXA_LIVE_DRIVE_MIGRATION_A_RUNBOOK.md`-style runbook — accumulating phases on one branch does not shorten or bypass that gate;
-- sharing one branch and one PR does **not** waive the Definition of Done (§11) for any individual phase — each phase must independently satisfy it before the next phase begins, exactly as if it were its own branch.
+- Each Group Drive architecture phase (§13.2) remains an **independently reviewable gate**: a phase must satisfy its own Definition of Done (§11) and its share of the Android runtime checklist (§12) before the next phase begins.
+- **Branch and PR mechanics are not decided here.** The repository's delivery strategy at implementation time is governed by `docs/ROADMAP.md`, `docs/AI_CONTEXT.md` and current Product Owner instruction — not by this domain architecture document, and not by any historical arrangement.
+- **No branch strategy may weaken phase-level validation or the production gates.** Whatever the branching model, applying a migration to production Supabase still requires separate explicit owner approval and a `docs/security/NOXA_LIVE_DRIVE_MIGRATION_A_RUNBOOK.md`-style runbook (§8, §11).
 
 ### 13.2 Phases
 

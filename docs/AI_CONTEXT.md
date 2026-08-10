@@ -13,28 +13,52 @@ This document is the common operating contract for Claude Code, ChatGPT, Codex a
 
 ## Responsibilities
 
-### Claude Code
+### Product owner
 
-- inspect and modify the repository;
-- implement scoped tasks;
-- run available static checks;
-- report changed files, assumptions, limitations and validation evidence;
-- avoid broad autonomous redesigns or unrelated refactors.
+- makes final product decisions;
+- chooses priorities and approves product behavior;
+- authorizes production migrations, secrets, releases and destructive operations;
+- performs or coordinates physical-device validation and accepts runtime evidence;
+- decides when a limitation is acceptable.
 
 ### ChatGPT
 
-- clarify product intent and UX behavior;
-- define architecture and acceptance criteria;
-- produce implementation briefs;
-- review diffs, UI evidence and runtime results;
-- maintain cross-feature consistency and documentation.
+- maintains product and UX coherence;
+- defines architecture;
+- owns privacy and safety contracts;
+- defines acceptance criteria;
+- produces implementation briefs;
+- reviews design packages, diffs, UI evidence and runtime results;
+- maintains cross-feature consistency and documentation.
 
-### Product owner
+### Claude Design
 
-- chooses priorities and approves product behavior;
-- performs or coordinates physical-device validation;
-- authorizes production migrations, secrets, releases and destructive operations;
-- decides when a limitation is acceptable.
+- produces the approved visual architecture;
+- specifies screen composition and information hierarchy;
+- specifies interaction flows;
+- specifies component behavior, including all required states;
+- specifies motion and accessibility design;
+- runs design correction passes against approved contracts.
+
+Claude Design must **not** autonomously:
+
+- change product scope;
+- invent new features;
+- change backend architecture;
+- change privacy architecture;
+- change the database, Mapbox or Supabase;
+- implement application code;
+- override a contract approved by the Product Owner or ChatGPT.
+
+A design package expresses approved intent. It is never evidence that a screen works.
+
+### Claude Code
+
+- inspects the real repository before acting;
+- implements approved scoped tasks;
+- runs available static checks;
+- reports changed files, assumptions, limitations and exact validation evidence;
+- avoids broad autonomous redesigns or unrelated refactors.
 
 ## Source-of-truth hierarchy
 
