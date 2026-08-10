@@ -61,6 +61,7 @@ Conflicts are resolved in favor of the higher-ranked evidence. Update lower-rank
 - Fix overlap, spacing, safe-area, keyboard, transparency and hierarchy issues systematically.
 - Use the rules in `docs/UI_RULES.md` and the existing design tokens/components.
 - Do not use “make it premium” as an implementation specification; translate it into measurable layout, state and motion requirements.
+- `docs/VISUAL_ARCHITECTURE_V2.md` (status: approved for implementation) is the canonical visual-layer contract for Onboarding, Home/Map, Event Detail, Garage/Vehicle and Active Drive. Read it and `docs/audit/VISUAL_V2_RECONCILIATION.md` before touching any of those five screens. It operates inside `docs/UI_RULES.md` and the product laws — it does not override them.
 
 ## Safety and production controls
 

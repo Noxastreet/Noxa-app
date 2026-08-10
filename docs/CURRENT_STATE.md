@@ -44,6 +44,21 @@ After Android PASS for Crews & Events:
 3. remaining runtime P0 issues and release hardening;
 4. production publication and business layers.
 
+## Visual Architecture V2
+
+**Status: APPROVED FOR IMPLEMENTATION.** See `docs/VISUAL_ARCHITECTURE_V2.md` for the canonical contract and `docs/audit/VISUAL_V2_RECONCILIATION.md` for the current-vs-target reconciliation. Implementation has **not started**; this is a documentation checkpoint only.
+
+Planned stages, sequenced independently of the Crews/Events/Garage runtime-validation track above:
+
+- **Stage 0 — Visual Foundation V2 reconciliation.** Complete: canonical spec + reconciliation audit written against current `main`. No token, component or screen code changed yet.
+- **Stage 1 — Onboarding.**
+- **Stage 2 — Home / Map.**
+- **Stage 3 — Event Detail.**
+- **Stage 4 — Garage / Vehicle.**
+- **Stage 5 — Active Drive / Group Drive implementation, once Group Drive's backend phases are scheduled and ready.** Group Drive application code does not exist yet (only a crew-scoped, frozen-for-MVP "Convoy" flow does) — Stage 5 is not authorized to start Group Drive backend work by itself.
+
+A separately tracked, unrelated P0 remains open: widening an already-active personal Live Drive audience must require explicit re-confirmation (currently silent). This must ship as its own commit/PR, never combined with a Visual Architecture V2 change.
+
 ## Blocked work
 
 - Production Supabase Migration A remains blocked until a manual database dump, rollback verification and explicit approval.
