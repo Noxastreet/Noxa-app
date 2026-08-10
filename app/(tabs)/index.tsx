@@ -490,6 +490,15 @@ export default function LiveMapScreen() {
   const [pendingVisibilityMode, setPendingVisibilityMode] =
     useState<LiveDriveVisibilityMode | null>(null);
   const [isStartingLiveDrive, setIsStartingLiveDrive] = useState(false);
+  // Privacy: an already-active Live Drive audience never changes without an
+  // explicit confirmation. This holds the proposed change only — nothing is
+  // mutated until the user confirms.
+  const [pendingAudienceChange, setPendingAudienceChange] = useState<{
+    from: LiveDriveVisibilityMode;
+    to: LiveDriveVisibilityMode;
+  } | null>(null);
+  const [isChangingAudience, setIsChangingAudience] = useState(false);
+  const audienceChangeInFlightRef = useRef(false);
   const [liveDriveExpiresAt, setLiveDriveExpiresAt] = useState<string | null>(null);
   const [liveDriveClock, setLiveDriveClock] = useState(Date.now());
   const [sharingError, setSharingError] = useState<string | null>(null);
@@ -732,9 +741,72 @@ export default function LiveMapScreen() {
     [deletePresence, upsertPresence],
   );
 
+  // Applies an audience change to an already-active Live Drive. Only ever
+  // called after the user has explicitly confirmed it. The existing session
+  // expiry is preserved: updateLiveDriveVisibility keeps `expiresAt` as-is, so
+  // sharing still ends at the original time and no new 4-hour window is opened.
+  const applyAudienceChange = useCallback(
+    async (mode: LiveDriveVisibilityMode) => {
+      if (audienceChangeInFlightRef.current) return;
+      audienceChangeInFlightRef.current = true;
+      if (isMountedRef.current) setIsChangingAudience(true);
+      try {
+        // The session can expire while the confirmation is open. Re-check it
+        // rather than trusting the state captured when the sheet was opened.
+        const activeSession = getLiveDriveSession();
+        const userId = sharingUserIdRef.current ?? activeSession?.userId;
+        if (!activeSession || !userId) {
+          await stopSharing(true);
+          if (isMountedRef.current)
+            setSharingError(
+              "Your Live Drive session expired. Start a new 4-hour session.",
+            );
+          return;
+        }
+
+        const liveDriveSession = await updateLiveDriveVisibility(mode).catch(
+          () => null,
+        );
+        if (!liveDriveSession) {
+          await stopSharing(true);
+          if (isMountedRef.current)
+            setSharingError(
+              "Your Live Drive session expired. Start a new 4-hour session.",
+            );
+          return;
+        }
+        // Only now does the active audience actually move.
+        visibilityModeRef.current = mode;
+        setVisibilityMode(mode);
+        setIsVisibleOnMap(true);
+        setLiveDriveExpiresAt(liveDriveSession.expiresAt);
+        lastPresenceWriteRef.current = 0;
+        const latestPayload = latestPresencePayloadRef.current;
+        if (latestPayload) {
+          const nextPayload = { ...latestPayload, visibility_mode: mode };
+          latestPresencePayloadRef.current = nextPayload;
+          await writePresencePayload(userId, nextPayload, true);
+        } else {
+          await supabase
+            .from("driver_locations")
+            .update({ visibility_mode: mode })
+            .eq("user_id", userId);
+        }
+      } finally {
+        audienceChangeInFlightRef.current = false;
+        if (isMountedRef.current) {
+          setIsChangingAudience(false);
+          setPendingAudienceChange(null);
+        }
+      }
+    },
+    [stopSharing, writePresencePayload],
+  );
+
   const changeVisibilityMode = useCallback(
     async (mode: LocationVisibilityMode) => {
       setVisibilityMenuOpen(false);
+      // Revoking sharing is always immediate and needs no extra confirmation.
       if (mode === "ghost") {
         await stopSharing(true);
         return;
@@ -742,35 +814,22 @@ export default function LiveMapScreen() {
 
       const activeSession = getLiveDriveSession();
       const userId = sharingUserIdRef.current ?? activeSession?.userId;
+      // No active session: the existing start-a-session consent flow applies.
       if (!userId || !activeSession) {
         setPendingVisibilityMode(mode);
         return;
       }
 
-      visibilityModeRef.current = mode;
-      const liveDriveSession = await updateLiveDriveVisibility(mode).catch(() => null);
-      if (!liveDriveSession) {
-        await stopSharing(true);
-        setSharingError("Your Live Drive session expired. Start a new 4-hour session.");
-        return;
-      }
-      setVisibilityMode(mode);
-      setIsVisibleOnMap(true);
-      setLiveDriveExpiresAt(liveDriveSession.expiresAt);
-      lastPresenceWriteRef.current = 0;
-      const latestPayload = latestPresencePayloadRef.current;
-      if (latestPayload) {
-        const nextPayload = { ...latestPayload, visibility_mode: mode };
-        latestPresencePayloadRef.current = nextPayload;
-        await writePresencePayload(userId, nextPayload, true);
-      } else {
-        await supabase
-          .from("driver_locations")
-          .update({ visibility_mode: mode })
-          .eq("user_id", userId);
-      }
+      // Re-selecting the current audience changes nothing.
+      if (activeSession.visibilityMode === mode) return;
+
+      // An active audience is changing. Crew and Friends are different
+      // audiences, not nested ones, so every non-Ghost to non-Ghost change is
+      // treated as a new disclosure and requires explicit consent. Deliberately
+      // mutates nothing here — applyAudienceChange owns every write.
+      setPendingAudienceChange({ from: activeSession.visibilityMode, to: mode });
     },
-    [stopSharing, writePresencePayload],
+    [stopSharing],
   );
 
   const restoreLiveDriveSession = useCallback(async () => {
@@ -1439,6 +1498,12 @@ export default function LiveMapScreen() {
   const pendingVisibility = VISIBILITY_MODES.find(
     (mode) => mode.id === pendingVisibilityMode,
   );
+  const pendingAudienceFromLabel = VISIBILITY_MODES.find(
+    (mode) => mode.id === pendingAudienceChange?.from,
+  )?.label;
+  const pendingAudienceToLabel = VISIBILITY_MODES.find(
+    (mode) => mode.id === pendingAudienceChange?.to,
+  )?.label;
   const mapDataHasError =
     eventsRequestState === "error" || activeDriversRequestState === "error";
   const mapDataNoticeMessage =
@@ -1769,6 +1834,63 @@ export default function LiveMapScreen() {
                   <ActivityIndicator color={colors.text} size="small" />
                 ) : (
                   <Text style={styles.liveDriveStartText}>START 4-HOUR SESSION</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => {
+          // Android Back and dismissal are Cancel: nothing has been changed.
+          if (!isChangingAudience) setPendingAudienceChange(null);
+        }}
+        transparent
+        visible={pendingAudienceChange !== null}
+      >
+        <View style={styles.liveDriveModalBackdrop}>
+          <View style={styles.liveDriveModalCard}>
+            <View style={styles.liveDriveModalIcon}>
+              <Ionicons name="eye-outline" size={22} color={colors.primaryHover} />
+            </View>
+            <Text style={styles.liveDriveModalEyebrow}>PRECISE LOCATION</Text>
+            <Text style={styles.liveDriveModalTitle}>Change Live Drive audience?</Text>
+            <Text style={styles.liveDriveModalBody}>
+              Change who can see your precise location on the live map from{" "}
+              {pendingAudienceFromLabel ?? "your current audience"} to{" "}
+              {pendingAudienceToLabel ?? "the selected audience"}?
+            </Text>
+            <Text style={styles.liveDriveModalFootnote}>
+              This does not extend your Live Drive. Sharing keeps the current end time
+              {liveDriveRemaining ? ` (${liveDriveRemaining} left)` : ""} and stops
+              earlier if you select Ghost or sign out.
+            </Text>
+            <View style={styles.liveDriveModalActions}>
+              <TouchableOpacity
+                disabled={isChangingAudience}
+                onPress={() => setPendingAudienceChange(null)}
+                style={styles.liveDriveCancelButton}
+              >
+                <Text style={styles.liveDriveCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={isChangingAudience || !pendingAudienceChange}
+                onPress={() => {
+                  if (pendingAudienceChange)
+                    void applyAudienceChange(pendingAudienceChange.to);
+                }}
+                style={styles.liveDriveStartButton}
+              >
+                {isChangingAudience ? (
+                  <ActivityIndicator color={colors.text} size="small" />
+                ) : (
+                  <Text style={styles.liveDriveStartText}>
+                    {pendingAudienceToLabel
+                      ? `CHANGE TO ${pendingAudienceToLabel.toUpperCase()}`
+                      : "CHANGE AUDIENCE"}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>

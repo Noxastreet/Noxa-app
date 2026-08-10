@@ -69,7 +69,19 @@ Then:
 - **Static MVP release candidate.**
 - **Physical Android/iOS runtime validation.**
 
-The separately tracked personal Live Drive audience-widening privacy P0 (widening an already-active audience must require explicit re-confirmation; currently silent) **still has priority before broad Visual V2 rollout**. It must ship as its own commit/PR, never combined with a Visual Architecture V2 change.
+### Privacy P0 — active Live Drive audience change
+
+**IMPLEMENTED — STATIC PASS / PHYSICAL RUNTIME VALIDATION PENDING.**
+
+Changing the audience of an *already-active* personal Live Drive previously mutated the live audience with no separate confirmation, contradicting `AGENTS.md` §8 ("Audience expansion must never occur silently"). It now requires explicit consent:
+
+- selecting the current audience again is a no-op;
+- selecting Ghost still revokes sharing immediately, with no extra confirmation;
+- every other non-Ghost → non-Ghost change (Crew / Friends / Global) opens a confirmation naming the current and proposed audience, stating that precise location is shared, and stating that the session duration does not restart or extend. Crew and Friends are treated as different audiences, not nested ones, so no change is exempt.
+
+Nothing is mutated before the user confirms; Cancel and Android Back leave the session and audience exactly unchanged. On confirm, the existing `expiresAt` is preserved — no new four-hour window, no permission re-prompt. If the session expired while the confirmation was open, it fails safe to the non-sharing state.
+
+Shipped separately from Visual Architecture V2 work, as required. **Not Done** — this status reflects static checks only; native Android/iOS runtime evidence is still required before the P0 can be closed.
 
 ## Blocked work
 
