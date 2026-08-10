@@ -12,7 +12,7 @@ This directory is the repository-owned source of truth for product, design, arch
 6. `ROADMAP.md` — ordered execution stages and Definition of Done.
 7. `AI_CONTEXT.md` — operating contract for Claude Code, ChatGPT, Codex and other agents.
 
-Reconciliation evidence for Visual Architecture V2 against the current codebase lives in `audit/VISUAL_V2_RECONCILIATION.md`.
+Reconciliation evidence for Visual Architecture V2 against the current codebase lives in `audit/VISUAL_V2_RECONCILIATION.md`. `GROUP_DRIVE.md` is the canonical Group Drive architecture (documentation only, no application code yet); `audit/PR135_CONTRACT_RECONCILIATION.md` records which decisions from the former `feat/home-map-floating-card-foundation` integration branch (PR #135) were preserved, superseded, or left as open product decisions.
 
 ## Source-of-truth hierarchy
 

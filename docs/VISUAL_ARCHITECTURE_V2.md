@@ -21,9 +21,9 @@ Four levels, no others. A card inside a card is a bug.
 | Level | Role | Background | Notes |
 |---|---|---|---|
 | L0 | Screen / map / page environment | `#06060A` | The base. Map or screen canvas. |
-| L1 | Content directly on the main surface | no container | Hairline dividers only (~6% white). No card wrapper. |
-| L2 | Contextual temporary surface (sheet) | `#0C0C10` | Rounded top corners only (target radius 28), 2 detents (preview / detail). Shadow is used here, once. |
-| L3 | Critical / destructive confirmation | replaces L2 content | Never stacks on top of L2 — it replaces the current sheet's content. |
+| L1 | Content directly on the main surface | no container | Flat — no elevation, no shadow. Hairline dividers only (~6% white). No card wrapper. |
+| L2 | One contextual elevated sheet/surface | `#0C0C10` | Rounded top corners only (target radius 28), 2 detents (preview / detail). **One restrained shadow/elevation is allowed here — this is the only surface in the hierarchy that carries one.** |
+| L3 | Critical / destructive confirmation | replaces L2 content, inside the same shell | **Never stacks another elevated surface over L2.** L3 is L2's content swapped for destructive content in place — same shell, same elevation, no second shadow, no second sheet. |
 
 ## 3. Typography hierarchy
 
@@ -40,7 +40,7 @@ Two font roles: a display face for anything the user should *feel*, a body/syste
 
 ## 4. Spacing rules
 
-- Gutter is constant and edge-to-edge: **24px**, on every screen that uses this system.
+- 24px is the **preferred** phone gutter, edge-to-edge. It is not a rigid requirement on every viewport: on narrow/small screens the gutter may adapt downward — within the existing responsive 16–24px range already established by `src/hooks/useResponsive.ts` — when necessary for readability, accessibility, touch-target integrity, or layout stability. Do not force a flat, non-responsive 24px constant, and do not change `NoxaScreen`'s default padding globally to reach this — see `docs/audit/VISUAL_V2_RECONCILIATION.md` §B for how this maps onto the existing token/hook.
 - Content blocks anchor to fixed offsets so the eye does not re-hunt between steps (e.g. onboarding's question block starts at a fixed distance from the top on every step).
 - Primary actions pin a fixed distance from the bottom safe area (reference: 44px).
 - Rows are separated by hairlines (~6% white) at 18–22px vertical padding; dividers never touch the screen edge inside a list, only in section breaks.
@@ -109,7 +109,7 @@ One architecture, five contexts (meet, cruise/drive, track day, drift/drag, Crew
 Car first, interface second. Vehicle photo and identity dominate; specification is available, not displayed by default (progressive disclosure). Viewing and editing are visually separated — editing happens on an L2 sheet above the car, never inline on the viewing screen. Supports stock/street/track/drift/drag/show without gamification (no progress rings, no achievement rows, no stat-chip grids).
 
 ### 10.5 Active Drive
-Dedicated fullscreen runtime. Gets simpler as it becomes active: route, group, one status line, two controls. No exact participant speed, no racing telemetry, no leaderboard, no gaming HUD. Approximate participant states only: Moving / Stopped / Arrived / Stale. Leave vs End are distinct, separately confirmed actions (§15). Minimise returns to the app with a persistent resumable bar; it never ends or leaves the drive.
+Dedicated fullscreen runtime. Gets simpler as it becomes active: route, group, one status line, two controls. No exact participant speed, no racing telemetry, no leaderboard, no gaming HUD. Approximate participant states only: Moving / Stopped / Arrived / Stale. Leave vs End are distinct, separately confirmed actions, and the host does not have a Leave control in MVP (§13). Minimise returns to the app with a persistent resumable bar; it never ends or leaves the drive.
 
 ## 11. Map Recenter progressive-disclosure rule
 
@@ -121,10 +121,12 @@ Emptiness is reported, never disguised. No ghost pins, no invented activity, no 
 
 ## 13. Active Drive Leave vs End semantics
 
-These are two distinct destructive actions and must never be presented as one action with a different label:
+These are two distinct destructive actions and must never be presented as one action with a different label. This is the MVP runtime contract in full, per the canonical `docs/GROUP_DRIVE.md` (§4.3, §5.1, §5.3, §9):
 
-- **Leave drive** (any participant, including the host if the product later allows it): the confirmation states that this participant leaves, their location sharing stops immediately, and the Group Drive continues for the remaining participants.
-- **End drive** (host only): the confirmation states that the Active Group Drive ends for everyone — all participants stop sharing and no one can rejoin.
+- **Leave drive** — a **non-host participant's** action only. The confirmation states that this participant leaves, their location sharing stops immediately, and the Group Drive continues for the remaining participants.
+- **End drive** — the **host's** action only. The confirmation states that the Active Group Drive ends for everyone — all participants stop sharing and no one can rejoin.
+
+**The host does not have a Leave control in MVP.** The host row can never be removed and cannot transition to `left` — the host's only way out of an active drive is ending it for everyone. There is no "host leaves, drive continues without them" path, no host-transfer, and no UI affordance that offers the host a Leave action. Any future host-transfer or host-leave capability is a Post-MVP product decision and is not part of the present runtime contract — do not design, mock, or gray-out a host Leave control "for later."
 
 Minimising the runtime is neither Leave nor End — it collapses the runtime UI into a persistent resumable bar while the drive continues unchanged. Both destructive actions are L3 confirmations that replace the current sheet content (§6); neither uses a swipe-to-confirm or long-press gesture.
 
@@ -142,6 +144,7 @@ Minimising the runtime is neither Leave nor End — it collapses the runtime UI 
 - Primary source: the approved Claude design export "NOXA Visual Architecture V2" (five reference-experience flows + a thirteen-primitive foundation page), supplied as design attachment and reconciled into this document. The export's own on-canvas status label reads "Implementation candidate"; product approval to proceed was communicated directly by the Product Owner/ChatGPT-authored task brief, not by the label on the artifact itself — see `docs/audit/VISUAL_V2_RECONCILIATION.md` §0 for this distinction.
 - The exported HTML artifact is external reference material and is intentionally **not** embedded in this repository (per the task's instruction to avoid committing large binary/design exports). It is referenced here textually; the canonical values it contains (typography scale, color hexes, radii, spacing, motion durations) are transcribed in this document and in the reconciliation audit.
 - Supporting product-law sources used to resolve ambiguity: `AGENTS.md`, `docs/ai-design-library/01` through `09`, `docs/UI_RULES.md`, `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`.
+- `docs/GROUP_DRIVE.md` is the canonical Group Drive architecture and MVP contract (data model, state machines, privacy matrix, RLS requirements, Leave-vs-End semantics) referenced by §13 and §10.5 above. It was reconciled from PR #135 and imported into `main` alongside this document — see `docs/audit/PR135_CONTRACT_RECONCILIATION.md` for the classification of what was and wasn't carried forward from that branch.
 
 ## 16. Implementation boundaries
 
@@ -151,8 +154,8 @@ Not approved and out of scope for this document or its immediate follow-on work 
 
 - Any Mapbox, Supabase, RLS, Edge Function, or migration change.
 - Any new dependency (bottom-sheet libraries, animation libraries, font-loading strategy) — evaluate through `docs/ai-design-library/08-ui-foundation-and-library-policy.md`'s dependency gate first.
-- Group Drive / multi-participant Active Drive application code — it does not exist yet (the closest current system is the crew-scoped "Convoy" flow in `app/convoy-setup.tsx`, which is a frozen V2 screen per `docs/ai-design-library/07-mvp-screen-plan.md`). This document specifies the target visual contract for when that work is scheduled; it does not authorize starting it.
-- Widening an already-active personal Live Drive audience without explicit re-confirmation — this is a separately tracked P0 privacy defect (see `docs/audit/VISUAL_V2_RECONCILIATION.md` §0), not a visual-foundation change, and must not be mixed into the same implementation commit as this work.
+- Group Drive / multi-participant Active Drive application code — it does not exist yet (the closest current system is the crew-scoped "Convoy" flow in `app/convoy-setup.tsx`, which is a frozen V2 screen per `docs/ai-design-library/07-mvp-screen-plan.md`). `docs/GROUP_DRIVE.md` is the target architecture for when that work is scheduled; this document specifies its target visual contract. Neither document authorizes starting it. Whether Group Drive is MVP-required or Post-MVP/V2 is itself an open question — see `docs/audit/PR135_CONTRACT_RECONCILIATION.md`'s "Open items for the Product Owner."
+- Widening an already-active personal Live Drive audience without explicit re-confirmation — this is a separately tracked P0 privacy defect (see `docs/audit/VISUAL_V2_RECONCILIATION.md` §0), not a visual-foundation change, and must not be mixed into the same implementation commit as this work. **Resolving this P0 has priority over broad Visual Architecture V2 screen rollout** — it should land before, or at minimum not be blocked behind, Stage 1 (Onboarding) and later screen-level work.
 - Bottom navigation structure, route names, auth, or any other runtime behavior not explicitly named above.
 
 ## 17. Design package is intent, not runtime authority
