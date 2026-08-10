@@ -18,6 +18,15 @@ export const colors = {
   textSubtle: '#4C4C56',
   textDisabled: '#2C2C34',
   textSecondary: '#8E8E98',
+  // Visual Architecture V2 neutral ramp — the three steps the contract requires
+  // that the ramp above did not already cover. Additive; nothing consumes them
+  // yet. Full ramp, lightest to darkest:
+  //   #F0F0F4 text · #8E8E98 textMuted · #6E6E78 textTertiary ·
+  //   #4C4C56 textSubtle · #3C3C46 neutralStrong · #33333E neutralSoft ·
+  //   #2C2C34 textDisabled
+  textTertiary: '#6E6E78',
+  neutralStrong: '#3C3C46',
+  neutralSoft: '#33333E',
   success: '#30D158',
   successMuted: 'rgba(48,209,88,0.14)',
   warning: '#FF9F0A',
