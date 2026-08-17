@@ -18,6 +18,7 @@ import { NoxaCompactLogo } from '@/src/components/brand';
 import { NoxaButton, NoxaScreen } from '@/src/components/ui';
 import { VehicleFinalizeFlow } from '@/src/features/garage/vehicle-picker/VehicleFinalizeFlow';
 import { VehiclePicker, type VehiclePickerSelection } from '@/src/features/garage/vehicle-picker';
+import { OnboardingCitySetup } from '@/src/features/onboarding/OnboardingCitySetup';
 import { OnboardingIdentitySetup } from '@/src/features/onboarding/OnboardingIdentitySetup';
 import { markOnboardingComplete } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
@@ -29,8 +30,10 @@ type OnboardingPage = {
   title: string;
 };
 
-type OnboardingStage = 'intro' | 'identity' | 'vehicle';
+type OnboardingStage = 'intro' | 'identity' | 'city' | 'vehicle';
 
+// Retained only for the existing read-only replay entry point. First-run onboarding
+// starts directly at Identity under Visual Architecture V2.
 const pages: readonly OnboardingPage[] = [
   {
     icon: 'map-outline',
@@ -60,7 +63,7 @@ export default function OnboardingScreen() {
   const { width } = useWindowDimensions();
   const listRef = useRef<FlatList<OnboardingPage>>(null);
   const isFinishingRef = useRef(false);
-  const [stage, setStage] = useState<OnboardingStage>('intro');
+  const [stage, setStage] = useState<OnboardingStage>(() => (isReplay ? 'intro' : 'identity'));
   const [pageIndex, setPageIndex] = useState(0);
   const [vehicleSelection, setVehicleSelection] = useState<VehiclePickerSelection | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -104,7 +107,9 @@ export default function OnboardingScreen() {
     }
 
     markOnboardingComplete(userId);
-    router.replace('/(tabs)');
+    // Privacy/visibility remains a separate existing contract. Do not bypass it:
+    // first-run onboarding must reach privacy before the Map.
+    router.replace('/visibility-setup');
   }, [isReplay, userId]);
 
   const continueFromIntro = useCallback(() => {
@@ -113,9 +118,12 @@ export default function OnboardingScreen() {
       return;
     }
 
-    setVehicleSelection(null);
     setStage('identity');
   }, [finish, isReplay]);
+
+  const openCitySetup = useCallback(() => {
+    setStage('city');
+  }, []);
 
   const openVehicleSetup = useCallback(() => {
     setVehicleSelection(null);
@@ -132,13 +140,18 @@ export default function OnboardingScreen() {
       if (vehicleSelection) {
         setVehicleSelection(null);
       } else {
-        setStage('identity');
+        setStage('city');
       }
       return true;
     }
 
+    if (stage === 'city') {
+      setStage('identity');
+      return true;
+    }
+
     if (stage === 'identity') {
-      backToIntro();
+      if (isReplay) backToIntro();
       return true;
     }
 
@@ -168,7 +181,15 @@ export default function OnboardingScreen() {
   if (stage === 'identity' && !isReplay) {
     return (
       <NoxaScreen padded={false}>
-        <OnboardingIdentitySetup onContinue={openVehicleSetup} onSkip={openVehicleSetup} />
+        <OnboardingIdentitySetup onContinue={openCitySetup} />
+      </NoxaScreen>
+    );
+  }
+
+  if (stage === 'city' && !isReplay) {
+    return (
+      <NoxaScreen padded={false}>
+        <OnboardingCitySetup onBack={() => setStage('identity')} onContinue={openVehicleSetup} />
       </NoxaScreen>
     );
   }
@@ -184,9 +205,8 @@ export default function OnboardingScreen() {
           />
         ) : (
           <VehiclePicker
-            onCancel={() => setStage('identity')}
+            onCancel={() => setStage('city')}
             onComplete={setVehicleSelection}
-            onSkip={finish}
           />
         )}
       </NoxaScreen>
@@ -249,11 +269,11 @@ export default function OnboardingScreen() {
             </View>
             {pageIndex < pages.length - 1 ? (
               <Pressable
-                accessibilityLabel={isReplay ? 'Close onboarding replay' : 'Skip introduction'}
+                accessibilityLabel="Close onboarding replay"
                 accessibilityRole="button"
                 onPress={continueFromIntro}
                 style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
-                <Text maxFontSizeMultiplier={1.6} style={styles.skipText}>{isReplay ? 'Close' : 'Skip'}</Text>
+                <Text maxFontSizeMultiplier={1.6} style={styles.skipText}>Close</Text>
               </Pressable>
             ) : (
               <View style={styles.skipPlaceholder} />
@@ -263,7 +283,7 @@ export default function OnboardingScreen() {
             disabled={!userId || isFinishingRef.current}
             fullWidth
             onPress={pageIndex === pages.length - 1 ? continueFromIntro : () => goToPage(pageIndex + 1)}
-            title={pageIndex === pages.length - 1 ? (isReplay ? 'Done' : 'Set up my profile') : 'Next'}
+            title={pageIndex === pages.length - 1 ? 'Done' : 'Next'}
           />
         </View>
       </View>
