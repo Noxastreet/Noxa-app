@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -14,24 +13,21 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaButton, NoxaInput } from '@/src/components/ui';
-import { CityField } from '@/src/features/city-picker';
-import { CountryField } from '@/src/features/country-picker';
 import {
   isMissingColumnError,
   isSupportedProfileAvatarMimeType,
   maxProfileAvatarBytes,
   normalizeProfileAvatarMimeType,
-  normalizeProfileUsername,
   saveProfileIdentity,
   type ProfileIdentityErrors,
   type ProfileIdentityValues,
 } from '@/src/features/profile/profileIdentityPersistence';
+import { useResponsive } from '@/src/hooks/useResponsive';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 type OnboardingIdentitySetupProps = {
   onContinue: () => void;
-  onSkip: () => void;
 };
 
 const initialValues: ProfileIdentityValues = {
@@ -53,7 +49,8 @@ function initials(value: string) {
   );
 }
 
-export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdentitySetupProps) {
+export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupProps) {
+  const { gutter, contentMaxWidth } = useResponsive();
   const [userId, setUserId] = useState<string | null>(null);
   const [values, setValues] = useState<ProfileIdentityValues>(initialValues);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -91,13 +88,7 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
     }
 
     if (error) {
-      setErrors({ form: 'Profile could not be loaded. You can skip this step and edit it later.' });
-      setValues({
-        displayName: String(user.user_metadata?.display_name ?? 'Driver'),
-        username: '',
-        city: '',
-        countryCode: null,
-      });
+      setErrors({ form: 'Profile could not be loaded. Please try again.' });
       setIsLoading(false);
       return;
     }
@@ -117,16 +108,9 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
     void loadIdentity();
   }, [loadIdentity]);
 
-  const setField = (field: keyof Omit<ProfileIdentityValues, 'countryCode'>, value: string) => {
-    setValues((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined, form: undefined }));
-  };
-
-  const setCountryCode = (countryCode: string | null) => {
-    setValues((current) =>
-      current.countryCode === countryCode ? current : { ...current, countryCode, city: '' },
-    );
-    setErrors((current) => ({ ...current, countryCode: undefined, city: undefined, form: undefined }));
+  const setDisplayName = (displayName: string) => {
+    setValues((current) => ({ ...current, displayName }));
+    setErrors((current) => ({ ...current, displayName: undefined, form: undefined }));
   };
 
   const chooseAvatar = async () => {
@@ -174,10 +158,7 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
       avatarAsset,
       currentAvatarUrl: avatarUrl,
       userId,
-      values: {
-        ...values,
-        username: normalizeProfileUsername(values.username),
-      },
+      values,
     });
     setIsSaving(false);
 
@@ -192,112 +173,79 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
   };
 
   const previewUri = avatarAsset?.uri ?? avatarUrl;
+  const canContinue = values.displayName.trim().length >= 2;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: gutter, maxWidth: contentMaxWidth },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         <View style={styles.progressTrack}>
           <View style={styles.progressFill} />
         </View>
 
-        <View style={styles.heading}>
-          <Text style={styles.eyebrow}>YOUR NOXA IDENTITY</Text>
-          <Text style={styles.title}>MAKE IT YOURS</Text>
-          <Text style={styles.subtitle}>A few details help drivers recognize you. You can change everything later.</Text>
+        <View style={styles.questionBlock}>
+          <Text style={styles.eyebrow}>01 · IDENTITY</Text>
+          <Text maxFontSizeMultiplier={1.35} style={styles.title}>
+            What should drivers call you?
+          </Text>
         </View>
 
         {isLoading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={styles.helper}>Loading your profile…</Text>
           </View>
         ) : (
           <>
-            <View style={styles.avatarSection}>
+            <View style={styles.fields}>
+              <NoxaInput
+                autoCapitalize="words"
+                editable={!isSaving}
+                label="Display name"
+                maxLength={40}
+                onChangeText={setDisplayName}
+                placeholder="Your name or nickname"
+                value={values.displayName}
+              />
+              {errors.displayName ? <Text style={styles.errorText}>{errors.displayName}</Text> : null}
+
               <Pressable
                 accessibilityLabel="Choose profile photo"
                 accessibilityRole="button"
                 disabled={isSaving}
                 onPress={() => void chooseAvatar()}
-                style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}>
+                style={({ pressed }) => [styles.photoRow, pressed && styles.pressed]}>
                 <View style={styles.avatarRing}>
                   {previewUri ? (
                     <Image source={{ uri: previewUri }} style={styles.avatarImage} />
                   ) : (
-                    <NoxaAvatar initials={initials(values.displayName)} size={82} />
+                    <NoxaAvatar initials={initials(values.displayName)} size={54} />
                   )}
-                  <View style={styles.cameraBadge}>
-                    <Ionicons name="camera" size={15} color={colors.text} />
-                  </View>
                 </View>
+                <View style={styles.photoCopy}>
+                  <Text style={styles.photoLabel}>Profile photo</Text>
+                  <Text style={styles.photoMeta}>Optional</Text>
+                </View>
+                <Text style={styles.photoAction}>{previewUri ? 'Change' : 'Add photo'}</Text>
               </Pressable>
-              <View style={styles.avatarCopy}>
-                <Text style={styles.avatarTitle}>Profile photo</Text>
-                <Text style={styles.helper}>Optional · square image · up to 5 MB</Text>
-              </View>
-            </View>
-            {errors.avatar ? <Text style={styles.errorText}>{errors.avatar}</Text> : null}
-
-            <View style={styles.fields}>
-              <View style={styles.fieldWrap}>
-                <NoxaInput
-                  autoCapitalize="words"
-                  editable={!isSaving}
-                  label="Display name"
-                  maxLength={40}
-                  onChangeText={(value) => setField('displayName', value)}
-                  placeholder="Your name or nickname"
-                  value={values.displayName}
-                />
-                {errors.displayName ? <Text style={styles.errorText}>{errors.displayName}</Text> : null}
-              </View>
-
-              <View style={styles.fieldWrap}>
-                <NoxaInput
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isSaving}
-                  label="Username · optional"
-                  maxLength={21}
-                  onBlur={() => setField('username', normalizeProfileUsername(values.username))}
-                  onChangeText={(value) => setField('username', value)}
-                  placeholder="noxa_driver"
-                  value={values.username}
-                />
-                <Text style={styles.helper}>Used as your public @handle.</Text>
-                {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
-              </View>
-
-              <View style={styles.fieldWrap}>
-                <CountryField disabled={isSaving} onChange={setCountryCode} value={values.countryCode} />
-                {errors.countryCode ? <Text style={styles.errorText}>{errors.countryCode}</Text> : null}
-              </View>
-
-              <View style={styles.fieldWrap}>
-                <CityField
-                  countryCode={values.countryCode}
-                  disabled={isSaving}
-                  onChange={(value) => setField('city', value)}
-                  value={values.city}
-                />
-                <Text style={styles.helper}>City only — never your precise address.</Text>
-                {errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
-              </View>
+              {errors.avatar ? <Text style={styles.errorText}>{errors.avatar}</Text> : null}
             </View>
 
             {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
-            <View style={styles.actions}>
+            <View style={styles.footer}>
               <NoxaButton
-                disabled={!userId || isSaving}
+                disabled={!userId || isSaving || !canContinue}
                 fullWidth
                 loading={isSaving}
                 onPress={() => void saveAndContinue()}
-                title="CONTINUE"
+                style={styles.primaryButton}
+                title="Continue"
               />
-              <Pressable accessibilityRole="button" disabled={isSaving} onPress={onSkip} style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}>
-                <Text style={styles.skipText}>SKIP FOR NOW</Text>
-              </Pressable>
             </View>
           </>
         )}
@@ -308,28 +256,109 @@ export function OnboardingIdentitySetup({ onContinue, onSkip }: OnboardingIdenti
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.xl },
-  progressTrack: { height: 2, backgroundColor: colors.divider },
-  progressFill: { width: '72%', height: 2, backgroundColor: colors.primary },
-  heading: { gap: spacing.xs },
-  eyebrow: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, fontWeight: '900', lineHeight: 35 },
-  subtitle: { maxWidth: 330, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700', lineHeight: 19 },
-  loadingState: { flex: 1, minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  avatarSection: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  avatarButton: { borderRadius: radius.pill },
-  avatarRing: { width: 90, height: 90, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
-  avatarImage: { width: 82, height: 82, borderRadius: radius.pill },
-  cameraBadge: { position: 'absolute', right: 0, bottom: 1, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.background },
-  avatarCopy: { flex: 1, gap: 3 },
-  avatarTitle: { color: colors.text, fontSize: typography.body, fontWeight: '900' },
-  fields: { gap: spacing.md },
-  fieldWrap: { gap: spacing.xs },
-  helper: { color: colors.textSubtle, fontSize: 10, fontWeight: '700', lineHeight: 15 },
-  errorText: { color: colors.primaryHover, fontSize: typography.caption, fontWeight: '800' },
-  formError: { padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle, borderWidth: 1, borderColor: colors.borderAccent, color: colors.text, fontSize: typography.caption, fontWeight: '800' },
-  actions: { marginTop: 'auto', gap: spacing.sm },
-  skipButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  skipText: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
-  pressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
+  content: {
+    width: '100%',
+    alignSelf: 'center',
+    flexGrow: 1,
+    paddingTop: 56,
+    paddingBottom: 44,
+  },
+  progressTrack: {
+    height: 2,
+    backgroundColor: colors.divider,
+  },
+  progressFill: {
+    width: '20%',
+    height: 2,
+    backgroundColor: colors.primary,
+  },
+  questionBlock: {
+    marginTop: spacing.xxxl,
+    gap: 14,
+  },
+  eyebrow: {
+    color: colors.textSubtle,
+    fontFamily: typography.fontFamily.body,
+    fontWeight: '600',
+    ...typography.v2.label,
+  },
+  title: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontWeight: '700',
+    ...typography.v2.hero,
+  },
+  loadingState: {
+    flex: 1,
+    minHeight: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fields: {
+    marginTop: spacing.xxl,
+    gap: spacing.md,
+  },
+  photoRow: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  avatarRing: {
+    width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.pill,
+  },
+  photoCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  photoLabel: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.body,
+    ...typography.v2.row,
+  },
+  photoMeta: {
+    color: colors.textMuted,
+    fontFamily: typography.fontFamily.body,
+    ...typography.v2.body,
+  },
+  photoAction: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.body,
+    ...typography.v2.body,
+  },
+  errorText: {
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.body,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
+  },
+  formError: {
+    marginTop: spacing.md,
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.body,
+    ...typography.v2.body,
+  },
+  footer: {
+    marginTop: 'auto',
+    paddingTop: spacing.xxl,
+  },
+  primaryButton: {
+    minHeight: 56,
+  },
+  pressed: { opacity: 0.72 },
 });
