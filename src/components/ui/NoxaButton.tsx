@@ -1,5 +1,13 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import { animations, colors, radius, shadows, spacing } from '@/src/theme';
@@ -19,6 +27,7 @@ type NoxaButtonProps = {
   trailingIcon?: ReactNode;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function NoxaButton({
@@ -33,6 +42,7 @@ export function NoxaButton({
   trailingIcon,
   accessibilityLabel,
   accessibilityHint,
+  style,
 }: NoxaButtonProps) {
   const isDisabled = disabled || loading;
   const reduceMotion = useReducedMotion();
@@ -51,6 +61,7 @@ export function NoxaButton({
         styles[size],
         styles[variant],
         fullWidth && styles.fullWidth,
+        style,
         pressed && !isDisabled && (reduceMotion ? styles.pressedReduced : styles.pressed),
         isDisabled && styles.disabled,
       ]}>
