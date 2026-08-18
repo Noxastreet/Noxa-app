@@ -7,10 +7,12 @@ import {
   type VehicleCatalogModel,
 } from "./vehicleCatalog";
 import { vehicleCatalogPhase2 } from "./vehicleCatalogPhase2";
+import { vehicleCatalogPhase3 } from "./vehicleCatalogPhase3";
 
 export const completeVehicleCatalog: VehicleCatalogMake[] = [
   ...vehicleCatalog,
   ...vehicleCatalogPhase2,
+  ...vehicleCatalogPhase3,
 ];
 
 export function getCompleteVehicleMake(makeId: string) {

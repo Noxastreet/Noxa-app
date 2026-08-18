@@ -1,4 +1,5 @@
 import type { VehicleCatalogMake, VehicleYearRange } from "./vehicleCatalog";
+import { motorcycleCatalogPhase2 } from "./motorcycleCatalogPhase2";
 
 const current = (from: number): VehicleYearRange => ({ from, to: null });
 const range = (from: number, to: number): VehicleYearRange => ({ from, to });
@@ -9,7 +10,7 @@ const range = (from: number, to: number): VehicleYearRange => ({ from, to });
  * The goal is fast, high-confidence identity selection, not VIN-grade coverage.
  * Manual entry remains mandatory for missing motorcycles, regional variants and rare trims.
  */
-export const motorcycleCatalog: VehicleCatalogMake[] = [
+const motorcycleCatalogCore: VehicleCatalogMake[] = [
   {
     id: "honda",
     name: "Honda",
@@ -178,4 +179,9 @@ export const motorcycleCatalog: VehicleCatalogMake[] = [
       { id: "super-meteor-650", name: "Super Meteor 650", yearRanges: [current(2023)] },
     ],
   },
+];
+
+export const motorcycleCatalog: VehicleCatalogMake[] = [
+  ...motorcycleCatalogCore,
+  ...motorcycleCatalogPhase2,
 ];
