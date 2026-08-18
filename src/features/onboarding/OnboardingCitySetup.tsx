@@ -1,10 +1,7 @@
-import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,12 +9,11 @@ import {
   View,
 } from 'react-native';
 
-import { NoxaAvatar, NoxaButton, NoxaInput } from '@/src/components/ui';
+import { NoxaButton } from '@/src/components/ui';
+import { CityField } from '@/src/features/city-picker';
+import { CountryField } from '@/src/features/country-picker';
 import {
   isMissingColumnError,
-  isSupportedProfileAvatarMimeType,
-  maxProfileAvatarBytes,
-  normalizeProfileAvatarMimeType,
   saveProfileIdentity,
   type ProfileIdentityErrors,
   type ProfileIdentityValues,
@@ -26,7 +22,8 @@ import { useResponsive } from '@/src/hooks/useResponsive';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
-type OnboardingIdentitySetupProps = {
+type OnboardingCitySetupProps = {
+  onBack: () => void;
   onContinue: () => void;
 };
 
@@ -37,29 +34,16 @@ const initialValues: ProfileIdentityValues = {
   countryCode: null,
 };
 
-function initials(value: string) {
-  return (
-    value
-      .split(' ')
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || 'NX'
-  );
-}
-
-export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupProps) {
+export function OnboardingCitySetup({ onBack, onContinue }: OnboardingCitySetupProps) {
   const { gutter, contentMaxWidth } = useResponsive();
   const [userId, setUserId] = useState<string | null>(null);
   const [values, setValues] = useState<ProfileIdentityValues>(initialValues);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarAsset, setAvatarAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [errors, setErrors] = useState<ProfileIdentityErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const loadIdentity = useCallback(async () => {
+  const loadProfile = useCallback(async () => {
     setIsLoading(true);
     setErrors({});
 
@@ -100,53 +84,28 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
       countryCode: (data as { country_code?: string | null } | null)?.country_code ?? null,
     });
     setAvatarUrl(data?.avatar_url ?? null);
-    setAvatarAsset(null);
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    void loadIdentity();
-  }, [loadIdentity]);
+    void loadProfile();
+  }, [loadProfile]);
 
-  const setDisplayName = (displayName: string) => {
-    setValues((current) => ({ ...current, displayName }));
-    setErrors((current) => ({ ...current, displayName: undefined, form: undefined }));
+  const setCountryCode = (countryCode: string | null) => {
+    setValues((current) =>
+      current.countryCode === countryCode ? current : { ...current, countryCode, city: '' },
+    );
+    setErrors((current) => ({
+      ...current,
+      countryCode: undefined,
+      city: undefined,
+      form: undefined,
+    }));
   };
 
-  const chooseAvatar = async () => {
-    if (isSaving || isLoading) return;
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setErrors((current) => ({ ...current, avatar: 'Allow photo access to choose an avatar.' }));
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-      exif: false,
-      allowsMultipleSelection: false,
-    });
-
-    if (result.canceled || !result.assets[0]) return;
-
-    const asset = result.assets[0];
-    const mimeType = normalizeProfileAvatarMimeType(asset.mimeType);
-    if (!isSupportedProfileAvatarMimeType(mimeType)) {
-      setErrors((current) => ({ ...current, avatar: 'Choose a JPEG, PNG, WebP, HEIC, or HEIF image.' }));
-      return;
-    }
-
-    if (asset.fileSize && asset.fileSize > maxProfileAvatarBytes) {
-      setErrors((current) => ({ ...current, avatar: 'Avatar must be 5 MB or less.' }));
-      return;
-    }
-
-    setAvatarAsset(asset);
-    setErrors((current) => ({ ...current, avatar: undefined, form: undefined }));
+  const setCity = (city: string) => {
+    setValues((current) => ({ ...current, city }));
+    setErrors((current) => ({ ...current, city: undefined, form: undefined }));
   };
 
   const saveAndContinue = async () => {
@@ -155,7 +114,7 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
     setIsSaving(true);
     setErrors({});
     const result = await saveProfileIdentity({
-      avatarAsset,
+      avatarAsset: null,
       currentAvatarUrl: avatarUrl,
       userId,
       values,
@@ -167,16 +126,13 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
       return;
     }
 
-    setAvatarUrl(result.avatarUrl);
-    setAvatarAsset(null);
     onContinue();
   };
 
-  const previewUri = avatarAsset?.uri ?? avatarUrl;
-  const canContinue = values.displayName.trim().length >= 2;
+  const canContinue = Boolean(values.countryCode && values.city.trim());
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
+    <View style={styles.root}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -188,10 +144,21 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
           <View style={styles.progressFill} />
         </View>
 
+        <Pressable
+          accessibilityLabel="Back to identity"
+          accessibilityRole="button"
+          disabled={isSaving}
+          onPress={onBack}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+          <View style={styles.backOrb}>
+            <Ionicons color={colors.textMuted} name="arrow-back" size={17} />
+          </View>
+        </Pressable>
+
         <View style={styles.questionBlock}>
-          <Text style={styles.eyebrow}>01 · IDENTITY</Text>
+          <Text style={styles.eyebrow}>02 · CITY</Text>
           <Text maxFontSizeMultiplier={1.35} style={styles.title}>
-            What should drivers call you?
+            Where do you drive?
           </Text>
         </View>
 
@@ -202,37 +169,27 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
         ) : (
           <>
             <View style={styles.fields}>
-              <NoxaInput
-                autoCapitalize="words"
-                editable={!isSaving}
-                label="Display name"
-                maxLength={40}
-                onChangeText={setDisplayName}
-                placeholder="Your name or nickname"
-                value={values.displayName}
-              />
-              {errors.displayName ? <Text style={styles.errorText}>{errors.displayName}</Text> : null}
+              <View style={styles.fieldWrap}>
+                <CountryField
+                  disabled={isSaving}
+                  label="Country"
+                  onChange={setCountryCode}
+                  value={values.countryCode}
+                />
+                {errors.countryCode ? <Text style={styles.errorText}>{errors.countryCode}</Text> : null}
+              </View>
 
-              <Pressable
-                accessibilityLabel="Choose profile photo"
-                accessibilityRole="button"
-                disabled={isSaving}
-                onPress={() => void chooseAvatar()}
-                style={({ pressed }) => [styles.photoRow, pressed && styles.pressed]}>
-                <View style={styles.avatarRing}>
-                  {previewUri ? (
-                    <Image source={{ uri: previewUri }} style={styles.avatarImage} />
-                  ) : (
-                    <NoxaAvatar initials={initials(values.displayName)} size={54} />
-                  )}
-                </View>
-                <View style={styles.photoCopy}>
-                  <Text style={styles.photoLabel}>Profile photo</Text>
-                  <Text style={styles.photoMeta}>Optional</Text>
-                </View>
-                <Text style={styles.photoAction}>{previewUri ? 'Change' : 'Add photo'}</Text>
-              </Pressable>
-              {errors.avatar ? <Text style={styles.errorText}>{errors.avatar}</Text> : null}
+              <View style={styles.fieldWrap}>
+                <CityField
+                  countryCode={values.countryCode}
+                  disabled={isSaving}
+                  label="City"
+                  onChange={setCity}
+                  value={values.city}
+                />
+                <Text style={styles.helper}>City only — never your precise address.</Text>
+                {errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
+              </View>
             </View>
 
             {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
@@ -250,7 +207,7 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
           </>
         )}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -268,12 +225,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.divider,
   },
   progressFill: {
-    width: '20%',
+    width: '40%',
     height: 2,
     backgroundColor: colors.primary,
   },
+  backButton: {
+    width: 44,
+    height: 44,
+    marginTop: spacing.lg,
+    marginLeft: -6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backOrb: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
   questionBlock: {
-    marginTop: spacing.xxxl,
+    marginTop: spacing.md,
     gap: 14,
   },
   eyebrow: {
@@ -298,46 +272,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxl,
     gap: spacing.md,
   },
-  photoRow: {
-    minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  avatarRing: {
-    width: 58,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.pill,
-  },
-  photoCopy: {
-    flex: 1,
-    gap: 3,
-  },
-  photoLabel: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.body,
-    ...typography.v2.row,
-  },
-  photoMeta: {
+  fieldWrap: { gap: spacing.xs },
+  helper: {
     color: colors.textMuted,
-    fontFamily: typography.fontFamily.body,
-    ...typography.v2.body,
-  },
-  photoAction: {
-    color: colors.text,
     fontFamily: typography.fontFamily.body,
     ...typography.v2.body,
   },

@@ -18,6 +18,7 @@ export {
   type VehicleYearRange,
 } from "./vehicleCatalog";
 export { vehicleCatalogPhase2 } from "./vehicleCatalogPhase2";
+export { vehicleCatalogPhase3 } from "./vehicleCatalogPhase3";
 export {
   completeVehicleCatalog,
   findVehicleCatalogIdentityIssues,
@@ -27,6 +28,7 @@ export {
   getCompleteVehicleYears,
 } from "./completeVehicleCatalog";
 export { motorcycleCatalog } from "./motorcycleCatalog";
+export { motorcycleCatalogPhase2 } from "./motorcycleCatalogPhase2";
 export {
   getCatalogForVehicleType,
   getCatalogVehicleGeneration,

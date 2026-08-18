@@ -76,8 +76,8 @@ Use `react-native-reanimated` as the canonical animation engine. Do not embed an
 
 ## Catalog boundaries
 
-- Car data: `completeVehicleCatalog`.
-- Motorcycle data: `motorcycleCatalog`.
+- Car data: `completeVehicleCatalog`, assembled from the curated catalog phases.
+- Motorcycle data: `motorcycleCatalog`, assembled from the core and phase 2 datasets.
 - Cross-type access: `vehicleCatalogRegistry`.
 
 Motorcycle generation metadata is intentionally optional. Do not invent generation steps solely for visual consistency; if a bike can be selected cleanly by model and year, the picker skips generation.
