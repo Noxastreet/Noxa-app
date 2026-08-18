@@ -1,37 +1,20 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  BackHandler,
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { NoxaCompactLogo } from '@/src/components/brand';
 import { NoxaButton, NoxaScreen } from '@/src/components/ui';
 import { VehicleFinalizeFlow } from '@/src/features/garage/vehicle-picker/VehicleFinalizeFlow';
 import { VehiclePicker, type VehiclePickerSelection } from '@/src/features/garage/vehicle-picker';
+import { IntroCardDeck, type IntroCardDeckHandle, type IntroCardPage } from '@/src/features/onboarding/IntroCardDeck';
 import { OnboardingIdentitySetup } from '@/src/features/onboarding/OnboardingIdentitySetup';
 import { markOnboardingComplete } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
-type OnboardingPage = {
-  body: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-};
-
 type OnboardingStage = 'intro' | 'identity' | 'vehicle';
 
-const pages: readonly OnboardingPage[] = [
+const pages: readonly IntroCardPage[] = [
   {
     icon: 'map-outline',
     title: 'Find your people',
@@ -57,8 +40,7 @@ const pages: readonly OnboardingPage[] = [
 export default function OnboardingScreen() {
   const { replay } = useLocalSearchParams<{ replay?: string }>();
   const isReplay = replay === '1';
-  const { width } = useWindowDimensions();
-  const listRef = useRef<FlatList<OnboardingPage>>(null);
+  const deckRef = useRef<IntroCardDeckHandle>(null);
   const isFinishingRef = useRef(false);
   const [stage, setStage] = useState<OnboardingStage>('intro');
   const [pageIndex, setPageIndex] = useState(0);
@@ -90,7 +72,7 @@ export default function OnboardingScreen() {
   }, []);
 
   const goToPage = useCallback((index: number) => {
-    listRef.current?.scrollToIndex({ animated: false, index });
+    deckRef.current?.seek(index);
     setPageIndex(index);
   }, []);
 
@@ -156,11 +138,6 @@ export default function OnboardingScreen() {
     return () => subscription.remove();
   }, [handleBack]);
 
-  const handleMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    setPageIndex(Math.max(0, Math.min(pages.length - 1, nextIndex)));
-  };
-
   if (isCheckingSession) {
     return <NoxaScreen padded={false}><View style={styles.loading} /></NoxaScreen>;
   }
@@ -201,37 +178,7 @@ export default function OnboardingScreen() {
           {isReplay ? <Text style={styles.replayLabel}>REPLAY</Text> : null}
         </View>
 
-        <FlatList
-          ref={listRef}
-          data={pages}
-          getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
-          horizontal
-          initialScrollIndex={pageIndex}
-          keyExtractor={(item) => item.title}
-          onMomentumScrollEnd={handleMomentumEnd}
-          pagingEnabled
-          renderItem={({ item, index }) => (
-            <ScrollView
-              accessibilityLabel={`${item.title}. ${item.body}`}
-              contentContainerStyle={styles.page}
-              showsVerticalScrollIndicator={false}
-              style={{ width }}>
-              <View style={styles.copy}>
-                <View style={styles.iconFrame}>
-                  <Text style={styles.step}>0{index + 1}</Text>
-                  <Ionicons name={item.icon} size={36} color={colors.text} />
-                </View>
-                <Text maxFontSizeMultiplier={1.5} style={styles.title}>
-                  {item.title}
-                </Text>
-                <Text maxFontSizeMultiplier={1.6} style={styles.body}>
-                  {item.body}
-                </Text>
-              </View>
-            </ScrollView>
-          )}
-          showsHorizontalScrollIndicator={false}
-        />
+        <IntroCardDeck initialIndex={pageIndex} onIndexChange={setPageIndex} pages={pages} ref={deckRef} />
 
         <View style={styles.footer}>
           <View style={styles.footerNavigation}>
@@ -262,7 +209,7 @@ export default function OnboardingScreen() {
           <NoxaButton
             disabled={!userId || isFinishingRef.current}
             fullWidth
-            onPress={pageIndex === pages.length - 1 ? continueFromIntro : () => goToPage(pageIndex + 1)}
+            onPress={pageIndex === pages.length - 1 ? continueFromIntro : () => deckRef.current?.advance()}
             title={pageIndex === pages.length - 1 ? (isReplay ? 'Done' : 'Set up my profile') : 'Next'}
           />
         </View>
@@ -297,45 +244,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   pressed: { opacity: 0.65 },
-  page: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.lg,
-  },
-  copy: { maxWidth: 520, gap: spacing.lg },
-  iconFrame: {
-    width: 88,
-    height: 88,
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.primarySubtle,
-    backgroundColor: colors.surface,
-  },
-  step: {
-    color: colors.textSubtle,
-    fontFamily: typography.fontFamily.body,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: typography.letterSpacing.label,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h1,
-    fontWeight: '900',
-    lineHeight: typography.lineHeight.h1,
-    letterSpacing: typography.letterSpacing.tight,
-  },
-  body: {
-    maxWidth: 440,
-    color: colors.textMuted,
-    fontFamily: typography.fontFamily.body,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body,
-  },
   footer: {
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
