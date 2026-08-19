@@ -4,9 +4,18 @@ import {
   supabase,
 } from '@/src/lib/supabase';
 
+import type { DriveSessionStatus } from './types';
+
 export type DriveLobbyReadiness = {
   userId: string;
   readyAt: string | null;
+};
+
+export type DriveLobbySnapshot = {
+  sessionStatus: DriveSessionStatus;
+  routeVersion: number;
+  scheduledStartAt: string | null;
+  participants: DriveLobbyReadiness[];
 };
 
 type RpcError = { code?: string; message?: string } | null;
@@ -42,46 +51,66 @@ function lobbyError(error: RpcError) {
   return 'Lobby could not be updated. Please retry.';
 }
 
+async function refreshJwtIfNeeded(error: RpcError) {
+  if (!isJwtValidationError(error)) return false;
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) return false;
+  const refresh = await refreshSupabaseSessionOnce();
+  return !refresh.error;
+}
+
 async function rpcBoolean(name: string, args: Record<string, unknown>) {
   const request = () => supabase.rpc(name, args) as unknown as Promise<RpcResult<boolean>>;
   let result = await request();
 
-  if (isJwtValidationError(result.error)) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      const { error } = await refreshSupabaseSessionOnce();
-      if (!error) result = await request();
-    }
-  }
+  if (await refreshJwtIfNeeded(result.error)) result = await request();
 
   if (result.error) throw new Error(lobbyError(result.error));
   return result.data === true;
 }
 
+export async function loadDriveLobbySnapshot(driveSessionId: string): Promise<DriveLobbySnapshot> {
+  const request = () =>
+    Promise.all([
+      supabase
+        .from('drive_sessions')
+        .select('status,route_version,scheduled_start_at')
+        .eq('id', driveSessionId)
+        .maybeSingle(),
+      supabase
+        .from('drive_participants')
+        .select('user_id,ready_at')
+        .eq('drive_session_id', driveSessionId)
+        .in('status', ['accepted', 'active']),
+    ]);
+
+  let [sessionResult, participantsResult] = await request();
+  const initialError = sessionResult.error ?? participantsResult.error;
+  if (await refreshJwtIfNeeded(initialError)) {
+    [sessionResult, participantsResult] = await request();
+  }
+
+  const error = sessionResult.error ?? participantsResult.error;
+  if (error) throw new Error(lobbyError(error));
+  if (!sessionResult.data) throw new Error('This Group Drive is unavailable.');
+
+  return {
+    sessionStatus: sessionResult.data.status as DriveSessionStatus,
+    routeVersion: Number(sessionResult.data.route_version ?? 0),
+    scheduledStartAt: sessionResult.data.scheduled_start_at
+      ? String(sessionResult.data.scheduled_start_at)
+      : null,
+    participants: (participantsResult.data ?? []).map((row) => ({
+      userId: String(row.user_id),
+      readyAt: row.ready_at ? String(row.ready_at) : null,
+    })),
+  };
+}
+
 export async function loadDriveLobbyReadiness(
   driveSessionId: string,
 ): Promise<DriveLobbyReadiness[]> {
-  const request = () =>
-    supabase
-      .from('drive_participants')
-      .select('user_id,ready_at')
-      .eq('drive_session_id', driveSessionId)
-      .in('status', ['accepted', 'active']);
-
-  let result = await request();
-  if (isJwtValidationError(result.error)) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      const { error } = await refreshSupabaseSessionOnce();
-      if (!error) result = await request();
-    }
-  }
-
-  if (result.error) throw new Error(lobbyError(result.error));
-  return (result.data ?? []).map((row) => ({
-    userId: String(row.user_id),
-    readyAt: row.ready_at ? String(row.ready_at) : null,
-  }));
+  return (await loadDriveLobbySnapshot(driveSessionId)).participants;
 }
 
 export async function setDriveReady(driveSessionId: string, ready: boolean) {
