@@ -255,6 +255,7 @@ export default function CanonicalEventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [rsvpBusy, setRsvpBusy] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -489,6 +490,63 @@ export default function CanonicalEventDetailScreen() {
     router.push({ pathname: "/event-editor", params: { id: event.id } });
   }, [event]);
 
+  const deleteEvent = useCallback(async () => {
+    if (!event || isDeleting) return;
+
+    setIsDeleting(true);
+    setError(null);
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    const currentUser = authData.user;
+
+    if (authError || !currentUser) {
+      setIsDeleting(false);
+      Alert.alert("Unable to delete event", "You must be signed in to delete this event.");
+      return;
+    }
+
+    if (currentUser.id !== event.creator_id) {
+      setIsDeleting(false);
+      Alert.alert("Unable to delete event", "Only the event creator can delete this event.");
+      return;
+    }
+
+    const { data, error: deleteError } = await supabase
+      .from("events")
+      .delete()
+      .eq("id", event.id)
+      .eq("creator_id", currentUser.id)
+      .select("id");
+
+    if (deleteError) {
+      setIsDeleting(false);
+      Alert.alert("Unable to delete event", deleteError.message);
+      return;
+    }
+
+    if (!data?.length) {
+      setIsDeleting(false);
+      Alert.alert("Unable to delete event", "No event was deleted. Please try again.");
+      return;
+    }
+
+    setIsDeleting(false);
+    router.replace("/(tabs)/events");
+  }, [event, isDeleting]);
+
+  const confirmDeleteEvent = useCallback(() => {
+    if (!event || isDeleting) return;
+
+    Alert.alert(
+      "Delete event?",
+      `“${event.title}” and its attendance, saved, chat, and gallery records will be permanently removed.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => void deleteEvent() },
+      ],
+    );
+  }, [deleteEvent, event, isDeleting]);
+
   const changeCover = useCallback(async () => {
     if (!event || !canManageCover || saving) return;
     setSaving(true);
@@ -588,13 +646,26 @@ export default function CanonicalEventDetailScreen() {
       }
     }
 
+    if (isHost) {
+      actions.push({
+        key: "delete",
+        label: isDeleting ? "Deleting…" : "Delete event",
+        icon: "trash-outline",
+        destructive: true,
+        disabled: isDeleting,
+        onPress: confirmDeleteEvent,
+      });
+    }
+
     return actions;
   }, [
     canManageCover,
     changeCover,
+    confirmDeleteEvent,
     currentUserId,
     edit,
     event,
+    isDeleting,
     isHost,
     isSaved,
     removeCover,
