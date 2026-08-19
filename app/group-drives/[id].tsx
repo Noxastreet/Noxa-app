@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
@@ -17,6 +17,7 @@ import {
   formatDriveDuration,
   leaveDrive,
   loadDriveLobbyReadiness,
+  loadDriveLobbySnapshot,
   loadGroupDriveDetails,
   setDriveReady,
   startDrive,
@@ -41,6 +42,14 @@ function exactStopValue(
 
 function isPreActive(status: GroupDriveDetails['status']) {
   return status === 'draft' || status === 'scheduled';
+}
+
+function participantSet(participants: Pick<DriveParticipant, 'userId' | 'status'>[]) {
+  return participants
+    .filter((participant) => participant.status === 'accepted' || participant.status === 'active')
+    .map((participant) => participant.userId)
+    .sort()
+    .join('|');
 }
 
 function ParticipantRow({
@@ -104,6 +113,7 @@ export default function GroupDriveViewScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : '';
   const [drive, setDrive] = useState<GroupDriveDetails | null>(null);
+  const driveRef = useRef<GroupDriveDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,16 +132,6 @@ export default function GroupDriveViewScreen() {
     [],
   );
 
-  const refreshLobbyReadiness = useCallback(async () => {
-    if (!driveSessionId) return;
-    try {
-      const rows = await loadDriveLobbyReadiness(driveSessionId);
-      setDrive((current) => current && isPreActive(current.status) ? mergeReadiness(current, rows) : current);
-    } catch {
-      // Background Lobby refresh is best-effort. Explicit actions still surface errors.
-    }
-  }, [driveSessionId, mergeReadiness]);
-
   const load = useCallback(async () => {
     if (!driveSessionId) {
       setError('This Group Drive link is invalid.');
@@ -146,6 +146,7 @@ export default function GroupDriveViewScreen() {
         const rows = await loadDriveLobbyReadiness(driveSessionId);
         nextDrive = mergeReadiness(nextDrive, rows);
       }
+      driveRef.current = nextDrive;
       setDrive(nextDrive);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Group Drive could not be loaded.');
@@ -154,14 +155,46 @@ export default function GroupDriveViewScreen() {
     }
   }, [driveSessionId, mergeReadiness]);
 
+  const refreshLobby = useCallback(async () => {
+    if (!driveSessionId) return;
+    try {
+      const snapshot = await loadDriveLobbySnapshot(driveSessionId);
+      const current = driveRef.current;
+      if (!current || !isPreActive(current.status)) return;
+
+      const currentParticipantSet = participantSet(current.participants);
+      const snapshotParticipantSet = snapshot.participants.map((participant) => participant.userId).sort().join('|');
+      const contextChanged =
+        snapshot.sessionStatus !== current.status
+        || snapshot.routeVersion !== current.routeVersion
+        || snapshot.scheduledStartAt !== current.scheduledStartAt
+        || snapshotParticipantSet !== currentParticipantSet;
+
+      if (contextChanged) {
+        await load();
+        return;
+      }
+
+      const nextDrive = mergeReadiness(current, snapshot.participants);
+      driveRef.current = nextDrive;
+      setDrive(nextDrive);
+    } catch {
+      // Background Lobby refresh is best-effort. Explicit actions still surface errors.
+    }
+  }, [driveSessionId, load, mergeReadiness]);
+
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  useEffect(() => {
+    driveRef.current = drive;
+  }, [drive]);
 
   const driveStatus = drive?.status;
   useEffect(() => {
     if (!driveStatus || (driveStatus !== 'draft' && driveStatus !== 'scheduled')) return;
-    const interval = setInterval(() => void refreshLobbyReadiness(), 5000);
+    const interval = setInterval(() => void refreshLobby(), 5000);
     return () => clearInterval(interval);
-  }, [driveStatus, refreshLobbyReadiness]);
+  }, [driveStatus, refreshLobby]);
 
   const confirmCancel = () => {
     if (!drive) return;
@@ -236,7 +269,7 @@ export default function GroupDriveViewScreen() {
     setError(null);
     try {
       await setDriveReady(drive.id, nextReady);
-      await refreshLobbyReadiness();
+      await refreshLobby();
     } catch (readyError) {
       setError(readyError instanceof Error ? readyError.message : 'Ready state could not be updated.');
     } finally {
