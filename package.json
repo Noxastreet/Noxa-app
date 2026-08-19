@@ -5,8 +5,8 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "test:group-drive-phase-1": "node ./scripts/test-group-drive-phase-1.mjs",
-    "verify:group-drive-phase-1": "node ./scripts/verify-group-drive-phase-1.mjs",
+    "test:group-drive-phase-1": "node ./scripts/test-group-drive-phase-1.mjs && node ./scripts/test-group-drive-phase-1-lobby-safety.mjs",
+    "verify:group-drive-phase-1": "node ./scripts/verify-group-drive-phase-1.mjs && node ./scripts/verify-group-drive-phase-1-lobby-safety.mjs",
     "verify:group-drive-phase-2": "node ./scripts/verify-group-drive-phase-2.mjs",
     "android": "expo run:android",
     "ios": "expo run:ios",
