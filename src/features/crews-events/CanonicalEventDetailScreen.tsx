@@ -91,6 +91,10 @@ function lifecycleUrgency(event: EventExperienceRow) {
   return date.toDateString() === today.toDateString() ? "TODAY" : "UPCOMING";
 }
 
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return count === 1 ? singular : plural;
+}
+
 function validCoordinates(
   event: EventExperienceRow | null,
 ): event is EventExperienceRow & { latitude: number; longitude: number } {
@@ -177,7 +181,7 @@ function Hero({
           />
           <Text numberOfLines={1} style={styles.heroSocialText}>
             {goingCount
-              ? `${Math.min(goingCount, 3)} familiar drivers and the community`
+              ? `${Math.min(goingCount, 3)} familiar ${pluralize(Math.min(goingCount, 3), "driver")} and the community`
               : "Be the first driver to confirm"}
           </Text>
         </View>
@@ -703,7 +707,7 @@ export default function CanonicalEventDetailScreen() {
             <View style={styles.goingCopy}>
               <Text style={styles.goingTitle}>
                 {goingCount
-                  ? `${Math.min(goingCount, 3)} familiar drivers · ${goingCount} total`
+                  ? `${Math.min(goingCount, 3)} familiar ${pluralize(Math.min(goingCount, 3), "driver")} · ${goingCount} total`
                   : "No confirmed drivers yet"}
               </Text>
               <Text style={styles.goingMeta}>
@@ -742,7 +746,9 @@ export default function CanonicalEventDetailScreen() {
               </Text>
             </View>
             <Text style={styles.organizerHistory}>
-              {organizerEventCount ? `${organizerEventCount} past events` : "First event"}
+              {organizerEventCount
+                ? `${organizerEventCount} past ${pluralize(organizerEventCount, "event")}`
+                : "First event"}
             </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
           </Pressable>
