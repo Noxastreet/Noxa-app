@@ -56,6 +56,7 @@ export type DriveParticipant = {
   role: DriveParticipantRole;
   status: DriveParticipantStatus;
   joinedAt: string;
+  readyAt: string | null;
   profile: DriveProfile | null;
 };
 
