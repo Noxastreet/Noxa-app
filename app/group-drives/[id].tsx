@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
@@ -16,7 +16,10 @@ import {
   formatDriveDistance,
   formatDriveDuration,
   leaveDrive,
+  loadDriveLobbyReadiness,
   loadGroupDriveDetails,
+  setDriveReady,
+  startDrive,
   type DriveInvitation,
   type DriveParticipant,
   type GroupDriveDetails,
@@ -36,16 +39,41 @@ function exactStopValue(
   return stop.label ? `${stop.label} · ${coordinates}` : coordinates;
 }
 
-function ParticipantRow({ participant }: { participant: DriveParticipant }) {
+function isPreActive(status: GroupDriveDetails['status']) {
+  return status === 'draft' || status === 'scheduled';
+}
+
+function ParticipantRow({
+  participant,
+  preActive,
+}: {
+  participant: DriveParticipant;
+  preActive: boolean;
+}) {
   const name = participant.profile?.displayName ?? 'NOXA driver';
+  const isHost = participant.role === 'host';
+  const ready = preActive && !isHost && participant.status === 'accepted' && Boolean(participant.readyAt);
+  const waiting = preActive && !isHost && participant.status === 'accepted' && !participant.readyAt;
+  const meta = isHost ? 'Host' : ready ? 'Ready' : waiting ? 'Waiting' : participant.status;
+
   return (
     <View style={styles.personRow}>
-      <NoxaAvatar initials={initials(name)} size={42} />
+      <NoxaAvatar
+        imageUrl={participant.profile?.avatarUrl}
+        initials={initials(name)}
+        size={42}
+      />
       <View style={styles.personCopy}>
         <Text numberOfLines={1} style={styles.personName}>{name}</Text>
-        <Text style={styles.personMeta}>{participant.role === 'host' ? 'Host' : participant.status}</Text>
+        <Text style={styles.personMeta}>{meta}</Text>
       </View>
-      {participant.status === 'accepted' ? <Ionicons name="checkmark-circle" size={18} color={colors.success} /> : null}
+      {isHost ? (
+        <Ionicons name="key-outline" size={17} color={colors.textMuted} />
+      ) : ready ? (
+        <Ionicons name="checkmark-circle" size={19} color={colors.success} />
+      ) : waiting ? (
+        <Ionicons name="time-outline" size={18} color={colors.textSubtle} />
+      ) : null}
     </View>
   );
 }
@@ -54,7 +82,11 @@ function InvitationRow({ invitation, onCancel }: { invitation: DriveInvitation; 
   const name = invitation.profile?.displayName ?? 'Invited driver';
   return (
     <View style={styles.personRow}>
-      <NoxaAvatar initials={initials(name)} size={42} />
+      <NoxaAvatar
+        imageUrl={invitation.profile?.avatarUrl}
+        initials={initials(name)}
+        size={42}
+      />
       <View style={styles.personCopy}>
         <Text numberOfLines={1} style={styles.personName}>{name}</Text>
         <Text style={styles.personMeta}>{invitation.status}</Text>
@@ -76,6 +108,30 @@ export default function GroupDriveViewScreen() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const mergeReadiness = useCallback(
+    (currentDrive: GroupDriveDetails, rows: Awaited<ReturnType<typeof loadDriveLobbyReadiness>>) => {
+      const readyByUser = new Map(rows.map((row) => [row.userId, row.readyAt]));
+      return {
+        ...currentDrive,
+        participants: currentDrive.participants.map((participant) => ({
+          ...participant,
+          readyAt: readyByUser.get(participant.userId) ?? null,
+        })),
+      };
+    },
+    [],
+  );
+
+  const refreshLobbyReadiness = useCallback(async () => {
+    if (!driveSessionId) return;
+    try {
+      const rows = await loadDriveLobbyReadiness(driveSessionId);
+      setDrive((current) => current && isPreActive(current.status) ? mergeReadiness(current, rows) : current);
+    } catch {
+      // Background Lobby refresh is best-effort. Explicit actions still surface errors.
+    }
+  }, [driveSessionId, mergeReadiness]);
+
   const load = useCallback(async () => {
     if (!driveSessionId) {
       setError('This Group Drive link is invalid.');
@@ -85,15 +141,26 @@ export default function GroupDriveViewScreen() {
     setLoading(true);
     setError(null);
     try {
-      setDrive(await loadGroupDriveDetails(driveSessionId));
+      let nextDrive = await loadGroupDriveDetails(driveSessionId);
+      if (isPreActive(nextDrive.status)) {
+        const rows = await loadDriveLobbyReadiness(driveSessionId);
+        nextDrive = mergeReadiness(nextDrive, rows);
+      }
+      setDrive(nextDrive);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Group Drive could not be loaded.');
     } finally {
       setLoading(false);
     }
-  }, [driveSessionId]);
+  }, [driveSessionId, mergeReadiness]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  useEffect(() => {
+    if (!drive || !isPreActive(drive.status)) return;
+    const interval = setInterval(() => void refreshLobbyReadiness(), 5000);
+    return () => clearInterval(interval);
+  }, [drive?.status, refreshLobbyReadiness]);
 
   const confirmCancel = () => {
     if (!drive) return;
@@ -158,6 +225,38 @@ export default function GroupDriveViewScreen() {
     }
   };
 
+  const toggleReady = async () => {
+    if (!drive) return;
+    const mine = drive.participants.find((participant) => participant.userId === drive.currentUserId);
+    if (!mine || mine.role === 'host' || mine.status !== 'accepted' || !isPreActive(drive.status)) return;
+
+    const nextReady = !mine.readyAt;
+    setWorking(true);
+    setError(null);
+    try {
+      await setDriveReady(drive.id, nextReady);
+      await refreshLobbyReadiness();
+    } catch (readyError) {
+      setError(readyError instanceof Error ? readyError.message : 'Ready state could not be updated.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const startNow = async () => {
+    if (!drive) return;
+    setWorking(true);
+    setError(null);
+    try {
+      await startDrive(drive.id);
+      await load();
+    } catch (startError) {
+      setError(startError instanceof Error ? startError.message : 'Group Drive could not be started.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
@@ -177,29 +276,75 @@ export default function GroupDriveViewScreen() {
     );
   }
 
+  const preActive = isPreActive(drive.status);
   const isHost = drive.currentUserId === drive.hostId;
   const myParticipant = drive.participants.find((participant) => participant.userId === drive.currentUserId);
-  const canEdit = isHost && ['draft', 'scheduled'].includes(drive.status);
+  const canEdit = isHost && preActive;
   const canLeave = !isHost && myParticipant && ['accepted', 'active'].includes(myParticipant.status) && ['draft', 'scheduled', 'active'].includes(drive.status);
+  const canToggleReady = !isHost && preActive && myParticipant?.status === 'accepted';
+  const isReady = Boolean(myParticipant?.readyAt);
+  const acceptedParticipants = drive.participants.filter(
+    (participant) => participant.role === 'participant' && participant.status === 'accepted',
+  );
+  const readyCount = acceptedParticipants.filter((participant) => Boolean(participant.readyAt)).length;
+  const waitingCount = acceptedParticipants.length - readyCount;
+  const canStart = isHost && preActive && drive.routeVersion > 0 && acceptedParticipants.length > 0;
   const start = drive.stops.find((stop) => stop.kind === 'start');
   const end = drive.stops.find((stop) => stop.kind === 'end');
   const pendingInvitations = drive.invitations.filter((invitation) => invitation.status === 'invited');
 
+  const confirmStart = () => {
+    if (!canStart) return;
+    if (waitingCount > 0) {
+      Alert.alert(
+        `${waitingCount} ${waitingCount === 1 ? 'driver is' : 'drivers are'} still waiting`,
+        'Start anyway? Ready is coordination only; starting does not grant location consent on another driver’s device.',
+        [
+          { text: 'Keep waiting', style: 'cancel' },
+          { text: 'Start Drive', onPress: () => void startNow() },
+        ],
+      );
+      return;
+    }
+    void startNow();
+  };
+
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="GROUP DRIVE" subtitle={isHost ? 'You are the host' : 'Private participant view'} />
+      <GroupDriveHeader
+        title={preActive ? 'GROUP DRIVE LOBBY' : 'GROUP DRIVE'}
+        subtitle={isHost ? 'You are the host' : 'Private participant view'}
+      />
       <View style={styles.hero}>
         <DriveStatus status={drive.status} />
         <Text style={styles.title}>{drive.title}</Text>
         <Text style={styles.caption}>{driveStatusCaption(drive.status)}</Text>
         {drive.description ? <Text style={styles.description}>{drive.description}</Text> : null}
       </View>
+
+      {preActive ? (
+        <View style={styles.lobbyLine}>
+          <View>
+            <Text style={styles.lobbyLabel}>LOBBY</Text>
+            <Text style={styles.lobbyValue}>
+              {acceptedParticipants.length === 0
+                ? 'Waiting for drivers'
+                : `${readyCount} ready · ${waitingCount} waiting`}
+            </Text>
+          </View>
+          <Ionicons name="people-outline" size={21} color={colors.textMuted} />
+        </View>
+      ) : null}
+
       {drive.status === 'active' ? (
         <View style={styles.phaseNotice}>
           <Ionicons name="information-circle-outline" size={20} color={colors.primaryHover} />
-          <Text style={styles.phaseNoticeText}>The live map is not enabled in this review build. This screen does not start background location.</Text>
+          <Text style={styles.phaseNoticeText}>
+            The Group Drive is active, but precise location and Active Drive Map are intentionally not enabled in this Phase 2 review build.
+          </Text>
         </View>
       ) : null}
+
       <View style={styles.routeSummary}>
         <View>
           <Text style={styles.metric}>{formatDriveDistance(drive.routeDistanceMeters)}</Text>
@@ -215,13 +360,17 @@ export default function GroupDriveViewScreen() {
         <GroupDriveFact icon="flag" label="Destination" value={exactStopValue(end, 'Route not set')} />
         <GroupDriveFact icon="time-outline" label="Timing" value={formatDriveDate(drive.scheduledStartAt)} />
       </View>
+
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>PARTICIPANTS</Text>
           <Text style={styles.sectionCount}>{drive.participants.length}</Text>
         </View>
-        {drive.participants.map((participant) => <ParticipantRow key={participant.userId} participant={participant} />)}
+        {drive.participants.map((participant) => (
+          <ParticipantRow key={participant.userId} participant={participant} preActive={preActive} />
+        ))}
       </View>
+
       {isHost && pendingInvitations.length ? (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -237,17 +386,49 @@ export default function GroupDriveViewScreen() {
           ))}
         </View>
       ) : null}
+
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-      {canEdit ? (
+
+      {canToggleReady ? (
         <View style={styles.actions}>
           <NoxaButton
             fullWidth
-            onPress={() => router.push({
-              pathname: drive.routeVersion > 0 ? '/group-drives/review' : '/group-drives/route',
-              params: { id: drive.id },
-            })}
-            title={drive.routeVersion > 0 ? 'Review Drive' : 'Continue setup'}
+            loading={working}
+            onPress={() => void toggleReady()}
+            title={isReady ? 'Ready · tap to undo' : "I'm ready"}
+            variant={isReady ? 'secondary' : 'primary'}
           />
+          <Text style={styles.actionHint}>Ready coordinates the Lobby only. It never starts location sharing.</Text>
+        </View>
+      ) : null}
+
+      {canEdit ? (
+        <View style={styles.actions}>
+          {canStart ? (
+            <NoxaButton
+              fullWidth
+              loading={working}
+              onPress={confirmStart}
+              title="Start Drive"
+            />
+          ) : (
+            <NoxaButton
+              fullWidth
+              onPress={() => router.push({
+                pathname: drive.routeVersion > 0 ? '/group-drives/review' : '/group-drives/route',
+                params: { id: drive.id },
+              })}
+              title={drive.routeVersion > 0 ? 'Review Drive' : 'Continue setup'}
+            />
+          )}
+          {canStart ? (
+            <NoxaButton
+              fullWidth
+              onPress={() => router.push({ pathname: '/group-drives/review', params: { id: drive.id } })}
+              title="Review route"
+              variant="secondary"
+            />
+          ) : null}
           <NoxaButton
             fullWidth
             onPress={() => router.push({ pathname: '/group-drives/participants', params: { id: drive.id } })}
@@ -262,6 +443,7 @@ export default function GroupDriveViewScreen() {
           />
         </View>
       ) : null}
+
       {canLeave ? (
         <View style={styles.dangerZone}>
           <NoxaButton fullWidth loading={working} onPress={confirmLeave} title="Leave Drive" variant="danger" />
@@ -283,6 +465,18 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.value, fontWeight: '900' },
   caption: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
   description: { marginTop: spacing.sm, color: colors.textMuted, ...typography.v2.body },
+  lobbyLine: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.divider,
+  },
+  lobbyLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  lobbyValue: { marginTop: 4, color: colors.text, fontSize: 15, fontWeight: '800' },
   phaseNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
   phaseNoticeText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   routeSummary: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.lg, paddingVertical: spacing.lg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.divider },
@@ -299,6 +493,7 @@ const styles = StyleSheet.create({
   personMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, textTransform: 'capitalize' },
   cancelInvite: { color: colors.primaryHover, fontSize: 12, fontWeight: '800', paddingVertical: spacing.sm },
   actions: { gap: spacing.xs },
+  actionHint: { color: colors.textSubtle, fontSize: 11, lineHeight: 16, textAlign: 'center' },
   dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider },
   dangerLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
