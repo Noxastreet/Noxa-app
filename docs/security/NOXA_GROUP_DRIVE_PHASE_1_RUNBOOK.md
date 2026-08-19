@@ -85,6 +85,7 @@ Run from the repository root:
 
 ```bash
 npm run verify:group-drive-phase-1
+npm run test:group-drive-phase-1
 git diff --check
 ```
 
@@ -92,6 +93,16 @@ The verifier confirms the five-table isolation boundary, RLS enablement,
 reviewed RPC surface, restrictive blocking policies, absence of speed storage,
 absence of existing-domain mutations, atomic location deletion markers, and no
 Phase 1 cron schedule.
+
+The local database smoke-test applies the migration to an ephemeral in-memory
+PostgreSQL runtime and exercises the main positive and negative authorization
+paths with disposable host, participant, pending, unrelated, Crew, and blocked
+identities. It requires no Docker, remote Supabase project, credentials, or
+production data. It also executes the rollback SQL from this runbook and proves
+that the pre-existing dependency tables and blocking helper survive. It is a
+repeatable compatibility and behavior gate, but it does not replace the hosted
+Supabase Preview, Realtime-delivery, advisor, concurrency, or hosted rollback
+rehearsal gates below.
 
 The migration must also parse with a PostgreSQL-compatible parser before review.
 This is a syntax check, not a substitute for applying the migration to an
@@ -296,6 +307,8 @@ Confirm:
 - `public` and `anon` have no EXECUTE grants;
 - only intentional public action/read RPCs are executable by `authenticated`;
 - trigger helpers are not client-executable;
+- `service_role` has schema usage plus the narrow EXECUTE grant required to
+  resolve the private expiry primitive;
 - the private expiry primitive is executable only by `service_role` and is not
   scheduled in Phase 1.
 

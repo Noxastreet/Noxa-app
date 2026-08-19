@@ -113,6 +113,10 @@ requireMatch(
   'expiry primitive is private',
   /create or replace function private\.noxa_expire_group_drives\(\)/i,
 );
+requireMatch(
+  'service role can resolve the private expiry primitive',
+  /grant usage on schema private to service_role/i,
+);
 
 const previewStart = sql.indexOf(
   'create or replace function public.noxa_get_drive_invitation_preview',

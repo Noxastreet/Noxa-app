@@ -2109,6 +2109,7 @@ $$;
 
 revoke all on function private.noxa_expire_group_drives()
   from public, anon, authenticated, service_role;
+grant usage on schema private to service_role;
 grant execute on function private.noxa_expire_group_drives() to service_role;
 
 -- Explicitly revoke default PUBLIC execution before granting the reviewed client API.
