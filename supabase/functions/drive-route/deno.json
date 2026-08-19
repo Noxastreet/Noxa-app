@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "@supabase/supabase-js/cors": "npm:@supabase/supabase-js@2.109.0/cors"
+  }
+}
