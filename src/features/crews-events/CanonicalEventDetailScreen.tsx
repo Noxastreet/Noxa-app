@@ -13,7 +13,12 @@ import {
   View,
 } from "react-native";
 
-import { NoxaScreen } from "@/src/components/ui";
+import {
+  NoxaButton,
+  NoxaIconButton,
+  NoxaScreen,
+  NoxaTopBar,
+} from "@/src/components/ui";
 import {
   EntityActionSheet,
   type EntityAction,
@@ -23,12 +28,12 @@ import {
   CanonicalAvatar,
   CanonicalAvatarStack,
   CanonicalPill,
-  CanonicalPrimaryButton,
   CanonicalSectionHeader,
   profileName,
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
 import { MapboxEventPreviewCompat } from "@/src/features/mapbox/MapboxEventPreviewCompat";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import {
   chooseCoverAsset,
   removeEntityCoverObject,
@@ -101,26 +106,28 @@ function validCoordinates(
 function EventHeader({ onMore }: { onMore?: () => void }) {
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-      >
-        <Ionicons name="chevron-back" size={23} color={colors.text} />
-      </Pressable>
-      {onMore ? (
-        <Pressable
-          accessibilityLabel="More event actions"
-          accessibilityRole="button"
-          onPress={onMore}
-          style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-        </Pressable>
-      ) : (
-        <View style={styles.headerButtonPlaceholder} />
-      )}
+      <NoxaTopBar
+        centered
+        left={
+          <NoxaIconButton
+            accessibilityLabel="Go back"
+            icon="chevron-back"
+            onPress={() => router.back()}
+            variant="ghost"
+          />
+        }
+        right={
+          onMore ? (
+            <NoxaIconButton
+              accessibilityLabel="More event actions"
+              icon="ellipsis-horizontal"
+              onPress={onMore}
+              variant="ghost"
+            />
+          ) : undefined
+        }
+        subtitle="EVENT"
+      />
     </View>
   );
 }
@@ -129,25 +136,30 @@ function Hero({
   event,
   attendees,
   goingCount,
+  compact,
 }: {
   event: EventExperienceRow;
   attendees: CanonicalProfile[];
   goingCount: number;
+  compact: boolean;
 }) {
   return (
-    <CanonicalArtwork
-      uri={event.cover_image_url}
-      style={styles.hero}
-      imageStyle={styles.heroImage}
-      icon="flag-outline"
-    >
-      <View style={styles.heroShade} />
-      <View style={styles.heroPills}>
+    <View>
+      <CanonicalArtwork
+        uri={event.cover_image_url}
+        style={[styles.hero, compact && styles.heroCompact]}
+        imageStyle={styles.heroImage}
+        icon="flag-outline"
+      />
+      <View style={styles.heroCopy}>
+        <View style={styles.heroPills}>
         <CanonicalPill label={categoryLabel(event)} />
         <CanonicalPill label={lifecycleUrgency(event)} tone="accent" />
-      </View>
-      <View style={styles.heroCopy}>
-        <Text numberOfLines={3} style={styles.heroTitle}>
+        </View>
+        <Text
+          numberOfLines={3}
+          style={[styles.heroTitle, compact && styles.heroTitleCompact]}
+        >
           {event.title.toUpperCase()}
         </Text>
         <Text style={styles.heroUrgency}>
@@ -170,7 +182,7 @@ function Hero({
           </Text>
         </View>
       </View>
-    </CanonicalArtwork>
+    </View>
   );
 }
 
@@ -182,7 +194,7 @@ function formatEventTimeLine(event: EventExperienceRow) {
 
 function EssentialInfo({ event }: { event: EventExperienceRow }) {
   return (
-    <View style={styles.infoCard}>
+    <View style={styles.infoList}>
       <View style={styles.infoRow}>
         <View style={styles.infoIcon}>
           <Ionicons name="time-outline" size={16} color={colors.textMuted} />
@@ -221,6 +233,8 @@ function EssentialInfo({ event }: { event: EventExperienceRow }) {
 export default function CanonicalEventDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const eventId = typeof params.id === "string" ? params.id : "";
+  const { isCompactHeight, isSmallPhone } = useResponsive();
+  const compactLayout = isCompactHeight || isSmallPhone;
 
   const [event, setEvent] = useState<EventExperienceRow | null>(null);
   const [creator, setCreator] = useState<CanonicalProfile | null>(null);
@@ -608,9 +622,9 @@ export default function CanonicalEventDetailScreen() {
           <Ionicons name="calendar-outline" size={38} color={colors.primary} />
           <Text style={styles.stateTitle}>Event unavailable</Text>
           <Text style={styles.stateText}>{error || "This event no longer exists."}</Text>
-          <CanonicalPrimaryButton
-            label="GO BACK"
-            variant="surface"
+          <NoxaButton
+            title="Go back"
+            variant="secondary"
             onPress={() => router.back()}
           />
         </View>
@@ -633,7 +647,12 @@ export default function CanonicalEventDetailScreen() {
       >
         <EventHeader onMore={() => setActionsOpen(true)} />
 
-        <Hero event={event} attendees={attendees} goingCount={goingCount} />
+        <Hero
+          attendees={attendees}
+          compact={compactLayout}
+          event={event}
+          goingCount={goingCount}
+        />
 
         {error ? (
           <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
@@ -642,8 +661,7 @@ export default function CanonicalEventDetailScreen() {
           </Pressable>
         ) : null}
 
-        <View style={styles.section}>
-          <CanonicalSectionHeader title="ESSENTIAL INFO" />
+        <View style={styles.sectionFirst}>
           <EssentialInfo event={event} />
         </View>
 
@@ -660,11 +678,12 @@ export default function CanonicalEventDetailScreen() {
               <Text style={styles.mapMeta}>
                 {validCoordinates(event) ? "NOXA MAP PREVIEW" : "LOCATION PREVIEW"}
               </Text>
-              <CanonicalPrimaryButton
-                compact
+              <NoxaButton
                 disabled={!validCoordinates(event)}
-                icon="navigate"
-                label="NAVIGATE"
+                leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
+                size="sm"
+                title="Navigate"
+                variant="overlay"
                 onPress={navigate}
               />
             </View>
@@ -677,7 +696,7 @@ export default function CanonicalEventDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.sectionDivided}>
           <CanonicalSectionHeader title="WHO'S GOING" action={`${goingCount}`} />
           <View style={styles.goingCard}>
             <CanonicalAvatarStack profiles={attendees} total={goingCount} max={4} size={38} />
@@ -696,7 +715,7 @@ export default function CanonicalEventDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.sectionDivided}>
           <CanonicalSectionHeader title="ORGANIZER" />
           <Pressable
             accessibilityRole="button"
@@ -730,7 +749,7 @@ export default function CanonicalEventDetailScreen() {
         </View>
 
         {galleryPreview.length ? (
-          <View style={styles.section}>
+          <View style={styles.sectionDivided}>
             <CanonicalSectionHeader title="PAST ATMOSPHERE" action={`${gallery.length} PHOTOS`} />
             <View style={styles.galleryRow}>
               {galleryPreview.map((item) => (
@@ -740,7 +759,7 @@ export default function CanonicalEventDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.detailsCard}>
+        <View style={styles.detailsSection}>
           <Text style={styles.detailsEyebrow}>DETAILS</Text>
           <Text style={styles.detailsText}>
             {event.description ||
@@ -754,10 +773,10 @@ export default function CanonicalEventDetailScreen() {
 
         {canChat ? (
           <View style={styles.chatButtonWrap}>
-            <CanonicalPrimaryButton
-              icon="chatbubble-outline"
-              label="EVENT CHAT"
-              variant="surface"
+            <NoxaButton
+              leadingIcon={<Ionicons name="chatbubble-outline" size={17} color={colors.text} />}
+              title="Event chat"
+              variant="secondary"
               onPress={() =>
                 router.push({ pathname: "/event-chat", params: { id: event.id } })
               }
@@ -775,12 +794,13 @@ export default function CanonicalEventDetailScreen() {
 
       {!isHost ? (
         <View style={styles.stickyFooter}>
-          <CanonicalPrimaryButton
+          <NoxaButton
             disabled={rsvpClosed}
-            icon={myResponse === "going" ? "checkmark" : undefined}
-            label={goingLabel}
+            fullWidth
+            leadingIcon={myResponse === "going" ? <Ionicons name="checkmark" size={18} color={colors.text} /> : undefined}
             loading={rsvpBusy}
-            variant={myResponse === "going" ? "surface" : "accent"}
+            title={goingLabel}
+            variant={myResponse === "going" ? "secondary" : "primary"}
             onPress={toggleGoing}
           />
           {myResponse === "going" ? (
@@ -793,32 +813,33 @@ export default function CanonicalEventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 150, gap: spacing.lg },
+  content: { paddingBottom: 150 },
   contentHost: { paddingBottom: 80 },
   pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
-  header: { height: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md },
-  headerButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surface },
-  headerButtonPlaceholder: { width: 42, height: 42 },
-  hero: { minHeight: 286, justifyContent: "space-between", marginHorizontal: spacing.md, padding: spacing.md, borderRadius: radius.hero, borderWidth: 1, borderColor: colors.borderStrong },
-  heroImage: { borderRadius: radius.hero - 1 },
-  heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.66)" },
-  heroPills: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  heroCopy: { gap: spacing.xs },
-  heroTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 30, lineHeight: 34, fontWeight: "900", letterSpacing: -0.5 },
+  header: { paddingHorizontal: spacing.md },
+  hero: { height: 188, marginHorizontal: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
+  heroCompact: { height: 158 },
+  heroImage: { borderRadius: radius.lg },
+  heroPills: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.xs },
+  heroCopy: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xl },
+  heroTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, lineHeight: 35, fontWeight: "900", letterSpacing: -0.7 },
+  heroTitleCompact: { fontSize: 27, lineHeight: 30 },
   heroUrgency: { color: colors.primaryHover, fontSize: 11, lineHeight: 15, fontWeight: "900", letterSpacing: 0.2 },
-  heroLocation: { color: colors.text, fontSize: 13, lineHeight: 18 },
-  heroSocial: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  heroLocation: { color: colors.text, fontSize: 15, lineHeight: 21 },
+  heroSocial: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   heroSocialText: { flex: 1, color: colors.textMuted, fontSize: 11, lineHeight: 15 },
   errorBanner: { minHeight: 48, marginHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
   errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
-  section: { paddingHorizontal: spacing.md, gap: spacing.xs },
-  infoCard: { overflow: "hidden", borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
-  infoRow: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  infoIcon: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: 17, backgroundColor: colors.surfaceRaised },
+  section: { paddingHorizontal: spacing.md, marginTop: spacing.xl },
+  sectionFirst: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  sectionDivided: { paddingHorizontal: spacing.md, paddingVertical: spacing.xl, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  infoList: { overflow: "hidden" },
+  infoRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  infoIcon: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
   infoCopy: { flex: 1 },
   infoLabel: { color: colors.textMuted, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
   infoValue: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "700" },
-  mapCard: { height: 176, overflow: "hidden", borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: "#0B1218" },
+  mapCard: { height: 176, overflow: "hidden", borderRadius: radius.lg, backgroundColor: "#0B1218" },
   mapOverlayTop: { position: "absolute", left: spacing.sm, right: spacing.sm, top: spacing.sm, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   mapMeta: { color: colors.text, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
   mapRouteLine: { position: "absolute", left: 62, right: 62, bottom: 50, flexDirection: "row", alignItems: "center" },
@@ -826,11 +847,11 @@ const styles = StyleSheet.create({
   mapRouteTrack: { flex: 1, height: 3, backgroundColor: colors.primary },
   mapRouteEnd: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, borderColor: colors.text, backgroundColor: colors.primary },
   mapBrand: { position: "absolute", left: spacing.sm, bottom: spacing.sm, color: colors.text, fontSize: 8, lineHeight: 10, fontWeight: "900", letterSpacing: 0.5 },
-  goingCard: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  goingCard: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.md },
   goingCopy: { flex: 1 },
   goingTitle: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800" },
   goingMeta: { color: colors.textMuted, fontSize: 10, lineHeight: 14 },
-  organizerCard: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  organizerCard: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   organizerLogo: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceRaised },
   organizerCopy: { flex: 1 },
   organizerEyebrow: { color: colors.textMuted, fontSize: 8, lineHeight: 11, fontWeight: "900", letterSpacing: 0.4 },
@@ -838,13 +859,13 @@ const styles = StyleSheet.create({
   organizerHistory: { color: colors.textMuted, fontSize: 9, lineHeight: 12 },
   galleryRow: { height: 112, flexDirection: "row", gap: spacing.sm },
   galleryImage: { flex: 1, height: "100%", borderRadius: radius.md, backgroundColor: colors.surface },
-  detailsCard: { marginHorizontal: spacing.md, gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  detailsSection: { marginTop: spacing.xl, gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   detailsEyebrow: { color: colors.textMuted, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
   detailsText: { color: colors.text, fontSize: 14, lineHeight: 21 },
   detailsDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
   rulesText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  chatButtonWrap: { marginHorizontal: spacing.md },
-  stickyFooter: { position: "absolute", left: 0, right: 0, bottom: 0, gap: spacing.xxs, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.glass },
+  chatButtonWrap: { marginHorizontal: spacing.md, marginTop: spacing.sm },
+  stickyFooter: { position: "absolute", left: 0, right: 0, bottom: 0, gap: spacing.xxs, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.background },
   manageHint: { color: colors.textMuted, fontSize: 9, lineHeight: 12, textAlign: "center" },
   state: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   stateTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.h2, lineHeight: typography.lineHeight.h2, fontWeight: "900", textAlign: "center" },
