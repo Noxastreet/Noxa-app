@@ -1518,8 +1518,6 @@ export default function LiveMapScreen() {
         : null;
   const noticesTop = headerBottom + spacing.sm;
   const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
-  const topScrimHeight =
-    mapDataNoticeTop + (mapDataHasError ? 58 : activeNotice ? 40 : 28);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
@@ -1549,11 +1547,6 @@ export default function LiveMapScreen() {
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
-        <View
-          pointerEvents="none"
-          style={[styles.topScrim, { height: topScrimHeight }]}
-        />
-
         <View style={[styles.header, { top: headerTop }]}>
           <TouchableOpacity
             accessibilityLabel={`${
@@ -1873,13 +1866,6 @@ export default function LiveMapScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
-  topScrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(6,6,10,0.72)",
-  },
   header: {
     position: "absolute",
     left: spacing.md,
