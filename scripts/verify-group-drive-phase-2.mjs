@@ -68,7 +68,7 @@ if (fs.existsSync(path.join(root, 'app/group-drives/[id].tsx'))) {
     ['Ready undo state missing', /Ready · tap to undo/],
     ['host Start action missing', /title="Start Drive"/],
     ['Waiting confirmation missing', /still waiting/],
-    ['pending-invitation Start warning missing', /invitations will'}?/,],
+    ['pending-invitation Start warning missing', /pending .*invitation.*cancelled when the drive starts/],
     ['Lobby refresh missing', /setInterval\(\(\) => void refreshLobby\(\), 5000\)/],
     ['cross-device context refresh missing', /snapshot\.sessionStatus !== current\.status[\s\S]*snapshot\.routeVersion !== current\.routeVersion/],
     ['Ready privacy copy missing', /Ready coordinates the Lobby only\. It never starts location sharing\./],
