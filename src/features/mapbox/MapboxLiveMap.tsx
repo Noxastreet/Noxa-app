@@ -120,6 +120,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       isRouteMode,
       followUserLocation,
       onFollowUserLocationChange,
+      onUserPan,
       onDriverPress,
       onEventPress,
     },
@@ -290,8 +291,11 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             setIsLoaded(false);
           }}
           onCameraChanged={(state) => {
-            if (followUserLocation && state.gestures.isGestureActive) {
-              onFollowUserLocationChange(false);
+            if (state.gestures.isGestureActive) {
+              onUserPan();
+              if (followUserLocation) {
+                onFollowUserLocationChange(false);
+              }
             }
           }}
           pitchEnabled

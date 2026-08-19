@@ -13,8 +13,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Defs, LinearGradient, Rect, Stop, Svg } from "react-native-svg";
 
+import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -296,52 +296,38 @@ function EventCard({
           <View style={styles.eventCardIcon}>
             <Ionicons name="calendar-outline" size={18} color={colors.text} />
           </View>
-          <TouchableOpacity
+          <NoxaIconButton
             accessibilityLabel="Close event preview"
-            activeOpacity={0.78}
-            hitSlop={2}
+            icon="close"
+            iconSize={18}
             onPress={onClose}
-            style={styles.eventCardCloseControl}
-          >
-            <Ionicons name="close" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
+            size={40}
+            variant="ghost"
+          />
         </View>
       </View>
       <View style={styles.eventActions}>
-        <TouchableOpacity
-          activeOpacity={0.82}
+        <NoxaButton
           onPress={() =>
             router.push({
               pathname: "/event-details",
               params: { id: event.id },
             })
           }
-          style={styles.eventButton}
-        >
-          <Text style={styles.eventButtonText}>View Event</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+          size="md"
+          style={styles.eventDetailsButton}
+          title="View details"
+          variant="ghost"
+        />
+        <NoxaButton
           accessibilityLabel="Route to event"
-          accessibilityState={{ disabled: !canRoute }}
-          activeOpacity={0.78}
           disabled={!canRoute}
+          leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
           onPress={onRoute}
-          style={[styles.eventRouteButton, !canRoute && styles.eventButtonDisabled]}
-        >
-          <Ionicons
-            name="navigate"
-            size={15}
-            color={canRoute ? colors.text : colors.textSubtle}
-          />
-          <Text
-            style={[
-              styles.eventRouteButtonText,
-              !canRoute && styles.eventRouteButtonTextDisabled,
-            ]}
-          >
-            Route
-          </Text>
-        </TouchableOpacity>
+          size="md"
+          style={styles.eventPrimaryButton}
+          title="Route"
+        />
       </View>
     </View>
   );
@@ -380,14 +366,14 @@ function RouteCard({
             {event.title}
           </Text>
         </View>
-        <TouchableOpacity
+        <NoxaIconButton
           accessibilityLabel="Exit route mode"
-          activeOpacity={0.78}
+          icon="close"
+          iconSize={18}
           onPress={onClose}
-          style={styles.routeCloseButton}
-        >
-          <Ionicons name="close" size={18} color={colors.text} />
-        </TouchableOpacity>
+          size={40}
+          variant="ghost"
+        />
       </View>
       {loading ? (
         <View style={styles.routeStatusRow}>
@@ -467,6 +453,7 @@ export default function LiveMapScreen() {
   const [routeStatus, setRouteStatus] = useState<RouteStatus>("idle");
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const [isRouteFollowing, setIsRouteFollowing] = useState(false);
+  const [isCameraAwayFromUser, setIsCameraAwayFromUser] = useState(false);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
@@ -1370,6 +1357,7 @@ export default function LiveMapScreen() {
   const selectEvent = useCallback(
     (event: EventMarkerRow) => {
       setSelectedEvent(event);
+      setIsCameraAwayFromUser(true);
       animateTo(eventRegion(event));
     },
     [animateTo],
@@ -1382,6 +1370,7 @@ export default function LiveMapScreen() {
       showLoading: true,
     });
     if (point) {
+      setIsCameraAwayFromUser(false);
       if (isRouteFollowing) {
         setIsRouteFollowing(false);
         requestAnimationFrame(() => animateTo(pointRegion(point)));
@@ -1529,14 +1518,14 @@ export default function LiveMapScreen() {
         : null;
   const noticesTop = headerBottom + spacing.sm;
   const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
-  const topScrimHeight =
-    mapDataNoticeTop + (mapDataHasError ? 58 : activeNotice ? 40 : 28);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
     (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);
+  const showRecenter =
+    !isRouteFollowing && (!driverLocation || isCameraAwayFromUser);
 
   return (
     <View style={styles.screen}>
@@ -1550,6 +1539,7 @@ export default function LiveMapScreen() {
         followUserLocation={isRouteFollowing}
         mapFilter="all"
         onFollowUserLocationChange={setIsRouteFollowing}
+        onUserPan={() => setIsCameraAwayFromUser(true)}
         onDriverPress={openDriverProfile}
         onEventPress={selectMapboxEvent}
         route={route}
@@ -1557,26 +1547,6 @@ export default function LiveMapScreen() {
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
-        <Svg
-          height={topScrimHeight}
-          pointerEvents="none"
-          style={styles.topScrim}
-          width="100%"
-        >
-          <Defs>
-            <LinearGradient id="mapTopFade" x1="0" x2="0" y1="0" y2="1">
-              <Stop offset="0" stopColor={colors.background} stopOpacity="0.9" />
-              <Stop
-                offset="0.62"
-                stopColor={colors.background}
-                stopOpacity="0.54"
-              />
-              <Stop offset="1" stopColor={colors.background} stopOpacity="0" />
-            </LinearGradient>
-          </Defs>
-          <Rect fill="url(#mapTopFade)" height="100%" width="100%" />
-        </Svg>
-
         <View style={[styles.header, { top: headerTop }]}>
           <TouchableOpacity
             accessibilityLabel={`${
@@ -1704,28 +1674,21 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        <View
-          pointerEvents="box-none"
-          style={[styles.locationControlStack, { bottom: controlBottom }]}
-        >
-          <TouchableOpacity
-            accessibilityLabel="Recenter map"
-            accessibilityState={{
-              busy: locationLoading,
-              disabled: locationLoading,
-            }}
-            activeOpacity={0.78}
-            disabled={locationLoading}
-            onPress={recenterMap}
-            style={styles.recenterButton}
+        {showRecenter ? (
+          <View
+            pointerEvents="box-none"
+            style={[styles.locationControlStack, { bottom: controlBottom }]}
           >
-            {locationLoading ? (
-              <ActivityIndicator color={colors.text} size="small" />
-            ) : (
-              <Ionicons name="locate" size={22} color={colors.text} />
-            )}
-          </TouchableOpacity>
-        </View>
+            <NoxaIconButton
+              accessibilityLabel="Recenter map"
+              disabled={locationLoading}
+              icon="locate"
+              loading={locationLoading}
+              onPress={recenterMap}
+              variant="surface"
+            />
+          </View>
+        ) : null}
 
         {activeNotice ? (
           <View
@@ -1903,12 +1866,6 @@ export default function LiveMapScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
-  topScrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-  },
   header: {
     position: "absolute",
     left: spacing.md,
@@ -2207,17 +2164,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
   },
-  recenterButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.88)",
-    ...shadows.control,
-  },
   liveDriveModalBackdrop: {
     flex: 1,
     justifyContent: "center",
@@ -2301,14 +2247,14 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    padding: 14,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(17,17,22,0.94)",
-    ...shadows.card,
+    left: 0,
+    right: 0,
+    padding: spacing.lg,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    backgroundColor: colors.surface,
   },
   eventCardHeader: {
     flexDirection: "row",
@@ -2330,16 +2276,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-  },
-  eventCardCloseControl: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   cardKicker: {
     color: colors.primaryHover,
@@ -2373,57 +2309,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xs,
   },
-  eventButton: {
+  eventDetailsButton: {
     flex: 1,
-    height: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
   },
-  eventButtonText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  eventRouteButton: {
-    flex: 1,
-    height: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
-  },
-  eventRouteButtonText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  eventButtonDisabled: {
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
-    opacity: 0.55,
-  },
-  eventRouteButtonTextDisabled: {
-    color: colors.textSubtle,
+  eventPrimaryButton: {
+    flex: 1.35,
   },
   routeCard: {
     position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: "rgba(17,17,22,0.96)",
-    ...shadows.card,
+    left: 0,
+    right: 0,
+    padding: spacing.lg,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    backgroundColor: colors.surface,
   },
   routeHeader: {
     flexDirection: "row",
@@ -2438,16 +2339,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: -0.3,
-  },
-  routeCloseButton: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   routeStatusRow: {
     marginTop: spacing.md,
