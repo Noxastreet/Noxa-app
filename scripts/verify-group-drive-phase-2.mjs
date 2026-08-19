@@ -5,6 +5,7 @@ import process from 'node:process';
 const root = process.cwd();
 const expectedFiles = [
   'src/features/group-drive/api.ts',
+  'src/features/group-drive/lobby.ts',
   'src/features/group-drive/types.ts',
   'src/features/group-drive/GroupDrivePrimitives.tsx',
   'supabase/functions/drive-route/index.ts',
@@ -43,6 +44,33 @@ if (fs.existsSync(path.join(root, 'src/features/group-drive/api.ts'))) {
   ]);
   if (/drive_location_state|noxa_upsert_drive_location/.test(api)) {
     failures.push('Phase 2 API must not contain live-location code');
+  }
+}
+
+if (fs.existsSync(path.join(root, 'src/features/group-drive/lobby.ts'))) {
+  const lobby = requireText('src/features/group-drive/lobby.ts', [
+    ['Ready RPC missing', /noxa_set_drive_ready/],
+    ['Start RPC missing', /noxa_start_drive/],
+    ['Lobby readiness read missing', /select\('user_id,ready_at'\)/],
+    ['JWT refresh path missing', /refreshSupabaseSessionOnce/],
+  ]);
+  if (/drive_location_state|noxa_upsert_drive_location|startLocationUpdatesAsync|expo-task-manager/.test(lobby)) {
+    failures.push('Phase 2B Lobby must not contain precise-location runtime code');
+  }
+}
+
+if (fs.existsSync(path.join(root, 'app/group-drives/[id].tsx'))) {
+  const lobbyScreen = requireText('app/group-drives/[id].tsx', [
+    ['Lobby title missing', /GROUP DRIVE LOBBY/],
+    ['Ready action missing', /I'm ready/],
+    ['Ready undo state missing', /Ready · tap to undo/],
+    ['host Start action missing', /title="Start Drive"/],
+    ['Waiting confirmation missing', /drivers are'}?/,],
+    ['readiness refresh missing', /setInterval\(\(\) => void refreshLobbyReadiness\(\), 5000\)/],
+    ['Ready privacy copy missing', /Ready coordinates the Lobby only\. It never starts location sharing\./],
+  ]);
+  if (/drive_location_state|startLocationUpdatesAsync|requestBackgroundPermissionsAsync/.test(lobbyScreen)) {
+    failures.push('Phase 2B screen must not contain precise-location runtime code');
   }
 }
 
