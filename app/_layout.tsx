@@ -60,6 +60,7 @@ export default function RootLayout() {
         <Stack.Screen name="privacy-policy" />
         <Stack.Screen name="terms-of-service" />
         <Stack.Screen name="search" />
+        <Stack.Screen name="group-drives" />
         <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
         <Stack.Screen name="event-details" />
         <Stack.Screen name="event-editor" />

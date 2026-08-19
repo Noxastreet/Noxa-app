@@ -19,7 +19,7 @@ function coordinateFromState(state: MapState): LatLng | null {
   return isValidCoordinate(coordinate) ? coordinate : null;
 }
 
-export function MapboxEventLocationPicker({ initialCoordinate, isLocating, onCancel, onConfirm, onUseCurrentLocation }: EventLocationPickerProps) {
+export function MapboxEventLocationPicker({ confirmLabel = "Confirm Location", headerTitle = "Exact event location", initialCoordinate, isLocating, onCancel, onConfirm, onUseCurrentLocation }: EventLocationPickerProps) {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<ElementRef<typeof Camera> | null>(null);
   const [selected, setSelected] = useState<LatLng | null>(isValidCoordinate(initialCoordinate) ? initialCoordinate : null);
@@ -38,7 +38,7 @@ export function MapboxEventLocationPicker({ initialCoordinate, isLocating, onCan
   }, []);
 
   if (!MAPBOX_ACCESS_TOKEN) {
-    return <View style={styles.screen}><MapboxStateView title="Mapbox token missing" message="Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN for the native map runtime." /><PickerHeader top={insets.top + spacing.md} onCancel={onCancel} /></View>;
+    return <View style={styles.screen}><MapboxStateView title="Mapbox token missing" message="Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN for the native map runtime." /><PickerHeader title={headerTitle} top={insets.top + spacing.md} onCancel={onCancel} /></View>;
   }
 
   const confirmDisabled = !selected || isLocating || hasError || !isLoaded;
@@ -64,22 +64,22 @@ export function MapboxEventLocationPicker({ initialCoordinate, isLocating, onCan
           <View style={styles.pinStem} />
         </View>
       ) : null}
-      <PickerHeader top={insets.top + spacing.md} onCancel={onCancel} />
+      <PickerHeader title={headerTitle} top={insets.top + spacing.md} onCancel={onCancel} />
       <View style={[styles.footer, { bottom: insets.bottom + spacing.md }]}>
         <Pressable disabled={isLocating || hasError} onPress={onUseCurrentLocation} style={({ pressed }) => [styles.locateButton, pressed && styles.pressed, (isLocating || hasError) && styles.disabled]}>
           {isLocating ? <ActivityIndicator color={colors.primaryHover} size="small" /> : <Ionicons name="navigate" size={16} color={colors.primaryHover} />}
           <Text style={styles.locateText}>{isLocating ? "Locating…" : "Use Current Location"}</Text>
         </Pressable>
         <Pressable disabled={confirmDisabled} onPress={() => selected && onConfirm(selected)} style={({ pressed }) => [styles.confirmButton, pressed && styles.pressed, confirmDisabled && styles.disabled]}>
-          <Text style={styles.confirmText}>Confirm Location</Text>
+          <Text style={styles.confirmText}>{confirmLabel}</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-function PickerHeader({ top, onCancel }: { top: number; onCancel: () => void }) {
-  return <View style={[styles.header, { top }]}><Pressable onPress={onCancel}><Text style={styles.cancelText}>Cancel</Text></Pressable><Text style={styles.title}>Exact event location</Text><View style={styles.headerSpacer} /></View>;
+function PickerHeader({ title, top, onCancel }: { title: string; top: number; onCancel: () => void }) {
+  return <View style={[styles.header, { top }]}><Pressable onPress={onCancel}><Text style={styles.cancelText}>Cancel</Text></Pressable><Text style={styles.title}>{title}</Text><View style={styles.headerSpacer} /></View>;
 }
 
 const styles = StyleSheet.create({
