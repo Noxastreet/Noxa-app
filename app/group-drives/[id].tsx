@@ -156,11 +156,12 @@ export default function GroupDriveViewScreen() {
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
+  const driveStatus = drive?.status;
   useEffect(() => {
-    if (!drive || !isPreActive(drive.status)) return;
+    if (!driveStatus || (driveStatus !== 'draft' && driveStatus !== 'scheduled')) return;
     const interval = setInterval(() => void refreshLobbyReadiness(), 5000);
     return () => clearInterval(interval);
-  }, [drive?.status, refreshLobbyReadiness]);
+  }, [driveStatus, refreshLobbyReadiness]);
 
   const confirmCancel = () => {
     if (!drive) return;
@@ -295,10 +296,19 @@ export default function GroupDriveViewScreen() {
 
   const confirmStart = () => {
     if (!canStart) return;
-    if (waitingCount > 0) {
+    const pendingCount = pendingInvitations.length;
+    if (waitingCount > 0 || pendingCount > 0) {
+      const lines: string[] = [];
+      if (waitingCount > 0) {
+        lines.push(`${waitingCount} ${waitingCount === 1 ? 'driver is' : 'drivers are'} still waiting.`);
+      }
+      if (pendingCount > 0) {
+        lines.push(`${pendingCount} pending ${pendingCount === 1 ? 'invitation will' : 'invitations will'} be cancelled when the drive starts.`);
+      }
+      lines.push('Ready is coordination only; starting never grants location consent on another driver’s device.');
       Alert.alert(
-        `${waitingCount} ${waitingCount === 1 ? 'driver is' : 'drivers are'} still waiting`,
-        'Start anyway? Ready is coordination only; starting does not grant location consent on another driver’s device.',
+        'Start Group Drive?',
+        lines.join('\n\n'),
         [
           { text: 'Keep waiting', style: 'cancel' },
           { text: 'Start Drive', onPress: () => void startNow() },
