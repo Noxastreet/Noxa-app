@@ -32,7 +32,11 @@ import {
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
 import type { EventCategory } from "@/src/lib/eventExperience";
-import { supabase } from "@/src/lib/supabase";
+import {
+  isJwtValidationError,
+  refreshSupabaseSessionOnce,
+  supabase,
+} from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type ProfileMarkerRow = {
@@ -907,14 +911,27 @@ export default function LiveMapScreen() {
   const loadEvents = useCallback(async () => {
     if (isMountedRef.current) setEventsRequestState("loading");
     try {
-      const { data, error } = await supabase
-        .from("events")
-        .select("id,title,category,starts_at,location_name,latitude,longitude")
-        .eq("status", "scheduled")
-        .gte("starts_at", new Date().toISOString())
-        .not("latitude", "is", null)
-        .not("longitude", "is", null)
-        .order("starts_at", { ascending: true });
+      const requestEvents = () =>
+        supabase
+          .from("events")
+          .select("id,title,category,starts_at,location_name,latitude,longitude")
+          .eq("status", "scheduled")
+          .gte("starts_at", new Date().toISOString())
+          .not("latitude", "is", null)
+          .not("longitude", "is", null)
+          .order("starts_at", { ascending: true });
+
+      let result = await requestEvents();
+
+      if (isJwtValidationError(result.error)) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session) {
+          const { error: refreshError } = await refreshSupabaseSessionOnce();
+          if (!refreshError) result = await requestEvents();
+        }
+      }
+
+      const { data, error } = result;
 
       if (error) {
         logMapDataFailure("events", error);
