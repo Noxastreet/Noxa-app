@@ -51,6 +51,8 @@ if (fs.existsSync(path.join(root, 'src/features/group-drive/lobby.ts'))) {
   const lobby = requireText('src/features/group-drive/lobby.ts', [
     ['Ready RPC missing', /noxa_set_drive_ready/],
     ['Start RPC missing', /noxa_start_drive/],
+    ['Lobby snapshot missing', /loadDriveLobbySnapshot/],
+    ['Lobby session context read missing', /select\('status,route_version,scheduled_start_at'\)/],
     ['Lobby readiness read missing', /select\('user_id,ready_at'\)/],
     ['JWT refresh path missing', /refreshSupabaseSessionOnce/],
   ]);
@@ -66,7 +68,9 @@ if (fs.existsSync(path.join(root, 'app/group-drives/[id].tsx'))) {
     ['Ready undo state missing', /Ready · tap to undo/],
     ['host Start action missing', /title="Start Drive"/],
     ['Waiting confirmation missing', /still waiting/],
-    ['readiness refresh missing', /setInterval\(\(\) => void refreshLobbyReadiness\(\), 5000\)/],
+    ['pending-invitation Start warning missing', /invitations will'}?/,],
+    ['Lobby refresh missing', /setInterval\(\(\) => void refreshLobby\(\), 5000\)/],
+    ['cross-device context refresh missing', /snapshot\.sessionStatus !== current\.status[\s\S]*snapshot\.routeVersion !== current\.routeVersion/],
     ['Ready privacy copy missing', /Ready coordinates the Lobby only\. It never starts location sharing\./],
   ]);
   if (/drive_location_state|startLocationUpdatesAsync|requestBackgroundPermissionsAsync/.test(lobbyScreen)) {
