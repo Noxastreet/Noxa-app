@@ -61,6 +61,7 @@ const requiredRpcNames = [
   'noxa_end_drive',
   'noxa_leave_drive',
   'noxa_remove_drive_participant',
+  'noxa_upsert_drive_location',
   'noxa_get_drive_invitation_preview',
   'noxa_list_my_group_drives',
   'noxa_get_drive_summary',
@@ -94,8 +95,36 @@ requireMatch(
   /delete from public\.drive_location_state[\s\S]*?user_id = new\.user_id/i,
 );
 requireMatch(
+  'optional session Crew context can clear on Crew deletion',
+  /old\.crew_id is not null[\s\S]*?new\.crew_id is null[\s\S]*?return new;/i,
+);
+requireMatch(
+  'optional invitation Crew source can clear on Crew deletion',
+  /old\.source_crew_id is not null and new\.source_crew_id is null/i,
+);
+requireMatch(
+  'session cascade can delete immutable route stops',
+  /session_status is null and tg_op = 'DELETE'[\s\S]*?return old;/i,
+);
+requireMatch(
   'active participant location gate',
   /private\.noxa_is_active_drive_participant\(drive_session_id\)/i,
+);
+requireMatch(
+  'opaque Realtime deletion primary key',
+  /create table public\.drive_location_state\s*\(\s*id uuid primary key default gen_random_uuid\(\)/i,
+);
+requireMatch(
+  'one current location row per participant',
+  /constraint drive_location_state_session_user_key\s+unique \(drive_session_id, user_id\)/i,
+);
+requireMatch(
+  'serialized location upsert session lock',
+  /create or replace function public\.noxa_upsert_drive_location[\s\S]*?from public\.drive_sessions[\s\S]*?for share;/i,
+);
+requireMatch(
+  'serialized location upsert participant lock',
+  /create or replace function public\.noxa_upsert_drive_location[\s\S]*?from public\.drive_participants[\s\S]*?for share;/i,
 );
 requireMatch(
   'blocking restrictive participant policy',
@@ -164,8 +193,8 @@ forbidMatch(
   /grant\s+(?:insert|update|delete)[^;]*public\.(?:drive_sessions|drive_stops|drive_participants|drive_invitations)/i,
 );
 forbidMatch(
-  'client deletion of exact location',
-  /grant[^;]*delete[^;]*public\.drive_location_state/i,
+  'direct client writes to exact location',
+  /grant\s+(?:insert|update|delete|select\s*,\s*insert|select\s*,\s*update)[^;]*public\.drive_location_state/i,
 );
 
 if (failures.length > 0) {

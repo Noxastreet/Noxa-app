@@ -59,6 +59,7 @@ const expectedRpcNames = [
   'noxa_set_drive_route',
   'noxa_start_drive',
   'noxa_update_drive_details',
+  'noxa_upsert_drive_location',
 ];
 
 let checks = 0;
@@ -286,6 +287,7 @@ try {
   assert.deepEqual(
     locationColumns.rows.map((row) => row.column_name),
     [
+      'id',
       'drive_session_id',
       'user_id',
       'latitude',
@@ -296,6 +298,21 @@ try {
     ],
   );
   pass('location state stores no speed, accuracy, telemetry, or history');
+
+  const locationPrimaryKey = await db.query(`
+    select a.attname as column_name
+    from pg_constraint c
+    join unnest(c.conkey) with ordinality as key_columns(attnum, position)
+      on true
+    join pg_attribute a
+      on a.attrelid = c.conrelid
+      and a.attnum = key_columns.attnum
+    where c.conrelid = 'public.drive_location_state'::regclass
+      and c.contype = 'p'
+    order by key_columns.position
+  `);
+  assert.deepEqual(locationPrimaryKey.rows, [{ column_name: 'id' }]);
+  pass('Realtime DELETE exposes only an opaque location-state primary key');
 
   const rpcResult = await db.query(`
     select distinct p.proname
@@ -337,6 +354,17 @@ try {
     assert.equal(row.authenticated_execute, true);
   }
   pass('RPC privileges and SECURITY DEFINER search_path are hardened');
+
+  const locationPrivileges = await db.query(`
+    select privilege_type
+    from information_schema.role_table_grants
+    where table_schema = 'public'
+      and table_name = 'drive_location_state'
+      and grantee = 'authenticated'
+    order by privilege_type
+  `);
+  assert.deepEqual(locationPrivileges.rows, [{ privilege_type: 'SELECT' }]);
+  pass('authenticated clients receive SELECT-only location table privileges');
 
   const realtimeCount = await scalar(
     db,
@@ -502,7 +530,7 @@ try {
   pass('accepted participant receives route and participant access');
 
   await expectError(
-    'accepted participant cannot publish location before start',
+    'authenticated clients cannot write exact-location rows directly',
     () =>
       asRole(db, 'authenticated', ids.participant, () =>
         db.query(
@@ -512,7 +540,22 @@ try {
           [driveId, ids.participant],
         ),
       ),
-    /row-level security/i,
+    /permission denied|row-level security/i,
+  );
+
+  await expectError(
+    'accepted participant cannot publish location before start',
+    () =>
+      asRole(db, 'authenticated', ids.participant, () =>
+        scalar(
+          db,
+          `select public.noxa_upsert_drive_location(
+            $1, 37.98, 23.72, null, 'stopped'
+          )`,
+          [driveId],
+        ),
+      ),
+    /only during an active session/i,
   );
 
   const started = await asRole(db, 'authenticated', ids.host, () =>
@@ -559,29 +602,50 @@ try {
   assert.equal(lateParticipantCount, 0);
   pass('late acceptance is denied without creating a participant');
 
-  await asRole(db, 'authenticated', ids.host, () =>
-    db.query(
-      `insert into public.drive_location_state
-         (drive_session_id, user_id, latitude, longitude, status)
-       values ($1, $2, 37.99, 23.73, 'moving')`,
-      [driveId, ids.host],
+  const hostLocationId = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      `select public.noxa_upsert_drive_location(
+        $1, 37.99, 23.73, 90, 'moving'
+      )`,
+      [driveId],
     ),
   );
-  await asRole(db, 'authenticated', ids.participant, () =>
-    db.query(
-      `insert into public.drive_location_state
-         (drive_session_id, user_id, latitude, longitude, status, updated_at)
-       values ($1, $2, 37.98, 23.72, 'moving', '2099-01-01')`,
-      [driveId, ids.participant],
-    ),
+  const participantLocationId = await asRole(
+    db,
+    'authenticated',
+    ids.participant,
+    () =>
+      scalar(
+        db,
+        `select public.noxa_upsert_drive_location(
+          $1, 37.98, 23.72, null, 'moving'
+        )`,
+        [driveId],
+      ),
   );
+  const participantLocationIdAfterUpdate = await asRole(
+    db,
+    'authenticated',
+    ids.participant,
+    () =>
+      scalar(
+        db,
+        `select public.noxa_upsert_drive_location(
+          $1, 37.981, 23.721, 180, 'stopped'
+        )`,
+        [driveId],
+      ),
+  );
+  assert.notEqual(hostLocationId, participantLocationId);
+  assert.equal(participantLocationIdAfterUpdate, participantLocationId);
   const locationState = await asRole(
     db,
     'authenticated',
     ids.participant,
     () =>
       db.query(
-        `select user_id, updated_at < '2099-01-01'::timestamptz as server_owned_time
+        `select id, user_id, updated_at <= now() as server_owned_time
          from public.drive_location_state
          where drive_session_id = $1
          order by user_id`,
@@ -590,21 +654,25 @@ try {
   );
   assert.equal(locationState.rows.length, 2);
   assert.ok(locationState.rows.every((row) => row.server_owned_time === true));
-  pass('active participants share one current row with server-owned timestamps');
-
-  const forgedLocationUpdate = await asRole(
-    db,
-    'authenticated',
-    ids.participant,
-    () =>
-      db.query(
-        `update public.drive_location_state
-         set latitude = 0
-         where drive_session_id = $1 and user_id = $2`,
-        [driveId, ids.host],
-      ),
+  assert.equal(
+    locationState.rows.find((row) => row.user_id === ids.participant)?.id,
+    participantLocationId,
   );
-  assert.equal(forgedLocationUpdate.affectedRows, 0);
+  pass('serialized RPC upserts one current row with opaque ID and server time');
+
+  await expectError(
+    'participant cannot forge another participant location row',
+    () =>
+      asRole(db, 'authenticated', ids.participant, () =>
+        db.query(
+          `update public.drive_location_state
+           set latitude = 0
+           where drive_session_id = $1 and user_id = $2`,
+          [driveId, ids.host],
+        ),
+      ),
+    /permission denied|row-level security/i,
+  );
   assert.equal(
     await scalar(
       db,
@@ -614,7 +682,6 @@ try {
     ),
     37.99,
   );
-  pass('participant cannot forge another participant location row');
 
   const outsiderLocationCount = await asRole(
     db,
@@ -629,6 +696,20 @@ try {
   );
   assert.equal(outsiderLocationCount, 0);
   pass('unrelated account cannot read active Group Drive locations');
+  await expectError(
+    'unrelated account cannot publish Group Drive location',
+    () =>
+      asRole(db, 'authenticated', ids.outsider, () =>
+        scalar(
+          db,
+          `select public.noxa_upsert_drive_location(
+            $1, 37.97, 23.71, null, 'moving'
+          )`,
+          [driveId],
+        ),
+      ),
+    /only an active Group Drive participant/i,
+  );
 
   await db.query(
     'insert into public.user_blocks (blocker_id, blocked_id) values ($1, $2)',
@@ -653,6 +734,20 @@ try {
   );
   assert.deepEqual(blockedAccess, { sessions: 0, locations: 0 });
   pass('bidirectional block immediately hides raw drive and location state');
+  await expectError(
+    'blocked participant cannot publish another location update',
+    () =>
+      asRole(db, 'authenticated', ids.participant, () =>
+        scalar(
+          db,
+          `select public.noxa_upsert_drive_location(
+            $1, 37.982, 23.722, null, 'moving'
+          )`,
+          [driveId],
+        ),
+      ),
+    /unavailable/i,
+  );
   await db.query(
     'delete from public.user_blocks where blocker_id = $1 and blocked_id = $2',
     [ids.host, ids.participant],
@@ -694,6 +789,15 @@ try {
   assert.deepEqual(leftAccess, { sessions: 0, stops: 0, participantRows: 1 });
   pass('Leave deletes exact location and revokes raw access immediately');
 
+  const activeDriveListAfterLeave = await asRole(
+    db,
+    'authenticated',
+    ids.participant,
+    () => db.query('select * from public.noxa_list_my_group_drives()'),
+  );
+  assert.equal(activeDriveListAfterLeave.rows.length, 0);
+  pass('former participant receives no active-drive metadata through the list RPC');
+
   await expectError(
     'host cannot leave the active drive',
     () =>
@@ -722,6 +826,14 @@ try {
   assert.equal(summary.rows[0].session_status, 'completed');
   assert.equal(summary.rows[0].end_reason, 'host_completed');
   assert.ok(Array.isArray(summary.rows[0].participants));
+  const completedDriveList = await asRole(
+    db,
+    'authenticated',
+    ids.participant,
+    () => db.query('select * from public.noxa_list_my_group_drives()'),
+  );
+  assert.equal(completedDriveList.rows.length, 1);
+  assert.equal(completedDriveList.rows[0].drive_session_id, driveId);
   pass('End deletes all exact locations and leaves only limited summary access');
 
   const declineDriveId = await createDrive(db, 'Decline Test');
@@ -759,7 +871,13 @@ try {
     'insert into public.user_blocks (blocker_id, blocked_id) values ($1, $2)',
     [ids.host, ids.blocked],
   );
-  const crewDriveId = await createDrive(db, 'Crew Snapshot');
+  const crewDriveId = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      'select public.noxa_create_drive_session($1, null, $2, null)',
+      ['Crew Snapshot', ids.crew],
+    ),
+  );
   const crewInviteCount = await asRole(db, 'authenticated', ids.host, () =>
     scalar(
       db,
@@ -823,6 +941,22 @@ try {
     'delete from public.user_blocks where blocker_id = $1 and blocked_id = $2',
     [ids.host, ids.blocked],
   );
+  await db.query('delete from public.crews where id = $1', [ids.crew]);
+  const clearedCrewContext = await db.query(
+    `select
+       drive_sessions.crew_id,
+       (select count(*)::integer
+        from public.drive_invitations
+        where drive_invitations.drive_session_id = drive_sessions.id
+          and drive_invitations.source_crew_id is not null) as sourced_invitations
+     from public.drive_sessions
+     where drive_sessions.id = $1`,
+    [crewDriveId],
+  );
+  assert.deepEqual(clearedCrewContext.rows, [
+    { crew_id: null, sourced_invitations: 0 },
+  ]);
+  pass('Crew deletion clears optional drive context without blocking cleanup');
 
   const removalDriveId = await createDrive(db, 'Removal Test');
   await setRoute(db, removalDriveId);
@@ -831,11 +965,12 @@ try {
     scalar(db, 'select public.noxa_start_drive($1)', [removalDriveId]),
   );
   await asRole(db, 'authenticated', ids.participant, () =>
-    db.query(
-      `insert into public.drive_location_state
-         (drive_session_id, user_id, latitude, longitude, status)
-       values ($1, $2, 37.98, 23.72, 'moving')`,
-      [removalDriveId, ids.participant],
+    scalar(
+      db,
+      `select public.noxa_upsert_drive_location(
+        $1, 37.98, 23.72, null, 'moving'
+      )`,
+      [removalDriveId],
     ),
   );
   const removed = await asRole(db, 'authenticated', ids.host, () =>
@@ -889,11 +1024,12 @@ try {
     scalar(db, 'select public.noxa_start_drive($1)', [expiringDriveId]),
   );
   await asRole(db, 'authenticated', ids.host, () =>
-    db.query(
-      `insert into public.drive_location_state
-         (drive_session_id, user_id, latitude, longitude, status)
-       values ($1, $2, 37.99, 23.73, 'moving')`,
-      [expiringDriveId, ids.host],
+    scalar(
+      db,
+      `select public.noxa_upsert_drive_location(
+        $1, 37.99, 23.73, null, 'moving'
+      )`,
+      [expiringDriveId],
     ),
   );
 
@@ -937,6 +1073,62 @@ try {
       ),
     /permission denied/i,
   );
+
+  const accountDeletionDriveId = await createDrive(db, 'Account Cleanup Test');
+  await setRoute(db, accountDeletionDriveId);
+  await inviteAndAccept(db, accountDeletionDriveId, ids.participant);
+  await asRole(db, 'authenticated', ids.host, () =>
+    scalar(db, 'select public.noxa_start_drive($1)', [accountDeletionDriveId]),
+  );
+  await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      `select public.noxa_upsert_drive_location(
+        $1, 37.99, 23.73, null, 'moving'
+      )`,
+      [accountDeletionDriveId],
+    ),
+  );
+
+  await db.query('delete from public.profiles where id = $1', [ids.host]);
+  assert.equal(
+    await scalar(
+      db,
+      'select count(*)::integer from public.drive_sessions where host_id = $1',
+      [ids.host],
+    ),
+    0,
+  );
+  assert.equal(
+    await scalar(
+      db,
+      `select count(*)::integer
+       from public.drive_stops
+       where drive_session_id in (
+         $1, $2, $3, $4, $5, $6
+       )`,
+      [
+        driveId,
+        declineDriveId,
+        crewDriveId,
+        removalDriveId,
+        expiringDriveId,
+        accountDeletionDriveId,
+      ],
+    ),
+    0,
+  );
+  assert.equal(
+    await scalar(
+      db,
+      `select count(*)::integer
+       from public.drive_location_state
+       where drive_session_id = $1`,
+      [accountDeletionDriveId],
+    ),
+    0,
+  );
+  pass('account deletion cascades through active and terminal drive data');
 
   await db.exec(rollbackSql);
   const remainingGroupDriveTables = await scalar(

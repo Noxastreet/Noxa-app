@@ -253,6 +253,7 @@ create index drive_invitations_invited_by_idx
   on public.drive_invitations (invited_by);
 
 create table public.drive_location_state (
+  id uuid primary key default gen_random_uuid(),
   drive_session_id uuid not null,
   user_id uuid not null,
   latitude double precision not null,
@@ -260,7 +261,8 @@ create table public.drive_location_state (
   heading double precision,
   status text not null,
   updated_at timestamptz not null default now(),
-  primary key (drive_session_id, user_id),
+  constraint drive_location_state_session_user_key
+    unique (drive_session_id, user_id),
   constraint drive_location_state_participant_fkey
     foreign key (drive_session_id, user_id)
     references public.drive_participants(drive_session_id, user_id)
@@ -281,6 +283,8 @@ create table public.drive_location_state (
 
 comment on table public.drive_location_state is
   'Ephemeral exact location for active participants in one active Group Drive. No speed or history is stored.';
+comment on column public.drive_location_state.id is
+  'Opaque Realtime deletion key. Prevents unfilterable DELETE events from exposing drive or participant identifiers.';
 
 create index drive_location_state_session_updated_idx
   on public.drive_location_state (drive_session_id, updated_at desc);
@@ -298,6 +302,30 @@ begin
     or new.created_at is distinct from old.created_at
   then
     raise exception 'Group Drive identity and host are immutable';
+  end if;
+
+  -- Preserve the crew_id ON DELETE SET NULL contract even after the drive becomes
+  -- immutable. Crew context is optional provenance and must never block Crew
+  -- deletion or account cleanup.
+  if old.crew_id is not null
+    and new.crew_id is null
+    and new.title is not distinct from old.title
+    and new.description is not distinct from old.description
+    and new.status is not distinct from old.status
+    and new.scheduled_start_at is not distinct from old.scheduled_start_at
+    and new.started_at is not distinct from old.started_at
+    and new.active_expires_at is not distinct from old.active_expires_at
+    and new.completed_at is not distinct from old.completed_at
+    and new.end_reason is not distinct from old.end_reason
+    and new.route_geometry is not distinct from old.route_geometry
+    and new.route_distance_meters is not distinct from old.route_distance_meters
+    and new.route_duration_seconds is not distinct from old.route_duration_seconds
+    and new.route_provider is not distinct from old.route_provider
+    and new.route_calculated_at is not distinct from old.route_calculated_at
+    and new.route_version is not distinct from old.route_version
+  then
+    new.updated_at := now();
+    return new;
   end if;
 
   if old.status in ('completed', 'cancelled') then
@@ -406,6 +434,12 @@ begin
   into session_status
   from public.drive_sessions
   where drive_sessions.id = target_drive_session_id;
+
+  if session_status is null and tg_op = 'DELETE' then
+    -- The parent session has already been removed by ON DELETE CASCADE. Allow
+    -- account/session deletion to remove its stops regardless of prior status.
+    return old;
+  end if;
 
   if session_status is null then
     raise exception 'Group Drive not found';
@@ -566,7 +600,10 @@ begin
   if new.id is distinct from old.id
     or new.drive_session_id is distinct from old.drive_session_id
     or new.invited_user_id is distinct from old.invited_user_id
-    or new.source_crew_id is distinct from old.source_crew_id
+    or (
+      new.source_crew_id is distinct from old.source_crew_id
+      and not (old.source_crew_id is not null and new.source_crew_id is null)
+    )
     or new.invited_by is distinct from old.invited_by
     or new.created_at is distinct from old.created_at
   then
@@ -808,7 +845,7 @@ grant execute on function private.noxa_is_active_drive_participant(uuid)
   to authenticated;
 
 -- Table privileges are deliberately narrower than the RLS surface. All durable
--- writes use reviewed RPCs; only ephemeral own-location upserts are client writes.
+-- writes use reviewed RPCs, including ephemeral own-location upserts.
 
 revoke all on table public.drive_sessions from anon, authenticated;
 revoke all on table public.drive_stops from anon, authenticated;
@@ -820,7 +857,7 @@ grant select on table public.drive_sessions to authenticated;
 grant select on table public.drive_stops to authenticated;
 grant select on table public.drive_participants to authenticated;
 grant select on table public.drive_invitations to authenticated;
-grant select, insert, update on table public.drive_location_state to authenticated;
+grant select on table public.drive_location_state to authenticated;
 
 alter table public.drive_sessions enable row level security;
 alter table public.drive_stops enable row level security;
@@ -898,28 +935,6 @@ create policy drive_location_state_blocks_hide
   using (
     user_id = (select auth.uid())
     or not private.noxa_users_blocked((select auth.uid()), user_id)
-  );
-
-create policy drive_location_state_insert_active_self
-  on public.drive_location_state
-  for insert
-  to authenticated
-  with check (
-    user_id = (select auth.uid())
-    and private.noxa_is_active_drive_participant(drive_session_id)
-  );
-
-create policy drive_location_state_update_active_self
-  on public.drive_location_state
-  for update
-  to authenticated
-  using (
-    user_id = (select auth.uid())
-    and private.noxa_is_active_drive_participant(drive_session_id)
-  )
-  with check (
-    user_id = (select auth.uid())
-    and private.noxa_is_active_drive_participant(drive_session_id)
   );
 
 -- Intentional authenticated RPC surface -------------------------------------------
@@ -1856,6 +1871,104 @@ begin
 end;
 $$;
 
+create or replace function public.noxa_upsert_drive_location(
+  target_drive_session_id uuid,
+  location_latitude double precision,
+  location_longitude double precision,
+  location_heading double precision,
+  location_status text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  actor uuid := (select auth.uid());
+  session_status text;
+  session_active_expires_at timestamptz;
+  session_host_id uuid;
+  participant_status text;
+  location_state_id uuid;
+begin
+  if actor is null or target_drive_session_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if location_latitude is null or location_latitude not between -90 and 90
+    or location_longitude is null or location_longitude not between -180 and 180
+    or location_heading is not null
+      and (location_heading < 0 or location_heading >= 360)
+    or location_status is null
+    or location_status not in ('moving', 'stopped', 'arrived', 'stale')
+  then
+    raise exception 'Invalid Group Drive location state';
+  end if;
+
+  -- Locks are acquired in the same session -> participant order as every lifecycle
+  -- RPC. A concurrent Leave, Remove, End, Cancel, or Expire must therefore wait for
+  -- this upsert to commit before its synchronous location cleanup runs.
+  select
+    drive_sessions.status,
+    drive_sessions.active_expires_at,
+    drive_sessions.host_id
+  into
+    session_status,
+    session_active_expires_at,
+    session_host_id
+  from public.drive_sessions
+  where drive_sessions.id = target_drive_session_id
+  for share;
+
+  if session_status is distinct from 'active'
+    or session_active_expires_at is null
+    or session_active_expires_at <= now()
+  then
+    raise exception 'Group Drive location is available only during an active session';
+  end if;
+
+  select drive_participants.status
+  into participant_status
+  from public.drive_participants
+  where drive_participants.drive_session_id = target_drive_session_id
+    and drive_participants.user_id = actor
+  for share;
+
+  if participant_status is distinct from 'active' then
+    raise exception 'Only an active Group Drive participant can publish location';
+  end if;
+
+  if private.noxa_users_blocked(actor, session_host_id) then
+    raise exception 'This Group Drive is unavailable';
+  end if;
+
+  insert into public.drive_location_state (
+    drive_session_id,
+    user_id,
+    latitude,
+    longitude,
+    heading,
+    status
+  ) values (
+    target_drive_session_id,
+    actor,
+    location_latitude,
+    location_longitude,
+    location_heading,
+    location_status
+  )
+  on conflict (drive_session_id, user_id) do update
+  set
+    latitude = excluded.latitude,
+    longitude = excluded.longitude,
+    heading = excluded.heading,
+    status = excluded.status
+  returning id into location_state_id;
+
+  return location_state_id;
+end;
+$$;
+
 create or replace function public.noxa_get_drive_invitation_preview(
   target_invitation_id uuid
 )
@@ -1964,7 +2077,13 @@ begin
   ) as current_invitation on true
   where (
     drive_sessions.host_id = actor
-    or drive_participants.user_id = actor
+    or (
+      drive_participants.user_id = actor
+      and (
+        drive_participants.status in ('accepted', 'active')
+        or drive_sessions.status in ('completed', 'cancelled')
+      )
+    )
     or current_invitation.status = 'invited'
   )
     and (
@@ -2138,6 +2257,8 @@ revoke all on function public.noxa_leave_drive(uuid)
   from public, anon, authenticated;
 revoke all on function public.noxa_remove_drive_participant(uuid, uuid)
   from public, anon, authenticated;
+revoke all on function public.noxa_upsert_drive_location(uuid, double precision, double precision, double precision, text)
+  from public, anon, authenticated;
 revoke all on function public.noxa_get_drive_invitation_preview(uuid)
   from public, anon, authenticated;
 revoke all on function public.noxa_list_my_group_drives()
@@ -2168,6 +2289,8 @@ grant execute on function public.noxa_end_drive(uuid)
 grant execute on function public.noxa_leave_drive(uuid)
   to authenticated;
 grant execute on function public.noxa_remove_drive_participant(uuid, uuid)
+  to authenticated;
+grant execute on function public.noxa_upsert_drive_location(uuid, double precision, double precision, double precision, text)
   to authenticated;
 grant execute on function public.noxa_get_drive_invitation_preview(uuid)
   to authenticated;

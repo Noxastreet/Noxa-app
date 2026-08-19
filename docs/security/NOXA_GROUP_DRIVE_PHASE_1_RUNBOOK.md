@@ -30,7 +30,8 @@ It also adds:
 
 - private RLS authorization helpers;
 - authenticated RPCs for create/edit/route, invitation, session transition,
-  participant transition, invitation preview, list, and terminal summary flows;
+  participant transition, serialized own-location upsert, invitation preview,
+  list, and terminal summary flows;
 - state-transition triggers that synchronously delete exact locations;
 - a private eight-hour expiry primitive for a later scheduled server job;
 - Realtime publication membership for `drive_location_state`.
@@ -56,7 +57,7 @@ This phase does not:
 | Raw session and stops | denied | allowed | allowed | denied; summary RPC only |
 | Participant list | denied | allowed | allowed | own row only |
 | Exact location read | denied | denied | allowed for active participants | denied |
-| Exact location write | denied | denied | own row only | denied |
+| Exact location write | denied | denied | own row through serialized RPC only | denied |
 | Exact location retention | none | none | one current row per participant | synchronously deleted |
 
 Additional invariants:
@@ -76,6 +77,16 @@ Additional invariants:
 - Active sessions receive a server-owned eight-hour expiry.
 - `drive_location_state` has no speed column and overwrites `updated_at` with
   database time.
+- authenticated clients have SELECT-only table privileges on
+  `drive_location_state`; the location RPC derives the writer from `auth.uid()`
+  and locks session then participant before upserting so lifecycle cleanup
+  cannot race with a late location write.
+- the table uses an opaque random primary key while `(drive_session_id,
+  user_id)` remains unique. Supabase Realtime DELETE packets are not RLS-checked
+  or filterable, so the deletion key must never encode the drive or user.
+- deleting a Crew clears optional session/invitation provenance even for a
+  terminal drive, and account/session deletion can cascade through immutable
+  route stops without weakening normal client mutation rules.
 - Leave, Remove, End, Cancel, and Expire delete affected exact locations in the
   same transaction.
 
@@ -91,8 +102,9 @@ git diff --check
 
 The verifier confirms the five-table isolation boundary, RLS enablement,
 reviewed RPC surface, restrictive blocking policies, absence of speed storage,
-absence of existing-domain mutations, atomic location deletion markers, and no
-Phase 1 cron schedule.
+absence of existing-domain mutations, atomic location deletion markers,
+serialized location-write locks, an opaque Realtime deletion key, safe Crew and
+account cascade cleanup, and no Phase 1 cron schedule.
 
 The local database smoke-test applies the migration to an ephemeral in-memory
 PostgreSQL runtime and exercises the main positive and negative authorization
@@ -237,8 +249,24 @@ order by ordinal_position;
 ```
 
 Expected columns only: session/user identity, latitude, longitude, heading,
-approximate movement status, and server-owned `updated_at`. There must be no
-`speed_mps`, accuracy, telemetry, or history column.
+approximate movement status, server-owned `updated_at`, and one opaque `id`
+primary key used for privacy-safe Realtime deletions. There must be no
+`speed_mps`, accuracy, telemetry, or history column. `(drive_session_id,
+user_id)` must remain unique but must not be the primary key.
+
+```sql
+select
+  c.conname,
+  c.contype,
+  pg_get_constraintdef(c.oid) as definition
+from pg_constraint c
+where c.conrelid = 'public.drive_location_state'::regclass
+  and c.contype in ('p', 'u')
+order by c.contype, c.conname;
+```
+
+Expected: the primary key contains only `id`; a separate unique constraint
+contains `(drive_session_id, user_id)`.
 
 ### Policies
 
@@ -261,9 +289,9 @@ Confirm:
 
 - no insert/update/delete policy exists on durable Group Drive tables;
 - participant, invitation, and location block policies are `RESTRICTIVE`;
-- location SELECT/INSERT/UPDATE all call the active-participant helper;
-- location INSERT/UPDATE additionally require `user_id = auth.uid()`;
-- no location DELETE policy exists.
+- location SELECT calls the active-participant helper;
+- no location INSERT/UPDATE/DELETE policy exists because direct writes are not
+  granted; the reviewed upsert RPC is the only write path.
 
 ### Table privileges
 
@@ -280,8 +308,7 @@ Expected:
 
 - no `anon` privileges;
 - authenticated users have SELECT only on durable tables;
-- authenticated users have SELECT/INSERT/UPDATE, but not DELETE, on
-  `drive_location_state`.
+- authenticated users have SELECT only on `drive_location_state`.
 
 ### Function hardening
 
@@ -306,6 +333,9 @@ Confirm:
 - every SECURITY DEFINER function has `search_path=""`;
 - `public` and `anon` have no EXECUTE grants;
 - only intentional public action/read RPCs are executable by `authenticated`;
+- `noxa_upsert_drive_location` is included in that intentional surface and
+  fixes its writer to `auth.uid()` while acquiring session then participant
+  `FOR SHARE` locks;
 - trigger helpers are not client-executable;
 - `service_role` has schema usage plus the narrow EXECUTE grant required to
   resolve the private expiry primitive;
@@ -322,8 +352,11 @@ where pubname = 'supabase_realtime'
   and tablename = 'drive_location_state';
 ```
 
-Expected: one row. Realtime delivery must still be proven to obey RLS in the
-two-account preview test.
+Expected: one row. Realtime delivery must still be proven in the two-account
+preview test. In particular, verify that INSERT/UPDATE delivery obeys RLS and
+that DELETE delivers only the opaque `id`, never `drive_session_id` or
+`user_id`; [Supabase documents that Postgres Changes DELETE events are not
+filterable and do not receive row-level authorization](https://supabase.com/docs/guides/realtime/postgres-changes#receiving-old-records).
 
 ## Isolated two-account behavioral matrix
 
@@ -345,9 +378,11 @@ third unrelated account for negative reads.
 9. Attempt late acceptance after start and confirm the server rejects it.
 10. Confirm `active_expires_at` is server time approximately eight hours after
     `started_at` and cannot be extended by a client.
-11. Confirm active participants can read the current drive only, write only their
-    own location row, and cannot see an unrelated drive.
-12. Forge a future `updated_at`; confirm the stored timestamp is database time.
+11. Confirm active participants can read the current drive only and can write
+    location only through `noxa_upsert_drive_location`; direct table writes and
+    attempts to target another user must fail.
+12. Confirm repeated upserts preserve the opaque location-state `id`, overwrite
+    `updated_at` with database time, and cannot see an unrelated drive.
 13. Confirm blocked participants are hidden through restrictive policies and a
     blocked invite cannot be created or previewed.
 14. Leave as participant. Confirm the precise row is deleted immediately, raw
@@ -363,8 +398,20 @@ third unrelated account for negative reads.
 19. In preview only, shorten the test expiry or set an already-due active expiry
     through an administrative fixture; invoke the private expiry primitive and
     confirm terminal state plus exact-location deletion.
-20. Confirm terminal/left/removed users receive only the limited summary RPC,
-    never raw route geometry, stops, or exact location.
+20. Confirm a left/removed user disappears from the active result of
+    `noxa_list_my_group_drives`, then receives only the limited terminal list and
+    summary after completion — never raw route geometry, stops, or exact
+    location.
+21. Subscribe an unrelated authenticated account to Realtime and confirm it
+    receives no INSERT/UPDATE location rows. On deletion, confirm the payload
+    exposes at most the opaque location-state `id`, never a drive or user ID.
+22. With two concurrent connections, hold/repeat a location upsert while issuing
+    Leave, Remove, End, Cancel, and Expire. Every transition must finish without
+    deadlock and leave zero affected location rows after it commits.
+23. Delete a referenced Crew and confirm only the optional `crew_id` /
+    `source_crew_id` provenance becomes null. In an isolated fixture, delete a
+    host account and confirm its draft, active, and terminal sessions, immutable
+    stops, invitations, participants, and exact locations cascade cleanly.
 
 ## Advisor gate
 
@@ -398,6 +445,13 @@ $$;
 drop function if exists public.noxa_get_drive_summary(uuid);
 drop function if exists public.noxa_list_my_group_drives();
 drop function if exists public.noxa_get_drive_invitation_preview(uuid);
+drop function if exists public.noxa_upsert_drive_location(
+  uuid,
+  double precision,
+  double precision,
+  double precision,
+  text
+);
 drop function if exists public.noxa_remove_drive_participant(uuid, uuid);
 drop function if exists public.noxa_leave_drive(uuid);
 drop function if exists public.noxa_end_drive(uuid);
