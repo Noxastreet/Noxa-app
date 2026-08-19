@@ -35,3 +35,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Group Drive static contract
+        run: npm run verify:group-drive-phase-1
+
+      - name: Group Drive local database smoke
+        run: npm run test:group-drive-phase-1
