@@ -41,6 +41,8 @@ export type ActiveDriveRealtimeCallbacks = {
   onError?: (error: Error) => void;
 };
 
+const LIFECYCLE_RECONCILE_INTERVAL_MS = 5000;
+
 function mapLocation(row: LocationDatabaseRow): DriveLocationState {
   return {
     id: String(row.id),
@@ -108,6 +110,7 @@ export async function subscribeToActiveDriveRealtime(
   let reconcilePromise: Promise<void> | null = null;
   let channel: RealtimeChannel | null = null;
   let unsubscribeAuth: (() => void) | null = null;
+  let lifecycleInterval: ReturnType<typeof setInterval> | null = null;
   callbacks.onConnectionChange?.('connecting');
 
   const teardown = async () => {
@@ -116,6 +119,8 @@ export async function subscribeToActiveDriveRealtime(
     callbacks.onConnectionChange?.('closed');
     unsubscribeAuth?.();
     unsubscribeAuth = null;
+    if (lifecycleInterval) clearInterval(lifecycleInterval);
+    lifecycleInterval = null;
     if (channel) await supabase.removeChannel(channel);
   };
 
@@ -181,14 +186,6 @@ export async function subscribeToActiveDriveRealtime(
     .on('postgres_changes', {
       event: 'DELETE', schema: 'public', table: 'drive_location_state',
     }, applyOpaqueDelete)
-    .on('postgres_changes', {
-      event: 'UPDATE', schema: 'public', table: 'drive_sessions',
-      filter: `id=eq.${driveSessionId}`,
-    }, () => void reconcile())
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'drive_participants',
-      filter: `drive_session_id=eq.${driveSessionId}`,
-    }, () => void reconcile())
     .subscribe((status) => {
       if (closed) return;
       if (status === 'SUBSCRIBED') {
@@ -208,6 +205,7 @@ export async function subscribeToActiveDriveRealtime(
     }
   });
   unsubscribeAuth = () => authListener.subscription.unsubscribe();
+  lifecycleInterval = setInterval(() => void reconcile(), LIFECYCLE_RECONCILE_INTERVAL_MS);
 
   return teardown;
 }

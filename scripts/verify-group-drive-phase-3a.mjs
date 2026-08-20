@@ -31,8 +31,7 @@ if (!failures.length) {
     ['filtered INSERT subscription', /event: 'INSERT'[\s\S]*drive_location_state[\s\S]*drive_session_id=eq/],
     ['filtered UPDATE subscription', /event: 'UPDATE'[\s\S]*drive_location_state[\s\S]*drive_session_id=eq/],
     ['opaque-only DELETE handling', /event: 'DELETE'[\s\S]*drive_location_state[\s\S]*applyOpaqueDelete/],
-    ['session lifecycle reconciliation', /table: 'drive_sessions'[\s\S]*reconcile/],
-    ['participant lifecycle reconciliation', /table: 'drive_participants'[\s\S]*reconcile/],
+    ['RLS-authorized lifecycle polling', /setInterval\(\(\) => void reconcile\(\), LIFECYCLE_RECONCILE_INTERVAL_MS\)/],
     ['channel teardown', /removeChannel\(channel\)/],
     ['reconnect snapshot reconciliation', /status === 'SUBSCRIBED'[\s\S]*reconcile/],
   ];
@@ -46,6 +45,9 @@ if (!failures.length) {
   }
   if (/\.rpc\(['"]noxa_upsert_drive_location/.test(allRuntime)) {
     failures.push('Phase 3A simulation/realtime layer must not start a real location writer');
+  }
+  if (/table: 'drive_(?:sessions|participants)'/.test(realtime)) {
+    failures.push('lifecycle tables must not be Realtime-published/subscribed with identifying DELETE keys');
   }
 }
 

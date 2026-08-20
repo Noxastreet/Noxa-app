@@ -5,7 +5,7 @@
 This stacked draft adds the client-side state plumbing needed before native Group Drive location work:
 
 - authorized active-session snapshot;
-- participant and session lifecycle reconciliation;
+- participant and session lifecycle reconciliation through frequent authorized snapshots;
 - `drive_location_state` Realtime INSERT/UPDATE handling;
 - opaque-primary-key DELETE handling;
 - reconnect/foreground-compatible snapshot reconciliation primitive;
@@ -28,7 +28,7 @@ It does not add a screen, Map integration, a Group Drive location writer, native
 3. Key current location state by opaque row ID and maintain a secondary user lookup.
 4. Filter INSERT/UPDATE by `drive_session_id`.
 5. Subscribe to DELETE without a row filter and remove only opaque IDs already known locally. Supabase Postgres Changes DELETE events are not filterable and must not be assumed to expose user/session identity.
-6. Reconcile from a new authorized snapshot after subscription/reconnection and on lifecycle changes.
+6. Reconcile from a new authorized snapshot after subscription/reconnection and every five seconds while active. Session/participant tables are intentionally not added to Realtime: their identifying primary keys would make DELETE packets unsafe because Postgres Changes cannot RLS-filter DELETE events.
 7. Remove the channel on teardown.
 
 ## Local/CI verification
