@@ -46,8 +46,18 @@ The simulation smoke covers snapshot replacement, cross-drive rejection, opaque 
 
 ## Hosted/runtime gates not claimed
 
-- Hosted websocket INSERT/UPDATE/DELETE delivery is not proven by static tests.
+- Hosted staging has proven member snapshot visibility, INSERT/UPDATE delivery, opaque-only DELETE delivery, Leave/End cleanup, and live bidirectional-block revocation. This evidence does not replace native acceptance.
 - Reconnect under a real network transition is not proven.
-- Multi-account block/access-revocation delivery is not proven.
+- A blocked participant receives no subsequent host UPDATE, sees zero session/location rows, and cannot publish another location. The five-second lifecycle reconcile therefore has an authorized fail-closed signal even when Realtime correctly suppresses the blocked update.
 - Native background GPS and permission behavior are deferred to Phase 3B and require a development build/physical-device acceptance.
 - This draft is not safe to merge to `main` while its stacked Phase 1/2 dependencies remain draft and their release gates remain open.
+
+## Hosted evidence — 2026-08-20
+
+- Active members received location INSERT, UPDATE and DELETE events.
+- An unrelated authenticated subscriber received no INSERT/UPDATE and no location rows. DELETE contained only the opaque `id` key.
+- Participant Leave removed the participant location synchronously; host End removed the remaining location.
+- A participant-to-host block immediately made session/location snapshots empty for the participant and rejected the next protected location RPC.
+- The participant's already-open channel received no later host UPDATE. The host saw only the host row/update after the bidirectional block.
+- Temporary sessions, participants, location rows, blocks and auth users were deleted; residual fixture counts were zero.
+- Production was not contacted or changed.
