@@ -6,6 +6,7 @@ import type { DriveLocationState, DriveParticipantStatus, DriveSessionStatus } f
 import {
   emptyGroupDriveLocationSnapshot,
   reduceGroupDriveLocationState,
+  type GroupDriveLocationEvent,
   type GroupDriveLocationSnapshot,
 } from './locationState';
 
@@ -42,6 +43,7 @@ export type ActiveDriveRealtimeCallbacks = {
 };
 
 const LIFECYCLE_RECONCILE_INTERVAL_MS = 5000;
+let runtimeChannelSequence = 0;
 
 function mapLocation(row: LocationDatabaseRow): DriveLocationState {
   return {
@@ -111,6 +113,7 @@ export async function subscribeToActiveDriveRealtime(
   let channel: RealtimeChannel | null = null;
   let unsubscribeAuth: (() => void) | null = null;
   let lifecycleInterval: ReturnType<typeof setInterval> | null = null;
+  const pendingLocationEvents: GroupDriveLocationEvent[] = [];
   callbacks.onConnectionChange?.('connecting');
 
   const teardown = async () => {
@@ -132,6 +135,15 @@ export async function subscribeToActiveDriveRealtime(
     reconcilePromise = loadActiveDriveRealtimeSnapshot(driveSessionId)
       .then((snapshot) => {
         current = snapshot;
+        if (pendingLocationEvents.length) {
+          current = {
+            ...current,
+            locations: pendingLocationEvents.splice(0).reduce(
+              (locations, event) => reduceGroupDriveLocationState(locations, event),
+              current.locations,
+            ),
+          };
+        }
         publish();
       })
       .catch((error: unknown) => {
@@ -152,29 +164,37 @@ export async function subscribeToActiveDriveRealtime(
   if (!current || closed) return async () => undefined;
 
   const applyLocation = (row: LocationDatabaseRow) => {
+    const event: GroupDriveLocationEvent = { type: 'upsert', row: mapLocation(row) };
+    if (reconcilePromise) {
+      pendingLocationEvents.push(event);
+      return;
+    }
     if (!current) return;
     current = {
       ...current,
-      locations: reduceGroupDriveLocationState(current.locations, {
-        type: 'upsert',
-        row: mapLocation(row),
-      }),
+      locations: reduceGroupDriveLocationState(current.locations, event),
     };
     publish();
   };
   const applyOpaqueDelete = (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
     const oldRow = payload.old as Partial<Record<string, unknown>>;
     const opaqueId = typeof oldRow.id === 'string' ? oldRow.id : null;
-    if (!current || !opaqueId) return;
+    if (!opaqueId) return;
+    const event: GroupDriveLocationEvent = { type: 'delete', opaqueId };
+    if (reconcilePromise) {
+      pendingLocationEvents.push(event);
+      return;
+    }
+    if (!current) return;
     current = {
       ...current,
-      locations: reduceGroupDriveLocationState(current.locations, { type: 'delete', opaqueId }),
+      locations: reduceGroupDriveLocationState(current.locations, event),
     };
     publish();
   };
 
   channel = supabase
-    .channel(`group-drive-runtime-${driveSessionId}`)
+    .channel(`group-drive-runtime-${driveSessionId}-${++runtimeChannelSequence}`)
     .on('postgres_changes', {
       event: 'INSERT', schema: 'public', table: 'drive_location_state',
       filter: `drive_session_id=eq.${driveSessionId}`,

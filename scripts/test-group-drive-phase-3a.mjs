@@ -71,4 +71,79 @@ assert.equal(simulation.snapshot.opaqueIdByUserId['user-b'], undefined, 'removed
 simulation.reset();
 assert.equal(state.groupDriveLocations(simulation.snapshot).length, 0);
 
-console.log('Group Drive Phase 3A simulation/state smoke: PASS (10 checks)');
+let releaseReconcile;
+const reconcileGate = new Promise((resolve) => { releaseReconcile = resolve; });
+const databaseRows = [
+  [row('opaque-live', 'user-a')],
+  [row('opaque-live', 'user-a')],
+];
+let snapshotIndex = -1;
+let activeSnapshotIndex = 0;
+const handlers = {};
+let subscriptionStatus;
+
+function resultFor(table, index) {
+  const value = table === 'drive_sessions'
+    ? { data: { status: 'active', active_expires_at: '2026-08-20T20:00:00.000Z' }, error: null }
+    : table === 'drive_participants'
+      ? { data: [{ user_id: 'user-a', status: 'active' }], error: null }
+      : { data: databaseRows[index].map((item) => ({
+          id: item.id,
+          drive_session_id: item.driveSessionId,
+          user_id: item.userId,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          heading: item.heading,
+          status: item.status,
+          updated_at: item.updatedAt,
+        })), error: null };
+  return index === 1 ? reconcileGate.then(() => value) : Promise.resolve(value);
+}
+
+const channel = {
+  on(_type, config, callback) { handlers[config.event] = callback; return this; },
+  subscribe(callback) { subscriptionStatus = callback; return this; },
+};
+const supabase = {
+  auth: {
+    getUser: async () => ({ data: { user: { id: 'user-a' } }, error: null }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+  },
+  from(table) {
+    if (table === 'drive_sessions') activeSnapshotIndex = ++snapshotIndex;
+    const index = activeSnapshotIndex;
+    return {
+      select() { return this; },
+      eq() { return this; },
+      maybeSingle() { return resultFor(table, index); },
+      then(resolve, reject) { return resultFor(table, index).then(resolve, reject); },
+    };
+  },
+  channel: () => channel,
+  removeChannel: async () => 'ok',
+};
+const realtime = compile('src/features/group-drive/runtime/realtime.ts', {
+  '@/src/lib/supabase': { supabase },
+  './locationState': state,
+});
+const published = [];
+const teardown = await realtime.subscribeToActiveDriveRealtime('drive-a', {
+  onSnapshot: (value) => published.push(value),
+});
+subscriptionStatus('SUBSCRIBED');
+await Promise.resolve();
+handlers.UPDATE({ new: {
+  id: 'opaque-live', drive_session_id: 'drive-a', user_id: 'user-a',
+  latitude: 35.5, longitude: 33, heading: null, status: 'moving',
+  updated_at: '2026-08-20T12:00:15.000Z',
+} });
+releaseReconcile();
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(
+  published.at(-1).locations.byOpaqueId['opaque-live'].latitude,
+  35.5,
+  'in-flight Realtime events must be applied after a late snapshot response',
+);
+await teardown();
+
+console.log('Group Drive Phase 3A simulation/state smoke: PASS (11 checks)');

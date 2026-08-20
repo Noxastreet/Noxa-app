@@ -29,7 +29,8 @@ It does not add a screen, Map integration, a Group Drive location writer, native
 4. Filter INSERT/UPDATE by `drive_session_id`.
 5. Subscribe to DELETE without a row filter and remove only opaque IDs already known locally. Supabase Postgres Changes DELETE events are not filterable and must not be assumed to expose user/session identity.
 6. Reconcile from a new authorized snapshot after subscription/reconnection and every five seconds while active. Session/participant tables are intentionally not added to Realtime: their identifying primary keys would make DELETE packets unsafe because Postgres Changes cannot RLS-filter DELETE events.
-7. Remove the channel on teardown.
+7. Queue location events that arrive while a reconciliation request is in flight, then apply them on top of the returned snapshot so a late HTTP response cannot overwrite newer Realtime state.
+8. Use a unique channel identity per runtime instance and remove the channel on teardown.
 
 ## Local/CI verification
 
@@ -47,7 +48,7 @@ The simulation smoke covers snapshot replacement, cross-drive rejection, opaque 
 ## Hosted/runtime gates not claimed
 
 - Hosted staging has proven member snapshot visibility, INSERT/UPDATE delivery, opaque-only DELETE delivery, Leave/End cleanup, and live bidirectional-block revocation. This evidence does not replace native acceptance.
-- Reconnect under a real network transition is not proven.
+- A hosted transport disconnect/reconnect rehearsal has proven that an update missed while the client is offline is recovered by the authorized snapshot after resubscription. A real mobile network transition remains part of native acceptance.
 - A blocked participant receives no subsequent host UPDATE, sees zero session/location rows, and cannot publish another location. The five-second lifecycle reconcile therefore has an authorized fail-closed signal even when Realtime correctly suppresses the blocked update.
 - Native background GPS and permission behavior are deferred to Phase 3B and require a development build/physical-device acceptance.
 - This draft is not safe to merge to `main` while its stacked Phase 1/2 dependencies remain draft and their release gates remain open.
@@ -59,5 +60,6 @@ The simulation smoke covers snapshot replacement, cross-drive rejection, opaque 
 - Participant Leave removed the participant location synchronously; host End removed the remaining location.
 - A participant-to-host block immediately made session/location snapshots empty for the participant and rejected the next protected location RPC.
 - The participant's already-open channel received no later host UPDATE. The host saw only the host row/update after the bidirectional block.
+- A staging participant disconnected its Realtime transport, missed a host location UPDATE, resubscribed, and recovered the new coordinates (`38.0179`, `23.7376`) from the authorized snapshot.
 - Temporary sessions, participants, location rows, blocks and auth users were deleted; residual fixture counts were zero.
 - Production was not contacted or changed.

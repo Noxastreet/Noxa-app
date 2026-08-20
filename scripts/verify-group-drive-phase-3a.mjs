@@ -34,6 +34,8 @@ if (!failures.length) {
     ['RLS-authorized lifecycle polling', /setInterval\(\(\) => void reconcile\(\), LIFECYCLE_RECONCILE_INTERVAL_MS\)/],
     ['channel teardown', /removeChannel\(channel\)/],
     ['reconnect snapshot reconciliation', /status === 'SUBSCRIBED'[\s\S]*reconcile/],
+    ['reconcile event queue missing', /pendingLocationEvents[\s\S]*splice\(0\)\.reduce/],
+    ['runtime channel identity is not unique', /runtimeChannelSequence/],
   ];
   for (const [label, pattern] of required) {
     if (!pattern.test(realtime)) failures.push(label);
