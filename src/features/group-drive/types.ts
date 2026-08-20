@@ -8,6 +8,7 @@ export type DriveSessionStatus =
 export type DriveParticipantRole = 'host' | 'participant';
 export type DriveParticipantStatus = 'accepted' | 'active' | 'left' | 'removed';
 export type DriveInvitationStatus = 'invited' | 'accepted' | 'declined' | 'cancelled';
+export type DriveLocationStatus = 'moving' | 'stopped' | 'arrived' | 'stale';
 
 export type GroupDriveListItem = {
   driveSessionId: string;
@@ -58,6 +59,17 @@ export type DriveParticipant = {
   joinedAt: string;
   readyAt?: string | null;
   profile: DriveProfile | null;
+};
+
+export type DriveLocationState = {
+  id: string;
+  driveSessionId: string;
+  userId: string;
+  latitude: number;
+  longitude: number;
+  heading: number | null;
+  status: DriveLocationStatus;
+  updatedAt: string;
 };
 
 export type DriveInvitation = {
