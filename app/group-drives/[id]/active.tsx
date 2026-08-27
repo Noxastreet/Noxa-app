@@ -15,6 +15,7 @@ import {
   loadGroupDriveDetails,
   prepareDriveRoute,
   reduceParticipantStackOrder,
+  stopGroupDriveLocationSession,
   subscribeToActiveDriveRealtime,
   type ActiveDriveRealtimeConnection,
   type ActiveDriveRealtimeSnapshot,
@@ -82,10 +83,6 @@ export default function ActiveDriveScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const preparedRoute = useMemo(
-    () => prepareDriveRoute(details?.routeGeometry ?? null, details?.routeDistanceMeters ?? null),
-    [details?.routeDistanceMeters, details?.routeGeometry],
-  );
   const mapRoute = useMemo(() => routeForMap(details), [details]);
 
   const applySnapshot = useCallback((nextSnapshot: ActiveDriveRealtimeSnapshot) => {
@@ -147,7 +144,9 @@ export default function ActiveDriveScreen() {
           if (disposed) return;
           setConnection('closed');
           setError('Your access to this Active Drive ended.');
-          router.replace({ pathname: '/group-drives/[id]', params: { id: driveSessionId } });
+          void stopGroupDriveLocationSession().finally(() => {
+            if (!disposed) router.replace('/group-drives');
+          });
         },
         onError: (syncError) => {
           if (!disposed) setError(syncError.message);
