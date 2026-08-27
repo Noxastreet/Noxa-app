@@ -15,18 +15,22 @@ import {
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveDetailsEditorScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; crewId?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : null;
+  const requestedCrewId = typeof params.crewId === 'string' ? params.crewId : null;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [crewId, setCrewId] = useState<string | null>(null);
+  const [crewId, setCrewId] = useState<string | null>(requestedCrewId);
   const [scheduledStartAt, setScheduledStartAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(driveSessionId));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!driveSessionId) return;
+    if (!driveSessionId) {
+      setCrewId(requestedCrewId);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -43,7 +47,7 @@ export default function GroupDriveDetailsEditorScreen() {
     } finally {
       setLoading(false);
     }
-  }, [driveSessionId]);
+  }, [driveSessionId, requestedCrewId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -60,7 +64,7 @@ export default function GroupDriveDetailsEditorScreen() {
     setSaving(true);
     setError(null);
     try {
-      const id = driveSessionId ?? (await createDriveSession(cleanTitle, description));
+      const id = driveSessionId ?? (await createDriveSession(cleanTitle, description, crewId));
       if (driveSessionId) {
         await updateDriveDetails(id, cleanTitle, description, scheduledStartAt, crewId);
       }
@@ -74,7 +78,10 @@ export default function GroupDriveDetailsEditorScreen() {
 
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title={driveSessionId ? 'EDIT DRIVE' : 'NEW GROUP DRIVE'} subtitle="Invite-only by design" />
+      <GroupDriveHeader
+        title={driveSessionId ? 'EDIT DRIVE' : 'NEW GROUP DRIVE'}
+        subtitle={crewId ? 'Crew context · invite-only' : 'Invite-only by design'}
+      />
       <GroupDriveStep current={1} label="Drive details" />
       <View style={styles.intro}>
         <Text style={styles.title}>Name the shared intention.</Text>
@@ -105,9 +112,11 @@ export default function GroupDriveDetailsEditorScreen() {
         />
       </View>
       <View style={styles.privacyNote}>
-        <Ionicons name="lock-closed-outline" size={19} color={colors.primaryHover} />
+        <Ionicons name={crewId ? 'people-outline' : 'lock-closed-outline'} size={19} color={colors.primaryHover} />
         <Text style={styles.privacyText}>
-          Every MVP Group Drive is private. Only individually invited drivers can join.
+          {crewId
+            ? 'This drive is connected to your Crew, but it remains private. Drivers still join only by invitation.'
+            : 'Every MVP Group Drive is private. Only individually invited drivers can join.'}
         </Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
