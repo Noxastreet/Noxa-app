@@ -41,7 +41,7 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
       return;
     }
     if (active) {
-      router.push({ pathname: '/group-drives/[id]/active', params: { id: item.driveSessionId } });
+      router.push({ pathname: '/group-drives/[id]/controls', params: { id: item.driveSessionId } });
       return;
     }
     router.push({ pathname: '/group-drives/[id]', params: { id: item.driveSessionId } });
@@ -56,7 +56,7 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
       <View style={styles.rowTop}>
         <DriveStatus status={item.sessionStatus} />
         {invited ? <Text style={styles.invited}>Invitation</Text> : null}
-        {active ? <Text style={styles.activeLabel}>Open Active Drive</Text> : null}
+        {active ? <Text style={styles.activeLabel}>Drive controls</Text> : null}
         {terminal ? <Text style={styles.terminalLabel}>View summary</Text> : null}
       </View>
       <Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text>
@@ -166,6 +166,15 @@ export default function GroupDrivesScreen() {
                   title="Open Active Drive"
                   onPress={() => router.push({
                     pathname: '/group-drives/[id]/active',
+                    params: { id: activeDrive.driveSessionId },
+                  })}
+                />
+                <NoxaButton
+                  fullWidth
+                  variant="ghost"
+                  title="Drive controls"
+                  onPress={() => router.push({
+                    pathname: '/group-drives/[id]/controls',
                     params: { id: activeDrive.driveSessionId },
                   })}
                 />
