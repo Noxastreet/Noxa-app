@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import '@/src/features/group-drive/runtime/nativeLocation';
 import '@/src/lib/liveDrive';
 import {
   acceptPasswordRecoveryUrl,

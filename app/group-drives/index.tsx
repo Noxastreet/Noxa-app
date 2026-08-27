@@ -29,9 +29,14 @@ import { colors, radius, spacing, typography } from '@/src/theme';
 
 function DriveRow({ item }: { item: GroupDriveListItem }) {
   const invited = item.myInvitationStatus === 'invited' && item.invitationId;
+  const active = item.sessionStatus === 'active' && item.myParticipantStatus === 'active';
   const open = () => {
     if (invited) {
       router.push({ pathname: '/group-drives/invitation/[id]', params: { id: item.invitationId! } });
+      return;
+    }
+    if (active) {
+      router.push({ pathname: '/group-drives/[id]/active', params: { id: item.driveSessionId } });
       return;
     }
     router.push({ pathname: '/group-drives/[id]', params: { id: item.driveSessionId } });
@@ -45,6 +50,7 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
       <View style={styles.rowTop}>
         <DriveStatus status={item.sessionStatus} />
         {invited ? <Text style={styles.invited}>Invitation</Text> : null}
+        {active ? <Text style={styles.activeLabel}>Open Active Drive</Text> : null}
       </View>
       <Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text>
       <View style={styles.metaRow}>
@@ -130,10 +136,32 @@ export default function GroupDrivesScreen() {
             </View>
             {activeDrive ? (
               <View style={styles.notice}>
-                <Ionicons name="information-circle-outline" size={18} color={colors.primaryHover} />
-                <Text style={styles.noticeText}>
-                  {activeDrive.title} is active. The live map is not enabled in this review build.
-                </Text>
+                <View style={styles.noticeCopy}>
+                  <View style={styles.noticeTitleRow}>
+                    <Ionicons name="navigate" size={18} color={colors.primaryHover} />
+                    <Text style={styles.noticeTitle}>ACTIVE DRIVE</Text>
+                  </View>
+                  <Text style={styles.noticeText}>
+                    {activeDrive.title} is active. Location sharing still requires your explicit approval on this device.
+                  </Text>
+                </View>
+                <NoxaButton
+                  fullWidth
+                  title="Share my location"
+                  onPress={() => router.push({
+                    pathname: '/group-drives/[id]/location-sharing',
+                    params: { id: activeDrive.driveSessionId },
+                  })}
+                />
+                <NoxaButton
+                  fullWidth
+                  variant="secondary"
+                  title="Open Active Drive"
+                  onPress={() => router.push({
+                    pathname: '/group-drives/[id]/active',
+                    params: { id: activeDrive.driveSessionId },
+                  })}
+                />
               </View>
             ) : null}
             <Text style={styles.sectionTitle}>YOUR DRIVES</Text>
@@ -186,13 +214,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
   },
   notice: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.md,
     padding: spacing.md,
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  noticeText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  noticeCopy: { gap: spacing.xs },
+  noticeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  noticeTitle: { color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
+  noticeText: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   row: {
     minHeight: 148,
     padding: spacing.lg,
@@ -204,6 +236,7 @@ const styles = StyleSheet.create({
   rowPressed: { backgroundColor: colors.surfacePressed },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   invited: { color: colors.primaryHover, fontSize: 11, fontWeight: '800' },
+  activeLabel: { color: colors.success, fontSize: 11, fontWeight: '800' },
   rowTitle: { marginTop: spacing.md, marginBottom: spacing.sm, color: colors.text, fontSize: 20, fontWeight: '900' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xxs },
   meta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
