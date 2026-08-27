@@ -20,6 +20,7 @@ import {
   CanonicalSectionHeader,
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
+import { getEventLifecycle } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -97,9 +98,9 @@ function eventType(event: EventRow) {
 }
 
 function urgency(event: EventRow) {
+  if (getEventLifecycle(event) === "live") return "LIVE";
   const starts = new Date(event.starts_at).getTime();
   const diff = starts - Date.now();
-  if (diff <= 0) return "LIVE";
   if (diff <= 12 * 60 * 60 * 1000) return "TONIGHT";
   if (diff <= 24 * 60 * 60 * 1000) return "TODAY";
   return "UPCOMING";
@@ -173,7 +174,7 @@ function HeroEvent({
 
           <View style={styles.heroFooter}>
             <Text numberOfLines={1} style={styles.organizerLine}>
-              {event.crew_id ? "VERIFIED CREW EVENT" : "COMMUNITY EVENT"}
+              {event.crew_id ? "CREW EVENT" : "COMMUNITY EVENT"}
             </Text>
             <CanonicalPrimaryButton
               compact
@@ -220,7 +221,7 @@ function EventListCard({ event }: { event: EventCardModel }) {
           {compactLocation(event.location_name)}
         </Text>
         <View style={styles.eventBottomRow}>
-          <CanonicalPill label={eventType(event)} />
+          <CanonicalPill label={getEventLifecycle(event) === "live" ? "LIVE" : eventType(event)} tone={getEventLifecycle(event) === "live" ? "accent" : "default"} />
           <Text style={styles.goingText}>{event.attendeeCount} GOING</Text>
         </View>
       </View>
@@ -302,6 +303,8 @@ export default function CanonicalEventsScreen() {
       const currentUserId = authData.user?.id ?? null;
       setUserId(currentUserId);
 
+      const now = new Date();
+      const feedFloor = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const [eventsResult, attendanceResult] = await Promise.all([
         supabase
           .from("events")
@@ -309,7 +312,7 @@ export default function CanonicalEventsScreen() {
             "id,creator_id,crew_id,title,description,category,location_name,starts_at,ends_at,cover_image_url,is_public,status",
           )
           .eq("status", "scheduled")
-          .gte("starts_at", new Date().toISOString())
+          .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
           .order("starts_at", { ascending: true }),
         supabase
           .from("event_attendees")
@@ -317,6 +320,8 @@ export default function CanonicalEventsScreen() {
       ]);
 
       if (eventsResult.error || attendanceResult.error) {
+        setEvents([]);
+        setHeroAttendees([]);
         setError(
           eventsResult.error?.message ||
             attendanceResult.error?.message ||
@@ -338,11 +343,16 @@ export default function CanonicalEventsScreen() {
         if (row.user_id === currentUserId) mine.set(row.event_id, row.response);
       }
 
-      const models = ((eventsResult.data ?? []) as EventRow[]).map((event) => ({
-        ...event,
-        attendeeCount: counts.get(event.id) ?? 0,
-        myResponse: mine.get(event.id) ?? null,
-      }));
+      const models = ((eventsResult.data ?? []) as EventRow[])
+        .filter((event) => {
+          const lifecycle = getEventLifecycle(event);
+          return lifecycle === "scheduled" || lifecycle === "live";
+        })
+        .map((event) => ({
+          ...event,
+          attendeeCount: counts.get(event.id) ?? 0,
+          myResponse: mine.get(event.id) ?? null,
+        }));
 
       setEvents(models);
       if (models[0]) await loadHeroProfiles(models[0].id);
@@ -361,11 +371,12 @@ export default function CanonicalEventsScreen() {
 
   const hero = events[0] ?? null;
   const upcoming = events.slice(1, 5);
-  const nearbyCount = events.filter(
-    (event) =>
-      new Date(event.starts_at).getTime() - Date.now() <=
-      7 * 24 * 60 * 60 * 1000,
-  ).length;
+  const nearbyCount = events.filter((event) => {
+    const lifecycle = getEventLifecycle(event);
+    if (lifecycle === "live") return true;
+    const diff = new Date(event.starts_at).getTime() - Date.now();
+    return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
 
   const setGoing = useCallback(
     async (event: EventCardModel) => {
@@ -409,6 +420,20 @@ export default function CanonicalEventsScreen() {
       );
     }
 
+    if (error && !hero) {
+      return (
+        <View style={styles.stateCard}>
+          <Ionicons name="cloud-offline-outline" size={38} color={colors.primary} />
+          <Text style={styles.stateTitle}>Events unavailable</Text>
+          <Text style={styles.stateText}>NOXA could not load the event feed.</Text>
+          <CanonicalPrimaryButton
+            label="TRY AGAIN"
+            onPress={() => void load()}
+          />
+        </View>
+      );
+    }
+
     if (!hero) {
       return (
         <View style={styles.stateCard}>
@@ -436,7 +461,7 @@ export default function CanonicalEventsScreen() {
 
         {upcoming.length ? (
           <>
-            <CanonicalSectionHeader title="UPCOMING THIS WEEK" action="SEE ALL" />
+            <CanonicalSectionHeader title="UPCOMING & LIVE" />
             <View style={styles.eventList}>
               {upcoming.map((event) => (
                 <EventListCard key={event.id} event={event} />
@@ -449,7 +474,7 @@ export default function CanonicalEventsScreen() {
 
         {events.length > 5 ? (
           <>
-            <CanonicalSectionHeader title="WEEKEND PICKS" />
+            <CanonicalSectionHeader title="MORE EVENTS" />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -477,7 +502,7 @@ export default function CanonicalEventsScreen() {
                     icon="flag-outline"
                   >
                     <View style={styles.pickShade} />
-                    <CanonicalPill label={eventType(event)} />
+                    <CanonicalPill label={urgency(event) === "LIVE" ? "LIVE" : eventType(event)} tone={urgency(event) === "LIVE" ? "accent" : "default"} />
                     <View>
                       <Text numberOfLines={2} style={styles.pickTitle}>
                         {event.title.toUpperCase()}
@@ -497,10 +522,12 @@ export default function CanonicalEventsScreen() {
     );
   }, [
     busyEventId,
+    error,
     events,
     hero,
     heroAttendees,
     loading,
+    load,
     nearbyCount,
     setGoing,
     upcoming,
@@ -541,7 +568,7 @@ export default function CanonicalEventsScreen() {
           </Pressable>
         </View>
 
-        {error ? (
+        {error && hero ? (
           <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
             <Ionicons
               name="alert-circle-outline"
