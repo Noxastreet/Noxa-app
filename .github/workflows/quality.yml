@@ -62,3 +62,9 @@ jobs:
 
       - name: Group Drive Phase 4B participant presentation smoke
         run: npm run test:group-drive-phase-4b
+
+      - name: Group Drive Phase 4C static contract
+        run: npm run verify:group-drive-phase-4c
+
+      - name: Group Drive Phase 4C composition smoke
+        run: npm run test:group-drive-phase-4c
