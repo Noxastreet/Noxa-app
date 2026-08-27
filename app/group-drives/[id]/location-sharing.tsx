@@ -189,18 +189,23 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   eyebrow: {
-    ...typography.label,
     color: colors.accent,
-    letterSpacing: 1.4,
+    fontSize: typography.caption,
+    fontWeight: '700',
+    letterSpacing: typography.letterSpacing.label,
   },
   title: {
-    ...typography.h1,
     color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.h1,
+    fontWeight: '700',
+    lineHeight: typography.lineHeight.h1,
+    letterSpacing: typography.letterSpacing.tight,
   },
   body: {
-    ...typography.body,
     color: colors.textMuted,
-    lineHeight: 23,
+    fontSize: typography.body,
+    lineHeight: typography.lineHeight.body,
   },
   card: {
     borderRadius: radius.lg,
@@ -216,9 +221,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   rowText: {
-    ...typography.body,
     color: colors.textMuted,
     flex: 1,
+    fontSize: typography.body,
+    lineHeight: typography.lineHeight.body,
   },
   statusCard: {
     flexDirection: 'row',
@@ -235,15 +241,19 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   statusTitle: {
-    ...typography.bodyStrong,
     color: colors.text,
+    fontSize: typography.body,
+    fontWeight: '600',
+    lineHeight: typography.lineHeight.body,
   },
   statusBody: {
-    ...typography.caption,
     color: colors.textMuted,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
   },
   error: {
-    ...typography.caption,
-    color: colors.danger,
+    color: colors.primaryHover,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
   },
 });
