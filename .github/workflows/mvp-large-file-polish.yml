@@ -1,0 +1,37 @@
+name: MVP Large File Polish
+
+on:
+  push:
+    branches:
+      - codex/mvp-completion-polish
+
+permissions:
+  contents: write
+
+jobs:
+  apply-exact-polish:
+    if: ${{ !contains(github.event.head_commit.message, '[mvp-polish-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out completion branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/mvp-completion-polish
+          fetch-depth: 1
+
+      - name: Apply exact audited replacements
+        run: node scripts/apply-mvp-large-file-polish.mjs
+
+      - name: Commit only if replacements changed files
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No large-file polish changes required."
+            exit 0
+          fi
+          git config user.name "noxa-mvp-bot"
+          git config user.email "64107696+sergiosk222@users.noreply.github.com"
+          git add 'app/(tabs)/index.tsx' 'src/features/crews-events/CanonicalEventDetailScreen.tsx'
+          git commit -m 'fix(mvp): align map and event lifecycle [mvp-polish-applied]'
+          git push origin HEAD:codex/mvp-completion-polish
