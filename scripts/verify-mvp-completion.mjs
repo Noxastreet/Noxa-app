@@ -14,6 +14,7 @@ const paths = {
   profile: 'app/(tabs)/profile.tsx',
   settings: 'app/settings.tsx',
   groupLocation: 'src/features/group-drive/runtime/nativeLocation.ts',
+  eas: 'eas.json',
 };
 
 for (const file of Object.values(paths)) {
@@ -34,6 +35,7 @@ if (!failures.length) {
   const profile = read(paths.profile);
   const settings = read(paths.settings);
   const groupLocation = read(paths.groupLocation);
+  const eas = read(paths.eas);
 
   // Garage primary vehicle invariant.
   requirePattern('primary vehicle column missing', primary, /add column if not exists is_primary boolean not null default false/i);
@@ -83,6 +85,12 @@ if (!failures.length) {
     failures.push('Crew approval compatibility must not grant direct UPDATE');
   }
 
+  // Acceptance builds must be pinned to Group Drive staging, never production.
+  requirePattern('MVP staging EAS profile missing', eas, /"mvp-staging"\s*:/);
+  requirePattern('MVP staging profile is not a development client', eas, /"mvp-staging"[\s\S]*"developmentClient"\s*:\s*true/);
+  requirePattern('MVP staging profile does not target staging Supabase URL', eas, /https:\/\/eawmryofqonnaihlzeiw\.supabase\.co/);
+  requirePattern('MVP staging profile missing publishable staging key', eas, /"EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"\s*:\s*"sb_publishable_/);
+
   // This release-prep branch must never hard-code or target production Supabase.
   for (const [label, text] of [
     ['primary migration', primary],
@@ -92,6 +100,7 @@ if (!failures.length) {
     ['Garage', garage],
     ['Profile', profile],
     ['Settings', settings],
+    ['EAS staging profile', eas],
   ]) {
     if (/wzfpwuyyaotvofdijhin|Noxa\s+production|production Supabase/i.test(text)) {
       failures.push(`${label} contains a production Supabase reference`);
