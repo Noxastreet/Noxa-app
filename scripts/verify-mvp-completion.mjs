@@ -10,6 +10,7 @@ const paths = {
   clearLocationMigration: 'supabase/migrations/20260827091000_group_drive_clear_my_location.sql',
   meetMigration: 'supabase/migrations/20260827092000_default_car_meet_duration.sql',
   crewMigration: 'supabase/migrations/20260827093000_crew_join_request_ui_compat.sql',
+  expiryMigration: 'supabase/migrations/20260827094000_schedule_group_drive_expiry.sql',
   garage: 'app/(tabs)/garage.tsx',
   profile: 'app/(tabs)/profile.tsx',
   settings: 'app/settings.tsx',
@@ -31,6 +32,7 @@ if (!failures.length) {
   const clearLocation = read(paths.clearLocationMigration);
   const meet = read(paths.meetMigration);
   const crew = read(paths.crewMigration);
+  const expiry = read(paths.expiryMigration);
   const garage = read(paths.garage);
   const profile = read(paths.profile);
   const settings = read(paths.settings);
@@ -71,6 +73,13 @@ if (!failures.length) {
     }
   }
 
+  // Natural expiry must run independently of clients so stale exact location
+  // cannot survive forever when all devices disappear.
+  requirePattern('Group Drive expiry cron extension missing', expiry, /create extension if not exists pg_cron/i);
+  requirePattern('Group Drive expiry cron job missing', expiry, /cron\.schedule\([\s\S]*noxa-expire-group-drives/i);
+  requirePattern('Group Drive expiry cron must run every minute', expiry, /'\* \* \* \* \*'/);
+  requirePattern('Group Drive expiry cron does not call expiry transition', expiry, /private\.noxa_expire_group_drives\(\)/);
+
   // Car Meet canonical default duration.
   requirePattern('Car Meet 3h backfill missing', meet, /category = 'meet'[\s\S]*starts_at \+ interval '3 hours'/i);
   requirePattern('Car Meet 3h default trigger missing', meet, /if new\.category = 'meet' and new\.ends_at is null[\s\S]*new\.ends_at := new\.starts_at \+ interval '3 hours'/i);
@@ -97,6 +106,7 @@ if (!failures.length) {
     ['location cleanup migration', clearLocation],
     ['Car Meet migration', meet],
     ['Crew migration', crew],
+    ['expiry migration', expiry],
     ['Garage', garage],
     ['Profile', profile],
     ['Settings', settings],
