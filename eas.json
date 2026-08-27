@@ -9,6 +9,15 @@
       "distribution": "internal",
       "environment": "development"
     },
+    "mvp-staging": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://eawmryofqonnaihlzeiw.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_j--OSmcp0QxrjnpWDNncuA_T15WnTMi"
+      }
+    },
     "preview": {
       "distribution": "internal",
       "environment": "preview"
