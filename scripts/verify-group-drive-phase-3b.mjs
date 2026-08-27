@@ -57,12 +57,7 @@ if (!failures.length) {
     failures.push('Phase 3B must not persist speed, accuracy, progress or ranking telemetry');
   }
 
-  const consentOrder = [
-    consentScreen.indexOf('acceptGroupDriveLocationDisclosure'),
-    consentScreen.indexOf('requestGroupDriveLocationPermissions'),
-    consentScreen.indexOf('startGroupDriveLocationSession'),
-  ];
-  if (consentOrder.some((index) => index < 0) || !(consentOrder[0] < consentOrder[1] && consentOrder[1] < consentOrder[2])) {
+  if (!/const consent = acceptGroupDriveLocationDisclosure\(driveSessionId\);[\s\S]*await requestGroupDriveLocationPermissions\(\);[\s\S]*await startGroupDriveLocationSession\(consent\);/.test(consentScreen)) {
     failures.push('consent screen must accept scoped disclosure before requesting permissions and starting writer');
   }
   if (!/Join and Ready never enable location sharing/.test(consentScreen)) {
