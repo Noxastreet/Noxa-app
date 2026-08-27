@@ -1,5 +1,6 @@
 export type EventCategory = "meet" | "drive" | "track" | "social";
 export type EventLifecycle = "upcoming" | "soon" | "live" | "completed" | "cancelled";
+export type EventFeedLifecycle = "scheduled" | "live" | "completed" | "cancelled";
 export type EventResponse = "going" | "maybe";
 
 export type EventExperienceRow = {
@@ -43,7 +44,14 @@ export function eventLifecycle(
   return "upcoming";
 }
 
-export const getEventLifecycle = eventLifecycle;
+export function getEventLifecycle(
+  event: Pick<EventExperienceRow, "starts_at" | "ends_at" | "status">,
+  now = Date.now(),
+): EventFeedLifecycle {
+  const lifecycle = eventLifecycle(event, now);
+  if (lifecycle === "upcoming" || lifecycle === "soon") return "scheduled";
+  return lifecycle;
+}
 
 export function lifecycleLabel(lifecycle: EventLifecycle) {
   const labels: Record<EventLifecycle, string> = {
