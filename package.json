@@ -19,6 +19,7 @@
     "verify:group-drive-phase-4c": "node ./scripts/verify-group-drive-phase-4c.mjs",
     "test:group-drive-phase-4c": "node ./scripts/test-group-drive-phase-4c.mjs",
     "verify:group-drive-phase-5": "node ./scripts/verify-group-drive-phase-5.mjs",
+    "verify:mvp-completion": "node ./scripts/verify-mvp-completion.mjs",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
