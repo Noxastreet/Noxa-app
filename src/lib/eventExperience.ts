@@ -43,6 +43,8 @@ export function eventLifecycle(
   return "upcoming";
 }
 
+export const getEventLifecycle = eventLifecycle;
+
 export function lifecycleLabel(lifecycle: EventLifecycle) {
   const labels: Record<EventLifecycle, string> = {
     upcoming: "UPCOMING",
