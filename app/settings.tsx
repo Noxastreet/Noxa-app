@@ -22,6 +22,7 @@ import {
   NoxaScreen,
   NoxaTopBar,
 } from '@/src/components/ui';
+import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { SUPPORT_EMAIL } from '@/src/legal/legalDocuments';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
@@ -125,6 +126,17 @@ export default function SettingsScreen() {
     setIsSigningOut(true);
 
     await stopLiveDriveSession(true).catch(() => undefined);
+    try {
+      await clearGroupDriveLocationBeforeSignOut();
+    } catch {
+      setIsSigningOut(false);
+      Alert.alert(
+        'Sign out paused',
+        'NOXA could not clear your current Group Drive location. Check your connection and try again.',
+      );
+      return;
+    }
+
     const { error } = await supabase.auth.signOut({ scope: 'local' });
     setIsSigningOut(false);
 
