@@ -275,3 +275,20 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
 export async function stopGroupDriveLocationSession() {
   await clearLocalRuntime();
 }
+
+export async function clearGroupDriveLocationBeforeSignOut() {
+  const storedSession = readStoredSession();
+
+  // Stop native publishing first so no later callback can recreate the row while
+  // the authenticated cleanup RPC is in flight.
+  await clearLocalRuntime();
+  if (!storedSession) return;
+
+  const { data, error } = await supabase.rpc('noxa_clear_my_drive_location', {
+    target_drive_session_id: storedSession.driveSessionId,
+  });
+
+  if (error || data !== true) {
+    throw new Error('Group Drive location could not be cleared before sign out.');
+  }
+}
