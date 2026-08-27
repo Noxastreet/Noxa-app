@@ -147,6 +147,15 @@ export default function GroupDrivesScreen() {
                 </View>
                 <NoxaButton
                   fullWidth
+                  title="Share my location"
+                  onPress={() => router.push({
+                    pathname: '/group-drives/[id]/location-sharing',
+                    params: { id: activeDrive.driveSessionId },
+                  })}
+                />
+                <NoxaButton
+                  fullWidth
+                  variant="secondary"
                   title="Open Active Drive"
                   onPress={() => router.push({
                     pathname: '/group-drives/[id]/active',
