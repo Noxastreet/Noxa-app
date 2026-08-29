@@ -1,4 +1,5 @@
 export * from './api';
+export * from './completion';
 export * from './components';
 export * from './format';
 export * from './GroupDrivePrimitives';

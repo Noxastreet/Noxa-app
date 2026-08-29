@@ -33,6 +33,7 @@ type GarageVehicle = {
   description: string | null;
   cover_image_url: string | null;
   is_public: boolean;
+  is_primary: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -53,6 +54,7 @@ const vehicleSelect = `
   description,
   cover_image_url,
   is_public,
+  is_primary,
   created_at,
   updated_at
 `;
@@ -80,7 +82,8 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
   const content = (
     <>
       <View style={styles.heroShade} />
-      <View style={styles.vehicleBadge}>
+      <View style={styles.vehicleBadges}>
+        {vehicle.is_primary ? <NoxaBadge label="PRIMARY" variant="primary" /> : null}
         <NoxaBadge label={vehicle.is_public ? 'PUBLIC' : 'PRIVATE'} variant={vehicle.is_public ? 'primary' : 'default'} />
       </View>
       <View style={styles.heroContent}>
@@ -112,7 +115,17 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
   );
 }
 
-function VehicleCard({ vehicle, index }: { vehicle: GarageVehicle; index: number }) {
+function VehicleCard({
+  vehicle,
+  index,
+  busy,
+  onMakePrimary,
+}: {
+  vehicle: GarageVehicle;
+  index: number;
+  busy: boolean;
+  onMakePrimary: (vehicle: GarageVehicle) => void;
+}) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(18)).current;
   const meta = vehicleMeta(vehicle);
@@ -127,22 +140,44 @@ function VehicleCard({ vehicle, index }: { vehicle: GarageVehicle; index: number
 
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      <Pressable
-        accessibilityLabel={`Open ${modelName} details`}
-        accessibilityRole="button"
-        onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
-        style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
-        <VehicleArtwork vehicle={vehicle} />
-        <View style={styles.identityFooter}>
-          <View style={styles.identityCopy}>
-            <Text style={styles.vehicleType}>{vehicle.vehicle_type === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
-            <Text numberOfLines={1} style={styles.metaText}>
-              {meta.length > 0 ? meta.join('  ·  ') : 'Add build details anytime'}
-            </Text>
+      <View style={styles.vehicleCard}>
+        <Pressable
+          accessibilityLabel={`Open ${modelName} details`}
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
+          style={({ pressed }) => pressed && styles.pressed}>
+          <VehicleArtwork vehicle={vehicle} />
+          <View style={styles.identityFooter}>
+            <View style={styles.identityCopy}>
+              <Text style={styles.vehicleType}>{vehicle.vehicle_type === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
+              <Text numberOfLines={1} style={styles.metaText}>
+                {meta.length > 0 ? meta.join('  ·  ') : 'Add build details anytime'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
-        </View>
-      </Pressable>
+        </Pressable>
+        {!vehicle.is_primary ? (
+          <Pressable
+            accessibilityLabel={`Make ${modelName || 'vehicle'} primary`}
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={() => onMakePrimary(vehicle)}
+            style={({ pressed }) => [styles.primaryAction, pressed && !busy && styles.pressed, busy && styles.disabled]}>
+            {busy ? (
+              <ActivityIndicator size="small" color={colors.primaryHover} />
+            ) : (
+              <Ionicons name="star-outline" size={16} color={colors.primaryHover} />
+            )}
+            <Text style={styles.primaryActionText}>{busy ? 'SETTING PRIMARY…' : 'MAKE PRIMARY'}</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.primaryLockedRow}>
+            <Ionicons name="star" size={15} color={colors.primaryHover} />
+            <Text style={styles.primaryLockedText}>PRIMARY VEHICLE</Text>
+          </View>
+        )}
+      </View>
     </Animated.View>
   );
 }
@@ -186,6 +221,7 @@ export default function GarageScreen() {
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
   const [hasVehicleError, setHasVehicleError] = useState(false);
+  const [primaryBusyId, setPrimaryBusyId] = useState<string | null>(null);
   const hasLoadedVehiclesRef = useRef(false);
 
   const loadVehicles = useCallback(async () => {
@@ -207,6 +243,7 @@ export default function GarageScreen() {
       .from('vehicles')
       .select(vehicleSelect)
       .eq('owner_id', user.id)
+      .order('is_primary', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -224,6 +261,23 @@ export default function GarageScreen() {
       void loadVehicles();
     }, [loadVehicles]),
   );
+
+  const makePrimary = useCallback(async (vehicle: GarageVehicle) => {
+    if (primaryBusyId || vehicle.is_primary) return;
+    setPrimaryBusyId(vehicle.id);
+    setHasVehicleError(false);
+
+    const { data, error } = await supabase.rpc('noxa_set_primary_vehicle', {
+      target_vehicle_id: vehicle.id,
+    });
+
+    if (error || data !== true) {
+      setHasVehicleError(true);
+    } else {
+      await loadVehicles();
+    }
+    setPrimaryBusyId(null);
+  }, [loadVehicles, primaryBusyId]);
 
   return (
     <NoxaScreen padded={false}>
@@ -249,7 +303,15 @@ export default function GarageScreen() {
           <GarageState error={hasVehicleError} isLoading={isLoadingVehicles} onRetry={loadVehicles} />
         ) : (
           <View style={styles.vehicleList}>
-            {vehicles.map((vehicle, index) => <VehicleCard key={vehicle.id} vehicle={vehicle} index={index} />)}
+            {vehicles.map((vehicle, index) => (
+              <VehicleCard
+                key={vehicle.id}
+                vehicle={vehicle}
+                index={index}
+                busy={primaryBusyId === vehicle.id}
+                onMakePrimary={makePrimary}
+              />
+            ))}
           </View>
         )}
 
@@ -310,6 +372,7 @@ const styles = StyleSheet.create({
   },
   addText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
   pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.988 }] },
+  disabled: { opacity: 0.52 },
   vehicleList: { gap: spacing.md },
   vehicleCard: {
     overflow: 'hidden',
@@ -323,7 +386,7 @@ const styles = StyleSheet.create({
   heroImageRadius: { borderTopLeftRadius: radius.hero, borderTopRightRadius: radius.hero },
   vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center' },
   heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.30)' },
-  vehicleBadge: { position: 'absolute', top: spacing.sm, left: spacing.sm },
+  vehicleBadges: { position: 'absolute', top: spacing.sm, left: spacing.sm, flexDirection: 'row', gap: spacing.xs },
   heroContent: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md },
   brand: {
     color: colors.text,
@@ -364,6 +427,27 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: '700',
   },
+  primaryAction: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
+    backgroundColor: colors.surfaceSoft,
+  },
+  primaryActionText: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  primaryLockedRow: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
+  },
+  primaryLockedText: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   collectionState: {
     minHeight: 280,
     alignItems: 'center',

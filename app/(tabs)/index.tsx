@@ -31,7 +31,7 @@ import {
   updateLiveDriveVisibility,
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
-import type { EventCategory } from "@/src/lib/eventExperience";
+import { getEventLifecycle, type EventCategory } from "@/src/lib/eventExperience";
 import {
   isJwtValidationError,
   refreshSupabaseSessionOnce,
@@ -64,6 +64,8 @@ type EventMarkerRow = {
   title: string;
   category: EventCategory;
   starts_at: string;
+  ends_at: string | null;
+  status: string;
   location_name: string | null;
   latitude: number;
   longitude: number;
@@ -285,7 +287,7 @@ function EventCard({
     <View style={[styles.eventCard, { bottom: bottomOffset }]}>
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
-          <Text style={styles.cardKicker}>Upcoming event</Text>
+          <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
           <Text style={styles.cardTitle} numberOfLines={2}>
             {event.title}
           </Text>
@@ -911,12 +913,14 @@ export default function LiveMapScreen() {
   const loadEvents = useCallback(async () => {
     if (isMountedRef.current) setEventsRequestState("loading");
     try {
+      const now = new Date();
+      const feedFloor = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const requestEvents = () =>
         supabase
           .from("events")
-          .select("id,title,category,starts_at,location_name,latitude,longitude")
+          .select("id,title,category,starts_at,ends_at,status,location_name,latitude,longitude")
           .eq("status", "scheduled")
-          .gte("starts_at", new Date().toISOString())
+          .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
           .not("latitude", "is", null)
           .not("longitude", "is", null)
           .order("starts_at", { ascending: true });
@@ -947,11 +951,16 @@ export default function LiveMapScreen() {
               longitude: number | null;
             })
         )[]
-      ).filter(
-        (event): event is EventMarkerRow =>
-          typeof event.latitude === "number" &&
-          typeof event.longitude === "number",
-      );
+      )
+        .filter(
+          (event): event is EventMarkerRow =>
+            typeof event.latitude === "number" &&
+            typeof event.longitude === "number",
+        )
+        .filter((event) => {
+          const lifecycle = getEventLifecycle(event);
+          return lifecycle === "scheduled" || lifecycle === "live";
+        });
 
       eventsRef.current = rows;
       if (isMountedRef.current) {

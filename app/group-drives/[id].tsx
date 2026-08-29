@@ -15,7 +15,7 @@ import {
   formatDriveDate,
   formatDriveDistance,
   formatDriveDuration,
-  leaveDrive,
+  leaveGroupDriveAndStopLocation,
   loadDriveLobbyReadiness,
   loadDriveLobbySnapshot,
   loadGroupDriveDetails,
@@ -225,7 +225,7 @@ export default function GroupDriveViewScreen() {
     if (!drive) return;
     Alert.alert(
       'Leave this Group Drive?',
-      'You will immediately lose access to the route and participant list.',
+      'You will immediately lose access to the route and participant list. Any Group Drive location sharing on this device will stop.',
       [
         { text: 'Stay', style: 'cancel' },
         {
@@ -234,7 +234,7 @@ export default function GroupDriveViewScreen() {
           onPress: async () => {
             setWorking(true);
             try {
-              await leaveDrive(drive.id);
+              await leaveGroupDriveAndStopLocation(drive.id);
               router.replace('/group-drives');
             } catch (leaveError) {
               setError(leaveError instanceof Error ? leaveError.message : 'Drive could not be left.');
@@ -381,10 +381,35 @@ export default function GroupDriveViewScreen() {
 
       {drive.status === 'active' ? (
         <View style={styles.phaseNotice}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.primaryHover} />
-          <Text style={styles.phaseNoticeText}>
-            The Group Drive is active, but precise location and Active Drive Map are intentionally not enabled in this Phase 2 review build.
-          </Text>
+          <Ionicons name="navigate-outline" size={20} color={colors.primaryHover} />
+          <View style={styles.activeNoticeCopy}>
+            <Text style={styles.activeNoticeTitle}>ACTIVE DRIVE</Text>
+            <Text style={styles.phaseNoticeText}>
+              Open the live route when you are ready. Location sharing remains a separate explicit action on this device.
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {drive.status === 'active' ? (
+        <View style={styles.actions}>
+          <NoxaButton
+            fullWidth
+            title="Open Active Drive"
+            onPress={() => router.push({ pathname: '/group-drives/[id]/active', params: { id: drive.id } })}
+          />
+          <NoxaButton
+            fullWidth
+            variant="secondary"
+            title="Share my location"
+            onPress={() => router.push({ pathname: '/group-drives/[id]/location-sharing', params: { id: drive.id } })}
+          />
+          <NoxaButton
+            fullWidth
+            variant="ghost"
+            title="Drive controls"
+            onPress={() => router.push({ pathname: '/group-drives/[id]/controls', params: { id: drive.id } })}
+          />
         </View>
       ) : null}
 
@@ -521,6 +546,8 @@ const styles = StyleSheet.create({
   lobbyLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   lobbyValue: { marginTop: 4, color: colors.text, fontSize: 15, fontWeight: '800' },
   phaseNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
+  activeNoticeCopy: { flex: 1, gap: spacing.xxs },
+  activeNoticeTitle: { color: colors.primaryHover, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
   phaseNoticeText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   routeSummary: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.lg, paddingVertical: spacing.lg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.divider },
   metric: { color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.6 },

@@ -33,7 +33,7 @@ export function CanonicalPill({
   tone = "neutral",
 }: {
   label: string;
-  tone?: "neutral" | "accent" | "success";
+  tone?: "neutral" | "default" | "accent" | "success";
 }) {
   return (
     <View

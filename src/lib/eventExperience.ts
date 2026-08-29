@@ -1,5 +1,6 @@
 export type EventCategory = "meet" | "drive" | "track" | "social";
 export type EventLifecycle = "upcoming" | "soon" | "live" | "completed" | "cancelled";
+export type EventFeedLifecycle = "scheduled" | "live" | "completed" | "cancelled";
 export type EventResponse = "going" | "maybe";
 
 export type EventExperienceRow = {
@@ -25,22 +26,41 @@ export type EventExperienceRow = {
 export const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export const OPEN_EVENT_MAX_LIVE_MS = 24 * 60 * 60 * 1000;
+
 export function eventLifecycle(
   event: Pick<EventExperienceRow, "starts_at" | "ends_at" | "status">,
   now = Date.now(),
 ): EventLifecycle {
   if (event.status === "cancelled") return "cancelled";
+
+  const startsAt = new Date(event.starts_at).getTime();
+  const explicitEnd = event.ends_at === null ? null : new Date(event.ends_at).getTime();
+  const openEventExpired =
+    event.ends_at === null
+    && Number.isFinite(startsAt)
+    && startsAt + OPEN_EVENT_MAX_LIVE_MS <= now;
+
   if (
     event.status === "completed"
-    || (event.ends_at !== null && new Date(event.ends_at).getTime() <= now)
+    || (explicitEnd !== null && explicitEnd <= now)
+    || openEventExpired
   ) {
     return "completed";
   }
 
-  const startsAt = new Date(event.starts_at).getTime();
   if (startsAt <= now) return "live";
   if (startsAt - now <= 2 * 60 * 60 * 1000) return "soon";
   return "upcoming";
+}
+
+export function getEventLifecycle(
+  event: Pick<EventExperienceRow, "starts_at" | "ends_at" | "status">,
+  now = Date.now(),
+): EventFeedLifecycle {
+  const lifecycle = eventLifecycle(event, now);
+  if (lifecycle === "upcoming" || lifecycle === "soon") return "scheduled";
+  return lifecycle;
 }
 
 export function lifecycleLabel(lifecycle: EventLifecycle) {

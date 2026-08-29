@@ -30,17 +30,23 @@ import { colors, radius, spacing, typography } from '@/src/theme';
 function DriveRow({ item }: { item: GroupDriveListItem }) {
   const invited = item.myInvitationStatus === 'invited' && item.invitationId;
   const active = item.sessionStatus === 'active' && item.myParticipantStatus === 'active';
+  const terminal = item.sessionStatus === 'completed' || item.sessionStatus === 'cancelled';
   const open = () => {
     if (invited) {
       router.push({ pathname: '/group-drives/invitation/[id]', params: { id: item.invitationId! } });
       return;
     }
+    if (terminal) {
+      router.push({ pathname: '/group-drives/[id]/summary', params: { id: item.driveSessionId } });
+      return;
+    }
     if (active) {
-      router.push({ pathname: '/group-drives/[id]/active', params: { id: item.driveSessionId } });
+      router.push({ pathname: '/group-drives/[id]/controls', params: { id: item.driveSessionId } });
       return;
     }
     router.push({ pathname: '/group-drives/[id]', params: { id: item.driveSessionId } });
   };
+  const dateValue = terminal ? item.completedAt : item.scheduledStartAt;
   return (
     <Pressable
       accessibilityLabel={`${item.title}, ${item.sessionStatus}`}
@@ -50,12 +56,13 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
       <View style={styles.rowTop}>
         <DriveStatus status={item.sessionStatus} />
         {invited ? <Text style={styles.invited}>Invitation</Text> : null}
-        {active ? <Text style={styles.activeLabel}>Open Active Drive</Text> : null}
+        {active ? <Text style={styles.activeLabel}>Drive controls</Text> : null}
+        {terminal ? <Text style={styles.terminalLabel}>View summary</Text> : null}
       </View>
       <Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text>
       <View style={styles.metaRow}>
-        <Ionicons name="time-outline" size={15} color={colors.textMuted} />
-        <Text numberOfLines={1} style={styles.meta}>{formatDriveDate(item.scheduledStartAt)}</Text>
+        <Ionicons name={terminal ? 'checkmark-circle-outline' : 'time-outline'} size={15} color={colors.textMuted} />
+        <Text numberOfLines={1} style={styles.meta}>{formatDriveDate(dateValue)}</Text>
       </View>
       <View style={styles.metaRow}>
         <Ionicons name="navigate-outline" size={15} color={colors.textMuted} />
@@ -162,6 +169,15 @@ export default function GroupDrivesScreen() {
                     params: { id: activeDrive.driveSessionId },
                   })}
                 />
+                <NoxaButton
+                  fullWidth
+                  variant="ghost"
+                  title="Drive controls"
+                  onPress={() => router.push({
+                    pathname: '/group-drives/[id]/controls',
+                    params: { id: activeDrive.driveSessionId },
+                  })}
+                />
               </View>
             ) : null}
             <Text style={styles.sectionTitle}>YOUR DRIVES</Text>
@@ -237,6 +253,7 @@ const styles = StyleSheet.create({
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   invited: { color: colors.primaryHover, fontSize: 11, fontWeight: '800' },
   activeLabel: { color: colors.success, fontSize: 11, fontWeight: '800' },
+  terminalLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800' },
   rowTitle: { marginTop: spacing.md, marginBottom: spacing.sm, color: colors.text, fontSize: 20, fontWeight: '900' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xxs },
   meta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },

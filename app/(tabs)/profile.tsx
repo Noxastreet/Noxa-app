@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
+import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
@@ -41,6 +42,7 @@ type ProfileVehicle = {
   horsepower: number | null;
   color: string | null;
   cover_image_url: string | null;
+  is_primary: boolean;
 };
 
 type ProfilePost = {
@@ -198,7 +200,7 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
           <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={14} color={colors.primaryHover} />
           <Text style={styles.vehicleTypeText}>{vehicle.vehicle_type === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
         </View>
-        <Text style={styles.vehicleCount}>{vehiclesCount === 1 ? '1 VEHICLE' : `${vehiclesCount} VEHICLES`}</Text>
+        <Text style={styles.vehicleCount}>{vehicle.is_primary ? 'PRIMARY' : vehiclesCount === 1 ? '1 VEHICLE' : `${vehiclesCount} VEHICLES`}</Text>
       </View>
       <View style={styles.vehicleCopy}>
         <Text numberOfLines={1} style={styles.vehicleTitle}>{vehicle.brand}</Text>
@@ -436,8 +438,9 @@ export default function ProfileScreen() {
         .eq('follower_id', user.id),
       supabase
         .from('vehicles')
-        .select('id, vehicle_type, brand, model, year, horsepower, color, cover_image_url', { count: 'exact' })
+        .select('id, vehicle_type, brand, model, year, horsepower, color, cover_image_url, is_primary', { count: 'exact' })
         .eq('owner_id', user.id)
+        .order('is_primary', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -476,6 +479,17 @@ export default function ProfileScreen() {
 
     setIsSigningOut(true);
     await stopLiveDriveSession(true).catch(() => undefined);
+    try {
+      await clearGroupDriveLocationBeforeSignOut();
+    } catch {
+      setIsSigningOut(false);
+      Alert.alert(
+        'Logout paused',
+        'NOXA could not clear your current Group Drive location. Check your connection and try again.',
+      );
+      return;
+    }
+
     const { error } = await supabase.auth.signOut({ scope: 'local' });
     setIsSigningOut(false);
 
