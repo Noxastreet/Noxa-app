@@ -64,8 +64,8 @@ export default function GroupDriveDetailsEditorScreen() {
     setSaving(true);
     setError(null);
     try {
-      const id = driveSessionId ?? (await createDriveSession(cleanTitle, description, crewId));
-      if (driveSessionId) {
+      const id = driveSessionId ?? (await createDriveSession(cleanTitle, description));
+      if (driveSessionId || crewId) {
         await updateDriveDetails(id, cleanTitle, description, scheduledStartAt, crewId);
       }
       router.replace({ pathname: '/group-drives/route', params: { id } });
