@@ -1700,6 +1700,27 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
+        {!selectedEvent ? (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.groupDriveControl,
+              { bottom: eventCardBottom + spacing.sm },
+            ]}
+          >
+            <NoxaButton
+              accessibilityHint="Open your Group Drives or create a new one"
+              leadingIcon={
+                <Ionicons name="navigate-outline" size={17} color={colors.text} />
+              }
+              onPress={() => router.push("/group-drives")}
+              size="md"
+              title="Group Drives"
+              variant="overlay"
+            />
+          </View>
+        ) : null}
+
         {showRecenter ? (
           <View
             pointerEvents="box-none"
@@ -2038,6 +2059,10 @@ const styles = StyleSheet.create({
     right: spacing.md,
     alignItems: "flex-end",
     gap: spacing.sm,
+  },
+  groupDriveControl: {
+    position: "absolute",
+    left: spacing.md,
   },
   visibilityControl: {
     minWidth: 104,
