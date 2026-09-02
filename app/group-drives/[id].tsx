@@ -352,6 +352,33 @@ export default function GroupDriveViewScreen() {
     void startNow();
   };
 
+  const openEditMenu = () => {
+    if (!canEdit) return;
+    Alert.alert(
+      'Edit Group Drive',
+      'Change one part, save it, and return to this Lobby.',
+      [
+        {
+          text: 'Details',
+          onPress: () => router.push({ pathname: '/group-drives/details', params: { id: drive.id, mode: 'edit' } }),
+        },
+        {
+          text: 'Route',
+          onPress: () => router.push({ pathname: '/group-drives/route', params: { id: drive.id, mode: 'edit' } }),
+        },
+        {
+          text: 'People',
+          onPress: () => router.push({ pathname: '/group-drives/participants', params: { id: drive.id, mode: 'edit' } }),
+        },
+        {
+          text: 'Timing',
+          onPress: () => router.push({ pathname: '/group-drives/schedule', params: { id: drive.id, mode: 'edit' } }),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  };
+
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
@@ -385,7 +412,7 @@ export default function GroupDriveViewScreen() {
           <View style={styles.activeNoticeCopy}>
             <Text style={styles.activeNoticeTitle}>ACTIVE DRIVE</Text>
             <Text style={styles.phaseNoticeText}>
-              Open the live route when you are ready. Location sharing remains a separate explicit action on this device.
+              Open the live route. If this drive still needs location consent on this device, NOXA asks once over the map instead of sending you to another screen.
             </Text>
           </View>
         </View>
@@ -397,18 +424,6 @@ export default function GroupDriveViewScreen() {
             fullWidth
             title="Open Active Drive"
             onPress={() => router.push({ pathname: '/group-drives/[id]/active', params: { id: drive.id } })}
-          />
-          <NoxaButton
-            fullWidth
-            variant="secondary"
-            title="Share my location"
-            onPress={() => router.push({ pathname: '/group-drives/[id]/location-sharing', params: { id: drive.id } })}
-          />
-          <NoxaButton
-            fullWidth
-            variant="ghost"
-            title="Drive controls"
-            onPress={() => router.push({ pathname: '/group-drives/[id]/controls', params: { id: drive.id } })}
           />
         </View>
       ) : null}
@@ -482,32 +497,15 @@ export default function GroupDriveViewScreen() {
           ) : (
             <NoxaButton
               fullWidth
-              onPress={() => router.push({
-                pathname: drive.routeVersion > 0 ? '/group-drives/review' : '/group-drives/route',
-                params: { id: drive.id },
-              })}
-              title={drive.routeVersion > 0 ? 'Review Drive' : 'Continue setup'}
+              onPress={() => router.push({ pathname: '/group-drives/route', params: { id: drive.id } })}
+              title="Continue setup"
             />
           )}
-          {canStart ? (
-            <NoxaButton
-              fullWidth
-              onPress={() => router.push({ pathname: '/group-drives/review', params: { id: drive.id } })}
-              title="Review route"
-              variant="secondary"
-            />
-          ) : null}
           <NoxaButton
             fullWidth
-            onPress={() => router.push({ pathname: '/group-drives/participants', params: { id: drive.id } })}
-            title="Invite people"
+            onPress={openEditMenu}
+            title="Edit drive"
             variant="secondary"
-          />
-          <NoxaButton
-            fullWidth
-            onPress={() => router.push({ pathname: '/group-drives/details', params: { id: drive.id } })}
-            title="Edit details"
-            variant="ghost"
           />
         </View>
       ) : null}
