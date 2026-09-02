@@ -37,7 +37,7 @@ if (!failures.length) {
     ['selected accessibility state missing', /accessibilityState=\{\{ selected \}\}/],
     ['truthful Arrived state missing', /'Arrived'/],
     ['truthful Unavailable state missing', /'Unavailable'/],
-    ['current-user You label missing', />You</],
+    ['current-user marker missing', />YOU</],
     ['hidden participant affordance missing', /presentation\.hiddenCount/],
     ['simulation layer is not wired into the preview', /createGroupDriveSimulation/],
     ['dev-only production guard missing', /if \(!__DEV__\) return <Redirect/],
