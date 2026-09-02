@@ -222,7 +222,11 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
         accessibilityLabel={`Open ${vehicle.brand} ${vehicle.model || ''}`.trim()}
         accessibilityRole="button"
         onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
-        style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
+        style={({ pressed }) => [
+          styles.vehicleCard,
+          !vehicle.cover_image_url && styles.vehicleCardNoImage,
+          pressed && styles.pressed,
+        ]}>
         {vehicle.cover_image_url ? (
           <ImageBackground
             source={{ uri: vehicle.cover_image_url }}
@@ -612,13 +616,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadows.card,
   },
+  vehicleCardNoImage: {
+    height: 166,
+    borderRadius: radius.xl,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   vehicleArtwork: { flex: 1, justifyContent: 'flex-end' },
   vehicleArtworkRadius: { borderRadius: radius.hero },
   vehicleFallback: { backgroundColor: colors.surfaceSoft },
   vehicleFallbackVisual: {
     position: 'absolute',
-    top: 52,
-    left: spacing.md,
+    top: 48,
+    right: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
