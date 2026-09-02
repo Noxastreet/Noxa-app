@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,6 +11,8 @@ type NoxaAvatarProps = {
 };
 
 export function NoxaAvatar({ imageUrl, initials = 'NX', size = 48 }: NoxaAvatarProps) {
+  const compactLabel = initials.slice(0, 2).toUpperCase() || 'NX';
+
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}> 
       {imageUrl ? (
@@ -20,9 +23,14 @@ export function NoxaAvatar({ imageUrl, initials = 'NX', size = 48 }: NoxaAvatarP
           transition={120}
         />
       ) : (
-        <Text style={[styles.initials, { fontSize: Math.max(typography.caption, size * 0.32) }]}>
-          {initials.slice(0, 2).toUpperCase()}
-        </Text>
+        <View style={styles.technicalFallback}>
+          <View style={[styles.axis, styles.axisHorizontal]} />
+          <View style={[styles.axis, styles.axisVertical]} />
+          <View style={styles.technicalCore}>
+            <Ionicons name="person-outline" size={Math.max(16, size * 0.34)} color={colors.textMuted} />
+          </View>
+          <Text style={[styles.technicalLabel, { fontSize: Math.max(7, size * 0.16) }]}>{compactLabel}</Text>
+        </View>
       )}
     </View>
   );
@@ -41,9 +49,44 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  initials: {
-    color: colors.text,
+  technicalFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceSoft,
+  },
+  technicalCore: {
+    width: '56%',
+    height: '56%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+  },
+  axis: {
+    position: 'absolute',
+    backgroundColor: colors.border,
+  },
+  axisHorizontal: {
+    left: '14%',
+    right: '14%',
+    height: StyleSheet.hairlineWidth,
+  },
+  axisVertical: {
+    top: '14%',
+    bottom: '14%',
+    width: StyleSheet.hairlineWidth,
+  },
+  technicalLabel: {
+    position: 'absolute',
+    right: '12%',
+    bottom: '9%',
+    color: colors.primaryHover,
+    fontFamily: typography.fontFamily.display,
     fontWeight: '900',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
 });
