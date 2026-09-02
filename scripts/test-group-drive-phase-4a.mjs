@@ -167,8 +167,8 @@ const window = participantStack.selectParticipantStackWindow(
   ['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7'],
   'user-7',
 );
-assert.deepEqual(window.visibleUserIds, ['user-1', 'user-2', 'user-3', 'user-4', 'user-7']);
-assert.equal(window.hiddenCount, 2);
+assert.deepEqual(window.visibleUserIds, ['user-1', 'user-2', 'user-7']);
+assert.equal(window.hiddenCount, 4);
 assert.equal(window.currentUserReserved, true);
 
 console.log('Group Drive Phase 4A route progress/stack smoke: PASS (35 checks)');
