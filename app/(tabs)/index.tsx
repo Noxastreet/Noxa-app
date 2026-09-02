@@ -500,7 +500,7 @@ export default function LiveMapScreen() {
     useState<MapDataRequestState>("loading");
   const [currentProfile, setCurrentProfile] = useState<ProfileMarkerRow | null>(null);
   const [myDriverIds, setMyDriverIds] = useState<Set<string>>(() => new Set());
-  const [mapLens, setMapLens] = useState<MapLens>("all");
+  const mapLens: MapLens = "all";
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
   const normalizedMapMode = normalizeParam(params.mapMode);
   const focusEventId =
@@ -1619,29 +1619,26 @@ export default function LiveMapScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity
-            accessibilityLabel={`Map lens: ${mapLens === "all" ? "All" : "Mine"}`}
-            accessibilityHint="Switch between the full city and your social circle"
-            accessibilityRole="button"
-            accessibilityState={{ selected: mapLens === "mine" }}
-            activeOpacity={0.8}
-            onPress={() =>
-              setMapLens((current) => (current === "all" ? "mine" : "all"))
-            }
-            style={[
-              styles.lensControl,
-              mapLens === "mine" && styles.lensControlActive,
-            ]}
-          >
-            <Ionicons
-              name={mapLens === "all" ? "earth-outline" : "people-outline"}
-              size={15}
-              color={mapLens === "mine" ? colors.text : colors.textMuted}
+          <View style={styles.headerActions}>
+            <NoxaIconButton
+              accessibilityHint="Find people, Crews and Events"
+              accessibilityLabel="Search NOXA"
+              icon="search-outline"
+              iconSize={19}
+              onPress={() => router.push("/search")}
+              size={44}
+              variant="overlay"
             />
-            <Text style={styles.lensText}>
-              {mapLens === "all" ? "All" : "Mine"}
-            </Text>
-          </TouchableOpacity>
+            <NoxaIconButton
+              accessibilityHint="Open notifications and invitations"
+              accessibilityLabel="Notifications"
+              icon="notifications-outline"
+              iconSize={19}
+              onPress={() => router.push("/notifications")}
+              size={44}
+              variant="overlay"
+            />
+          </View>
         </View>
 
         {visibilityMenuOpen ? (
@@ -1708,14 +1705,13 @@ export default function LiveMapScreen() {
               { bottom: eventCardBottom + spacing.sm },
             ]}
           >
-            <NoxaButton
-              accessibilityHint="Open your Group Drives or create a new one"
-              leadingIcon={
-                <Ionicons name="navigate-outline" size={17} color={colors.text} />
-              }
+            <NoxaIconButton
+              accessibilityHint="Open Group Drives"
+              accessibilityLabel="Group Drives"
+              icon="navigate-outline"
+              iconSize={19}
               onPress={() => router.push("/group-drives")}
-              size="md"
-              title="Group Drives"
+              size={44}
               variant="overlay"
             />
           </View>
@@ -1958,7 +1954,7 @@ const styles = StyleSheet.create({
   livingPulse: {
     position: "absolute",
     left: 72,
-    right: 72,
+    right: 112,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1986,27 +1982,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.2,
   },
-  lensControl: {
-    minWidth: 64,
-    height: 36,
+  headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.82)",
-  },
-  lensControlActive: {
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
-  },
-  lensText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "700",
+    gap: spacing.xs,
   },
   driverMarker: {
     width: 36,

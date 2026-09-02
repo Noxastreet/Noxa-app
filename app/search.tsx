@@ -70,7 +70,7 @@ const emptyResults: SearchResults = {
 
 const filters: { label: string; value: SearchFilter }[] = [
   { label: "All", value: "all" },
-  { label: "Drivers", value: "drivers" },
+  { label: "People", value: "drivers" },
   { label: "Vehicles", value: "vehicles" },
   { label: "Events", value: "events" },
   { label: "Crews", value: "crews" },
