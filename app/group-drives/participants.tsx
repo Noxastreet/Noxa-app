@@ -72,8 +72,9 @@ function CrewRow({ crew, selected, onPress }: { crew: DriveInviteCrew; selected:
 }
 
 export default function GroupDriveParticipantsScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; mode?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : '';
+  const editMode = params.mode === 'edit';
   const [friends, setFriends] = useState<DriveInviteFriend[]>([]);
   const [crews, setCrews] = useState<DriveInviteCrew[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
@@ -136,7 +137,11 @@ export default function GroupDriveParticipantsScreen() {
     try {
       await inviteUsersToDrive(driveSessionId, Array.from(selectedFriends));
       await inviteCrewsToDrive(driveSessionId, Array.from(selectedCrews));
-      router.replace({ pathname: '/group-drives/schedule', params: { id: driveSessionId } });
+      if (editMode) {
+        router.replace({ pathname: '/group-drives/[id]', params: { id: driveSessionId } });
+      } else {
+        router.replace({ pathname: '/group-drives/schedule', params: { id: driveSessionId } });
+      }
     } catch (inviteError) {
       setError(inviteError instanceof Error ? inviteError.message : 'Invitations could not be sent.');
     } finally {
@@ -145,13 +150,16 @@ export default function GroupDriveParticipantsScreen() {
   };
 
   const selectionCount = selectedFriends.size + selectedCrews.size;
+  const buttonTitle = editMode
+    ? selectionCount ? 'Send invitations' : 'Done'
+    : selectionCount ? 'Send invitations' : 'Continue without invitations';
 
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="ADD PEOPLE" subtitle="Each person chooses for themselves" />
-      <GroupDriveStep current={3} label="Participants" />
+      <GroupDriveHeader title={editMode ? 'EDIT PEOPLE' : 'ADD PEOPLE'} subtitle="Each person chooses for themselves" />
+      {!editMode ? <GroupDriveStep current={3} label="Participants" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>Choose who gets an invitation.</Text>
+        <Text style={styles.title}>{editMode ? 'Invite more people.' : 'Choose who gets an invitation.'}</Text>
         <Text style={styles.body}>Selecting a Crew sends separate invitations to its current members. Nobody joins automatically.</Text>
       </View>
       <NoxaInput
@@ -191,7 +199,9 @@ export default function GroupDriveParticipantsScreen() {
       <View style={styles.consentNote}>
         <Ionicons name="paper-plane-outline" size={19} color={colors.primaryHover} />
         <Text style={styles.consentText}>
-          Continue sends {recipientCount || 'no'} individual {recipientCount === 1 ? 'invitation' : 'invitations'}. You can also keep this as a draft and invite people later.
+          {editMode
+            ? `${recipientCount || 'No'} new ${recipientCount === 1 ? 'person' : 'people'} selected. Existing participants stay unchanged.`
+            : `Continue sends ${recipientCount || 'no'} individual ${recipientCount === 1 ? 'invitation' : 'invitations'}. You can also keep this as a draft and invite people later.`}
         </Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
@@ -200,8 +210,8 @@ export default function GroupDriveParticipantsScreen() {
         fullWidth
         loading={saving}
         onPress={() => void continueFlow()}
-        title={selectionCount ? 'Send invitations' : 'Continue without invitations'}
-        trailingIcon={<Ionicons name="arrow-forward" size={18} color={colors.text} />}
+        title={buttonTitle}
+        trailingIcon={editMode ? undefined : <Ionicons name="arrow-forward" size={18} color={colors.text} />}
       />
     </Screen>
   );
