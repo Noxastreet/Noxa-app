@@ -6,15 +6,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   GroupDriveParticipantStack,
+  acceptGroupDriveLocationDisclosure,
   buildParticipantStackPresentation,
   deriveGroupDriveParticipantProgress,
   emptyGroupDriveProgressState,
   emptyParticipantStackOrderState,
+  getGroupDriveLocationSession,
   groupDriveLocations,
   loadActiveDriveRealtimeSnapshot,
   loadGroupDriveDetails,
   prepareDriveRoute,
   reduceParticipantStackOrder,
+  requestGroupDriveLocationPermissions,
+  startGroupDriveLocationSession,
   stopGroupDriveLocationSession,
   subscribeToActiveDriveRealtime,
   type ActiveDriveRealtimeConnection,
@@ -70,6 +74,7 @@ export default function ActiveDriveScreen() {
   const progressRef = useRef<GroupDriveProgressState>(emptyGroupDriveProgressState(driveSessionId));
   const orderRef = useRef<ParticipantStackOrderState>(emptyParticipantStackOrderState());
   const detailsRef = useRef<GroupDriveDetails | null>(null);
+  const locationPromptedRef = useRef(false);
 
   const [details, setDetails] = useState<GroupDriveDetails | null>(null);
   const [snapshot, setSnapshot] = useState<ActiveDriveRealtimeSnapshot | null>(null);
@@ -112,6 +117,38 @@ export default function ActiveDriveScreen() {
     setSnapshot(nextSnapshot);
   }, [driveSessionId]);
 
+  const offerLocationSharing = useCallback(() => {
+    if (!driveSessionId || locationPromptedRef.current) return;
+    const session = getGroupDriveLocationSession();
+    if (session?.driveSessionId === driveSessionId) return;
+
+    locationPromptedRef.current = true;
+    Alert.alert(
+      'Share live location?',
+      'Only participants in this active Group Drive can see your precise location. Sharing stops when the drive ends. You can stay in the drive without sharing.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Share location',
+          onPress: () => {
+            void (async () => {
+              try {
+                const consent = acceptGroupDriveLocationDisclosure(driveSessionId);
+                await requestGroupDriveLocationPermissions();
+                await startGroupDriveLocationSession(consent);
+                setError(null);
+              } catch (shareError) {
+                setError(shareError instanceof Error
+                  ? shareError.message
+                  : 'Location sharing could not be started.');
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }, [driveSessionId]);
+
   useEffect(() => {
     let disposed = false;
     let teardown: (() => Promise<void>) | null = null;
@@ -132,6 +169,7 @@ export default function ActiveDriveScreen() {
       applySnapshot(nextSnapshot);
       setLoading(false);
       setError(null);
+      offerLocationSharing();
 
       void subscribeToActiveDriveRealtime(driveSessionId, {
         onSnapshot: (liveSnapshot) => {
@@ -165,7 +203,7 @@ export default function ActiveDriveScreen() {
       disposed = true;
       if (teardown) void teardown();
     };
-  }, [applySnapshot, driveSessionId]);
+  }, [applySnapshot, driveSessionId, offerLocationSharing]);
 
   const identities = useMemo(
     () => (details?.participants ?? [])
@@ -316,9 +354,19 @@ export default function ActiveDriveScreen() {
             <Text numberOfLines={1} style={styles.eyebrow}>ACTIVE DRIVE</Text>
             <Text numberOfLines={1} style={styles.title}>{details.title}</Text>
           </View>
-          <View style={styles.connectionPill}>
-            <View style={[styles.connectionDot, connection !== 'subscribed' && styles.connectionDotMuted]} />
-            <Text style={styles.connectionText}>{connectionLabel(connection)}</Text>
+          <View style={styles.topActions}>
+            <View style={styles.connectionPill}>
+              <View style={[styles.connectionDot, connection !== 'subscribed' && styles.connectionDotMuted]} />
+              <Text style={styles.connectionText}>{connectionLabel(connection)}</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Drive controls"
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/group-drives/[id]/controls', params: { id: driveSessionId } })}
+              style={styles.moreButton}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.text} />
+            </Pressable>
           </View>
         </View>
 
@@ -332,7 +380,7 @@ export default function ActiveDriveScreen() {
           onOpenParticipants={() => {
             Alert.alert('Participants', `${identities.length} active participants in this Group Drive.`);
           }}
-          style={[styles.participantStack, { top: insets.top + 92 }]}
+          style={[styles.participantStack, { top: insets.top + 88 }]}
         />
 
         <View style={[styles.bottomControls, { bottom: insets.bottom + spacing.lg }]}>
@@ -440,6 +488,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: typography.lineHeight.subtitle,
   },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   connectionPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -466,9 +519,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.8,
   },
+  moreButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceBase,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   participantStack: {
     position: 'absolute',
-    left: spacing.md,
+    left: spacing.sm,
   },
   bottomControls: {
     position: 'absolute',
