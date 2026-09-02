@@ -80,8 +80,9 @@ function PointRow({
 }
 
 export default function GroupDriveRouteScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; mode?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : '';
+  const editMode = params.mode === 'edit';
   const [start, setStart] = useState<RoutePoint | null>(null);
   const [end, setEnd] = useState<RoutePoint | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
@@ -176,7 +177,11 @@ export default function GroupDriveRouteScreen() {
     setError(null);
     try {
       await saveDriveRoute(driveSessionId, start, end);
-      router.replace({ pathname: '/group-drives/participants', params: { id: driveSessionId } });
+      if (editMode) {
+        router.replace({ pathname: '/group-drives/[id]', params: { id: driveSessionId } });
+      } else {
+        router.replace({ pathname: '/group-drives/participants', params: { id: driveSessionId } });
+      }
     } catch (routeError) {
       setError(routeError instanceof Error ? routeError.message : 'Route could not be calculated.');
     } finally {
@@ -186,10 +191,10 @@ export default function GroupDriveRouteScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="BUILD ROUTE" subtitle="Start and destination only" />
-      <GroupDriveStep current={2} label="Route" />
+      <GroupDriveHeader title={editMode ? 'EDIT ROUTE' : 'BUILD ROUTE'} subtitle="Start and destination only" />
+      {!editMode ? <GroupDriveStep current={2} label="Route" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>Choose two real points.</Text>
+        <Text style={styles.title}>{editMode ? 'Update the route.' : 'Choose two real points.'}</Text>
         <Text style={styles.body}>
           The route stays private. Invited drivers receive only an approximate destination before joining.
         </Text>
@@ -201,7 +206,7 @@ export default function GroupDriveRouteScreen() {
       </View>
       <View style={styles.note}>
         <Ionicons name="map-outline" size={19} color={colors.textMuted} />
-        <Text style={styles.noteText}>The calculated line, distance and duration appear on the next review steps.</Text>
+        <Text style={styles.noteText}>{editMode ? 'Saving recalculates the route and returns to the Lobby.' : 'The calculated line, distance and duration appear on the next review steps.'}</Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <NoxaButton
@@ -209,8 +214,8 @@ export default function GroupDriveRouteScreen() {
         fullWidth
         loading={saving}
         onPress={() => void continueFlow()}
-        title="Calculate route"
-        trailingIcon={<Ionicons name="arrow-forward" size={18} color={colors.text} />}
+        title={editMode ? 'Save route' : 'Calculate route'}
+        trailingIcon={editMode ? undefined : <Ionicons name="arrow-forward" size={18} color={colors.text} />}
       />
       <Modal animationType="slide" visible={pickerTarget !== null} onRequestClose={() => setPickerTarget(null)}>
         <MapboxEventLocationPickerCompat
