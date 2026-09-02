@@ -70,17 +70,17 @@ const result = presentation.buildParticipantStackPresentation(
   'self',
 );
 
-assert.deepEqual(result.visibleUserIds, ['arrived', 'near', 'middle', 'far', 'self']);
+assert.deepEqual(result.visibleUserIds, ['arrived', 'near', 'self']);
 assert.equal(result.currentUserReserved, true);
-assert.equal(result.hiddenCount, 2);
-assert.equal(result.moreAccessibilityLabel, '2 more participants. Open participant list.');
-assert.deepEqual(result.rows.map(({ kind }) => kind), ['arrived', 'distance', 'distance', 'distance', 'distance']);
+assert.equal(result.hiddenCount, 4);
+assert.equal(result.moreAccessibilityLabel, '4 more participants. Open participant list.');
+assert.deepEqual(result.rows.map(({ kind }) => kind), ['arrived', 'distance', 'distance']);
 assert.equal(result.rows[0].valueLabel, 'Arrived');
 assert.equal(result.rows[0].initials, 'AR');
 assert.equal(result.rows[1].valueLabel, '2.4 km');
 assert.equal(result.rows[1].initials, 'KM');
-assert.equal(result.rows[4].isCurrentUser, true);
-assert.match(result.rows[4].accessibilityLabel, /^You, Taylor Driver, 6\.0 kilometres remaining$/);
+assert.equal(result.rows[2].isCurrentUser, true);
+assert.match(result.rows[2].accessibilityLabel, /^You, Taylor Driver, 6\.0 kilometres remaining$/);
 
 const unavailable = presentation.buildParticipantStackPresentation(
   identities,
