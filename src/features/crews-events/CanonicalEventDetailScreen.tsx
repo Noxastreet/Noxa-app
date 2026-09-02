@@ -810,7 +810,7 @@ export default function CanonicalEventDetailScreen() {
             )}
             <View style={styles.organizerCopy}>
               <Text style={styles.organizerEyebrow}>
-                ORGANIZED BY {crew ? "· VERIFIED CREW" : ""}
+                ORGANIZED BY {crew ? "· CREW" : ""}
               </Text>
               <Text numberOfLines={1} style={styles.organizerTitle}>
                 {organizerName}

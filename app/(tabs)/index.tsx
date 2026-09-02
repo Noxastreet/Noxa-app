@@ -31,7 +31,7 @@ import {
   updateLiveDriveVisibility,
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
-import type { EventCategory } from "@/src/lib/eventExperience";
+import { getEventLifecycle, type EventCategory } from "@/src/lib/eventExperience";
 import {
   isJwtValidationError,
   refreshSupabaseSessionOnce,
@@ -64,6 +64,8 @@ type EventMarkerRow = {
   title: string;
   category: EventCategory;
   starts_at: string;
+  ends_at: string | null;
+  status: string;
   location_name: string | null;
   latitude: number;
   longitude: number;
@@ -285,7 +287,7 @@ function EventCard({
     <View style={[styles.eventCard, { bottom: bottomOffset }]}>
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
-          <Text style={styles.cardKicker}>Upcoming event</Text>
+          <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
           <Text style={styles.cardTitle} numberOfLines={2}>
             {event.title}
           </Text>
@@ -498,7 +500,7 @@ export default function LiveMapScreen() {
     useState<MapDataRequestState>("loading");
   const [currentProfile, setCurrentProfile] = useState<ProfileMarkerRow | null>(null);
   const [myDriverIds, setMyDriverIds] = useState<Set<string>>(() => new Set());
-  const [mapLens, setMapLens] = useState<MapLens>("all");
+  const [mapLens] = useState<MapLens>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
   const normalizedMapMode = normalizeParam(params.mapMode);
   const focusEventId =
@@ -911,12 +913,14 @@ export default function LiveMapScreen() {
   const loadEvents = useCallback(async () => {
     if (isMountedRef.current) setEventsRequestState("loading");
     try {
+      const now = new Date();
+      const feedFloor = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const requestEvents = () =>
         supabase
           .from("events")
-          .select("id,title,category,starts_at,location_name,latitude,longitude")
+          .select("id,title,category,starts_at,ends_at,status,location_name,latitude,longitude")
           .eq("status", "scheduled")
-          .gte("starts_at", new Date().toISOString())
+          .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
           .not("latitude", "is", null)
           .not("longitude", "is", null)
           .order("starts_at", { ascending: true });
@@ -947,11 +951,16 @@ export default function LiveMapScreen() {
               longitude: number | null;
             })
         )[]
-      ).filter(
-        (event): event is EventMarkerRow =>
-          typeof event.latitude === "number" &&
-          typeof event.longitude === "number",
-      );
+      )
+        .filter(
+          (event): event is EventMarkerRow =>
+            typeof event.latitude === "number" &&
+            typeof event.longitude === "number",
+        )
+        .filter((event) => {
+          const lifecycle = getEventLifecycle(event);
+          return lifecycle === "scheduled" || lifecycle === "live";
+        });
 
       eventsRef.current = rows;
       if (isMountedRef.current) {
@@ -1610,29 +1619,26 @@ export default function LiveMapScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity
-            accessibilityLabel={`Map lens: ${mapLens === "all" ? "All" : "Mine"}`}
-            accessibilityHint="Switch between the full city and your social circle"
-            accessibilityRole="button"
-            accessibilityState={{ selected: mapLens === "mine" }}
-            activeOpacity={0.8}
-            onPress={() =>
-              setMapLens((current) => (current === "all" ? "mine" : "all"))
-            }
-            style={[
-              styles.lensControl,
-              mapLens === "mine" && styles.lensControlActive,
-            ]}
-          >
-            <Ionicons
-              name={mapLens === "all" ? "earth-outline" : "people-outline"}
-              size={15}
-              color={mapLens === "mine" ? colors.text : colors.textMuted}
+          <View style={styles.headerActions}>
+            <NoxaIconButton
+              accessibilityHint="Find people, Crews and Events"
+              accessibilityLabel="Search NOXA"
+              icon="search-outline"
+              iconSize={19}
+              onPress={() => router.push("/search")}
+              size={44}
+              variant="overlay"
             />
-            <Text style={styles.lensText}>
-              {mapLens === "all" ? "All" : "Mine"}
-            </Text>
-          </TouchableOpacity>
+            <NoxaIconButton
+              accessibilityHint="Open notifications and invitations"
+              accessibilityLabel="Notifications"
+              icon="notifications-outline"
+              iconSize={19}
+              onPress={() => router.push("/notifications")}
+              size={44}
+              variant="overlay"
+            />
+          </View>
         </View>
 
         {visibilityMenuOpen ? (
@@ -1688,6 +1694,26 @@ export default function LiveMapScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        ) : null}
+
+        {!selectedEvent ? (
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.groupDriveControl,
+              { bottom: eventCardBottom + spacing.sm },
+            ]}
+          >
+            <NoxaIconButton
+              accessibilityHint="Open Group Drives"
+              accessibilityLabel="Group Drives"
+              icon="navigate-outline"
+              iconSize={19}
+              onPress={() => router.push("/group-drives")}
+              size={44}
+              variant="overlay"
+            />
           </View>
         ) : null}
 
@@ -1928,7 +1954,7 @@ const styles = StyleSheet.create({
   livingPulse: {
     position: "absolute",
     left: 72,
-    right: 72,
+    right: 112,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1956,27 +1982,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.2,
   },
-  lensControl: {
-    minWidth: 64,
-    height: 36,
+  headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.82)",
-  },
-  lensControlActive: {
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
-  },
-  lensText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "700",
+    gap: spacing.xs,
   },
   driverMarker: {
     width: 36,
@@ -2029,6 +2038,10 @@ const styles = StyleSheet.create({
     right: spacing.md,
     alignItems: "flex-end",
     gap: spacing.sm,
+  },
+  groupDriveControl: {
+    position: "absolute",
+    left: spacing.md,
   },
   visibilityControl: {
     minWidth: 104,

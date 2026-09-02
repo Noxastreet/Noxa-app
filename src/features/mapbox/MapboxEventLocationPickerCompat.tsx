@@ -29,7 +29,7 @@ export function MapboxEventLocationPickerCompat(props: EventLocationPickerProps)
       <MapboxStateView
         loading={canUseMapbox && !loadFailed}
         title="Mapbox native module unavailable"
-        message="Rebuild the NOXA development client to use the event location picker. Expo Go cannot load the native Mapbox module."
+        message="Rebuild the NOXA development client to use the location picker. Expo Go cannot load the native Mapbox module."
       />
       <Pressable onPress={props.onCancel} style={[styles.cancel, { top: insets.top + spacing.md }]}>
         <Text style={styles.cancelText}>Cancel</Text>

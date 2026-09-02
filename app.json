@@ -14,7 +14,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "NOXA uses your precise location to place you on the live map while the app is open."
+        "NSLocationWhenInUseUsageDescription": "NOXA uses your precise location for map positioning and only shares it when you explicitly enable Live Drive or an active Group Drive."
       }
     },
     "android": {
@@ -59,8 +59,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NOXA uses your precise location to place you on the live map while the app is open.",
-          "locationAlwaysAndWhenInUsePermission": "NOXA uses your precise location during a 4-hour Live Drive session, including in the background, so the audience you choose can see you on the live map.",
+          "locationWhenInUsePermission": "NOXA uses your precise location for map positioning and only shares it after an explicit location-sharing action.",
+          "locationAlwaysAndWhenInUsePermission": "NOXA uses background location only while a Live Drive or an active Group Drive that you explicitly approved is sharing your position.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true

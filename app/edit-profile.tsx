@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 
-import { NoxaButton, NoxaHeader, NoxaInput, NoxaScreen } from "@/src/components/ui";
+import { NoxaAvatar, NoxaButton, NoxaHeader, NoxaInput, NoxaScreen } from "@/src/components/ui";
 import { isValidCountryCode } from "@/src/data/countryCatalog";
 import { CityField } from "@/src/features/city-picker";
 import { CountryField } from "@/src/features/country-picker";
@@ -67,14 +67,6 @@ function validateForm(form: ProfileForm) {
     errors.displayName = "Display name is required.";
   } else if (displayName.length < 2 || displayName.length > 40) {
     errors.displayName = "Display name must be 2–40 characters.";
-  }
-
-  if (username) {
-    if (username.length < 3 || username.length > 20) {
-      errors.username = "Username must be 3–20 characters.";
-    } else if (!/^[a-z0-9_]+$/.test(username)) {
-      errors.username = "Use only lowercase letters, numbers, and underscores.";
-    }
   }
 
   if (city.length > 60) {
@@ -353,7 +345,6 @@ export default function EditProfileScreen() {
         .from("profiles")
         .update({
           display_name: validation.values.displayName,
-          username: validation.values.username || null,
           city: validation.values.city || null,
           bio: validation.values.bio || null,
           country_code: validation.values.countryCode,
@@ -413,7 +404,11 @@ export default function EditProfileScreen() {
             <Section eyebrow="01 / PHOTO" title="Profile photo">
               <View style={styles.photoRow}>
                 <View style={styles.avatarPreview}>
-                  {previewUri ? <Image source={{ uri: previewUri }} style={styles.avatarImage} /> : <Text style={styles.avatarInitials}>{getInitials(form.displayName)}</Text>}
+                  {previewUri ? (
+                    <Image source={{ uri: previewUri }} style={styles.avatarImage} />
+                  ) : (
+                    <NoxaAvatar initials={getInitials(form.displayName)} size={74} />
+                  )}
                 </View>
                 <View style={styles.photoCopy}>
                   <Text numberOfLines={1} style={styles.previewName}>{form.displayName || "NOXA Driver"}</Text>
@@ -453,10 +448,18 @@ export default function EditProfileScreen() {
                 <Text style={styles.counter}>{form.displayName.length}/40</Text>
               </FieldError>
 
-              <FieldError message={errors.username}>
-                <NoxaInput autoCapitalize="none" autoCorrect={false} editable={!isLoading && !isSubmitting} label="Username" maxLength={21} onBlur={() => setField("username", normalizeUsername(form.username))} onChangeText={(value) => setField("username", value)} placeholder="noxa_driver" value={form.username} />
-                <Text style={styles.counter}>{normalizeUsername(form.username).length}/20</Text>
-              </FieldError>
+              <View style={styles.lockedUsernameRow}>
+                <View style={styles.lockedUsernameIcon}>
+                  <Ionicons name="lock-closed-outline" size={17} color={colors.textMuted} />
+                </View>
+                <View style={styles.lockedUsernameCopy}>
+                  <Text style={styles.lockedUsernameLabel}>USERNAME</Text>
+                  <Text numberOfLines={1} style={styles.lockedUsernameValue}>
+                    {form.username ? `@${normalizeUsername(form.username)}` : 'Set during onboarding'}
+                  </Text>
+                  <Text style={styles.lockedUsernameHint}>Locked after initial account setup.</Text>
+                </View>
+              </View>
 
               <FieldError message={errors.countryCode}>
                 <CountryField disabled={isLoading || isSubmitting} label="Country" onChange={setCountryCode} value={form.countryCode} />
@@ -541,6 +544,12 @@ const styles = StyleSheet.create({
   bioInput: { minHeight: 118, paddingTop: spacing.md },
   counter: { alignSelf: "flex-end", color: colors.textSubtle, fontSize: 10, fontWeight: "800" },
   helperText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "800" },
+  lockedUsernameRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  lockedUsernameIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
+  lockedUsernameCopy: { flex: 1, minWidth: 0 },
+  lockedUsernameLabel: { color: colors.textSubtle, fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
+  lockedUsernameValue: { marginTop: 2, color: colors.text, fontSize: 14, fontWeight: "800" },
+  lockedUsernameHint: { marginTop: 2, color: colors.textMuted, fontSize: 10, lineHeight: 15 },
   errorText: { color: colors.primary, fontSize: typography.caption, fontWeight: "800" },
   formError: { padding: spacing.md, borderRadius: radius.lg, overflow: "hidden", backgroundColor: colors.primarySubtle, borderWidth: 1, borderColor: colors.borderAccent, color: colors.text, fontSize: typography.caption, fontWeight: "800" },
   settingsRow: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },

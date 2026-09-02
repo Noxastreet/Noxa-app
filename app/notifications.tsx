@@ -13,12 +13,12 @@ import {
   View,
 } from 'react-native';
 
-import { NoxaEmptyState, NoxaHeader, NoxaScreen } from '@/src/components/ui';
+import { NoxaAvatar, NoxaEmptyState, NoxaHeader, NoxaScreen } from '@/src/components/ui';
+import { listMyGroupDrives } from '@/src/features/group-drive';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
-type ActivityFilter = 'all' | 'crews' | 'events' | 'social';
-type ActivityKind = 'crew' | 'event' | 'follow';
+type ActivityKind = 'crew' | 'drive' | 'event' | 'follow';
 
 type ActivityItem = {
   id: string;
@@ -53,13 +53,6 @@ type EventRow = {
   cover_image_url: string | null;
 };
 
-const filters: { label: string; value: ActivityFilter; kind?: ActivityKind }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Crews', value: 'crews', kind: 'crew' },
-  { label: 'Events', value: 'events', kind: 'event' },
-  { label: 'Social', value: 'social', kind: 'follow' },
-];
-
 const activityVisuals: Record<
   ActivityKind,
   { color: string; icon: keyof typeof Ionicons.glyphMap; background: string }
@@ -67,6 +60,11 @@ const activityVisuals: Record<
   crew: {
     color: colors.primaryHover,
     icon: 'people-outline',
+    background: colors.primarySubtle,
+  },
+  drive: {
+    color: colors.primaryHover,
+    icon: 'navigate-outline',
     background: colors.primarySubtle,
   },
   event: {
@@ -138,33 +136,18 @@ function formatEventDate(value: string) {
   }).format(new Date(value));
 }
 
-function FilterTab({ isActive, label, onPress }: { isActive: boolean; label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: isActive }}
-      onPress={onPress}
-      style={({ pressed }) => [styles.filterTab, pressed && styles.pressed]}>
-      <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{label}</Text>
-      <View style={[styles.filterIndicator, isActive && styles.filterIndicatorActive]} />
-    </Pressable>
-  );
-}
-
 function ActivityArtwork({ item }: { item: ActivityItem }) {
   const visual = activityVisuals[item.kind];
 
   return (
     <View style={styles.artworkShell}>
-      {item.imageUrl ? (
+      {item.kind === 'follow' ? (
+        <NoxaAvatar imageUrl={item.imageUrl} initials={getInitials(item.title)} size={44} />
+      ) : item.imageUrl ? (
         <Image source={{ uri: item.imageUrl }} style={styles.artworkImage} />
       ) : (
         <View style={[styles.artworkFallback, { backgroundColor: visual.background }]}>
-          {item.kind === 'follow' ? (
-            <Text style={[styles.artworkInitials, { color: visual.color }]}>{getInitials(item.title)}</Text>
-          ) : (
-            <Ionicons name={visual.icon} size={21} color={visual.color} />
-          )}
+          <Ionicons name={visual.icon} size={21} color={visual.color} />
         </View>
       )}
       <View style={[styles.typeBadge, { backgroundColor: visual.background }]}>
@@ -276,7 +259,6 @@ function InboxSection({
 }
 
 export default function NotificationsScreen() {
-  const [activeFilter, setActiveFilter] = useState<ActivityFilter>('all');
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -419,7 +401,23 @@ export default function NotificationsScreen() {
         .filter((item): item is ActivityItem => item !== null)
         .sort((a, b) => new Date(a.startsAt ?? 0).getTime() - new Date(b.startsAt ?? 0).getTime());
 
+      const driveRows = await listMyGroupDrives().catch(() => []);
+      const driveActivities: ActivityItem[] = driveRows
+        .filter((drive) => Boolean(drive.invitationId) && drive.myInvitationStatus === 'invited')
+        .map((drive) => ({
+          id: `drive-${drive.invitationId}`,
+          sourceId: drive.invitationId as string,
+          kind: 'drive',
+          title: drive.title,
+          subtitle: 'Group Drive invitation',
+          timestamp: drive.updatedAt,
+          startsAt: drive.scheduledStartAt ?? undefined,
+          imageUrl: null,
+          routeId: drive.invitationId as string,
+        }));
+
       setActivities([
+        ...driveActivities,
         ...invitationActivities,
         ...eventActivities,
         ...followActivities,
@@ -438,24 +436,19 @@ export default function NotificationsScreen() {
     }, [loadActivities]),
   );
 
-  const visibleActivities = useMemo(() => {
-    const filter = filters.find((item) => item.value === activeFilter);
-    return filter?.kind ? activities.filter((item) => item.kind === filter.kind) : activities;
-  }, [activeFilter, activities]);
-
   const needsAttention = useMemo(
-    () => visibleActivities.filter((item) => item.kind === 'crew'),
-    [visibleActivities],
+    () => activities.filter((item) => item.kind === 'crew' || item.kind === 'drive'),
+    [activities],
   );
   const upcoming = useMemo(
-    () => visibleActivities.filter((item) => item.kind === 'event'),
-    [visibleActivities],
+    () => activities.filter((item) => item.kind === 'event'),
+    [activities],
   );
   const community = useMemo(
-    () => visibleActivities
+    () => activities
       .filter((item) => item.kind === 'follow')
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-    [visibleActivities],
+    [activities],
   );
 
   const openActivity = (item: ActivityItem) => {
@@ -463,6 +456,8 @@ export default function NotificationsScreen() {
       router.push({ pathname: '/driver-profile/[id]', params: { id: item.routeId } });
     } else if (item.kind === 'crew') {
       router.push({ pathname: '/crew/[id]', params: { id: item.routeId } });
+    } else if (item.kind === 'drive') {
+      router.push({ pathname: '/group-drives/invitation/[id]', params: { id: item.routeId } });
     } else {
       router.push({ pathname: '/event-details', params: { id: item.routeId } });
     }
@@ -504,16 +499,6 @@ export default function NotificationsScreen() {
           subtitle="Real activity from your NOXA world"
         />
 
-        <View style={styles.filterRow} accessibilityRole="tablist">
-          {filters.map((filter) => (
-            <FilterTab
-              key={filter.value}
-              isActive={activeFilter === filter.value}
-              label={filter.label}
-              onPress={() => setActiveFilter(filter.value)}
-            />
-          ))}
-        </View>
 
         {isLoading ? (
           <View style={styles.centerState}>
@@ -555,11 +540,11 @@ export default function NotificationsScreen() {
                   <Text style={styles.primaryActionText}>TRY AGAIN</Text>
                 </Pressable>
               </View>
-            ) : visibleActivities.length === 0 ? (
+            ) : activities.length === 0 ? (
               <NoxaEmptyState
                 icon="checkmark-circle-outline"
-                title={activeFilter === 'all' ? 'You’re all caught up' : `No ${activeFilter} activity`}
-                body="New Crew invitations, upcoming Events and community activity will show here automatically."
+                title="You’re all caught up"
+                body="Group Drive and Crew invitations, upcoming Events and community activity will show here automatically."
               />
             ) : (
               <>

@@ -35,3 +35,48 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Group Drive Phase 1 static contract
+        run: npm run verify:group-drive-phase-1
+
+      - name: Group Drive Phase 1 local database smoke
+        run: npm run test:group-drive-phase-1
+
+      - name: Group Drive Phase 2 contract
+        run: npm run verify:group-drive-phase-2
+
+      - name: Group Drive Phase 3A static contract
+        run: npm run verify:group-drive-phase-3a
+
+      - name: Group Drive Phase 3A simulation smoke
+        run: npm run test:group-drive-phase-3a
+
+      - name: Group Drive Phase 3B static contract
+        run: npm run verify:group-drive-phase-3b
+
+      - name: Group Drive Phase 3B deterministic native smoke
+        run: npm run test:group-drive-phase-3b
+
+      - name: Group Drive Phase 4A static contract
+        run: npm run verify:group-drive-phase-4a
+
+      - name: Group Drive Phase 4A route progress smoke
+        run: npm run test:group-drive-phase-4a
+
+      - name: Group Drive Phase 4B static contract
+        run: npm run verify:group-drive-phase-4b
+
+      - name: Group Drive Phase 4B participant presentation smoke
+        run: npm run test:group-drive-phase-4b
+
+      - name: Group Drive Phase 4C static contract
+        run: npm run verify:group-drive-phase-4c
+
+      - name: Group Drive Phase 4C composition smoke
+        run: npm run test:group-drive-phase-4c
+
+      - name: Group Drive Phase 5 completion contract
+        run: npm run verify:group-drive-phase-5
+
+      - name: MVP completion and privacy contract
+        run: npm run verify:mvp-completion

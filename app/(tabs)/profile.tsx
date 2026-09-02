@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
+import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
@@ -41,6 +42,7 @@ type ProfileVehicle = {
   horsepower: number | null;
   color: string | null;
   cover_image_url: string | null;
+  is_primary: boolean;
 };
 
 type ProfilePost = {
@@ -198,7 +200,7 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
           <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={14} color={colors.primaryHover} />
           <Text style={styles.vehicleTypeText}>{vehicle.vehicle_type === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
         </View>
-        <Text style={styles.vehicleCount}>{vehiclesCount === 1 ? '1 VEHICLE' : `${vehiclesCount} VEHICLES`}</Text>
+        <Text style={styles.vehicleCount}>{vehicle.is_primary ? 'PRIMARY' : vehiclesCount === 1 ? '1 VEHICLE' : `${vehiclesCount} VEHICLES`}</Text>
       </View>
       <View style={styles.vehicleCopy}>
         <Text numberOfLines={1} style={styles.vehicleTitle}>{vehicle.brand}</Text>
@@ -220,7 +222,11 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
         accessibilityLabel={`Open ${vehicle.brand} ${vehicle.model || ''}`.trim()}
         accessibilityRole="button"
         onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
-        style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}>
+        style={({ pressed }) => [
+          styles.vehicleCard,
+          !vehicle.cover_image_url && styles.vehicleCardNoImage,
+          pressed && styles.pressed,
+        ]}>
         {vehicle.cover_image_url ? (
           <ImageBackground
             source={{ uri: vehicle.cover_image_url }}
@@ -231,7 +237,10 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
           </ImageBackground>
         ) : (
           <View style={[styles.vehicleArtwork, styles.vehicleFallback]}>
-            <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={68} color={colors.primaryMuted} />
+            <View style={styles.vehicleFallbackVisual}>
+              <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={34} color={colors.textMuted} />
+              <Text style={styles.vehicleFallbackLabel}>NO PHOTO</Text>
+            </View>
             {content}
           </View>
         )}
@@ -436,8 +445,9 @@ export default function ProfileScreen() {
         .eq('follower_id', user.id),
       supabase
         .from('vehicles')
-        .select('id, vehicle_type, brand, model, year, horsepower, color, cover_image_url', { count: 'exact' })
+        .select('id, vehicle_type, brand, model, year, horsepower, color, cover_image_url, is_primary', { count: 'exact' })
         .eq('owner_id', user.id)
+        .order('is_primary', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -476,6 +486,17 @@ export default function ProfileScreen() {
 
     setIsSigningOut(true);
     await stopLiveDriveSession(true).catch(() => undefined);
+    try {
+      await clearGroupDriveLocationBeforeSignOut();
+    } catch {
+      setIsSigningOut(false);
+      Alert.alert(
+        'Logout paused',
+        'NOXA could not clear your current Group Drive location. Check your connection and try again.',
+      );
+      return;
+    }
+
     const { error } = await supabase.auth.signOut({ scope: 'local' });
     setIsSigningOut(false);
 
@@ -595,9 +616,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadows.card,
   },
+  vehicleCardNoImage: {
+    height: 166,
+    borderRadius: radius.xl,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   vehicleArtwork: { flex: 1, justifyContent: 'flex-end' },
   vehicleArtworkRadius: { borderRadius: radius.hero },
-  vehicleFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft },
+  vehicleFallback: { backgroundColor: colors.surfaceSoft },
+  vehicleFallbackVisual: {
+    position: 'absolute',
+    top: 48,
+    right: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    opacity: 0.55,
+  },
+  vehicleFallbackLabel: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
   vehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.35)' },
   vehicleTopRow: { position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   vehicleTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, minHeight: 30, borderRadius: radius.pill, backgroundColor: 'rgba(6,6,10,0.70)' },

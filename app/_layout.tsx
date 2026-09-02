@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import '@/src/features/group-drive/runtime/nativeLocation';
 import '@/src/lib/liveDrive';
 import {
   acceptPasswordRecoveryUrl,
@@ -60,6 +61,7 @@ export default function RootLayout() {
         <Stack.Screen name="privacy-policy" />
         <Stack.Screen name="terms-of-service" />
         <Stack.Screen name="search" />
+        <Stack.Screen name="group-drives" />
         <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
         <Stack.Screen name="event-details" />
         <Stack.Screen name="event-editor" />

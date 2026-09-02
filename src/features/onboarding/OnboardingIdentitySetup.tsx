@@ -18,6 +18,7 @@ import {
   isSupportedProfileAvatarMimeType,
   maxProfileAvatarBytes,
   normalizeProfileAvatarMimeType,
+  normalizeProfileUsername,
   saveProfileIdentity,
   type ProfileIdentityErrors,
   type ProfileIdentityValues,
@@ -53,6 +54,7 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
   const { gutter, contentMaxWidth } = useResponsive();
   const [userId, setUserId] = useState<string | null>(null);
   const [values, setValues] = useState<ProfileIdentityValues>(initialValues);
+  const [persistedUsername, setPersistedUsername] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarAsset, setAvatarAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [errors, setErrors] = useState<ProfileIdentityErrors>({});
@@ -93,9 +95,11 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
       return;
     }
 
+    const username = normalizeProfileUsername(data?.username ?? '');
+    setPersistedUsername(username || null);
     setValues({
       displayName: data?.display_name || String(user.user_metadata?.display_name ?? 'Driver'),
-      username: data?.username ?? '',
+      username,
       city: data?.city ?? '',
       countryCode: (data as { country_code?: string | null } | null)?.country_code ?? null,
     });
@@ -111,6 +115,12 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
   const setDisplayName = (displayName: string) => {
     setValues((current) => ({ ...current, displayName }));
     setErrors((current) => ({ ...current, displayName: undefined, form: undefined }));
+  };
+
+  const setUsername = (username: string) => {
+    if (persistedUsername) return;
+    setValues((current) => ({ ...current, username }));
+    setErrors((current) => ({ ...current, username: undefined, form: undefined }));
   };
 
   const chooseAvatar = async () => {
@@ -152,13 +162,19 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
   const saveAndContinue = async () => {
     if (!userId || isSaving) return;
 
+    const normalizedUsername = normalizeProfileUsername(values.username);
+    if (!normalizedUsername) {
+      setErrors((current) => ({ ...current, username: 'Choose a unique username to continue.' }));
+      return;
+    }
+
     setIsSaving(true);
     setErrors({});
     const result = await saveProfileIdentity({
       avatarAsset,
       currentAvatarUrl: avatarUrl,
       userId,
-      values,
+      values: { ...values, username: normalizedUsername },
     });
     setIsSaving(false);
 
@@ -167,13 +183,18 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
       return;
     }
 
+    setPersistedUsername(normalizedUsername);
     setAvatarUrl(result.avatarUrl);
     setAvatarAsset(null);
     onContinue();
   };
 
   const previewUri = avatarAsset?.uri ?? avatarUrl;
-  const canContinue = values.displayName.trim().length >= 2;
+  const normalizedUsername = normalizeProfileUsername(values.username);
+  const usernameValid = normalizedUsername.length >= 3
+    && normalizedUsername.length <= 20
+    && /^[a-z0-9_]+$/.test(normalizedUsername);
+  const canContinue = values.displayName.trim().length >= 2 && usernameValid;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
@@ -191,7 +212,10 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
         <View style={styles.questionBlock}>
           <Text style={styles.eyebrow}>01 · IDENTITY</Text>
           <Text maxFontSizeMultiplier={1.35} style={styles.title}>
-            What should drivers call you?
+            Choose your NOXA identity.
+          </Text>
+          <Text style={styles.identityNote}>
+            Your username is unique and becomes locked after setup. Your display name and photo can still be changed later.
           </Text>
         </View>
 
@@ -213,6 +237,20 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
               />
               {errors.displayName ? <Text style={styles.errorText}>{errors.displayName}</Text> : null}
 
+              <NoxaInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!isSaving && !persistedUsername}
+                hint={persistedUsername ? 'Username locked to this account' : '3–20 characters · letters, numbers, underscore'}
+                label="Username"
+                maxLength={20}
+                onBlur={() => setUsername(normalizeProfileUsername(values.username))}
+                onChangeText={setUsername}
+                placeholder="noxa_driver"
+                value={values.username}
+              />
+              {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
+
               <Pressable
                 accessibilityLabel="Choose profile photo"
                 accessibilityRole="button"
@@ -228,7 +266,7 @@ export function OnboardingIdentitySetup({ onContinue }: OnboardingIdentitySetupP
                 </View>
                 <View style={styles.photoCopy}>
                   <Text style={styles.photoLabel}>Profile photo</Text>
-                  <Text style={styles.photoMeta}>Optional</Text>
+                  <Text style={styles.photoMeta}>Optional · technical placeholder is used until you add one</Text>
                 </View>
                 <Text style={styles.photoAction}>{previewUri ? 'Change' : 'Add photo'}</Text>
               </Pressable>
@@ -287,6 +325,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.display,
     fontWeight: '700',
     ...typography.v2.hero,
+  },
+  identityNote: {
+    maxWidth: 460,
+    color: colors.textMuted,
+    fontFamily: typography.fontFamily.body,
+    ...typography.v2.body,
   },
   loadingState: {
     flex: 1,
