@@ -115,15 +115,11 @@ export default function ChooseUsernameScreen() {
           </View>
         ) : (
           <View style={styles.content}>
-            <View style={styles.mark}>
-              <View style={styles.markGridHorizontal} />
-              <View style={styles.markGridVertical} />
-              <Ionicons name="at" size={30} color={colors.primaryHover} />
-            </View>
             <View style={styles.copy}>
-              <Text style={styles.title}>Claim your NOXA username.</Text>
+              <Text style={styles.eyebrow}>YOUR PUBLIC HANDLE</Text>
+              <Text style={styles.title}>Choose how people find you.</Text>
               <Text style={styles.body}>
-                This is your unique public handle. After you confirm it, it stays attached to this account and cannot be casually changed from Edit Profile.
+                Your username is unique in NOXA and stays attached to this account after confirmation.
               </Text>
             </View>
             <NoxaInput
@@ -143,8 +139,8 @@ export default function ChooseUsernameScreen() {
             />
             {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
             <View style={styles.lockNote}>
-              <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
-              <Text style={styles.lockText}>Choose carefully. Username changes are locked after confirmation.</Text>
+              <Ionicons name="lock-closed-outline" size={17} color={colors.textMuted} />
+              <Text style={styles.lockText}>Username changes are locked after confirmation.</Text>
             </View>
             <NoxaButton
               disabled={Boolean(validation.error) || !value.trim()}
@@ -164,23 +160,11 @@ const styles = StyleSheet.create({
   shell: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, backgroundColor: colors.background },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, justifyContent: 'center', gap: spacing.xl, paddingBottom: spacing.xxxl },
-  mark: {
-    width: 72,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
-  },
-  markGridHorizontal: { position: 'absolute', left: 10, right: 10, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
-  markGridVertical: { position: 'absolute', top: 10, bottom: 10, width: StyleSheet.hairlineWidth, backgroundColor: colors.border },
   copy: { gap: spacing.sm },
+  eyebrow: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 1.25 },
   title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
   body: { maxWidth: 520, color: colors.textMuted, ...typography.v2.body },
-  lockNote: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surfaceSoft },
+  lockNote: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   lockText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
 });
