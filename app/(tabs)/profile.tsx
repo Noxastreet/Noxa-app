@@ -233,7 +233,10 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
           </ImageBackground>
         ) : (
           <View style={[styles.vehicleArtwork, styles.vehicleFallback]}>
-            <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={68} color={colors.primaryMuted} />
+            <View style={styles.vehicleFallbackVisual}>
+              <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={34} color={colors.textMuted} />
+              <Text style={styles.vehicleFallbackLabel}>NO PHOTO</Text>
+            </View>
             {content}
           </View>
         )}
@@ -611,7 +614,22 @@ const styles = StyleSheet.create({
   },
   vehicleArtwork: { flex: 1, justifyContent: 'flex-end' },
   vehicleArtworkRadius: { borderRadius: radius.hero },
-  vehicleFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft },
+  vehicleFallback: { backgroundColor: colors.surfaceSoft },
+  vehicleFallbackVisual: {
+    position: 'absolute',
+    top: 52,
+    left: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    opacity: 0.55,
+  },
+  vehicleFallbackLabel: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
   vehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.35)' },
   vehicleTopRow: { position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   vehicleTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, minHeight: 30, borderRadius: radius.pill, backgroundColor: 'rgba(6,6,10,0.70)' },
