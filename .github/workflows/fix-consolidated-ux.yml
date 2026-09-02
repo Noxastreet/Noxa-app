@@ -1,0 +1,30 @@
+name: Fix consolidated UX source
+
+on:
+  push:
+    branches:
+      - codex/group-drive-ux-simplification-20260902
+    paths:
+      - scripts/fix-consolidated-ux.mjs
+      - .github/workflows/fix-consolidated-ux.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/group-drive-ux-simplification-20260902
+          fetch-depth: 0
+      - run: node scripts/fix-consolidated-ux.mjs
+      - name: Commit fix
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add 'app/(tabs)/index.tsx'
+          git commit -m "fix(map): keep static all-lens type-safe"
+          git push origin HEAD:codex/group-drive-ux-simplification-20260902
