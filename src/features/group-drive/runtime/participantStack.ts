@@ -2,7 +2,7 @@ import type { DriveParticipantProgress } from './routeProgress';
 
 export const GROUP_DRIVE_REORDER_ADVANTAGE_METERS = 150;
 export const GROUP_DRIVE_REORDER_CONFIRMATIONS = 2;
-export const GROUP_DRIVE_STACK_MAX_VISIBLE = 5;
+export const GROUP_DRIVE_STACK_MAX_VISIBLE = 3;
 
 export type ParticipantStackOrderState = {
   order: readonly string[];
