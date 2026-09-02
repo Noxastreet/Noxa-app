@@ -60,8 +60,9 @@ function ScheduleChoice({
 }
 
 export default function GroupDriveScheduleScreen() {
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; mode?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : '';
+  const editMode = params.mode === 'edit';
   const [drive, setDrive] = useState<GroupDriveDetails | null>(null);
   const [mode, setMode] = useState<ScheduleMode>('ready');
   const [scheduledAt, setScheduledAt] = useState(nextStart);
@@ -85,6 +86,8 @@ export default function GroupDriveScheduleScreen() {
         const date = new Date(loaded.scheduledStartAt);
         if (!Number.isNaN(date.getTime())) setScheduledAt(date);
         setMode('scheduled');
+      } else {
+        setMode('ready');
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Schedule could not be loaded.');
@@ -125,7 +128,11 @@ export default function GroupDriveScheduleScreen() {
         mode === 'scheduled' ? scheduledAt.toISOString() : null,
         drive.crewId,
       );
-      router.replace({ pathname: '/group-drives/review', params: { id: drive.id } });
+      if (editMode) {
+        router.replace({ pathname: '/group-drives/[id]', params: { id: drive.id } });
+      } else {
+        router.replace({ pathname: '/group-drives/review', params: { id: drive.id } });
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Schedule could not be saved.');
     } finally {
@@ -135,10 +142,10 @@ export default function GroupDriveScheduleScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="SCHEDULE" subtitle="Invite-only · no visibility toggle" />
-      <GroupDriveStep current={4} label="Timing" />
+      <GroupDriveHeader title={editMode ? 'EDIT TIMING' : 'SCHEDULE'} subtitle="Invite-only · no visibility toggle" />
+      {!editMode ? <GroupDriveStep current={4} label="Timing" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>Choose when the group gets ready.</Text>
+        <Text style={styles.title}>{editMode ? 'Update the timing.' : 'Choose when the group gets ready.'}</Text>
         <Text style={styles.body}>A scheduled time never starts location sharing. The host starts the Active Drive explicitly later.</Text>
       </View>
       {loading ? <NoxaLoadingState label="Loading schedule…" /> : (
@@ -184,8 +191,8 @@ export default function GroupDriveScheduleScreen() {
         fullWidth
         loading={saving}
         onPress={() => void continueFlow()}
-        title="Review route"
-        trailingIcon={<Ionicons name="arrow-forward" size={18} color={colors.text} />}
+        title={editMode ? 'Save timing' : 'Review route'}
+        trailingIcon={editMode ? undefined : <Ionicons name="arrow-forward" size={18} color={colors.text} />}
       />
       <Modal animationType="fade" transparent visible={pickerMode !== null} onRequestClose={() => setPickerMode(null)}>
         <View style={styles.backdrop}>
