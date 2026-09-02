@@ -54,9 +54,11 @@ replaceOnce(
   'drive notifications',
 );
 
-const visibleActivitiesPattern = /  const visibleActivities = useMemo\([\s\S]*?\n  \);\n\n  const needsAttention = useMemo\(/;
-if (!visibleActivitiesPattern.test(source)) throw new Error('visibleActivities block not found');
-source = source.replace(visibleActivitiesPattern, '  const needsAttention = useMemo(\n');
+replaceOnce(
+`  const visibleActivities = useMemo(() => {\n    const filter = filters.find((item) => item.value === activeFilter);\n    return filter?.kind ? activities.filter((item) => item.kind === filter.kind) : activities;\n  }, [activeFilter, activities]);\n\n`,
+  '',
+  'visible activities filter',
+);
 
 replaceOnce(
 `    () => visibleActivities.filter((item) => item.kind === 'crew'),\n    [visibleActivities],`,
