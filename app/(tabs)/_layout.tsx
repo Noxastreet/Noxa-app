@@ -16,6 +16,7 @@ type TabDestination =
   | 'ready'
   | '/welcome'
   | '/onboarding'
+  | '/choose-username'
   | '/visibility-setup'
   | null;
 
@@ -51,6 +52,19 @@ export default function TabLayout() {
 
       if (!hasCompletedOnboarding(user.id)) {
         setDestination('/onboarding');
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!isMounted) return;
+
+      if (!profileError && !profile?.username?.trim()) {
+        setDestination('/choose-username');
         return;
       }
 
