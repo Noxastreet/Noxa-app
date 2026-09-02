@@ -15,9 +15,10 @@ import {
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveDetailsEditorScreen() {
-  const params = useLocalSearchParams<{ id?: string; crewId?: string }>();
+  const params = useLocalSearchParams<{ id?: string; crewId?: string; mode?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : null;
   const requestedCrewId = typeof params.crewId === 'string' ? params.crewId : null;
+  const editMode = params.mode === 'edit' && Boolean(driveSessionId);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [crewId, setCrewId] = useState<string | null>(requestedCrewId);
@@ -68,7 +69,11 @@ export default function GroupDriveDetailsEditorScreen() {
       if (driveSessionId || crewId) {
         await updateDriveDetails(id, cleanTitle, description, scheduledStartAt, crewId);
       }
-      router.replace({ pathname: '/group-drives/route', params: { id } });
+      if (editMode) {
+        router.replace({ pathname: '/group-drives/[id]', params: { id } });
+      } else {
+        router.replace({ pathname: '/group-drives/route', params: { id } });
+      }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Group Drive could not be saved.');
     } finally {
@@ -79,12 +84,12 @@ export default function GroupDriveDetailsEditorScreen() {
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
-        title={driveSessionId ? 'EDIT DRIVE' : 'NEW GROUP DRIVE'}
+        title={editMode ? 'EDIT DETAILS' : driveSessionId ? 'EDIT DRIVE' : 'NEW GROUP DRIVE'}
         subtitle={crewId ? 'Crew context · invite-only' : 'Invite-only by design'}
       />
-      <GroupDriveStep current={1} label="Drive details" />
+      {!editMode ? <GroupDriveStep current={1} label="Drive details" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>Name the shared intention.</Text>
+        <Text style={styles.title}>{editMode ? 'Update this drive.' : 'Name the shared intention.'}</Text>
         <Text style={styles.body}>Keep it clear. The people you invite should know what this drive is for.</Text>
       </View>
       <View style={styles.form}>
@@ -126,8 +131,8 @@ export default function GroupDriveDetailsEditorScreen() {
           fullWidth
           loading={saving}
           onPress={() => void continueFlow()}
-          title="Continue"
-          trailingIcon={<Ionicons name="arrow-forward" size={18} color={colors.text} />}
+          title={editMode ? 'Save changes' : 'Continue'}
+          trailingIcon={editMode ? undefined : <Ionicons name="arrow-forward" size={18} color={colors.text} />}
         />
       </View>
     </Screen>
