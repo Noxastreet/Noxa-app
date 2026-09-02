@@ -32,7 +32,7 @@ if (!failures.length) {
     ['45 s stale default missing', /STALE_AFTER_MS = 45_000/],
     ['150 m reorder advantage missing', /REORDER_ADVANTAGE_METERS = 150/],
     ['two-update confirmation missing', /REORDER_CONFIRMATIONS = 2/],
-    ['five-row window missing', /STACK_MAX_VISIBLE = 5/],
+    ['three-avatar compact window missing', /STACK_MAX_VISIBLE = 3/],
     ['current-user reservation missing', /currentUserReserved/],
   ];
   for (const [label, pattern] of required) {
