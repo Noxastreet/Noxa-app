@@ -68,7 +68,9 @@ create index if not exists events_community_starts_at_idx
   on public.events (community_id, starts_at desc)
   where community_id is not null;
 
-create or replace function public.noxa_is_community_manager(target_community_id uuid)
+-- Keep policy helper functions outside the exposed public API schema so they cannot
+-- accidentally become general-purpose RPC endpoints.
+create or replace function private.noxa_is_community_manager(target_community_id uuid)
 returns boolean
 language sql
 security definer
@@ -84,7 +86,7 @@ as $$
   );
 $$;
 
-create or replace function public.noxa_touch_community_updated_at()
+create or replace function private.noxa_touch_community_updated_at()
 returns trigger
 language plpgsql
 security definer
@@ -100,7 +102,7 @@ drop trigger if exists noxa_touch_community_updated_at_trigger on public.communi
 create trigger noxa_touch_community_updated_at_trigger
   before update on public.communities
   for each row
-  execute function public.noxa_touch_community_updated_at();
+  execute function private.noxa_touch_community_updated_at();
 
 -- Public community rows intentionally contain no contact email, private admin data,
 -- member lists, or other sensitive fields. Anonymous access is read-only and only
@@ -108,9 +110,9 @@ create trigger noxa_touch_community_updated_at_trigger
 grant select on table public.communities to anon, authenticated;
 grant select on table public.community_admins to authenticated;
 
-revoke all on function public.noxa_is_community_manager(uuid) from public;
-revoke all on function public.noxa_touch_community_updated_at() from public;
-grant execute on function public.noxa_is_community_manager(uuid) to authenticated;
+revoke all on function private.noxa_is_community_manager(uuid) from public;
+revoke all on function private.noxa_touch_community_updated_at() from public;
+grant execute on function private.noxa_is_community_manager(uuid) to authenticated;
 
 alter table public.communities enable row level security;
 alter table public.community_admins enable row level security;
@@ -129,7 +131,7 @@ create policy "NOXA managers can read managed communities"
   on public.communities
   for select
   to authenticated
-  using (public.noxa_is_community_manager(id));
+  using (private.noxa_is_community_manager(id));
 
 create policy "NOXA managers can read community admin roster"
   on public.community_admins
@@ -137,7 +139,7 @@ create policy "NOXA managers can read community admin roster"
   to authenticated
   using (
     user_id = (select auth.uid())
-    or public.noxa_is_community_manager(community_id)
+    or private.noxa_is_community_manager(community_id)
   );
 
 comment on table public.communities is
