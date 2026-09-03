@@ -142,6 +142,26 @@ create policy "NOXA managers can read community admin roster"
     or private.noxa_is_community_manager(community_id)
   );
 
+-- A normal event creator must not be able to attach an event to an established
+-- Community they do not manage. Existing events remain unaffected because
+-- community_id is nullable and defaults to null.
+alter policy "NOXA users can create own events"
+  on public.events
+  with check (
+    creator_id = (select auth.uid())
+    and (crew_id is null or public.noxa_is_crew_manager(crew_id))
+    and (community_id is null or private.noxa_is_community_manager(community_id))
+  );
+
+alter policy "NOXA users can update own events"
+  on public.events
+  using (creator_id = (select auth.uid()))
+  with check (
+    creator_id = (select auth.uid())
+    and (crew_id is null or public.noxa_is_crew_manager(crew_id))
+    and (community_id is null or private.noxa_is_community_manager(community_id))
+  );
+
 comment on table public.communities is
   'Public automotive/motorcycle organizations and established communities. Distinct from user-created crews.';
 
