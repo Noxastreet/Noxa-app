@@ -86,8 +86,7 @@ let sessionRefreshPromise: ReturnType<typeof supabase.auth.refreshSession> | nul
   null;
 
 export async function getCurrentSessionUser() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
+  const { data } = await supabase.auth.getSession();
   return data.session?.user ?? null;
 }
 
