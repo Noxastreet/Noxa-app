@@ -34,10 +34,6 @@ function jsxTagName(tagName) {
   return tagName.getText();
 }
 
-function isInteractiveTag(name) {
-  return nativeInteractive.has(name) || /Button$/.test(name);
-}
-
 function hasInteractionHandler(attributes) {
   let hasSpread = false;
   for (const attribute of attributes.properties) {
@@ -46,7 +42,9 @@ function hasInteractionHandler(attributes) {
       continue;
     }
     const name = attribute.name.getText();
-    if (name === 'onPress' || name === 'href') return { wired: true, spread: hasSpread };
+    if (name === 'onPress' || name === 'onLongPress' || name === 'href') {
+      return { wired: true, spread: hasSpread };
+    }
   }
   return { wired: false, spread: hasSpread };
 }
@@ -69,7 +67,7 @@ for (const file of scanRoots.flatMap(collectTsxFiles)) {
   function visit(node) {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       const name = jsxTagName(node.tagName);
-      if (isInteractiveTag(name)) {
+      if (nativeInteractive.has(name)) {
         interactiveCount += 1;
         const interaction = hasInteractionHandler(node.attributes);
         if (interaction.wired) {
@@ -79,7 +77,7 @@ for (const file of scanRoots.flatMap(collectTsxFiles)) {
         } else {
           const position = source.getLineAndCharacterOfPosition(node.getStart(source));
           failures.push(
-            `${path.relative(projectRoot, file)}:${position.line + 1}:${position.character + 1} <${name}> has no onPress/href and no spread-provided handler`,
+            `${path.relative(projectRoot, file)}:${position.line + 1}:${position.character + 1} <${name}> has no onPress/onLongPress/href and no spread-provided handler`,
           );
         }
       }
@@ -97,5 +95,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Interaction wiring audit: PASS (${interactiveCount} interactive JSX usages; ${explicitCount} explicit handlers; ${spreadBackedCount} spread-backed usages require runtime acceptance)`,
+  `Interaction wiring audit: PASS (${interactiveCount} native interactive JSX usages; ${explicitCount} explicit handlers; ${spreadBackedCount} spread-backed usages require runtime acceptance)`,
 );
