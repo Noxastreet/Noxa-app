@@ -1,8 +1,12 @@
-import { NativeModules, Platform, UIManager } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
+import { Platform } from "react-native";
 
-export function hasMapboxNativeModule() {
-  if (Platform.OS === "web") return false;
-  return Boolean(
-    NativeModules.RNMBXModule && UIManager.getViewManagerConfig?.("RNMBXMapView"),
-  );
+export type MapboxRuntime = "native" | "expo-go" | "web";
+
+export function getMapboxRuntime(): MapboxRuntime {
+  if (Platform.OS === "web") return "web";
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    return "expo-go";
+  }
+  return "native";
 }
