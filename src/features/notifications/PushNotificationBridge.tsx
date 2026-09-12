@@ -17,6 +17,14 @@ function dataString(data: Record<string, unknown>, key: string) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function firstDataString(data: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = dataString(data, key);
+    if (value) return value;
+  }
+  return null;
+}
+
 function openNotificationResponse(response: Notifications.NotificationResponse) {
   const identifier = response.notification.request.identifier;
   if (handledResponses.has(identifier)) return;
@@ -27,19 +35,44 @@ function openNotificationResponse(response: Notifications.NotificationResponse) 
     ? (rawData as Record<string, unknown>)
     : {};
 
-  const eventId = dataString(data, 'event_id');
+  const eventId = firstDataString(data, 'event_id', 'eventId');
   if (eventId) {
     router.push({ pathname: '/event-details', params: { id: eventId } });
     return;
   }
 
-  const crewId = dataString(data, 'crew_id');
+  const crewId = firstDataString(data, 'crew_id', 'crewId');
   if (crewId) {
     router.push({ pathname: '/crew/[id]', params: { id: crewId } });
     return;
   }
 
-  if (dataString(data, 'drive_session_id')) {
+  const postId = firstDataString(data, 'post_id', 'postId');
+  if (postId) {
+    router.push({ pathname: '/post-details', params: { id: postId } });
+    return;
+  }
+
+  const actorId = firstDataString(data, 'actor_id', 'actorId');
+  if (actorId) {
+    router.push({ pathname: '/driver-profile/[id]', params: { id: actorId } });
+    return;
+  }
+
+  const driveInvitationId = firstDataString(
+    data,
+    'drive_invitation_id',
+    'driveInvitationId',
+  );
+  if (driveInvitationId) {
+    router.push({
+      pathname: '/group-drives/invitation/[id]',
+      params: { id: driveInvitationId },
+    });
+    return;
+  }
+
+  if (firstDataString(data, 'drive_session_id', 'driveSessionId')) {
     router.push('/group-drives');
     return;
   }
