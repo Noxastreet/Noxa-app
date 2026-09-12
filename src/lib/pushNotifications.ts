@@ -134,14 +134,11 @@ export async function syncUpcomingEventReminders(userId: string) {
     const date = reminderDate(event.starts_at, now);
     if (!date) continue;
 
-    const trigger: Notifications.NotificationTriggerInput =
-      Platform.OS === 'android'
-        ? {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date,
-            channelId: NOXA_NOTIFICATION_CHANNEL,
-          }
-        : date;
+    const trigger: Notifications.NotificationTriggerInput = {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date,
+      ...(Platform.OS === 'android' ? { channelId: NOXA_NOTIFICATION_CHANNEL } : {}),
+    };
 
     await Notifications.scheduleNotificationAsync({
       content: {
