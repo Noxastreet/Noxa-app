@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { PushNotificationBridge } from '@/src/features/notifications/PushNotificationBridge';
 import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
 import { hasCompletedVisibilitySetup } from '@/src/lib/visibilitySetup';
@@ -93,63 +94,66 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textSubtle,
-        tabBarStyle: [
-          styles.tabBar,
-          {
-            height: 64 + insets.bottom,
-            paddingBottom: Math.max(insets.bottom, spacing.sm),
-          },
-        ],
-        tabBarItemStyle: styles.tabItem,
-        tabBarButton: HapticTab,
-        tabBarHideOnKeyboard: true,
-      }}>
-      <Tabs.Screen
-        name="crews"
-        options={{
-          title: 'Crews',
-          tabBarLabel: ({ focused }) => <TabLabel label="Crews" focused={focused} />,
-          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="events"
-        options={{
-          title: 'Events',
-          tabBarLabel: ({ focused }) => <TabLabel label="Events" focused={focused} />,
-          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Map',
-          tabBarLabel: ({ focused }) => <TabLabel label="Map" focused={focused} />,
-          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'map' : 'map-outline'} color={color} emphasized />,
-        }}
-      />
-      <Tabs.Screen
-        name="garage"
-        options={{
-          title: 'Garage',
-          tabBarLabel: ({ focused }) => <TabLabel label="Garage" focused={focused} />,
-          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarLabel: ({ focused }) => <TabLabel label="Profile" focused={focused} />,
-          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} />,
-        }}
-      />
-    </Tabs>
+    <>
+      <PushNotificationBridge />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.accent,
+          tabBarInactiveTintColor: colors.textSubtle,
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              height: 64 + insets.bottom,
+              paddingBottom: Math.max(insets.bottom, spacing.sm),
+            },
+          ],
+          tabBarItemStyle: styles.tabItem,
+          tabBarButton: HapticTab,
+          tabBarHideOnKeyboard: true,
+        }}>
+        <Tabs.Screen
+          name="crews"
+          options={{
+            title: 'Crews',
+            tabBarLabel: ({ focused }) => <TabLabel label="Crews" focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="events"
+          options={{
+            title: 'Events',
+            tabBarLabel: ({ focused }) => <TabLabel label="Events" focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Map',
+            tabBarLabel: ({ focused }) => <TabLabel label="Map" focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'map' : 'map-outline'} color={color} emphasized />,
+          }}
+        />
+        <Tabs.Screen
+          name="garage"
+          options={{
+            title: 'Garage',
+            tabBarLabel: ({ focused }) => <TabLabel label="Garage" focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarLabel: ({ focused }) => <TabLabel label="Profile" focused={focused} />,
+            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} />,
+          }}
+        />
+      </Tabs>
+    </>
   );
 }
 
