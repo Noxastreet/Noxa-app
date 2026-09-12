@@ -43,6 +43,13 @@
       "expo-router",
       "expo-apple-authentication",
       [
+        "expo-notifications",
+        {
+          "color": "#C8102E",
+          "defaultChannel": "noxa_activity"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/icon.png",

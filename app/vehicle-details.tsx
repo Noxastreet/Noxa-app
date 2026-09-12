@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView
 import { NoxaAvatar, NoxaBadge, NoxaScreen } from '@/src/components/ui';
 import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type VehicleInfoRow = {
   label: string;
@@ -110,8 +110,6 @@ function VehicleFallback({ vehicleType }: { vehicleType: VehicleDetails['vehicle
 function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
   const content = (
     <>
-      <View style={styles.heroTopFade} />
-      <View style={styles.heroBottomFade} />
       <View style={styles.heroContent}>
         {typeof vehicle.is_public === 'boolean' ? <NoxaBadge label={vehicle.is_public ? 'PUBLIC' : 'PRIVATE'} variant="primary" /> : <View />}
         <View>
@@ -425,8 +423,6 @@ const styles = StyleSheet.create({
   heroImage: { flex: 1 },
   heroImageRadius: { borderBottomLeftRadius: radius.hero, borderBottomRightRadius: radius.hero },
   vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft },
-  heroTopFade: { ...StyleSheet.absoluteFillObject, bottom: undefined, height: 130, backgroundColor: 'rgba(6,6,10,0.22)' },
-  heroBottomFade: { ...StyleSheet.absoluteFillObject, top: undefined, height: 190, backgroundColor: 'rgba(6,6,10,0.68)' },
   heroContent: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: 68, paddingBottom: spacing.lg },
   heroTitle: {
     color: colors.text,
@@ -436,13 +432,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     lineHeight: 48,
     textTransform: 'uppercase',
+    textShadowColor: 'rgba(0,0,0,0.88)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   heroSubtitle: {
     marginTop: spacing.xxs,
-    color: 'rgba(240,240,244,0.72)',
+    color: colors.text,
     fontFamily: typography.fontFamily.display,
     fontSize: typography.title,
     fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   ownerCard: {
     marginHorizontal: spacing.lg,
