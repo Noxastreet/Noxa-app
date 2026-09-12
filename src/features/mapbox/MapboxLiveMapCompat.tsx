@@ -18,7 +18,7 @@ import {
 import { colors, radius, spacing } from "@/src/theme";
 
 import type { LiveMapHandle, MapboxLiveMapProps } from "./types";
-import { hasMapboxNativeModule } from "./native";
+import { getMapboxRuntime } from "./native";
 
 type RealMapboxLiveMap = ComponentType<
   MapboxLiveMapProps & RefAttributes<LiveMapHandle>
@@ -31,7 +31,7 @@ export const MapboxLiveMapCompat = forwardRef<
   const realMapRef = useRef<LiveMapHandle | null>(null);
   const [RealMapboxLiveMap, setRealMapboxLiveMap] =
     useState<RealMapboxLiveMap | null>(null);
-  const [canUseMapbox] = useState(hasMapboxNativeModule);
+  const [runtime] = useState(getMapboxRuntime);
   const [loadFailed, setLoadFailed] = useState(false);
 
   useImperativeHandle(
@@ -49,23 +49,49 @@ export const MapboxLiveMapCompat = forwardRef<
 
   useEffect(() => {
     let isMounted = true;
-    if (!canUseMapbox) return undefined;
+    if (runtime !== "native") return undefined;
 
     import("./MapboxLiveMap")
       .then((module) => {
         if (isMounted) setRealMapboxLiveMap(() => module.MapboxLiveMap);
       })
-      .catch(() => {
-        if (isMounted) setLoadFailed(true);
+      .catch((error) => {
+        if (isMounted) {
+          console.error("[noxa-mapbox] Failed to load MapboxLiveMap.", error);
+          setLoadFailed(true);
+        }
       });
 
     return () => {
       isMounted = false;
     };
-  }, [canUseMapbox]);
+  }, [runtime]);
 
-  if (!canUseMapbox || loadFailed) {
-    return <MapboxDevelopmentFallback />;
+  if (runtime === "expo-go") {
+    return (
+      <MapboxFallback
+        body="Expo Go does not include the native Mapbox module. Open NOXA in a development or production build to use the map."
+        title="Mapbox unavailable in Expo Go"
+      />
+    );
+  }
+
+  if (runtime === "web") {
+    return (
+      <MapboxFallback
+        body="The native NOXA map is available in the iOS and Android app."
+        title="Map unavailable on web"
+      />
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <MapboxFallback
+        body="The native Mapbox module could not be initialized in this build. Restart NOXA and try again."
+        title="Map failed to load"
+      />
+    );
   }
 
   if (!RealMapboxLiveMap) {
@@ -81,7 +107,7 @@ export const MapboxLiveMapCompat = forwardRef<
 
 MapboxLiveMapCompat.displayName = "MapboxLiveMapCompat";
 
-function MapboxDevelopmentFallback() {
+function MapboxFallback({ title, body }: { title: string; body: string }) {
   return (
     <View style={styles.fallback}>
       <View style={styles.gridLine} />
@@ -89,11 +115,8 @@ function MapboxDevelopmentFallback() {
         <View style={styles.iconFrame}>
           <Ionicons name="map" size={24} color={colors.primaryHover} />
         </View>
-        <Text style={styles.title}>Mapbox native module unavailable</Text>
-        <Text style={styles.body}>
-          Mapbox requires a rebuilt custom development client. Expo Go cannot
-          load the native @rnmapbox/maps module.
-        </Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.body}>{body}</Text>
       </View>
     </View>
   );
