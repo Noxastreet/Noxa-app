@@ -22,6 +22,19 @@ jobs:
         with:
           ref: fix/audit-t8-unsaved-editors
 
+      - name: Repair generated verification script literal
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-t8-unsaved-editors.mjs')
+          text = path.read_text()
+          text = text.replace(
+              "      throw new Error(\\`${path}: missing T8 contract: \\${snippet}\\`);",
+              "      throw new Error(path + ': missing T8 contract: ' + snippet);",
+          )
+          path.write_text(text)
+          PY
+
       - name: Apply scoped patch
         run: node scripts/apply-t8-unsaved-editors.mjs
 
