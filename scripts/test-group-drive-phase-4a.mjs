@@ -31,6 +31,11 @@ const geometry = {
 };
 const route = routeProgress.prepareDriveRoute(geometry, 2_000);
 assert.ok(route, 'valid LineString should produce a prepared route');
+assert.equal(
+  routeProgress.prepareDriveRoute(geometry, 2_000),
+  route,
+  'repeated snapshots with the same route object must reuse prepared geometry',
+);
 assert.equal(routeProgress.prepareDriveRoute({ type: 'LineString', coordinates: [[0, 0]] }, 1), null);
 assert.equal(routeProgress.prepareDriveRoute(geometry, 0), null);
 
@@ -198,4 +203,4 @@ assert.deepEqual(window.visibleUserIds, ['user-1', 'user-2', 'user-7']);
 assert.equal(window.hiddenCount, 4);
 assert.equal(window.currentUserReserved, true);
 
-console.log('Group Drive Phase 4A route progress/stack smoke: PASS (43 checks)');
+console.log('Group Drive Phase 4A route progress/stack smoke: PASS (44 checks)');
