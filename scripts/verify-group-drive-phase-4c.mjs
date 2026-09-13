@@ -7,6 +7,7 @@ const root = process.cwd();
 const files = [
   'app/group-drives/[id]/active.tsx',
   'src/features/mapbox/MapboxLiveMap.tsx',
+  'src/features/mapbox/MapboxLiveMapCompat.tsx',
   'src/features/group-drive/runtime/realtime.ts',
   'src/features/group-drive/runtime/routeProgress.ts',
   'src/features/group-drive/runtime/participantStack.ts',
@@ -30,9 +31,10 @@ function gitBlobSha(text) {
 if (!failures.length) {
   const screen = source('app/group-drives/[id]/active.tsx');
   const sharedMap = source('src/features/mapbox/MapboxLiveMap.tsx');
+  const compat = source('src/features/mapbox/MapboxLiveMapCompat.tsx');
 
   const required = [
-    ['existing MapboxLiveMap is not reused', /from '@\/src\/features\/mapbox\/MapboxLiveMap'/],
+    ['shared Mapbox compatibility layer is not reused', /from '@\/src\/features\/mapbox\/MapboxLiveMapCompat'/],
     ['authorized initial snapshot missing', /loadActiveDriveRealtimeSnapshot/],
     ['Phase 3A realtime subscription missing', /subscribeToActiveDriveRealtime/],
     ['stored route preparation missing', /prepareDriveRoute/],
@@ -49,6 +51,12 @@ if (!failures.length) {
     if (!pattern.test(screen)) failures.push(label);
   }
 
+  if (!/import\("\.\/MapboxLiveMap"\)/.test(compat)) {
+    failures.push('Mapbox compatibility layer must lazy-load the existing native MapboxLiveMap');
+  }
+  if (/from ['"]@\/src\/features\/mapbox\/MapboxLiveMap['"]/.test(screen)) {
+    failures.push('Active Drive must not bypass the shared Mapbox compatibility layer');
+  }
   if (/driver_locations|liveDrive|LIVE_DRIVE_TASK_NAME/.test(screen)) {
     failures.push('Active Drive screen must not reuse personal Live Drive data/runtime');
   }
@@ -56,7 +64,7 @@ if (!failures.length) {
     failures.push('Active Drive screen must not call Directions or event-route');
   }
   if (/from ['"]@rnmapbox\/maps['"]/.test(screen)) {
-    failures.push('Active Drive screen must reuse existing MapboxLiveMap instead of creating a second raw Mapbox layer');
+    failures.push('Active Drive screen must reuse the existing shared Mapbox layer instead of creating a second raw Mapbox layer');
   }
   if (/from ['"]@\/src\/lib\/supabase['"]/.test(screen)) {
     failures.push('Active Drive screen must consume the Group Drive API/runtime rather than query Supabase directly');
