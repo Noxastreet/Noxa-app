@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { NoxaBadge, NoxaScreen } from '@/src/components/ui';
-import { supabase } from '@/src/lib/supabase';
+import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 type GarageVehicle = {
@@ -228,10 +228,9 @@ export default function GarageScreen() {
     setIsLoadingVehicles(!hasLoadedVehiclesRef.current);
     setHasVehicleError(false);
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    const user = authData.user;
+    const user = await getCurrentSessionUser();
 
-    if (authError || !user) {
+    if (!user) {
       setVehicles([]);
       setHasVehicleError(true);
       hasLoadedVehiclesRef.current = true;

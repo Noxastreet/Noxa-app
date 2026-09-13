@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -21,7 +21,7 @@ import {
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
 import { getEventLifecycle } from "@/src/lib/eventExperience";
-import { supabase } from "@/src/lib/supabase";
+import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
 type EventCategory = "meet" | "drive" | "track" | "social";
@@ -255,6 +255,7 @@ export default function CanonicalEventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const loadHeroProfiles = useCallback(async (eventId: string) => {
     const { data: attendanceData, error: attendanceError } = await supabase
@@ -299,8 +300,7 @@ export default function CanonicalEventsScreen() {
       if (showSpinner) setLoading(true);
       setError(null);
 
-      const { data: authData } = await supabase.auth.getUser();
-      const currentUserId = authData.user?.id ?? null;
+      const currentUserId = (await getCurrentSessionUser())?.id ?? null;
       setUserId(currentUserId);
 
       const now = new Date();
@@ -320,8 +320,6 @@ export default function CanonicalEventsScreen() {
       ]);
 
       if (eventsResult.error || attendanceResult.error) {
-        setEvents([]);
-        setHeroAttendees([]);
         setError(
           eventsResult.error?.message ||
             attendanceResult.error?.message ||
@@ -329,6 +327,7 @@ export default function CanonicalEventsScreen() {
         );
         setLoading(false);
         setRefreshing(false);
+        hasLoadedRef.current = true;
         return;
       }
 
@@ -355,17 +354,18 @@ export default function CanonicalEventsScreen() {
         }));
 
       setEvents(models);
-      if (models[0]) await loadHeroProfiles(models[0].id);
-      else setHeroAttendees([]);
       setLoading(false);
       setRefreshing(false);
+      hasLoadedRef.current = true;
+      if (models[0]) void loadHeroProfiles(models[0].id);
+      else setHeroAttendees([]);
     },
     [loadHeroProfiles],
   );
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(!hasLoadedRef.current);
     }, [load]),
   );
 
