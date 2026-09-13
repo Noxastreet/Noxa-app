@@ -31,7 +31,7 @@ if (!failures.length) {
     ['filtered INSERT subscription', /event: 'INSERT'[\s\S]*drive_location_state[\s\S]*drive_session_id=eq/],
     ['filtered UPDATE subscription', /event: 'UPDATE'[\s\S]*drive_location_state[\s\S]*drive_session_id=eq/],
     ['opaque-only DELETE handling', /event: 'DELETE'[\s\S]*drive_location_state[\s\S]*applyOpaqueDelete/],
-    ['RLS-authorized lifecycle polling', /setInterval\(\(\) => void reconcile\(\), LIFECYCLE_RECONCILE_INTERVAL_MS\)/],
+    ['RLS-authorized lifecycle polling', /setInterval\(\(\) => \{[\s\S]*void reconcile\(\);[\s\S]*\}, LIFECYCLE_RECONCILE_INTERVAL_MS\)/],
     ['channel teardown', /removeChannel\(channel\)/],
     ['reconnect snapshot reconciliation', /status === 'SUBSCRIBED'[\s\S]*reconcile/],
     ['reconcile event queue missing', /pendingLocationEvents[\s\S]*splice\(0\)\.reduce/],
