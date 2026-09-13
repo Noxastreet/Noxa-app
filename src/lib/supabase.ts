@@ -5,9 +5,9 @@ import { requireClientEnv } from '@/src/config/env';
 
 const { supabaseUrl, supabasePublishableKey } = requireClientEnv();
 
-const REQUEST_TIMEOUT_MS = 5000;
-const RETRY_DELAY_MS = 250;
-const TRANSIENT_READ_STATUSES = new Set([408, 502, 503, 504, 520]);
+const REQUEST_TIMEOUT_MS = 15000;
+const RETRY_DELAY_MS = 500;
+const TRANSIENT_READ_STATUSES = new Set([408, 429, 502, 503, 504, 520]);
 
 type FetchInput = Parameters<typeof fetch>[0];
 type FetchInit = Parameters<typeof fetch>[1];
@@ -35,10 +35,19 @@ async function fetchWithTimeout(input: FetchInput, init?: FetchInit) {
     }
   }
 
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
 
   try {
     return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (timedOut && !upstreamSignal?.aborted) {
+      throw new Error('NOXA request timed out.');
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
     detachUpstream?.();
@@ -64,7 +73,9 @@ async function resilientSupabaseFetch(input: FetchInput, init?: FetchInit) {
     }
     return response;
   } catch (error) {
-    if (init?.signal?.aborted) throw error;
+    const isTimeout =
+      error instanceof Error && error.message === 'NOXA request timed out.';
+    if (init?.signal?.aborted || isTimeout) throw error;
     await sleep(RETRY_DELAY_MS);
     return fetchWithTimeout(input, init);
   }

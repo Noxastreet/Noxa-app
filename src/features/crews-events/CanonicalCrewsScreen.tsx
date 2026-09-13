@@ -565,6 +565,41 @@ export default function CanonicalCrewsScreen() {
     const currentUserId = (await getCurrentSessionUser())?.id ?? null;
     setUserId(currentUserId);
 
+    const crewsResult = await supabase
+      .from("crews")
+      .select(
+        "id,owner_id,name,description,city,logo_url,cover_image_url,is_public,join_policy,created_at,profiles:owner_id(display_name,username)",
+      )
+      .order("created_at", { ascending: false });
+
+    if (crewsResult.error) {
+      setError(crewsResult.error.message);
+      setLoading(false);
+      setRefreshing(false);
+      hasLoadedRef.current = true;
+      return;
+    }
+
+    const rows = (crewsResult.data ?? []) as CrewRow[];
+    const baseModels = rows.map((row) => ({
+      ...row,
+      ownerName: getOwnerName(row),
+      memberCount: 0,
+      currentUserRole: null,
+      isCurrentUserMember: false,
+      pendingJoinRequestId: null,
+    } satisfies Crew));
+
+    setCrews(baseModels);
+    setEvents([]);
+    setProfiles([]);
+    setFilter("discover");
+    setLoading(false);
+    setRefreshing(false);
+    hasLoadedRef.current = true;
+
+    if (rows.length === 0) return;
+
     const requestsQuery = currentUserId
       ? supabase
           .from("crew_join_requests")
@@ -573,80 +608,60 @@ export default function CanonicalCrewsScreen() {
           .eq("status", "pending")
       : Promise.resolve({ data: [], error: null });
 
-    const [crewsResult, membersResult, requestsResult, eventsResult, profilesResult] =
-      await Promise.all([
-        supabase
-          .from("crews")
-          .select(
-            "id,owner_id,name,description,city,logo_url,cover_image_url,is_public,join_policy,created_at,profiles:owner_id(display_name,username)",
-          )
-          .order("created_at", { ascending: false }),
-        supabase.from("crew_members").select("crew_id,user_id,role"),
-        requestsQuery,
-        supabase
-          .from("events")
-          .select("id,crew_id,title,location_name,starts_at,cover_image_url")
-          .not("crew_id", "is", null)
-          .eq("status", "scheduled")
-          .gte("starts_at", new Date().toISOString())
-          .order("starts_at", { ascending: true })
-          .limit(8),
-        supabase
-          .from("profiles")
-          .select("id,display_name,username,avatar_url")
-          .limit(8),
-      ]);
+    void Promise.all([
+      supabase.from("crew_members").select("crew_id,user_id,role"),
+      requestsQuery,
+      supabase
+        .from("events")
+        .select("id,crew_id,title,location_name,starts_at,cover_image_url")
+        .not("crew_id", "is", null)
+        .eq("status", "scheduled")
+        .gte("starts_at", new Date().toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(8),
+      supabase
+        .from("profiles")
+        .select("id,display_name,username,avatar_url")
+        .limit(8),
+    ]).then(([membersResult, requestsResult, eventsResult, profilesResult]) => {
+      const memberRows = membersResult.error
+        ? []
+        : ((membersResult.data ?? []) as CrewMemberRow[]);
+      const requestRows = requestsResult.error
+        ? []
+        : ((requestsResult.data ?? []) as JoinRequestRow[]);
+      const memberCount = new Map<string, number>();
+      const roleByCrew = new Map<string, CrewRole>();
 
-    const firstError =
-      crewsResult.error ||
-      membersResult.error ||
-      requestsResult.error ||
-      eventsResult.error ||
-      profilesResult.error;
-
-    if (firstError) {
-      setError(firstError.message);
-      setLoading(false);
-      setRefreshing(false);
-      hasLoadedRef.current = true;
-      return;
-    }
-
-    const memberRows = (membersResult.data ?? []) as CrewMemberRow[];
-    const requestRows = (requestsResult.data ?? []) as JoinRequestRow[];
-    const rows = (crewsResult.data ?? []) as CrewRow[];
-    const memberCount = new Map<string, number>();
-    const roleByCrew = new Map<string, CrewRole>();
-
-    for (const member of memberRows) {
-      memberCount.set(member.crew_id, (memberCount.get(member.crew_id) ?? 0) + 1);
-      if (member.user_id === currentUserId) {
-        roleByCrew.set(member.crew_id, member.role);
+      for (const member of memberRows) {
+        memberCount.set(member.crew_id, (memberCount.get(member.crew_id) ?? 0) + 1);
+        if (member.user_id === currentUserId) {
+          roleByCrew.set(member.crew_id, member.role);
+        }
       }
-    }
 
-    const requestByCrew = new Map(
-      requestRows.map((request) => [request.crew_id, request.id]),
-    );
-    const models = rows.map((row) => {
-      const role = roleByCrew.get(row.id) ?? null;
-      return {
-        ...row,
-        ownerName: getOwnerName(row),
-        memberCount: memberCount.get(row.id) ?? 0,
-        currentUserRole: role,
-        isCurrentUserMember: role !== null,
-        pendingJoinRequestId: requestByCrew.get(row.id) ?? null,
-      } satisfies Crew;
+      const requestByCrew = new Map(
+        requestRows.map((request) => [request.crew_id, request.id]),
+      );
+      const models = rows.map((row) => {
+        const role = roleByCrew.get(row.id) ?? null;
+        return {
+          ...row,
+          ownerName: getOwnerName(row),
+          memberCount: memberCount.get(row.id) ?? 0,
+          currentUserRole: role,
+          isCurrentUserMember: role !== null,
+          pendingJoinRequestId: requestByCrew.get(row.id) ?? null,
+        } satisfies Crew;
+      });
+
+      setCrews(models);
+      if (!eventsResult.error) setEvents((eventsResult.data ?? []) as CrewEvent[]);
+      if (!profilesResult.error) {
+        setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
+      }
+      setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
     });
-
-    setCrews(models);
-    setEvents((eventsResult.data ?? []) as CrewEvent[]);
-    setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
-    if (!models.some((crew) => crew.isCurrentUserMember)) setFilter("discover");
-    setLoading(false);
-    setRefreshing(false);
-    hasLoadedRef.current = true;
   }, []);
 
   useFocusEffect(
