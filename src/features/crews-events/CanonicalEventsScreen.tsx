@@ -305,60 +305,67 @@ export default function CanonicalEventsScreen() {
 
       const now = new Date();
       const feedFloor = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const [eventsResult, attendanceResult] = await Promise.all([
-        supabase
-          .from("events")
-          .select(
-            "id,creator_id,crew_id,title,description,category,location_name,starts_at,ends_at,cover_image_url,is_public,status",
-          )
-          .eq("status", "scheduled")
-          .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
-          .order("starts_at", { ascending: true }),
-        supabase
-          .from("event_attendees")
-          .select("event_id,user_id,response,joined_at"),
-      ]);
+      const eventsResult = await supabase
+        .from("events")
+        .select(
+          "id,creator_id,crew_id,title,description,category,location_name,starts_at,ends_at,cover_image_url,is_public,status",
+        )
+        .eq("status", "scheduled")
+        .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
+        .order("starts_at", { ascending: true });
 
-      if (eventsResult.error || attendanceResult.error) {
-        setError(
-          eventsResult.error?.message ||
-            attendanceResult.error?.message ||
-            "Events could not be loaded.",
-        );
+      if (eventsResult.error) {
+        setError(eventsResult.error.message || "Events could not be loaded.");
         setLoading(false);
         setRefreshing(false);
         hasLoadedRef.current = true;
         return;
       }
 
-      const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
-      const counts = new Map<string, number>();
-      const mine = new Map<string, "going" | "maybe">();
-
-      for (const row of attendance) {
-        if (row.response === "going") {
-          counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1);
-        }
-        if (row.user_id === currentUserId) mine.set(row.event_id, row.response);
-      }
-
-      const models = ((eventsResult.data ?? []) as EventRow[])
+      const baseModels = ((eventsResult.data ?? []) as EventRow[])
         .filter((event) => {
           const lifecycle = getEventLifecycle(event);
           return lifecycle === "scheduled" || lifecycle === "live";
         })
         .map((event) => ({
           ...event,
-          attendeeCount: counts.get(event.id) ?? 0,
-          myResponse: mine.get(event.id) ?? null,
+          attendeeCount: 0,
+          myResponse: null,
         }));
 
-      setEvents(models);
+      setEvents(baseModels);
       setLoading(false);
       setRefreshing(false);
       hasLoadedRef.current = true;
-      if (models[0]) void loadHeroProfiles(models[0].id);
+
+      if (baseModels[0]) void loadHeroProfiles(baseModels[0].id);
       else setHeroAttendees([]);
+
+      void supabase
+        .from("event_attendees")
+        .select("event_id,user_id,response,joined_at")
+        .then((attendanceResult) => {
+          if (attendanceResult.error) return;
+
+          const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
+          const counts = new Map<string, number>();
+          const mine = new Map<string, "going" | "maybe">();
+
+          for (const row of attendance) {
+            if (row.response === "going") {
+              counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1);
+            }
+            if (row.user_id === currentUserId) mine.set(row.event_id, row.response);
+          }
+
+          setEvents((current) =>
+            current.map((event) => ({
+              ...event,
+              attendeeCount: counts.get(event.id) ?? 0,
+              myResponse: mine.get(event.id) ?? null,
+            })),
+          );
+        });
     },
     [loadHeroProfiles],
   );

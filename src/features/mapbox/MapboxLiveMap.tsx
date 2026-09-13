@@ -286,9 +286,12 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             setHasError(false);
             setIsLoaded(true);
           }}
+          onDidFinishLoadingStyle={() => {
+            setHasError(false);
+            setIsLoaded(true);
+          }}
           onMapLoadingError={() => {
-            setHasError(true);
-            setIsLoaded(false);
+            if (!isLoaded) setHasError(true);
           }}
           onCameraChanged={(state) => {
             if (state.gestures.isGestureActive) {
