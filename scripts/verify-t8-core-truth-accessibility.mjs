@@ -15,8 +15,12 @@ assert.ok(events.includes('const nearTermCount = events.filter'), 'Temporal coun
 
 assert.ok(events.includes('createButton: {\n    minHeight: 44,'), 'Events Create control must meet the 44px minimum target.');
 assert.ok(crews.includes('createButton: {\n    minHeight: 44,'), 'Crews Create control must meet the 44px minimum target.');
+assert.equal(crews.includes('Nothing nearby yet'), false, 'Crews must not claim nearby discovery without location/distance evidence.');
+assert.equal(crews.includes('ACTIVE NEAR YOU'), false, 'Crews must not claim proximity without location/distance evidence.');
+assert.ok(crews.includes('Nothing to discover yet'), 'Crews empty state must use non-geographic discovery wording.');
+assert.ok(crews.includes('ACTIVE CREWS'), 'Crews discovery section must use truthful non-geographic wording.');
 assert.ok(garage.includes('addButton: {\n    minHeight: 44,'), 'Garage Add control must meet the 44px minimum target.');
 assert.ok(eventsTab.includes('historyButton: {\n    position: \'absolute\','), 'Events History control must remain present.');
 assert.ok(eventsTab.includes('right: spacing.md,\n    minHeight: 44,'), 'Events History control must meet the 44px minimum target.');
 
-console.log('T8 core truth/accessibility contract: PASS (11 checks)');
+console.log('T8 core truth/accessibility contract: PASS (15 checks)');

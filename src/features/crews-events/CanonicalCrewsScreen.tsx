@@ -805,7 +805,7 @@ export default function CanonicalCrewsScreen() {
         <View style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
           <Text style={styles.stateTitle}>
-            {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
+            {filter === "mine" ? "No crews yet" : "Nothing to discover yet"}
           </Text>
           <Text style={styles.stateText}>
             {filter === "mine"
@@ -835,7 +835,7 @@ export default function CanonicalCrewsScreen() {
         {secondaryCrews.length ? (
           <>
             <CanonicalSectionHeader
-              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE NEAR YOU"}
+              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE CREWS"}
             />
             <ScrollView
               horizontal
