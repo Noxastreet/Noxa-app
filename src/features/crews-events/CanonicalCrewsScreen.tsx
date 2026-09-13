@@ -860,7 +860,7 @@ export default function CanonicalCrewsScreen() {
         <View style={styles.peopleStrip}>
           <View style={styles.peopleCopy}>
             <Text style={styles.peopleEyebrow}>
-              {filter === "mine" ? "YOUR COMMUNITY" : "PEOPLE NEARBY"}
+              {filter === "mine" ? "YOUR COMMUNITY" : "COMMUNITY PICKS"}
             </Text>
             <Text style={styles.peopleText}>
               {filter === "mine"
@@ -1019,7 +1019,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   filterButton: {
-    minHeight: 42,
+    minHeight: 44,
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
