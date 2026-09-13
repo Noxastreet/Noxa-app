@@ -1,0 +1,43 @@
+name: Apply T8 event route consistency patch
+
+on:
+  push:
+    branches:
+      - fix/audit-t8-event-route-consistency
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/audit-t8-event-route-consistency
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply exact scoped replacement
+        run: node scripts/apply-t8-event-route-consistency.mjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Verify U9 route consistency contract
+        run: npm run verify:t8-event-route-consistency
+      - name: Verify patch whitespace
+        run: git diff --check
+      - name: Remove temporary patch helper
+        run: git rm scripts/apply-t8-event-route-consistency.mjs
+      - name: Commit patched runtime file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(t8): keep event route identity stable"
+          git push origin HEAD:fix/audit-t8-event-route-consistency
