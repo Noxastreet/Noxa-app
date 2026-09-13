@@ -62,7 +62,7 @@ if (!failures.length) {
     failures.push('Active Drive screen must consume the Group Drive API/runtime rather than query Supabase directly');
   }
 
-  const expectedSharedMapBlob = '5b917360910c3ee9de09910cb4fdb13a7d41f13a';
+  const expectedSharedMapBlob = 'a9d527bf4f16623f9a8419b6e8b57ab4b617eb56';
   const actualSharedMapBlob = gitBlobSha(sharedMap);
   if (actualSharedMapBlob !== expectedSharedMapBlob) {
     failures.push(`shared Home/Map MapboxLiveMap changed unexpectedly (${actualSharedMapBlob})`);
