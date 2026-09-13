@@ -153,6 +153,20 @@ assert.deepEqual(rpcCalls.at(-1).args, {
 });
 assert.equal(native.getGroupDriveLocationSession()?.driveSessionId, 'drive-a');
 
+let runtimeState = await native.reconcileGroupDriveLocationRuntime('drive-a');
+assert.equal(runtimeState.sharing, true, 'granted permissions plus a running task must reconcile as sharing');
+assert.equal(runtimeState.reason, null);
+foregroundStatus = 'denied';
+runtimeState = await native.reconcileGroupDriveLocationRuntime('drive-a');
+assert.equal(runtimeState.sharing, false, 'revoked OS permission must fail closed');
+assert.equal(runtimeState.reason, 'permission_revoked');
+assert.equal(taskStarted, false, 'permission reconciliation must stop the native writer');
+assert.equal(native.getGroupDriveLocationSession(), null, 'permission reconciliation must clear stale local sharing state');
+foregroundStatus = 'granted';
+const resumedConsent = native.acceptGroupDriveLocationDisclosure('drive-a');
+await native.startGroupDriveLocationSession(resumedConsent);
+assert.equal(taskStarted, true, 'sharing can be explicitly restarted after permission is restored');
+
 rpcError = { message: 'Network request failed' };
 await taskHandler({
   data: { locations: [{ ...currentLocation, coords: { ...currentLocation.coords, longitude: 23.73 } }] },
@@ -177,4 +191,4 @@ await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(taskStarted, false, 'sign-out must stop the Group Drive writer');
 assert.equal(native.getGroupDriveLocationSession(), null, 'sign-out must clear local Group Drive session');
 
-console.log('Group Drive Phase 3B deterministic native runtime smoke: PASS (18 assertions)');
+console.log('Group Drive Phase 3B deterministic native runtime smoke: PASS (25 assertions)');

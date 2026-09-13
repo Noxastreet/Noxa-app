@@ -38,6 +38,10 @@ if (!failures.length) {
     ['scoped disclosure primitive missing', /acceptGroupDriveLocationDisclosure/],
     ['foreground permission request missing', /requestForegroundPermissionsAsync/],
     ['background permission request missing', /requestBackgroundPermissionsAsync/],
+    ['foreground permission recheck missing', /getForegroundPermissionsAsync/],
+    ['background permission recheck missing', /getBackgroundPermissionsAsync/],
+    ['native task state recheck missing', /hasStartedLocationUpdatesAsync\(GROUP_DRIVE_LOCATION_TASK_NAME\)/],
+    ['runtime reconciliation primitive missing', /reconcileGroupDriveLocationRuntime/],
     ['server-owned active expiry missing', /activeExpiresAt/],
     ['protected location RPC missing', /\.rpc\('noxa_upsert_drive_location'/],
     ['auth mismatch cleanup missing', /authData\.session\?\.user\.id !== session\.userId[\s\S]*clearLocalRuntime/],
@@ -62,6 +66,12 @@ if (!failures.length) {
   }
   if (!/Join and Ready never enable (?:location )?sharing/.test(consentScreen)) {
     failures.push('consent screen must state that Join/Ready do not enable sharing');
+  }
+  if (!/AppState\.addEventListener\('change'[\s\S]*nextState === 'active'[\s\S]*refresh\(\)/.test(consentScreen)) {
+    failures.push('consent screen must reconcile sharing when the app returns from OS settings');
+  }
+  if (!/reconcileGroupDriveLocationRuntime\(driveSessionId\)/.test(consentScreen)) {
+    failures.push('consent screen must recheck OS permissions and native writer state');
   }
   if (!/import '@\/src\/features\/group-drive\/runtime\/nativeLocation';/.test(layout)) {
     failures.push('Group Drive TaskManager module must be registered from the root layout');
