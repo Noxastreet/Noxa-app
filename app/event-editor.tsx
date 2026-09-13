@@ -506,11 +506,12 @@ export default function EventEditorScreen() {
       setSaving(false);
       return;
     }
+    const savedEventId = result.data.id;
     setSaving(false);
     navigateWithoutPrompt(() =>
       router.replace({
         pathname: "/event-details",
-        params: { id: result.data.id },
+        params: { id: savedEventId },
       }),
     );
   }, [currentUserId, eventId, form, isEditing, navigateWithoutPrompt, saving, validate]);
