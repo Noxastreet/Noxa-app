@@ -1,0 +1,37 @@
+name: Apply T8 Unsaved Editors Patch
+
+on:
+  push:
+    branches:
+      - fix/audit-t8-unsaved-editors
+    paths:
+      - scripts/apply-t8-unsaved-editors.mjs
+      - .github/workflows/t8-unsaved-editors-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/audit-t8-unsaved-editors
+
+      - name: Apply scoped patch
+        run: node scripts/apply-t8-unsaved-editors.mjs
+
+      - name: Check patch whitespace
+        run: git diff --check
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(editors): protect unsaved changes"
+          git push
