@@ -5,11 +5,13 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import {
   ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -17,12 +19,50 @@ import {
 
 import { colors, radius, spacing } from "@/src/theme";
 
-import type { LiveMapHandle, MapboxLiveMapProps } from "./types";
+import type {
+  LiveMapHandle,
+  MapboxDriver,
+  MapboxLiveMapProps,
+} from "./types";
 import { getMapboxRuntime } from "./native";
 
 type RealMapboxLiveMap = ComponentType<
   MapboxLiveMapProps & RefAttributes<LiveMapHandle>
 >;
+
+function distanceBetweenMeters(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+) {
+  const earthRadius = 6_371_000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const latitudeDelta = toRadians(b.latitude - a.latitude);
+  const longitudeDelta = toRadians(b.longitude - a.longitude);
+  const latitudeA = toRadians(a.latitude);
+  const latitudeB = toRadians(b.latitude);
+  const haversine =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(latitudeA) *
+      Math.cos(latitudeB) *
+      Math.sin(longitudeDelta / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.sqrt(haversine));
+}
+
+function formatApproximateDistance(meters: number) {
+  if (!Number.isFinite(meters)) return "Distance unavailable";
+  if (meters < 1_000) return "Less than 1 km away";
+  const roundedKilometers = Math.max(1, Math.round(meters / 500) * 0.5);
+  return `About ${roundedKilometers.toFixed(roundedKilometers % 1 ? 1 : 0)} km away`;
+}
+
+function safeHomeDriver(driver: MapboxDriver): MapboxDriver {
+  if (driver.is_relevant) return driver;
+  return {
+    ...driver,
+    label: "NOXA driver",
+    avatar_url: null,
+  };
+}
 
 export const MapboxLiveMapCompat = forwardRef<
   LiveMapHandle,
@@ -33,6 +73,28 @@ export const MapboxLiveMapCompat = forwardRef<
     useState<RealMapboxLiveMap | null>(null);
   const [runtime] = useState(getMapboxRuntime);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+
+  const usesHomeProgressiveDisclosure =
+    props.mapFilter === "all" && !props.isRouteMode;
+  const safeActiveDrivers = useMemo(
+    () =>
+      usesHomeProgressiveDisclosure
+        ? props.activeDrivers.map(safeHomeDriver)
+        : props.activeDrivers,
+    [props.activeDrivers, usesHomeProgressiveDisclosure],
+  );
+  const selectedDriver = useMemo(
+    () =>
+      selectedDriverId
+        ? safeActiveDrivers.find((driver) => driver.user_id === selectedDriverId) ?? null
+        : null,
+    [safeActiveDrivers, selectedDriverId],
+  );
+  const selectedDriverDistance =
+    selectedDriver && props.driverLocation
+      ? distanceBetweenMeters(props.driverLocation, selectedDriver)
+      : null;
 
   useImperativeHandle(
     ref,
@@ -66,6 +128,10 @@ export const MapboxLiveMapCompat = forwardRef<
       isMounted = false;
     };
   }, [runtime]);
+
+  useEffect(() => {
+    if (selectedDriverId && !selectedDriver) setSelectedDriverId(null);
+  }, [selectedDriver, selectedDriverId]);
 
   if (runtime === "expo-go") {
     return (
@@ -102,7 +168,74 @@ export const MapboxLiveMapCompat = forwardRef<
     );
   }
 
-  return <RealMapboxLiveMap {...props} ref={realMapRef} />;
+  return (
+    <View style={styles.mapRoot}>
+      <RealMapboxLiveMap
+        {...props}
+        activeDrivers={safeActiveDrivers}
+        onDriverPress={(driverId) => {
+          if (usesHomeProgressiveDisclosure) {
+            setSelectedDriverId(driverId);
+            return;
+          }
+          props.onDriverPress(driverId);
+        }}
+        ref={realMapRef}
+      />
+
+      {usesHomeProgressiveDisclosure && selectedDriver ? (
+        <View pointerEvents="box-none" style={styles.previewLayer}>
+          <View style={styles.driverPreview}>
+            <View style={styles.driverPreviewIcon}>
+              <Ionicons
+                name={selectedDriver.is_relevant ? "person" : "car-sport"}
+                size={20}
+                color={colors.text}
+              />
+            </View>
+            <View style={styles.driverPreviewCopy}>
+              <Text numberOfLines={1} style={styles.driverPreviewTitle}>
+                {selectedDriver.label}
+              </Text>
+              <Text style={styles.driverPreviewMeta}>
+                {selectedDriver.is_relevant ? "Known driver" : "Public driver"}
+              </Text>
+              <Text style={styles.driverPreviewDistance}>
+                {selectedDriverDistance === null
+                  ? "Distance unavailable — your location is off"
+                  : formatApproximateDistance(selectedDriverDistance)}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Close driver preview"
+              accessibilityRole="button"
+              hitSlop={6}
+              onPress={() => setSelectedDriverId(null)}
+              style={styles.driverPreviewClose}
+            >
+              <Ionicons name="close" size={18} color={colors.textMuted} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="View driver profile"
+              accessibilityRole="button"
+              onPress={() => {
+                const driverId = selectedDriver.user_id;
+                setSelectedDriverId(null);
+                props.onDriverPress(driverId);
+              }}
+              style={({ pressed }) => [
+                styles.driverPreviewAction,
+                pressed && styles.driverPreviewActionPressed,
+              ]}
+            >
+              <Text style={styles.driverPreviewActionText}>View profile</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.text} />
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
 });
 
 MapboxLiveMapCompat.displayName = "MapboxLiveMapCompat";
@@ -123,11 +256,93 @@ function MapboxFallback({ title, body }: { title: string; body: string }) {
 }
 
 const styles = StyleSheet.create({
+  mapRoot: {
+    ...StyleSheet.absoluteFillObject,
+  },
   stateView: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.background,
+  },
+  previewLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    paddingHorizontal: spacing.md,
+    paddingBottom: 88,
+  },
+  driverPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 96,
+    padding: spacing.md,
+    paddingRight: 44,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.96)",
+  },
+  driverPreviewIcon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: "rgba(200,16,46,0.14)",
+  },
+  driverPreviewCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  driverPreviewTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  driverPreviewMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  driverPreviewDistance: {
+    marginTop: 4,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  driverPreviewClose: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+  },
+  driverPreviewAction: {
+    position: "absolute",
+    right: spacing.md,
+    bottom: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    minHeight: 34,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  driverPreviewActionPressed: {
+    opacity: 0.78,
+  },
+  driverPreviewActionText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "800",
   },
   fallback: {
     ...StyleSheet.absoluteFillObject,
