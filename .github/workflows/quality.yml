@@ -48,6 +48,9 @@ jobs:
       - name: Home / Map F12 performance contract
         run: npm run verify:home-map-performance
 
+      - name: T8 Crew owner creation contract
+        run: npm run verify:t8-crew-create-owner
+
       - name: Group Drive Phase 1 static contract
         run: npm run verify:group-drive-phase-1
 
