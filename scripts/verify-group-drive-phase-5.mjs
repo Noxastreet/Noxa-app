@@ -5,11 +5,14 @@ import process from 'node:process';
 const root = process.cwd();
 const files = [
   'src/features/group-drive/completion.ts',
+  'src/features/group-drive/participantManagement.ts',
   'src/features/group-drive/runtime/locationSharingControl.ts',
   'src/features/group-drive/runtime/pendingServerAction.ts',
   'app/group-drives/index.tsx',
+  'app/group-drives/[id]/active.tsx',
   'app/group-drives/[id]/controls.tsx',
   'app/group-drives/[id]/location-sharing.tsx',
+  'app/group-drives/[id]/participants.tsx',
   'app/group-drives/[id]/summary.tsx',
   'supabase/migrations/20260819080201_group_drive_phase_1.sql',
 ];
@@ -25,11 +28,14 @@ for (const file of files) {
 
 if (!failures.length) {
   const completion = source('src/features/group-drive/completion.ts');
+  const participantManagement = source('src/features/group-drive/participantManagement.ts');
   const sharingControl = source('src/features/group-drive/runtime/locationSharingControl.ts');
   const pendingAction = source('src/features/group-drive/runtime/pendingServerAction.ts');
   const list = source('app/group-drives/index.tsx');
+  const active = source('app/group-drives/[id]/active.tsx');
   const controls = source('app/group-drives/[id]/controls.tsx');
   const sharing = source('app/group-drives/[id]/location-sharing.tsx');
+  const participants = source('app/group-drives/[id]/participants.tsx');
   const summary = source('app/group-drives/[id]/summary.tsx');
   const migration = source('supabase/migrations/20260819080201_group_drive_phase_1.sql');
 
@@ -49,6 +55,12 @@ if (!failures.length) {
     ['active drive context does not expose lifecycle controls', list, /Resume Active Drive[\s\S]*Drive controls[\s\S]*\/group-drives\/\[id\]\/controls/],
     ['host End Drive control missing', controls, /End Group Drive/],
     ['participant Leave Drive control missing', controls, /Leave Group Drive/],
+    ['active participant stack does not open the full list', active, /onOpenParticipants[\s\S]*\/group-drives\/\[id\]\/participants/],
+    ['active participant list does not load authorized drive details', participants, /loadGroupDriveDetails/],
+    ['active participant list does not restrict itself to active participants', participants, /participant\.status === 'active'/],
+    ['host participant removal client is not wired', participantManagement, /noxa_remove_drive_participant/],
+    ['active participant list does not expose host removal', participants, /isHost[\s\S]*Remove/],
+    ['active participant list does not protect the host from removal', participants, /participant\.userId === drive\.hostId/],
     ['summary does not label route values as planned', summary, /PLANNED ROUTE[\s\S]*PLANNED TIME/],
   ];
   for (const [label, text, pattern] of requiredClient) {
@@ -58,6 +70,7 @@ if (!failures.length) {
   const requiredServer = [
     ['server end-drive RPC missing', /create or replace function public\.noxa_end_drive/],
     ['server terminal summary RPC missing', /create or replace function public\.noxa_get_drive_summary/],
+    ['server host-remove RPC missing', /create or replace function public\.noxa_remove_drive_participant/],
     ['terminal transition does not delete exact location state', /new\.status in \('completed', 'cancelled'\)[\s\S]*delete from public\.drive_location_state/],
     ['participant exit does not delete exact location state', /noxa_delete_drive_location_on_participant_exit[\s\S]*delete from public\.drive_location_state/],
   ];
@@ -67,6 +80,8 @@ if (!failures.length) {
 
   for (const [label, text] of [
     ['completion helper', completion],
+    ['participant management helper', participantManagement],
+    ['active participant list', participants],
     ['active controls', controls],
     ['terminal summary', summary],
   ]) {
