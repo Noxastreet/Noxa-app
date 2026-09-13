@@ -559,6 +559,7 @@ export default function CanonicalCrewsScreen() {
   const hasLoadedRef = useRef(false);
 
   const load = useCallback(async (showSpinner = true) => {
+    const isInitialLoad = !hasLoadedRef.current;
     if (showSpinner) setLoading(true);
     setError(null);
 
@@ -593,7 +594,7 @@ export default function CanonicalCrewsScreen() {
     setCrews(baseModels);
     setEvents([]);
     setProfiles([]);
-    setFilter("discover");
+    if (isInitialLoad) setFilter("discover");
     setLoading(false);
     setRefreshing(false);
     hasLoadedRef.current = true;
@@ -660,7 +661,9 @@ export default function CanonicalCrewsScreen() {
       if (!profilesResult.error) {
         setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
       }
-      setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
+      if (isInitialLoad) {
+        setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
+      }
     });
   }, []);
 
