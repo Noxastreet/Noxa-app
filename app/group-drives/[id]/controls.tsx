@@ -8,6 +8,7 @@ import { NoxaButton, NoxaEmptyState, NoxaLoadingState } from '@/src/components/u
 import {
   GroupDriveHeader,
   endGroupDrive,
+  getPendingGroupDriveServerAction,
   leaveGroupDriveAndStopLocation,
   loadGroupDriveDetails,
   type GroupDriveDetails,
@@ -37,6 +38,17 @@ export default function ActiveDriveControlsScreen() {
         return;
       }
       setDrive(next);
+
+      const pending = getPendingGroupDriveServerAction(driveSessionId);
+      if (pending?.kind === 'leave') {
+        setError(
+          'Location sharing is already stopped on this device. Leaving the Group Drive is waiting for server confirmation. Retry Leave Drive when you are online.',
+        );
+      } else if (pending?.kind === 'end') {
+        setError(
+          'Location sharing is already stopped on this device. Ending the Group Drive is waiting for server confirmation. Retry End Group Drive when you are online.',
+        );
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Active Drive controls could not be loaded.');
     } finally {
@@ -50,7 +62,7 @@ export default function ActiveDriveControlsScreen() {
     if (!drive || drive.currentUserId !== drive.hostId || working) return;
     Alert.alert(
       'End this Group Drive?',
-      'The drive will be marked completed for everyone. Exact Group Drive location rows are removed by the server and location sharing stops on this device.',
+      'Location sharing will stop on this device immediately. The drive ends for everyone only after the server confirms the request.',
       [
         { text: 'Keep driving', style: 'cancel' },
         {
@@ -76,7 +88,7 @@ export default function ActiveDriveControlsScreen() {
     if (!drive || drive.currentUserId === drive.hostId || working) return;
     Alert.alert(
       'Leave this Group Drive?',
-      'You will immediately lose access to the Active Drive. Your exact Group Drive location row is removed by the server and location sharing stops on this device.',
+      'Location sharing will stop on this device immediately. Your exit and server cleanup are confirmed only after NOXA reaches the server.',
       [
         { text: 'Stay', style: 'cancel' },
         {
@@ -153,7 +165,7 @@ export default function ActiveDriveControlsScreen() {
         <NoxaButton
           fullWidth
           variant="secondary"
-          title="Share my location"
+          title="Group Drive location"
           onPress={() => router.push({ pathname: '/group-drives/[id]/location-sharing', params: { id: drive.id } })}
         />
       </View>
@@ -163,7 +175,7 @@ export default function ActiveDriveControlsScreen() {
         <View style={styles.privacyCopy}>
           <Text style={styles.privacyTitle}>Location lifecycle</Text>
           <Text style={styles.privacyBody}>
-            End, Leave, Remove, Cancel and expiry remove the relevant exact Group Drive location state on the server. Personal Live Drive is separate.
+            Local Group Drive publishing stops immediately after a confirmed Stop, Leave or End action. Server cleanup is shown separately until confirmed. Personal Live Drive is separate.
           </Text>
         </View>
       </View>
