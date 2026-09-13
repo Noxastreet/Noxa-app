@@ -400,6 +400,14 @@ export default function ActiveDriveScreen() {
               <Text style={styles.connectionText}>{connectionLabel(connection)}</Text>
             </View>
             <Pressable
+              accessibilityLabel="View participants"
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/group-drives/[id]/participants', params: { id: driveSessionId } })}
+              style={styles.moreButton}
+            >
+              <Ionicons name="people-outline" size={18} color={colors.text} />
+            </Pressable>
+            <Pressable
               accessibilityLabel="Drive controls"
               accessibilityRole="button"
               onPress={() => router.push({ pathname: '/group-drives/[id]/controls', params: { id: driveSessionId } })}
@@ -418,7 +426,7 @@ export default function ActiveDriveScreen() {
             Alert.alert('Location unavailable', 'This participant’s current location cannot be focused.');
           }}
           onOpenParticipants={() => {
-            Alert.alert('Participants', `${identities.length} active participants in this Group Drive.`);
+            router.push({ pathname: '/group-drives/[id]/participants', params: { id: driveSessionId } });
           }}
           style={[styles.participantStack, { top: insets.top + 88 }]}
         />
