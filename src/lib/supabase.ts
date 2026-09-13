@@ -7,7 +7,7 @@ const { supabaseUrl, supabasePublishableKey } = requireClientEnv();
 
 const REQUEST_TIMEOUT_MS = 5000;
 const RETRY_DELAY_MS = 250;
-const TRANSIENT_READ_STATUSES = new Set([408, 502, 503, 504]);
+const TRANSIENT_READ_STATUSES = new Set([408, 502, 503, 504, 520]);
 
 type FetchInput = Parameters<typeof fetch>[0];
 type FetchInit = Parameters<typeof fetch>[1];
@@ -47,12 +47,15 @@ async function fetchWithTimeout(input: FetchInput, init?: FetchInit) {
 
 async function resilientSupabaseFetch(input: FetchInput, init?: FetchInit) {
   const method = requestMethod(init);
-  const canRetry = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+  const isSafeRead = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+
+  if (!isSafeRead) {
+    return fetch(input, init);
+  }
 
   try {
     const response = await fetchWithTimeout(input, init);
     if (
-      canRetry &&
       !init?.signal?.aborted &&
       TRANSIENT_READ_STATUSES.has(response.status)
     ) {
@@ -61,7 +64,7 @@ async function resilientSupabaseFetch(input: FetchInput, init?: FetchInit) {
     }
     return response;
   } catch (error) {
-    if (!canRetry || init?.signal?.aborted) throw error;
+    if (init?.signal?.aborted) throw error;
     await sleep(RETRY_DELAY_MS);
     return fetchWithTimeout(input, init);
   }
