@@ -241,6 +241,7 @@ export function deriveGroupDriveParticipantProgress(
 
   for (const userId of [...new Set(participantUserIds)]) {
     const location = latestLocationByUserId.get(userId);
+    const previousProgress = safePrevious.byUserId[userId];
     const base = {
       userId,
       locationId: location?.id ?? null,
@@ -267,19 +268,6 @@ export function deriveGroupDriveParticipantProgress(
       continue;
     }
 
-    if (location.status === 'arrived') {
-      byUserId[userId] = {
-        ...base,
-        status: 'arrived',
-        remainingMeters: 0,
-        progressFraction: 1,
-        distanceFromRouteMeters: null,
-      };
-      lastStableRemainingMetersByUserId[userId] = 0;
-      lastStableProgressFractionByUserId[userId] = 1;
-      continue;
-    }
-
     const updatedAtMs = Date.parse(location.updatedAt);
     const nowMs = now.getTime();
     const rowAgeMs = Number.isFinite(updatedAtMs) && Number.isFinite(nowMs)
@@ -293,6 +281,19 @@ export function deriveGroupDriveParticipantProgress(
         progressFraction: null,
         distanceFromRouteMeters: null,
       };
+      continue;
+    }
+
+    if (location.status === 'arrived') {
+      byUserId[userId] = {
+        ...base,
+        status: 'arrived',
+        remainingMeters: 0,
+        progressFraction: 1,
+        distanceFromRouteMeters: null,
+      };
+      lastStableRemainingMetersByUserId[userId] = 0;
+      lastStableProgressFractionByUserId[userId] = 1;
       continue;
     }
 
@@ -311,7 +312,12 @@ export function deriveGroupDriveParticipantProgress(
     }
 
     if (projection.distanceFromRouteMeters > offRouteThresholdMeters) {
-      const offRouteUpdates = (safePrevious.offRouteUpdatesByUserId[userId] ?? 0) + 1;
+      const previousOffRouteUpdates = safePrevious.offRouteUpdatesByUserId[userId] ?? 0;
+      const isNewMeasurement = previousProgress?.locationId !== location.id
+        || previousProgress?.updatedAt !== location.updatedAt;
+      const offRouteUpdates = isNewMeasurement
+        ? previousOffRouteUpdates + 1
+        : previousOffRouteUpdates;
       offRouteUpdatesByUserId[userId] = offRouteUpdates;
       const canRetain = offRouteUpdates <= offRouteGraceUpdates
         && previousStableRemaining !== undefined

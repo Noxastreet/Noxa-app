@@ -57,12 +57,13 @@ const atNoon = new Date('2026-08-20T12:00:00.000Z');
 let progress = routeProgress.deriveGroupDriveParticipantProgress(
   'drive-a',
   route,
-  ['user-a', 'user-b', 'user-c', 'user-d'],
+  ['user-a', 'user-b', 'user-c', 'user-d', 'user-e'],
   [
     row('a', 'user-a', 0.005, 0, '2026-08-20T12:00:00.000Z'),
     { ...row('foreign', 'user-a', 0.019, 0, '2026-08-20T12:00:01.000Z'), driveSessionId: 'drive-b' },
     row('b', 'user-b', 0.01, 0, '2026-08-20T11:59:14.000Z'),
     row('c', 'user-c', 0.02, 0, '2026-08-20T11:00:00.000Z', 'arrived'),
+    row('e', 'user-e', 0.02, 0, '2026-08-20T12:00:00.000Z', 'arrived'),
   ],
   undefined,
   atNoon,
@@ -71,31 +72,46 @@ assert.equal(progress.byUserId['user-a'].status, 'fresh');
 assert.ok(Math.abs(progress.byUserId['user-a'].remainingMeters - 1_500) < 1);
 assert.equal(progress.byUserId['user-b'].status, 'stale');
 assert.equal(progress.byUserId['user-b'].remainingMeters, null);
-assert.equal(progress.byUserId['user-c'].status, 'arrived');
-assert.equal(progress.byUserId['user-c'].remainingMeters, 0);
+assert.equal(progress.byUserId['user-c'].status, 'stale', 'an old arrived row must not stay live forever');
+assert.equal(progress.byUserId['user-c'].remainingMeters, null);
 assert.equal(progress.byUserId['user-d'].status, 'unknown');
+assert.equal(progress.byUserId['user-e'].status, 'arrived');
+assert.equal(progress.byUserId['user-e'].remainingMeters, 0);
 
 progress = routeProgress.deriveGroupDriveParticipantProgress(
   'drive-a',
   route,
   ['user-a'],
-  [row('a', 'user-a', 0.005, 0.003, '2026-08-20T12:00:15.000Z')],
+  [row('off-route-1', 'user-a', 0.005, 0.003, '2026-08-20T12:00:15.000Z')],
   progress,
   new Date('2026-08-20T12:00:15.000Z'),
 );
 assert.equal(progress.byUserId['user-a'].status, 'off_route');
 assert.equal(progress.byUserId['user-a'].retainedFromLastStable, true);
 assert.ok(Math.abs(progress.byUserId['user-a'].remainingMeters - 1_500) < 1);
+assert.equal(progress.offRouteUpdatesByUserId['user-a'], 1);
 
 progress = routeProgress.deriveGroupDriveParticipantProgress(
   'drive-a',
   route,
   ['user-a'],
-  [row('a', 'user-a', 0.006, 0.003, '2026-08-20T12:00:30.000Z')],
+  [row('off-route-1', 'user-a', 0.005, 0.003, '2026-08-20T12:00:15.000Z')],
+  progress,
+  new Date('2026-08-20T12:00:20.000Z'),
+);
+assert.equal(progress.offRouteUpdatesByUserId['user-a'], 1, 'reprocessing the same GPS sample must not count as a new confirmation');
+assert.equal(progress.byUserId['user-a'].retainedFromLastStable, true);
+
+progress = routeProgress.deriveGroupDriveParticipantProgress(
+  'drive-a',
+  route,
+  ['user-a'],
+  [row('off-route-2', 'user-a', 0.006, 0.003, '2026-08-20T12:00:30.000Z')],
   progress,
   new Date('2026-08-20T12:00:30.000Z'),
 );
 assert.equal(progress.byUserId['user-a'].status, 'off_route');
+assert.equal(progress.offRouteUpdatesByUserId['user-a'], 2);
 assert.equal(progress.byUserId['user-a'].remainingMeters, null);
 assert.equal(progress.byUserId['user-a'].retainedFromLastStable, false);
 
@@ -103,12 +119,23 @@ progress = routeProgress.deriveGroupDriveParticipantProgress(
   'drive-a',
   route,
   ['user-a'],
-  [row('a', 'user-a', 0.007, 0, '2026-08-20T12:00:45.000Z')],
+  [row('fresh-2', 'user-a', 0.007, 0, '2026-08-20T12:00:45.000Z')],
   progress,
   new Date('2026-08-20T12:00:45.000Z'),
 );
 assert.equal(progress.byUserId['user-a'].status, 'fresh');
 assert.ok(Math.abs(progress.byUserId['user-a'].remainingMeters - 1_300) < 1);
+
+progress = routeProgress.deriveGroupDriveParticipantProgress(
+  'drive-a',
+  route,
+  ['user-a'],
+  [row('fresh-2', 'user-a', 0.007, 0, '2026-08-20T12:00:45.000Z')],
+  progress,
+  new Date('2026-08-20T12:01:31.000Z'),
+);
+assert.equal(progress.byUserId['user-a'].status, 'stale', 'cached location must age locally without a new server snapshot');
+assert.equal(progress.byUserId['user-a'].remainingMeters, null);
 
 const stackRow = (userId, remainingMeters, status = 'fresh') => ({
   userId,
@@ -171,4 +198,4 @@ assert.deepEqual(window.visibleUserIds, ['user-1', 'user-2', 'user-7']);
 assert.equal(window.hiddenCount, 4);
 assert.equal(window.currentUserReserved, true);
 
-console.log('Group Drive Phase 4A route progress/stack smoke: PASS (35 checks)');
+console.log('Group Drive Phase 4A route progress/stack smoke: PASS (43 checks)');

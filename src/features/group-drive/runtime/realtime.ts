@@ -225,7 +225,13 @@ export async function subscribeToActiveDriveRealtime(
     }
   });
   unsubscribeAuth = () => authListener.subscription.unsubscribe();
-  lifecycleInterval = setInterval(() => void reconcile(), LIFECYCLE_RECONCILE_INTERVAL_MS);
+  lifecycleInterval = setInterval(() => {
+    // Republish the cached snapshot before any network work. Active Drive derives
+    // freshness from each location's original updated_at, so this local heartbeat
+    // lets positions age to stale even while Realtime and HTTP reconciliation fail.
+    publish();
+    void reconcile();
+  }, LIFECYCLE_RECONCILE_INTERVAL_MS);
 
   return teardown;
 }
