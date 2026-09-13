@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+// Scoped follow-up for notification/deep-link detail recovery.
 function replaceExact(path, from, to, label) {
   const source = fs.readFileSync(path, 'utf8');
   const matches = source.split(from).length - 1;
