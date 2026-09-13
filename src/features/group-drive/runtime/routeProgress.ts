@@ -59,6 +59,11 @@ export type GroupDriveProgressOptions = {
   offRouteGraceUpdates?: number;
 };
 
+const preparedRouteCache = new WeakMap<
+  DriveRouteGeometry,
+  Map<number, PreparedDriveRoute>
+>();
+
 function toRadians(degrees: number) {
   return degrees * Math.PI / 180;
 }
@@ -131,6 +136,10 @@ export function prepareDriveRoute(
     return null;
   }
 
+  const safeRouteDistanceMeters = routeDistanceMeters as number;
+  const cached = preparedRouteCache.get(geometry)?.get(safeRouteDistanceMeters);
+  if (cached) return cached;
+
   const segments: PreparedRouteSegment[] = [];
   let cumulativeStartMeters = 0;
   for (let index = 0; index < geometry.coordinates.length - 1; index += 1) {
@@ -143,11 +152,15 @@ export function prepareDriveRoute(
   }
 
   if (!segments.length || cumulativeStartMeters <= 0) return null;
-  return {
-    routeDistanceMeters: routeDistanceMeters as number,
+  const prepared = {
+    routeDistanceMeters: safeRouteDistanceMeters,
     geometryDistanceMeters: cumulativeStartMeters,
     segments,
-  };
+  } satisfies PreparedDriveRoute;
+  const byDistance = preparedRouteCache.get(geometry) ?? new Map<number, PreparedDriveRoute>();
+  byDistance.set(safeRouteDistanceMeters, prepared);
+  preparedRouteCache.set(geometry, byDistance);
+  return prepared;
 }
 
 export function projectDriveLocation(

@@ -81,6 +81,12 @@ let snapshotIndex = -1;
 let activeSnapshotIndex = 0;
 const handlers = {};
 let subscriptionStatus;
+let lifecycleTick = null;
+const tableReads = {
+  drive_sessions: 0,
+  drive_participants: 0,
+  drive_location_state: 0,
+};
 
 function resultFor(table, index) {
   const value = table === 'drive_sessions'
@@ -110,6 +116,7 @@ const supabase = {
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
   },
   from(table) {
+    tableReads[table] += 1;
     if (table === 'drive_sessions') activeSnapshotIndex = ++snapshotIndex;
     const index = activeSnapshotIndex;
     return {
@@ -126,24 +133,52 @@ const realtime = compile('src/features/group-drive/runtime/realtime.ts', {
   '@/src/lib/supabase': { supabase },
   './locationState': state,
 });
-const published = [];
-const teardown = await realtime.subscribeToActiveDriveRealtime('drive-a', {
-  onSnapshot: (value) => published.push(value),
-});
-subscriptionStatus('SUBSCRIBED');
-await Promise.resolve();
-handlers.UPDATE({ new: {
-  id: 'opaque-live', drive_session_id: 'drive-a', user_id: 'user-a',
-  latitude: 35.5, longitude: 33, heading: null, status: 'moving',
-  updated_at: '2026-08-20T12:00:15.000Z',
-} });
-releaseReconcile();
-await new Promise((resolve) => setTimeout(resolve, 0));
-assert.equal(
-  published.at(-1).locations.byOpaqueId['opaque-live'].latitude,
-  35.5,
-  'in-flight Realtime events must be applied after a late snapshot response',
-);
-await teardown();
+const originalSetInterval = globalThis.setInterval;
+const originalClearInterval = globalThis.clearInterval;
+globalThis.setInterval = (callback) => {
+  lifecycleTick = callback;
+  return Symbol('test-interval');
+};
+globalThis.clearInterval = () => undefined;
 
-console.log('Group Drive Phase 3A simulation/state smoke: PASS (11 checks)');
+try {
+  const published = [];
+  const teardown = await realtime.subscribeToActiveDriveRealtime('drive-a', {
+    onSnapshot: (value) => published.push(value),
+  });
+  subscriptionStatus('SUBSCRIBED');
+  await Promise.resolve();
+  handlers.UPDATE({ new: {
+    id: 'opaque-live', drive_session_id: 'drive-a', user_id: 'user-a',
+    latitude: 35.5, longitude: 33, heading: null, status: 'moving',
+    updated_at: '2026-08-20T12:00:15.000Z',
+  } });
+  releaseReconcile();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    published.at(-1).locations.byOpaqueId['opaque-live'].latitude,
+    35.5,
+    'in-flight Realtime events must be applied after a late snapshot response',
+  );
+
+  const locationReadsBeforeHeartbeat = tableReads.drive_location_state;
+  const sessionReadsBeforeHeartbeat = tableReads.drive_sessions;
+  const participantReadsBeforeHeartbeat = tableReads.drive_participants;
+  assert.equal(typeof lifecycleTick, 'function', 'lifecycle heartbeat should be scheduled');
+  lifecycleTick();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(
+    tableReads.drive_location_state,
+    locationReadsBeforeHeartbeat,
+    'periodic lifecycle reconciliation must not re-read drive_location_state',
+  );
+  assert.equal(tableReads.drive_sessions, sessionReadsBeforeHeartbeat + 1);
+  assert.equal(tableReads.drive_participants, participantReadsBeforeHeartbeat + 1);
+
+  await teardown();
+} finally {
+  globalThis.setInterval = originalSetInterval;
+  globalThis.clearInterval = originalClearInterval;
+}
+
+console.log('Group Drive Phase 3A simulation/state smoke: PASS (15 checks)');
