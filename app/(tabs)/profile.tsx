@@ -19,7 +19,7 @@ import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
-import { supabase } from '@/src/lib/supabase';
+import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
 import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -409,13 +409,13 @@ export default function ProfileScreen() {
   const [vehiclesCount, setVehiclesCount] = useState(0);
   const [featuredVehicle, setFeaturedVehicle] = useState<ProfileVehicle | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
+  const hasLoadedProfileRef = useRef(false);
 
   const loadProfile = useCallback(async () => {
-    setIsProfileLoading(true);
+    if (!hasLoadedProfileRef.current) setIsProfileLoading(true);
     setProfileError(null);
 
-    const { data: authData } = await supabase.auth.getUser();
-    const user = authData.user;
+    const user = await getCurrentSessionUser();
 
     if (!user) {
       setProfileData(null);
@@ -425,6 +425,7 @@ export default function ProfileScreen() {
       setVehiclesCount(0);
       setFeaturedVehicle(null);
       setPosts([]);
+      hasLoadedProfileRef.current = true;
       setIsProfileLoading(false);
       return;
     }
@@ -461,6 +462,7 @@ export default function ProfileScreen() {
 
     if (profileResult.error || followersResult.error || followingResult.error || vehiclesResult.error) {
       setProfileError('Unable to load profile.');
+      hasLoadedProfileRef.current = true;
       setIsProfileLoading(false);
       return;
     }
@@ -472,6 +474,7 @@ export default function ProfileScreen() {
     setFeaturedVehicle((vehiclesResult.data as ProfileVehicle | null) ?? null);
     setPosts(postsResult.error ? [] : (postsResult.data ?? []) as ProfilePost[]);
     if (postsResult.error) setProfileError('Profile loaded, but moments are unavailable.');
+    hasLoadedProfileRef.current = true;
     setIsProfileLoading(false);
   }, []);
 

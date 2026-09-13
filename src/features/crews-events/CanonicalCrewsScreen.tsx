@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,7 +26,7 @@ import {
   initials,
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
-import { supabase } from "@/src/lib/supabase";
+import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
@@ -556,13 +556,13 @@ export default function CanonicalCrewsScreen() {
   const [busyCrewId, setBusyCrewId] = useState<string | null>(null);
   const [createVisible, setCreateVisible] = useState(false);
   const [creating, setCreating] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true);
     setError(null);
 
-    const { data: authData } = await supabase.auth.getUser();
-    const currentUserId = authData.user?.id ?? null;
+    const currentUserId = (await getCurrentSessionUser())?.id ?? null;
     setUserId(currentUserId);
 
     const requestsQuery = currentUserId
@@ -608,6 +608,7 @@ export default function CanonicalCrewsScreen() {
       setError(firstError.message);
       setLoading(false);
       setRefreshing(false);
+      hasLoadedRef.current = true;
       return;
     }
 
@@ -645,11 +646,12 @@ export default function CanonicalCrewsScreen() {
     if (!models.some((crew) => crew.isCurrentUserMember)) setFilter("discover");
     setLoading(false);
     setRefreshing(false);
+    hasLoadedRef.current = true;
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(!hasLoadedRef.current);
     }, [load]),
   );
 
