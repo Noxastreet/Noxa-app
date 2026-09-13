@@ -27,7 +27,7 @@ import {
   type GroupDriveProgressState,
   type ParticipantStackOrderState,
 } from '@/src/features/group-drive';
-import { MapboxLiveMap } from '@/src/features/mapbox/MapboxLiveMap';
+import { MapboxLiveMapCompat } from '@/src/features/mapbox/MapboxLiveMapCompat';
 import type { LiveMapHandle, MapRegion, MapboxDriver, MapboxRoute } from '@/src/features/mapbox/types';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
@@ -317,7 +317,7 @@ export default function ActiveDriveScreen() {
 
   return (
     <View style={styles.root}>
-      <MapboxLiveMap
+      <MapboxLiveMapCompat
         ref={mapRef}
         initialRegion={initialRegion(details, snapshot)}
         driverLocation={ownLocation ? {
