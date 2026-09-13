@@ -930,6 +930,12 @@ export default function CanonicalCrewDetailScreen() {
           <Text style={styles.stateText}>
             {error || "This crew no longer exists."}
           </Text>
+          {uuidPattern.test(crewId) ? (
+            <CanonicalPrimaryButton
+              label="RETRY"
+              onPress={() => void load()}
+            />
+          ) : null}
           <CanonicalPrimaryButton
             label="GO BACK"
             variant="surface"
