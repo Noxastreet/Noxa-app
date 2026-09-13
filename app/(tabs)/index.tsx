@@ -56,6 +56,7 @@ type ActiveDriver = {
   user_id: string;
   latitude: number;
   longitude: number;
+  updated_at: string;
   profile: ProfileMarkerRow | null;
 };
 
@@ -210,6 +211,7 @@ function normalizeActiveDriver(row: ActiveDriverRow): ActiveDriver | null {
     user_id: row.user_id,
     latitude: row.latitude,
     longitude: row.longitude,
+    updated_at: row.updated_at,
     profile,
   };
 }
@@ -476,6 +478,9 @@ export default function LiveMapScreen() {
   const activeDriversRequestIdRef = useRef(0);
   const activeDriversRefreshInFlightRef = useRef(false);
   const activeDriversRefreshQueuedRef = useRef(false);
+  const activeDriversRef = useRef<ActiveDriver[]>([]);
+  const currentUserIdRef = useRef<string | null>(null);
+  const mapFocusedRef = useRef(false);
   const [isVisibleOnMap, setIsVisibleOnMap] = useState(false);
   const [visibilityMode, setVisibilityMode] =
     useState<LocationVisibilityMode>("ghost");
@@ -510,6 +515,7 @@ export default function LiveMapScreen() {
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
   driverLocationRef.current = driverLocation;
+  activeDriversRef.current = activeDrivers;
 
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
@@ -1001,11 +1007,13 @@ export default function LiveMapScreen() {
       }
 
       const userId = sessionData.session?.user.id;
+      currentUserIdRef.current = userId ?? null;
       if (!userId) {
         if (
           isMountedRef.current &&
           activeDriversRequestIdRef.current === requestId
         ) {
+          activeDriversRef.current = [];
           setActiveDrivers([]);
           setActiveDriversRequestState("ready");
         }
@@ -1041,8 +1049,22 @@ export default function LiveMapScreen() {
       const drivers = ((data ?? []) as ActiveDriverRow[])
         .map(normalizeActiveDriver)
         .filter((driver): driver is ActiveDriver => driver !== null);
+      const currentByUserId = new Map(
+        activeDriversRef.current.map((driver) => [driver.user_id, driver]),
+      );
+      const mergedDrivers = drivers.map((driver) => {
+        const current = currentByUserId.get(driver.user_id);
+        if (!current) return driver;
+        const currentUpdatedAt = Date.parse(current.updated_at);
+        const fetchedUpdatedAt = Date.parse(driver.updated_at);
+        return Number.isFinite(currentUpdatedAt) &&
+          (!Number.isFinite(fetchedUpdatedAt) || currentUpdatedAt > fetchedUpdatedAt)
+          ? current
+          : driver;
+      });
 
-      setActiveDrivers(drivers);
+      activeDriversRef.current = mergedDrivers;
+      setActiveDrivers(mergedDrivers);
       setActiveDriversRequestState("ready");
     } catch (error) {
       logMapDataFailure("drivers", error);
@@ -1070,66 +1092,161 @@ export default function LiveMapScreen() {
     let isActive = true;
     isMountedRef.current = true;
     void restoreLiveDriveSession();
-    void refreshActiveDrivers();
     void loadCurrentProfile();
     void loadMyDriverIds();
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!isActive) return;
         if (event === "SIGNED_OUT" || !session) {
+          currentUserIdRef.current = null;
+          activeDriversRef.current = [];
+          setActiveDrivers([]);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
           void stopSharing(true);
           return;
         }
+        currentUserIdRef.current = session.user.id;
         void loadCurrentProfile();
         void loadMyDriverIds();
       },
     );
-    const refreshInterval = setInterval(() => {
-      if (isActive && isAppForegroundRef.current) void refreshActiveDrivers();
-    }, DRIVER_LIST_REFRESH_MS);
-    const channel = supabase.channel(createDriverLocationsMapTopic());
-    channel.on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "driver_locations" },
-      () => {
-        if (isActive) void refreshActiveDrivers();
-      },
-    );
-    channel.subscribe((status) => {
-      if (status === "CHANNEL_ERROR" && isActive && isMountedRef.current) {
-        setSharingError(
-          (current) => current ?? "Live driver updates are reconnecting.",
-        );
-      }
-    });
 
     return () => {
       isActive = false;
       isMountedRef.current = false;
+      mapFocusedRef.current = false;
       activeDriversRequestIdRef.current += 1;
+      activeDriversRef.current = [];
+      currentUserIdRef.current = null;
       latestPresencePayloadRef.current = null;
       sharingUserIdRef.current = null;
-      clearInterval(refreshInterval);
-      void supabase.removeChannel(channel);
       authListener.subscription.unsubscribe();
     };
   }, [
     loadCurrentProfile,
     loadMyDriverIds,
-    refreshActiveDrivers,
     restoreLiveDriveSession,
     stopSharing,
   ]);
 
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      mapFocusedRef.current = true;
+      void refreshActiveDrivers();
+
+      const refreshInterval = setInterval(() => {
+        if (isActive && isAppForegroundRef.current) void refreshActiveDrivers();
+      }, DRIVER_LIST_REFRESH_MS);
+      const channel = supabase.channel(createDriverLocationsMapTopic());
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "driver_locations" },
+        (payload) => {
+          if (!isActive || !isAppForegroundRef.current) return;
+          const nextRow = payload.new as Partial<ActiveDriverRow>;
+          const oldRow = payload.old as Partial<ActiveDriverRow>;
+          const userId =
+            typeof nextRow.user_id === "string"
+              ? nextRow.user_id
+              : typeof oldRow.user_id === "string"
+                ? oldRow.user_id
+                : null;
+          if (!userId) {
+            void refreshActiveDrivers();
+            return;
+          }
+          if (userId === currentUserIdRef.current) return;
+
+          if (payload.eventType === "DELETE") {
+            const nextDrivers = activeDriversRef.current.filter(
+              (driver) => driver.user_id !== userId,
+            );
+            if (nextDrivers.length !== activeDriversRef.current.length) {
+              activeDriversRef.current = nextDrivers;
+              setActiveDrivers(nextDrivers);
+            }
+            return;
+          }
+
+          const latitude =
+            typeof nextRow.latitude === "number" ? nextRow.latitude : Number.NaN;
+          const longitude =
+            typeof nextRow.longitude === "number" ? nextRow.longitude : Number.NaN;
+          const updatedAt =
+            typeof nextRow.updated_at === "string" ? nextRow.updated_at : null;
+          if (!updatedAt || !hasValidLatLng(latitude, longitude)) {
+            void refreshActiveDrivers();
+            return;
+          }
+
+          const driverIndex = activeDriversRef.current.findIndex(
+            (driver) => driver.user_id === userId,
+          );
+          if (driverIndex < 0) {
+            // New or newly-visible drivers still go through the authorized joined
+            // SELECT so profile disclosure remains governed by the existing query.
+            void refreshActiveDrivers();
+            return;
+          }
+
+          const current = activeDriversRef.current[driverIndex];
+          const currentUpdatedAt = Date.parse(current.updated_at);
+          const nextUpdatedAt = Date.parse(updatedAt);
+          if (
+            Number.isFinite(currentUpdatedAt) &&
+            Number.isFinite(nextUpdatedAt) &&
+            nextUpdatedAt <= currentUpdatedAt
+          ) {
+            return;
+          }
+
+          const nextDrivers = [...activeDriversRef.current];
+          nextDrivers[driverIndex] = {
+            ...current,
+            latitude,
+            longitude,
+            updated_at: updatedAt,
+          };
+          activeDriversRef.current = nextDrivers;
+          setActiveDrivers(nextDrivers);
+        },
+      );
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED" && isActive) {
+          // Close the snapshot-to-subscription gap once, not on every location event.
+          void refreshActiveDrivers();
+        } else if (
+          status === "CHANNEL_ERROR" &&
+          isActive &&
+          isMountedRef.current
+        ) {
+          setSharingError(
+            (current) => current ?? "Live driver updates are reconnecting.",
+          );
+        }
+      });
+
+      return () => {
+        isActive = false;
+        mapFocusedRef.current = false;
+        clearInterval(refreshInterval);
+        void supabase.removeChannel(channel);
+      };
+    }, [refreshActiveDrivers]),
+  );
+
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       isAppForegroundRef.current = nextState === "active";
-      if (nextState === "active") void restoreLiveDriveSession();
+      if (nextState === "active") {
+        void restoreLiveDriveSession();
+        if (mapFocusedRef.current) void refreshActiveDrivers();
+      }
     });
     return () => subscription.remove();
-  }, [restoreLiveDriveSession]);
+  }, [refreshActiveDrivers, restoreLiveDriveSession]);
 
   useEffect(() => {
     if (!liveDriveExpiresAt) return;
