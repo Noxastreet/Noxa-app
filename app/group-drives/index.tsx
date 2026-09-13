@@ -41,7 +41,7 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
       return;
     }
     if (active) {
-      router.push({ pathname: '/group-drives/[id]/controls', params: { id: item.driveSessionId } });
+      router.push({ pathname: '/group-drives/[id]/active', params: { id: item.driveSessionId } });
       return;
     }
     router.push({ pathname: '/group-drives/[id]', params: { id: item.driveSessionId } });
@@ -56,7 +56,7 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
       <View style={styles.rowTop}>
         <DriveStatus status={item.sessionStatus} />
         {invited ? <Text style={styles.invited}>Invitation</Text> : null}
-        {active ? <Text style={styles.activeLabel}>Drive controls</Text> : null}
+        {active ? <Text style={styles.activeLabel}>Resume</Text> : null}
         {terminal ? <Text style={styles.terminalLabel}>View summary</Text> : null}
       </View>
       <Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text>
@@ -149,23 +149,23 @@ export default function GroupDrivesScreen() {
                     <Text style={styles.noticeTitle}>ACTIVE DRIVE</Text>
                   </View>
                   <Text style={styles.noticeText}>
-                    {activeDrive.title} is active. Location sharing still requires your explicit approval on this device.
+                    {activeDrive.title} is active. Resume the map without changing your participation or location-sharing choice.
                   </Text>
                 </View>
                 <NoxaButton
                   fullWidth
-                  title="Share my location"
+                  title="Resume Active Drive"
                   onPress={() => router.push({
-                    pathname: '/group-drives/[id]/location-sharing',
+                    pathname: '/group-drives/[id]/active',
                     params: { id: activeDrive.driveSessionId },
                   })}
                 />
                 <NoxaButton
                   fullWidth
                   variant="secondary"
-                  title="Open Active Drive"
+                  title="Group Drive location"
                   onPress={() => router.push({
-                    pathname: '/group-drives/[id]/active',
+                    pathname: '/group-drives/[id]/location-sharing',
                     params: { id: activeDrive.driveSessionId },
                   })}
                 />
