@@ -38,6 +38,10 @@ jobs:
       - name: Apply scoped patch
         run: node scripts/apply-t8-unsaved-editors.mjs
 
+      - name: Keep temporary runner out of product commit
+        run: |
+          git restore --source=HEAD -- scripts/apply-t8-unsaved-editors.mjs .github/workflows/t8-unsaved-editors-patch.yml
+
       - name: Check patch whitespace
         run: git diff --check
 
