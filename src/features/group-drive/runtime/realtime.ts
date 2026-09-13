@@ -89,15 +89,16 @@ async function requireAuthenticatedUserId() {
   return authData.user.id;
 }
 
-function assertActiveDriveAccess(
+function requireActiveDriveAccess(
   session: SessionDatabaseRow | null,
   participants: ActiveDriveParticipantState[],
   currentUserId: string,
-) {
+): SessionDatabaseRow {
   const ownParticipant = participants.find(({ userId }) => userId === currentUserId);
   if (!session || session.status !== 'active' || ownParticipant?.status !== 'active') {
     throw new Error('Active Drive access is no longer available.');
   }
+  return session;
 }
 
 async function loadActiveDriveLifecycleSnapshotForUser(
@@ -120,11 +121,11 @@ async function loadActiveDriveLifecycleSnapshotForUser(
 
   const session = sessionResult.data as SessionDatabaseRow | null;
   const participants = mapParticipants((participantsResult.data ?? []) as ParticipantDatabaseRow[]);
-  assertActiveDriveAccess(session, participants, currentUserId);
+  const activeSession = requireActiveDriveAccess(session, participants, currentUserId);
 
   return {
-    sessionStatus: session.status as DriveSessionStatus,
-    activeExpiresAt: session.active_expires_at ? String(session.active_expires_at) : null,
+    sessionStatus: activeSession.status as DriveSessionStatus,
+    activeExpiresAt: activeSession.active_expires_at ? String(activeSession.active_expires_at) : null,
     participants,
   };
 }
