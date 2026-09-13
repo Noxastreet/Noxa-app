@@ -1613,9 +1613,13 @@ export default function LiveMapScreen() {
   const selectMapboxEvent = useCallback(
     (event: MapboxEvent) => {
       const fullEvent = events.find((candidate) => candidate.id === event.id);
-      if (fullEvent) selectEvent(fullEvent);
+      if (!fullEvent) return;
+      // Keep route identity stable: while routing to one event, tapping another
+      // marker must not relabel the existing route with a different event.
+      if (isRouteMode && focusEventId && fullEvent.id !== focusEventId) return;
+      selectEvent(fullEvent);
     },
-    [events, selectEvent],
+    [events, focusEventId, isRouteMode, selectEvent],
   );
 
   const headerTop = insets.top + spacing.sm;
