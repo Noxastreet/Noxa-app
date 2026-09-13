@@ -42,6 +42,9 @@ jobs:
       - name: Interaction wiring audit
         run: npm run verify:interactions
 
+      - name: Home / Map progressive disclosure contract
+        run: npm run verify:home-map-disclosure
+
       - name: Group Drive Phase 1 static contract
         run: npm run verify:group-drive-phase-1
 
