@@ -89,6 +89,9 @@ export default function GroupDriveInvitationScreen() {
       <Screen constrained={false} contentStyle={styles.content}>
         <GroupDriveHeader title="INVITATION" />
         <NoxaEmptyState icon="mail-unread-outline" title="Invitation unavailable" body={error ?? 'This invitation can no longer be opened.'} />
+        {invitationId ? (
+          <NoxaButton fullWidth onPress={() => void load()} title="Retry" />
+        ) : null}
         <NoxaButton fullWidth onPress={() => router.replace('/group-drives')} title="Back to Group Drives" variant="secondary" />
       </Screen>
     );
