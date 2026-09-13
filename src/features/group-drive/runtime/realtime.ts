@@ -21,15 +21,28 @@ type LocationDatabaseRow = {
   updated_at: string;
 };
 
+type ParticipantDatabaseRow = {
+  user_id: string;
+  status: DriveParticipantStatus;
+};
+
+type SessionDatabaseRow = {
+  status: DriveSessionStatus;
+  active_expires_at: string | null;
+};
+
 export type ActiveDriveParticipantState = {
   userId: string;
   status: DriveParticipantStatus;
 };
 
-export type ActiveDriveRealtimeSnapshot = {
+export type ActiveDriveLifecycleSnapshot = {
   sessionStatus: DriveSessionStatus;
   activeExpiresAt: string | null;
   participants: ActiveDriveParticipantState[];
+};
+
+export type ActiveDriveRealtimeSnapshot = ActiveDriveLifecycleSnapshot & {
   locations: GroupDriveLocationSnapshot;
 };
 
@@ -38,6 +51,11 @@ export type ActiveDriveRealtimeConnection = 'connecting' | 'subscribed' | 'recon
 export type ActiveDriveRealtimeCallbacks = {
   onSnapshot: (snapshot: ActiveDriveRealtimeSnapshot) => void;
   onConnectionChange?: (state: ActiveDriveRealtimeConnection) => void;
+  onAccessRevoked?: () => void;
+  onError?: (error: Error) => void;
+};
+
+export type ActiveDriveAccessCallbacks = {
   onAccessRevoked?: () => void;
   onError?: (error: Error) => void;
 };
@@ -58,13 +76,35 @@ function mapLocation(row: LocationDatabaseRow): DriveLocationState {
   };
 }
 
-export async function loadActiveDriveRealtimeSnapshot(
-  driveSessionId: string,
-): Promise<ActiveDriveRealtimeSnapshot> {
+function mapParticipants(rows: ParticipantDatabaseRow[]): ActiveDriveParticipantState[] {
+  return rows.map((row) => ({
+    userId: String(row.user_id),
+    status: row.status as DriveParticipantStatus,
+  }));
+}
+
+async function requireAuthenticatedUserId() {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw new Error('Sign in to open this Active Drive.');
+  return authData.user.id;
+}
 
-  const [sessionResult, participantsResult, locationsResult] = await Promise.all([
+function assertActiveDriveAccess(
+  session: SessionDatabaseRow | null,
+  participants: ActiveDriveParticipantState[],
+  currentUserId: string,
+) {
+  const ownParticipant = participants.find(({ userId }) => userId === currentUserId);
+  if (!session || session.status !== 'active' || ownParticipant?.status !== 'active') {
+    throw new Error('Active Drive access is no longer available.');
+  }
+}
+
+async function loadActiveDriveLifecycleSnapshotForUser(
+  driveSessionId: string,
+  currentUserId: string,
+): Promise<ActiveDriveLifecycleSnapshot> {
+  const [sessionResult, participantsResult] = await Promise.all([
     supabase
       .from('drive_sessions')
       .select('status,active_expires_at')
@@ -74,33 +114,55 @@ export async function loadActiveDriveRealtimeSnapshot(
       .from('drive_participants')
       .select('user_id,status')
       .eq('drive_session_id', driveSessionId),
-    supabase
-      .from('drive_location_state')
-      .select('id,drive_session_id,user_id,latitude,longitude,heading,status,updated_at')
-      .eq('drive_session_id', driveSessionId),
   ]);
-  const error = sessionResult.error ?? participantsResult.error ?? locationsResult.error;
+  const error = sessionResult.error ?? participantsResult.error;
   if (error) throw new Error('Active Drive state could not be synchronized.');
 
-  const session = sessionResult.data;
-  const participants = (participantsResult.data ?? []).map((row) => ({
-    userId: String(row.user_id),
-    status: row.status as DriveParticipantStatus,
-  }));
-  const ownParticipant = participants.find(({ userId }) => userId === authData.user.id);
-  if (!session || session.status !== 'active' || ownParticipant?.status !== 'active') {
-    throw new Error('Active Drive access is no longer available.');
-  }
+  const session = sessionResult.data as SessionDatabaseRow | null;
+  const participants = mapParticipants((participantsResult.data ?? []) as ParticipantDatabaseRow[]);
+  assertActiveDriveAccess(session, participants, currentUserId);
 
   return {
     sessionStatus: session.status as DriveSessionStatus,
     activeExpiresAt: session.active_expires_at ? String(session.active_expires_at) : null,
     participants,
+  };
+}
+
+async function loadActiveDriveRealtimeSnapshotForUser(
+  driveSessionId: string,
+  currentUserId: string,
+): Promise<ActiveDriveRealtimeSnapshot> {
+  const [lifecycle, locationsResult] = await Promise.all([
+    loadActiveDriveLifecycleSnapshotForUser(driveSessionId, currentUserId),
+    supabase
+      .from('drive_location_state')
+      .select('id,drive_session_id,user_id,latitude,longitude,heading,status,updated_at')
+      .eq('drive_session_id', driveSessionId),
+  ]);
+  if (locationsResult.error) throw new Error('Active Drive state could not be synchronized.');
+
+  return {
+    ...lifecycle,
     locations: reduceGroupDriveLocationState(emptyGroupDriveLocationSnapshot(driveSessionId), {
       type: 'snapshot',
       rows: (locationsResult.data ?? []).map((row) => mapLocation(row as LocationDatabaseRow)),
     }),
   };
+}
+
+export async function loadActiveDriveLifecycleSnapshot(
+  driveSessionId: string,
+): Promise<ActiveDriveLifecycleSnapshot> {
+  const currentUserId = await requireAuthenticatedUserId();
+  return loadActiveDriveLifecycleSnapshotForUser(driveSessionId, currentUserId);
+}
+
+export async function loadActiveDriveRealtimeSnapshot(
+  driveSessionId: string,
+): Promise<ActiveDriveRealtimeSnapshot> {
+  const currentUserId = await requireAuthenticatedUserId();
+  return loadActiveDriveRealtimeSnapshotForUser(driveSessionId, currentUserId);
 }
 
 export async function subscribeToActiveDriveRealtime(
@@ -109,7 +171,9 @@ export async function subscribeToActiveDriveRealtime(
 ) {
   let closed = false;
   let current: ActiveDriveRealtimeSnapshot | null = null;
-  let reconcilePromise: Promise<void> | null = null;
+  let currentUserId: string | null = null;
+  let fullReconcilePromise: Promise<void> | null = null;
+  let lifecycleReconcilePromise: Promise<void> | null = null;
   let channel: RealtimeChannel | null = null;
   let unsubscribeAuth: (() => void) | null = null;
   let lifecycleInterval: ReturnType<typeof setInterval> | null = null;
@@ -130,9 +194,21 @@ export async function subscribeToActiveDriveRealtime(
   const publish = () => {
     if (!closed && current) callbacks.onSnapshot(current);
   };
-  const reconcile = () => {
-    if (reconcilePromise) return reconcilePromise;
-    reconcilePromise = loadActiveDriveRealtimeSnapshot(driveSessionId)
+
+  const handleSyncError = (error: unknown) => {
+    const nextError = error instanceof Error ? error : new Error('Active Drive sync failed.');
+    if (/access is no longer available/i.test(nextError.message)) {
+      callbacks.onAccessRevoked?.();
+      void teardown();
+    } else {
+      callbacks.onError?.(nextError);
+    }
+  };
+
+  const reconcileFull = () => {
+    if (fullReconcilePromise) return fullReconcilePromise;
+    if (!currentUserId) return Promise.resolve();
+    fullReconcilePromise = loadActiveDriveRealtimeSnapshotForUser(driveSessionId, currentUserId)
       .then((snapshot) => {
         current = snapshot;
         if (pendingLocationEvents.length) {
@@ -146,26 +222,46 @@ export async function subscribeToActiveDriveRealtime(
         }
         publish();
       })
-      .catch((error: unknown) => {
-        const nextError = error instanceof Error ? error : new Error('Active Drive sync failed.');
-        if (/access is no longer available/i.test(nextError.message)) {
-          callbacks.onAccessRevoked?.();
-          void teardown();
-        }
-        else callbacks.onError?.(nextError);
-      })
+      .catch(handleSyncError)
       .finally(() => {
-        reconcilePromise = null;
+        fullReconcilePromise = null;
       });
-    return reconcilePromise;
+    return fullReconcilePromise;
   };
 
-  await reconcile();
+  const reconcileLifecycle = () => {
+    if (lifecycleReconcilePromise) return lifecycleReconcilePromise;
+    if (fullReconcilePromise) return fullReconcilePromise;
+    if (!currentUserId) return Promise.resolve();
+    lifecycleReconcilePromise = loadActiveDriveLifecycleSnapshotForUser(driveSessionId, currentUserId)
+      .then((lifecycle) => {
+        if (!current) return;
+        current = {
+          ...current,
+          ...lifecycle,
+        };
+        publish();
+      })
+      .catch(handleSyncError)
+      .finally(() => {
+        lifecycleReconcilePromise = null;
+      });
+    return lifecycleReconcilePromise;
+  };
+
+  try {
+    currentUserId = await requireAuthenticatedUserId();
+  } catch (error) {
+    handleSyncError(error);
+    return async () => undefined;
+  }
+
+  await reconcileFull();
   if (!current || closed) return async () => undefined;
 
   const applyLocation = (row: LocationDatabaseRow) => {
     const event: GroupDriveLocationEvent = { type: 'upsert', row: mapLocation(row) };
-    if (reconcilePromise) {
+    if (fullReconcilePromise) {
       pendingLocationEvents.push(event);
       return;
     }
@@ -181,7 +277,7 @@ export async function subscribeToActiveDriveRealtime(
     const opaqueId = typeof oldRow.id === 'string' ? oldRow.id : null;
     if (!opaqueId) return;
     const event: GroupDriveLocationEvent = { type: 'delete', opaqueId };
-    if (reconcilePromise) {
+    if (fullReconcilePromise) {
       pendingLocationEvents.push(event);
       return;
     }
@@ -210,7 +306,11 @@ export async function subscribeToActiveDriveRealtime(
       if (closed) return;
       if (status === 'SUBSCRIBED') {
         callbacks.onConnectionChange?.('subscribed');
-        void reconcile();
+        // Close the gap between the initial snapshot and the moment Realtime
+        // actually became subscribed. This is the only recurring path that
+        // needs to re-read location rows; the 5 s heartbeat below checks only
+        // session/participant lifecycle state.
+        void reconcileFull();
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         callbacks.onConnectionChange?.('reconnecting');
       } else if (status === 'CLOSED') {
@@ -226,10 +326,75 @@ export async function subscribeToActiveDriveRealtime(
   });
   unsubscribeAuth = () => authListener.subscription.unsubscribe();
   lifecycleInterval = setInterval(() => {
-    // Republish the cached snapshot before any network work. Active Drive derives
-    // freshness from each location's original updated_at, so this local heartbeat
-    // lets positions age to stale even while Realtime and HTTP reconciliation fail.
+    // Re-publish locally so freshness ages even with no network. The network
+    // safety check intentionally excludes drive_location_state: location rows
+    // arrive through Realtime and are fully reconciled on (re)subscription.
     publish();
+    void reconcileLifecycle();
+  }, LIFECYCLE_RECONCILE_INTERVAL_MS);
+
+  return teardown;
+}
+
+export async function subscribeToActiveDriveAccess(
+  driveSessionId: string,
+  callbacks: ActiveDriveAccessCallbacks,
+) {
+  let closed = false;
+  let currentUserId: string | null = null;
+  let reconcilePromise: Promise<void> | null = null;
+  let unsubscribeAuth: (() => void) | null = null;
+  let lifecycleInterval: ReturnType<typeof setInterval> | null = null;
+
+  const teardown = async () => {
+    if (closed) return;
+    closed = true;
+    unsubscribeAuth?.();
+    unsubscribeAuth = null;
+    if (lifecycleInterval) clearInterval(lifecycleInterval);
+    lifecycleInterval = null;
+  };
+
+  const handleSyncError = (error: unknown) => {
+    const nextError = error instanceof Error ? error : new Error('Active Drive sync failed.');
+    if (/access is no longer available/i.test(nextError.message)) {
+      callbacks.onAccessRevoked?.();
+      void teardown();
+    } else {
+      callbacks.onError?.(nextError);
+    }
+  };
+
+  const reconcile = () => {
+    if (reconcilePromise) return reconcilePromise;
+    if (!currentUserId) return Promise.resolve();
+    reconcilePromise = loadActiveDriveLifecycleSnapshotForUser(driveSessionId, currentUserId)
+      .then(() => undefined)
+      .catch(handleSyncError)
+      .finally(() => {
+        reconcilePromise = null;
+      });
+    return reconcilePromise;
+  };
+
+  try {
+    currentUserId = await requireAuthenticatedUserId();
+  } catch (error) {
+    handleSyncError(error);
+    return async () => undefined;
+  }
+
+  await reconcile();
+  if (closed) return async () => undefined;
+
+  const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      callbacks.onAccessRevoked?.();
+      void teardown();
+    }
+  });
+  unsubscribeAuth = () => authListener.subscription.unsubscribe();
+  lifecycleInterval = setInterval(() => {
     void reconcile();
   }, LIFECYCLE_RECONCILE_INTERVAL_MS);
 
