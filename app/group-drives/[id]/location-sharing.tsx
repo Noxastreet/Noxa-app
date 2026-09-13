@@ -7,11 +7,15 @@ import { Screen } from '@/src/components/layout/Screen';
 import { NoxaButton, NoxaEmptyState, NoxaLoadingState } from '@/src/components/ui';
 import {
   acceptGroupDriveLocationDisclosure,
+  clearPendingGroupDriveServerAction,
   getGroupDriveLocationSession,
+  getPendingGroupDriveServerAction,
   loadActiveDriveRealtimeSnapshot,
   requestGroupDriveLocationPermissions,
+  retryGroupDriveLocationCleanup,
   startGroupDriveLocationSession,
   stopGroupDriveLocationSession,
+  stopGroupDriveLocationSharing,
   subscribeToActiveDriveRealtime,
 } from '@/src/features/group-drive';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -23,6 +27,7 @@ export default function GroupDriveLocationSharingScreen() {
   const [working, setWorking] = useState(false);
   const [active, setActive] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [cleanupPending, setCleanupPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -35,7 +40,17 @@ export default function GroupDriveLocationSharingScreen() {
       await loadActiveDriveRealtimeSnapshot(driveSessionId);
       setActive(true);
       const session = getGroupDriveLocationSession();
-      setSharing(session?.driveSessionId === driveSessionId);
+      const isSharing = session?.driveSessionId === driveSessionId;
+      setSharing(isSharing);
+
+      const pending = getPendingGroupDriveServerAction(driveSessionId);
+      if (isSharing && pending?.kind === 'clear_location') {
+        // A new explicit sharing session supersedes an older cleanup intent.
+        clearPendingGroupDriveServerAction('clear_location', driveSessionId);
+        setCleanupPending(false);
+      } else {
+        setCleanupPending(pending?.kind === 'clear_location');
+      }
       setError(null);
     } catch (loadError) {
       setActive(false);
@@ -60,6 +75,8 @@ export default function GroupDriveLocationSharingScreen() {
         if (disposed) return;
         setActive(false);
         setSharing(false);
+        setCleanupPending(false);
+        clearPendingGroupDriveServerAction(undefined, driveSessionId);
         setError('Your access to this Group Drive ended.');
         void stopGroupDriveLocationSession();
       },
@@ -85,10 +102,56 @@ export default function GroupDriveLocationSharingScreen() {
       const consent = acceptGroupDriveLocationDisclosure(driveSessionId);
       await requestGroupDriveLocationPermissions();
       await startGroupDriveLocationSession(consent);
+      clearPendingGroupDriveServerAction('clear_location', driveSessionId);
+      setCleanupPending(false);
       setSharing(true);
     } catch (shareError) {
       setSharing(false);
       setError(shareError instanceof Error ? shareError.message : 'Location sharing could not be started.');
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const disableSharing = async () => {
+    if (!driveSessionId || !active) return;
+    setWorking(true);
+    setError(null);
+    try {
+      const result = await stopGroupDriveLocationSharing(driveSessionId);
+      setSharing(false);
+      setCleanupPending(!result.serverCleared);
+      if (!result.serverCleared) {
+        setError(
+          'Sharing stopped on this device. Removing the last server position is waiting for network confirmation.',
+        );
+      }
+    } catch (stopError) {
+      setSharing(false);
+      setCleanupPending(true);
+      setError(
+        stopError instanceof Error
+          ? stopError.message
+          : 'Sharing stopped on this device. Server cleanup still needs confirmation.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const retryCleanup = async () => {
+    if (!driveSessionId || !active) return;
+    setWorking(true);
+    setError(null);
+    try {
+      const result = await retryGroupDriveLocationCleanup(driveSessionId);
+      setCleanupPending(!result.serverCleared);
+      if (!result.serverCleared) {
+        setError('Server cleanup is still waiting for a working network connection.');
+      }
+    } catch (cleanupError) {
+      setCleanupPending(true);
+      setError(cleanupError instanceof Error ? cleanupError.message : 'Server cleanup could not be confirmed.');
     } finally {
       setWorking(false);
     }
@@ -121,10 +184,10 @@ export default function GroupDriveLocationSharingScreen() {
         <Ionicons name="navigate" size={26} color={colors.accent} />
       </View>
       <Text style={styles.eyebrow}>ACTIVE DRIVE</Text>
-      <Text style={styles.title}>Share location with this Group Drive?</Text>
+      <Text style={styles.title}>Group Drive location sharing</Text>
       <Text style={styles.body}>
-        NOXA will share your precise location only with participants of this active Group Drive.
-        Join and Ready never enable location sharing. This starts only after you confirm here.
+        NOXA shares your precise location only with participants of this active Group Drive.
+        Join and Ready never enable sharing. You can stop Group Drive sharing at any time and stay in the drive.
       </Text>
 
       <View style={styles.card}>
@@ -134,11 +197,11 @@ export default function GroupDriveLocationSharingScreen() {
         </View>
         <View style={styles.row}>
           <Ionicons name="phone-portrait-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.rowText}>Uses precise location in foreground and background while the drive is active.</Text>
+          <Text style={styles.rowText}>Uses precise location in foreground and background while sharing is active.</Text>
         </View>
         <View style={styles.row}>
           <Ionicons name="shield-checkmark-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.rowText}>No speed history, ranking or route-progress telemetry is stored.</Text>
+          <Text style={styles.rowText}>Personal Live Drive / Ghost is separate from Group Drive sharing.</Text>
         </View>
       </View>
 
@@ -146,25 +209,59 @@ export default function GroupDriveLocationSharingScreen() {
         <View style={styles.statusCard}>
           <Ionicons name="checkmark-circle" size={22} color={colors.success} />
           <View style={styles.statusCopy}>
-            <Text style={styles.statusTitle}>Location sharing is active</Text>
-            <Text style={styles.statusBody}>The background writer will stop if this drive ends or your access is revoked.</Text>
+            <Text style={styles.statusTitle}>Group Drive sharing is on</Text>
+            <Text style={styles.statusBody}>You can stop sharing without leaving this Group Drive.</Text>
           </View>
         </View>
-      ) : null}
+      ) : cleanupPending ? (
+        <View style={styles.statusCard}>
+          <Ionicons name="cloud-offline-outline" size={22} color={colors.warning} />
+          <View style={styles.statusCopy}>
+            <Text style={styles.statusTitle}>Sharing is off on this device</Text>
+            <Text style={styles.statusBody}>Server cleanup is waiting for confirmation. No new local updates are being sent.</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.statusCard}>
+          <Ionicons name="location-outline" size={22} color={colors.textMuted} />
+          <View style={styles.statusCopy}>
+            <Text style={styles.statusTitle}>Group Drive sharing is off</Text>
+            <Text style={styles.statusBody}>You remain an active participant without publishing your location.</Text>
+          </View>
+        </View>
+      )}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
-      <NoxaButton
-        fullWidth
-        disabled={working || sharing}
-        title={sharing ? 'Location sharing active' : working ? 'Starting…' : 'Share my location'}
-        onPress={() => void enableSharing()}
-      />
+      {sharing ? (
+        <NoxaButton
+          fullWidth
+          variant="danger"
+          loading={working}
+          title="Stop Group Drive sharing"
+          onPress={() => void disableSharing()}
+        />
+      ) : cleanupPending ? (
+        <NoxaButton
+          fullWidth
+          variant="secondary"
+          loading={working}
+          title="Retry server cleanup"
+          onPress={() => void retryCleanup()}
+        />
+      ) : (
+        <NoxaButton
+          fullWidth
+          loading={working}
+          title={working ? 'Starting…' : 'Share my location'}
+          onPress={() => void enableSharing()}
+        />
+      )}
       <NoxaButton
         fullWidth
         variant="secondary"
         disabled={working}
-        title={sharing ? 'Back to Group Drive' : 'Not now'}
+        title="Back to Group Drive"
         onPress={() => router.back()}
       />
     </Screen>
