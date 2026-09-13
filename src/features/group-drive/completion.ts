@@ -1,6 +1,9 @@
 import { supabase } from '@/src/lib/supabase';
 
-import { leaveDrive } from './api';
+import {
+  clearPendingGroupDriveServerAction,
+  stagePendingGroupDriveServerAction,
+} from './runtime/pendingServerAction';
 import { stopGroupDriveLocationSession } from './runtime/nativeLocation';
 import type { DriveParticipantRole, DriveParticipantStatus, DriveSessionStatus } from './types';
 
@@ -41,29 +44,79 @@ type SummaryRpcRow = {
 function lifecycleError(message?: string) {
   if (/authentication required/i.test(message ?? '')) return 'Sign in again to continue.';
   if (/only the group drive host/i.test(message ?? '')) return 'Only the Group Drive host can do this.';
+  if (/host must cancel or end/i.test(message ?? '')) return 'The Group Drive host must end the drive instead.';
   return 'Group Drive could not be updated. Please retry.';
 }
 
+function isNonRetryableLifecycleError(message?: string) {
+  return /authentication required|only the group drive host|host must cancel or end/i.test(message ?? '');
+}
+
+async function stopLocalWriterAndStage(
+  kind: 'leave' | 'end',
+  driveSessionId: string,
+) {
+  // Privacy first: once the user confirms Leave/End, this device must stop
+  // publishing immediately instead of waiting for a network round-trip.
+  await stopGroupDriveLocationSession();
+  await stagePendingGroupDriveServerAction(kind, driveSessionId);
+}
+
 export async function endGroupDrive(driveSessionId: string) {
+  await stopLocalWriterAndStage('end', driveSessionId);
+
   const { data, error } = await supabase.rpc('noxa_end_drive', {
     target_drive_session_id: driveSessionId,
   });
-  if (error) throw new Error(lifecycleError(error.message));
-  if (data !== true) throw new Error('This Group Drive is no longer active.');
 
-  // The server transition synchronously removes every exact Group Drive location row.
-  // Stop this device's dedicated native writer as well so it cannot attempt another publish.
-  await stopGroupDriveLocationSession();
-  return true;
+  if (error) {
+    if (isNonRetryableLifecycleError(error.message)) {
+      clearPendingGroupDriveServerAction('end', driveSessionId);
+      throw new Error(lifecycleError(error.message));
+    }
+    throw new Error(
+      'Location sharing stopped on this device. Ending the Group Drive is waiting for server confirmation. Retry when you are online.',
+    );
+  }
+
+  // true means this request completed the transition. false means the drive was
+  // already terminal (for example after a lost response), which is also safe to
+  // treat as confirmed after the server answered.
+  if (data === true || data === false) {
+    clearPendingGroupDriveServerAction('end', driveSessionId);
+    return true;
+  }
+
+  throw new Error(
+    'Location sharing stopped on this device. Ending the Group Drive is waiting for server confirmation. Please retry.',
+  );
 }
 
 export async function leaveGroupDriveAndStopLocation(driveSessionId: string) {
-  const left = await leaveDrive(driveSessionId);
-  if (left !== true) throw new Error('This Group Drive can no longer be left.');
+  await stopLocalWriterAndStage('leave', driveSessionId);
 
-  // The server participant transition synchronously deletes this user's exact location row.
-  await stopGroupDriveLocationSession();
-  return true;
+  const { data, error } = await supabase.rpc('noxa_leave_drive', {
+    target_drive_session_id: driveSessionId,
+  });
+
+  if (error) {
+    if (isNonRetryableLifecycleError(error.message)) {
+      clearPendingGroupDriveServerAction('leave', driveSessionId);
+      throw new Error(lifecycleError(error.message));
+    }
+    throw new Error(
+      'Location sharing stopped on this device. Leaving the Group Drive is waiting for server confirmation. Retry when you are online.',
+    );
+  }
+
+  if (data === true || data === false) {
+    clearPendingGroupDriveServerAction('leave', driveSessionId);
+    return true;
+  }
+
+  throw new Error(
+    'Location sharing stopped on this device. Leaving the Group Drive is waiting for server confirmation. Please retry.',
+  );
 }
 
 export async function loadGroupDriveSummary(driveSessionId: string): Promise<GroupDriveSummary> {
