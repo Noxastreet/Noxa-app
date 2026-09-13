@@ -26,8 +26,12 @@ assert.equal(crews.includes('? "YOURS" : "NEARBY"'), false, 'Compact Crew card m
 assert.ok(crews.includes('? "YOUR CREW" : "DISCOVER"'), 'Hero Crew card must use truthful discovery wording.');
 assert.ok(crews.includes('? "YOURS" : "DISCOVER"'), 'Compact Crew card must use truthful discovery wording.');
 assert.ok(crews.includes('filterButton: {\n    minHeight: 44,'), 'Crews Discover/My Crews controls must meet the 44px minimum target.');
+assert.ok(crews.includes('if (error && !hero) {'), 'Crews must distinguish first-load errors from a genuinely empty list.');
+assert.ok(crews.includes('Crews unavailable'), 'Crews first-load error state must be explicit.');
+assert.ok(crews.includes('label="TRY AGAIN"'), 'Crews first-load error state must expose Retry.');
+assert.ok(crews.indexOf('if (error && !hero) {') < crews.indexOf('if (!hero) {'), 'Crews error state must be evaluated before the empty-state branch.');
 assert.ok(garage.includes('addButton: {\n    minHeight: 44,'), 'Garage Add control must meet the 44px minimum target.');
 assert.ok(eventsTab.includes('historyButton: {\n    position: \'absolute\','), 'Events History control must remain present.');
 assert.ok(eventsTab.includes('right: spacing.md,\n    minHeight: 44,'), 'Events History control must meet the 44px minimum target.');
 
-console.log('T8 core truth/accessibility contract: PASS (22 checks)');
+console.log('T8 core truth/accessibility contract: PASS (26 checks)');

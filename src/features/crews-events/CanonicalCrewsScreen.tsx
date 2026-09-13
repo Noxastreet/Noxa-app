@@ -800,6 +800,21 @@ export default function CanonicalCrewsScreen() {
       );
     }
 
+    if (error && !hero) {
+      return (
+        <View style={styles.stateCard}>
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.primary} />
+          <Text style={styles.stateTitle}>Crews unavailable</Text>
+          <Text style={styles.stateText}>NOXA could not load Crew discovery.</Text>
+          <CanonicalPrimaryButton
+            label="TRY AGAIN"
+            variant="surface"
+            onPress={() => void load()}
+          />
+        </View>
+      );
+    }
+
     if (!hero) {
       return (
         <View style={styles.stateCard}>
