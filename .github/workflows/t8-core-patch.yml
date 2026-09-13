@@ -22,10 +22,12 @@ jobs:
           node-version: 20
       - name: Apply exact scoped replacements
         run: node scripts/apply-t8-core-truth-accessibility.mjs
+      - name: Verify T8 contract
+        run: node scripts/verify-t8-core-truth-accessibility.mjs
       - name: Verify patch whitespace
         run: git diff --check
-      - name: Remove temporary patch machinery
-        run: git rm scripts/apply-t8-core-truth-accessibility.mjs .github/workflows/t8-core-patch.yml
+      - name: Remove temporary patch helper
+        run: git rm scripts/apply-t8-core-truth-accessibility.mjs
       - name: Commit patched runtime files
         run: |
           git config user.name "github-actions[bot]"
