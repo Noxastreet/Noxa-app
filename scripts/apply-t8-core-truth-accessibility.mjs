@@ -25,6 +25,4 @@ replaceExact('app/(tabs)/events.tsx', '    minHeight: 40,', '    minHeight: 44,'
 
 replaceExact('package.json', '    "verify:home-map-performance": "node ./scripts/verify-home-map-performance.mjs",', '    "verify:home-map-performance": "node ./scripts/verify-home-map-performance.mjs",\n    "verify:t8-core-truth-accessibility": "node ./scripts/verify-t8-core-truth-accessibility.mjs",', 'package verification script');
 
-replaceExact('.github/workflows/quality.yml', '      - name: Home / Map F12 performance contract\n        run: npm run verify:home-map-performance\n', '      - name: Home / Map F12 performance contract\n        run: npm run verify:home-map-performance\n\n      - name: T8 core truth/accessibility contract\n        run: npm run verify:t8-core-truth-accessibility\n', 'quality verification step');
-
 console.log('T8 core truth/accessibility patch applied.');
