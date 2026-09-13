@@ -20,6 +20,7 @@ import { CityField } from "@/src/features/city-picker";
 import { CountryField } from "@/src/features/country-picker";
 import { isMissingColumnError, normalizeProfileCountryCode } from "@/src/features/profile/profileIdentityPersistence";
 import { supabase } from "@/src/lib/supabase";
+import { useUnsavedChangesGuard } from "@/src/navigation/useUnsavedChangesGuard";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
 type ProfileForm = {
@@ -50,6 +51,10 @@ const initialForm: ProfileForm = {
   bio: "",
   countryCode: null,
 };
+
+function snapshotProfileForm(form: ProfileForm) {
+  return JSON.stringify(form);
+}
 
 function normalizeUsername(value: string) {
   return value.trim().replace(/^@+/, "").toLowerCase();
@@ -173,6 +178,16 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<SelectedAvatar | null>(null);
   const [shouldRemoveAvatar, setShouldRemoveAvatar] = useState(false);
+  const [baselineSnapshot, setBaselineSnapshot] = useState<string | null>(null);
+  const hasUnsavedChanges =
+    baselineSnapshot !== null
+    && (snapshotProfileForm(form) !== baselineSnapshot
+      || selectedAvatar !== null
+      || shouldRemoveAvatar);
+  const { navigateWithoutPrompt } = useUnsavedChangesGuard({
+    hasUnsavedChanges,
+    isBusy: isSubmitting,
+  });
 
   const setField = (field: keyof Omit<ProfileForm, "countryCode">, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -217,13 +232,15 @@ export default function EditProfileScreen() {
       return;
     }
 
-    setForm({
+    const loadedForm: ProfileForm = {
       displayName: data.display_name ?? "",
       username: data.username ?? "",
       city: data.city ?? "",
       bio: data.bio ?? "",
       countryCode: (data as { country_code?: string | null }).country_code ?? null,
-    });
+    };
+    setForm(loadedForm);
+    setBaselineSnapshot(snapshotProfileForm(loadedForm));
     setAvatarUrl(data.avatar_url ?? null);
     setSelectedAvatar(null);
     setShouldRemoveAvatar(false);
@@ -368,7 +385,7 @@ export default function EditProfileScreen() {
       }
 
       setIsSubmitting(false);
-      router.back();
+      navigateWithoutPrompt(() => router.back());
     } catch (error) {
       setIsSubmitting(false);
       setErrors({ form: error instanceof Error && error.message.includes("5 MB") ? error.message : mapSaveError(error) });
