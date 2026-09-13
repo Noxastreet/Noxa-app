@@ -45,6 +45,9 @@ jobs:
       - name: Home / Map progressive disclosure contract
         run: npm run verify:home-map-disclosure
 
+      - name: Home / Map F12 performance contract
+        run: npm run verify:home-map-performance
+
       - name: Group Drive Phase 1 static contract
         run: npm run verify:group-drive-phase-1
 
