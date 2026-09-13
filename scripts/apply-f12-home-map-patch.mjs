@@ -12,6 +12,21 @@ function replaceOnce(label, before, after) {
   source = source.slice(0, first) + after + source.slice(first + before.length);
 }
 
+function replaceOnceAfter(label, anchor, before, after) {
+  const anchorIndex = source.indexOf(anchor);
+  if (anchorIndex < 0) throw new Error(`F12 patch scope missing: ${label}`);
+  const first = source.indexOf(before, anchorIndex);
+  if (first < 0) throw new Error(`F12 patch anchor missing in scope: ${label}`);
+  const scopeEnd = source.indexOf('\n  const ', anchorIndex + anchor.length);
+  if (scopeEnd >= 0) {
+    const second = source.indexOf(before, first + before.length);
+    if (second >= 0 && second < scopeEnd) {
+      throw new Error(`F12 patch anchor is not unique in scope: ${label}`);
+    }
+  }
+  source = source.slice(0, first) + after + source.slice(first + before.length);
+}
+
 replaceOnce(
   'ActiveDriver updated_at',
   `type ActiveDriver = {\n  user_id: string;\n  latitude: number;\n  longitude: number;\n  profile: ProfileMarkerRow | null;\n};`,
@@ -36,8 +51,9 @@ replaceOnce(
   `  driverLocationRef.current = driverLocation;\n  activeDriversRef.current = activeDrivers;`,
 );
 
-replaceOnce(
+replaceOnceAfter(
   'current user ref',
+  `  const refreshActiveDrivers = useCallback(async () => {`,
   `      const userId = sessionData.session?.user.id;\n      if (!userId) {`,
   `      const userId = sessionData.session?.user.id;\n      currentUserIdRef.current = userId ?? null;\n      if (!userId) {`,
 );
