@@ -10,13 +10,13 @@ import {
   clearPendingGroupDriveServerAction,
   getGroupDriveLocationSession,
   getPendingGroupDriveServerAction,
-  loadActiveDriveRealtimeSnapshot,
+  loadActiveDriveLifecycleSnapshot,
   requestGroupDriveLocationPermissions,
   retryGroupDriveLocationCleanup,
   startGroupDriveLocationSession,
   stopGroupDriveLocationSession,
   stopGroupDriveLocationSharing,
-  subscribeToActiveDriveRealtime,
+  subscribeToActiveDriveAccess,
 } from '@/src/features/group-drive';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
@@ -37,7 +37,7 @@ export default function GroupDriveLocationSharingScreen() {
       return;
     }
     try {
-      await loadActiveDriveRealtimeSnapshot(driveSessionId);
+      await loadActiveDriveLifecycleSnapshot(driveSessionId);
       setActive(true);
       const session = getGroupDriveLocationSession();
       const isSharing = session?.driveSessionId === driveSessionId;
@@ -69,8 +69,7 @@ export default function GroupDriveLocationSharingScreen() {
     let disposed = false;
     let teardown: (() => Promise<void>) | null = null;
 
-    void subscribeToActiveDriveRealtime(driveSessionId, {
-      onSnapshot: () => undefined,
+    void subscribeToActiveDriveAccess(driveSessionId, {
       onAccessRevoked: () => {
         if (disposed) return;
         setActive(false);
