@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { NoxaBadge, NoxaScreen } from '@/src/components/ui';
+import { requireClientEnv } from '@/src/config/env';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -58,6 +59,43 @@ const vehicleSelect = `
   created_at,
   updated_at
 `;
+
+const { supabaseUrl, supabasePublishableKey } = requireClientEnv();
+
+type ProbeResult = {
+  label: string;
+  status: number;
+  elapsedMs: number;
+  bytes: number;
+};
+
+function diagnosticError(error: unknown) {
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  return String(error);
+}
+
+async function timedTextFetch(
+  label: string,
+  url: string,
+  init?: RequestInit,
+): Promise<ProbeResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    const body = await response.text();
+    return {
+      label,
+      status: response.status,
+      elapsedMs: Date.now() - startedAt,
+      bytes: body.length,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function vehicleMeta(vehicle: GarageVehicle) {
   const items = [
@@ -222,16 +260,37 @@ export default function GarageScreen() {
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
   const [hasVehicleError, setHasVehicleError] = useState(false);
   const [primaryBusyId, setPrimaryBusyId] = useState<string | null>(null);
+  const [diagnosticLines, setDiagnosticLines] = useState<string[]>([
+    'BUILD 8 PRE-BUILD4 NETWORK CONTROL',
+    'Waiting for Garage request…',
+  ]);
   const hasLoadedVehiclesRef = useRef(false);
+  const diagnosticRunRef = useRef(0);
 
   const loadVehicles = useCallback(async () => {
+    const runId = ++diagnosticRunRef.current;
+    const append = (message: string) => {
+      if (runId !== diagnosticRunRef.current) return;
+      setDiagnosticLines((current) => [
+        current[0] ?? 'BUILD 8 PRE-BUILD4 NETWORK CONTROL',
+        ...current.slice(-7),
+        message,
+      ]);
+    };
+
+    setDiagnosticLines([
+      'BUILD 8 PRE-BUILD4 NETWORK CONTROL',
+      'SESSION: checking local session…',
+    ]);
     setIsLoadingVehicles(!hasLoadedVehiclesRef.current);
     setHasVehicleError(false);
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    const user = authData.user;
+    const sessionStartedAt = Date.now();
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const session = sessionData.session;
 
-    if (authError || !user) {
+    if (sessionError || !session) {
+      append(`SESSION: FAIL in ${Date.now() - sessionStartedAt}ms — ${sessionError?.message ?? 'no session'}`);
       setVehicles([]);
       setHasVehicleError(true);
       hasLoadedVehiclesRef.current = true;
@@ -239,21 +298,63 @@ export default function GarageScreen() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select(vehicleSelect)
-      .eq('owner_id', user.id)
-      .order('is_primary', { ascending: false })
-      .order('created_at', { ascending: false });
+    append(`SESSION: OK in ${Date.now() - sessionStartedAt}ms`);
 
-    if (error) {
+    void timedTextFetch('PUBLIC HTTPS', 'https://example.com')
+      .then((probe) => append(`${probe.label}: HTTP ${probe.status} in ${probe.elapsedMs}ms, ${probe.bytes}B`))
+      .catch((error) => append(`PUBLIC HTTPS: FAIL — ${diagnosticError(error)}`));
+
+    const query = new URLSearchParams({
+      select: 'id',
+      owner_id: `eq.${session.user.id}`,
+      limit: '1',
+    });
+
+    void timedTextFetch(
+      'RAW SUPABASE',
+      `${supabaseUrl}/rest/v1/vehicles?${query.toString()}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          apikey: supabasePublishableKey,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      },
+    )
+      .then((probe) => append(`${probe.label}: HTTP ${probe.status} in ${probe.elapsedMs}ms, ${probe.bytes}B`))
+      .catch((error) => append(`RAW SUPABASE: FAIL — ${diagnosticError(error)}`));
+
+    append('SDK: request sent…');
+    const sdkStartedAt = Date.now();
+
+    try {
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select(vehicleSelect)
+        .eq('owner_id', session.user.id)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      const sdkMs = Date.now() - sdkStartedAt;
+      append(
+        error
+          ? `SDK: ERROR in ${sdkMs}ms — ${error.code ?? 'unknown'} ${error.message}`
+          : `SDK: OK in ${sdkMs}ms — ${data?.length ?? 0} rows`,
+      );
+
+      if (error) {
+        setHasVehicleError(true);
+      } else {
+        setVehicles((data ?? []) as GarageVehicle[]);
+      }
+    } catch (error) {
+      append(`SDK: THROW — ${diagnosticError(error)}`);
       setHasVehicleError(true);
-    } else {
-      setVehicles((data ?? []) as GarageVehicle[]);
+    } finally {
+      hasLoadedVehiclesRef.current = true;
+      setIsLoadingVehicles(false);
+      append('UI: state committed');
     }
-
-    hasLoadedVehiclesRef.current = true;
-    setIsLoadingVehicles(false);
   }, []);
 
   useFocusEffect(
@@ -299,6 +400,14 @@ export default function GarageScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.diagnosticPanel}>
+          {diagnosticLines.map((line, index) => (
+            <Text key={`${index}-${line}`} selectable style={styles.diagnosticText}>
+              {line}
+            </Text>
+          ))}
+        </View>
+
         {isLoadingVehicles || hasVehicleError || vehicles.length === 0 ? (
           <GarageState error={hasVehicleError} isLoading={isLoadingVehicles} onRetry={loadVehicles} />
         ) : (
@@ -331,6 +440,20 @@ export default function GarageScreen() {
 }
 
 const styles = StyleSheet.create({
+  diagnosticPanel: {
+    gap: 4,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(225,29,46,0.35)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(225,29,46,0.08)',
+  },
+  diagnosticText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: typography.fontFamily.body,
+  },
   content: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
