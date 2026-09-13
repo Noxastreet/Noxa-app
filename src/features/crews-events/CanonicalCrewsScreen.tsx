@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.caption,
   },
   createButton: {
-    minHeight: 36,
+    minHeight: 44,
     marginTop: spacing.xxs,
     flexDirection: "row",
     alignItems: "center",
