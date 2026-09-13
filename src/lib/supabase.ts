@@ -77,9 +77,6 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
     persistSession: true,
     detectSessionInUrl: false,
   },
-  db: {
-    retry: false,
-  },
   global: {
     fetch: resilientSupabaseFetch,
   },
