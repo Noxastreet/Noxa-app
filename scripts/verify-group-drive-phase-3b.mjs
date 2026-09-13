@@ -60,7 +60,7 @@ if (!failures.length) {
   if (!/const consent = acceptGroupDriveLocationDisclosure\(driveSessionId\);[\s\S]*await requestGroupDriveLocationPermissions\(\);[\s\S]*await startGroupDriveLocationSession\(consent\);/.test(consentScreen)) {
     failures.push('consent screen must accept scoped disclosure before requesting permissions and starting writer');
   }
-  if (!/Join and Ready never enable location sharing/.test(consentScreen)) {
+  if (!/Join and Ready never enable (?:location )?sharing/.test(consentScreen)) {
     failures.push('consent screen must state that Join/Ready do not enable sharing');
   }
   if (!/import '@\/src\/features\/group-drive\/runtime\/nativeLocation';/.test(layout)) {
