@@ -209,7 +209,7 @@ function HeroCrew({
 
         <View style={styles.heroTopRow}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOUR CREW" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOUR CREW" : "DISCOVER"}
             tone={event ? "accent" : "neutral"}
           />
           <View style={styles.heroMenuButton}>
@@ -280,7 +280,7 @@ function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
         <View style={styles.compactShade} />
         <View style={styles.compactTop}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOURS" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOURS" : "DISCOVER"}
           />
           <Text style={styles.compactMemberCount}>{crew.memberCount}</Text>
         </View>

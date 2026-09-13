@@ -21,9 +21,13 @@ assert.ok(crews.includes('Nothing to discover yet'), 'Crews empty state must use
 assert.ok(crews.includes('ACTIVE CREWS'), 'Crews discovery section must use truthful non-geographic wording.');
 assert.equal(crews.includes('PEOPLE NEARBY'), false, 'Crews profile strip must not claim proximity for an unfiltered profile sample.');
 assert.ok(crews.includes('COMMUNITY PICKS'), 'Crews discovery profile strip must use non-geographic wording.');
+assert.equal(crews.includes('? "YOUR CREW" : "NEARBY"'), false, 'Hero Crew card must not label unfiltered discovery as nearby.');
+assert.equal(crews.includes('? "YOURS" : "NEARBY"'), false, 'Compact Crew card must not label unfiltered discovery as nearby.');
+assert.ok(crews.includes('? "YOUR CREW" : "DISCOVER"'), 'Hero Crew card must use truthful discovery wording.');
+assert.ok(crews.includes('? "YOURS" : "DISCOVER"'), 'Compact Crew card must use truthful discovery wording.');
 assert.ok(crews.includes('filterButton: {\n    minHeight: 44,'), 'Crews Discover/My Crews controls must meet the 44px minimum target.');
 assert.ok(garage.includes('addButton: {\n    minHeight: 44,'), 'Garage Add control must meet the 44px minimum target.');
 assert.ok(eventsTab.includes('historyButton: {\n    position: \'absolute\','), 'Events History control must remain present.');
 assert.ok(eventsTab.includes('right: spacing.md,\n    minHeight: 44,'), 'Events History control must meet the 44px minimum target.');
 
-console.log('T8 core truth/accessibility contract: PASS (18 checks)');
+console.log('T8 core truth/accessibility contract: PASS (22 checks)');
