@@ -8,6 +8,7 @@ const files = [
   'app/group-drives/[id]/active.tsx',
   'src/features/mapbox/MapboxLiveMap.tsx',
   'src/features/mapbox/MapboxLiveMapCompat.tsx',
+  'src/features/group-drive/runtime/localNavigationLocation.ts',
   'src/features/group-drive/runtime/realtime.ts',
   'src/features/group-drive/runtime/routeProgress.ts',
   'src/features/group-drive/runtime/participantStack.ts',
@@ -32,6 +33,7 @@ if (!failures.length) {
   const screen = source('app/group-drives/[id]/active.tsx');
   const sharedMap = source('src/features/mapbox/MapboxLiveMap.tsx');
   const compat = source('src/features/mapbox/MapboxLiveMapCompat.tsx');
+  const localNavigation = source('src/features/group-drive/runtime/localNavigationLocation.ts');
 
   const required = [
     ['shared Mapbox compatibility layer is not reused', /from '@\/src\/features\/mapbox\/MapboxLiveMapCompat'/],
@@ -46,6 +48,9 @@ if (!failures.length) {
     ['participant focus does not use map handle', /animateToRegion/],
     ['access revocation handling missing', /onAccessRevoked/],
     ['user pan isolation missing', /onUserPan=\{\(\) =>/],
+    ['local navigation source is not wired', /watchLocalNavigationLocation/],
+    ['local-only recenter permission path is missing', /readLocalNavigationLocation\(true\)/],
+    ['map camera still depends only on published Group Drive location', /driverLocation=\{cameraLocation\}/],
   ];
   for (const [label, pattern] of required) {
     if (!pattern.test(screen)) failures.push(label);
@@ -68,6 +73,15 @@ if (!failures.length) {
   }
   if (/from ['"]@\/src\/lib\/supabase['"]/.test(screen)) {
     failures.push('Active Drive screen must consume the Group Drive API/runtime rather than query Supabase directly');
+  }
+
+  if (!/getForegroundPermissionsAsync/.test(localNavigation)
+    || !/requestForegroundPermissionsAsync/.test(localNavigation)
+    || !/watchPositionAsync/.test(localNavigation)) {
+    failures.push('local navigation GPS must use only foreground location primitives');
+  }
+  if (/supabase|\.rpc\(|driver_locations|drive_location_state|TaskManager|startLocationUpdatesAsync|requestBackgroundPermissionsAsync/i.test(localNavigation)) {
+    failures.push('local navigation GPS must never publish, start a background task, or request background permission');
   }
 
   const expectedSharedMapBlob = 'a9d527bf4f16623f9a8419b6e8b57ab4b617eb56';

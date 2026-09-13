@@ -27,6 +27,11 @@ import {
   type GroupDriveProgressState,
   type ParticipantStackOrderState,
 } from '@/src/features/group-drive';
+import {
+  readLocalNavigationLocation,
+  watchLocalNavigationLocation,
+  type LocalNavigationLocation,
+} from '@/src/features/group-drive/runtime/localNavigationLocation';
 import { MapboxLiveMapCompat } from '@/src/features/mapbox/MapboxLiveMapCompat';
 import type { LiveMapHandle, MapRegion, MapboxDriver, MapboxRoute } from '@/src/features/mapbox/types';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -85,6 +90,7 @@ export default function ActiveDriveScreen() {
   const [connection, setConnection] = useState<ActiveDriveRealtimeConnection>('connecting');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [followUser, setFollowUser] = useState(true);
+  const [localNavigationLocation, setLocalNavigationLocation] = useState<LocalNavigationLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -148,6 +154,30 @@ export default function ActiveDriveScreen() {
       ],
     );
   }, [driveSessionId]);
+
+  useEffect(() => {
+    let disposed = false;
+    let stopWatching: (() => void) | null = null;
+
+    void (async () => {
+      try {
+        const current = await readLocalNavigationLocation(false);
+        if (!disposed && current) setLocalNavigationLocation(current);
+        stopWatching = await watchLocalNavigationLocation((location) => {
+          if (!disposed) setLocalNavigationLocation(location);
+        });
+        if (disposed) stopWatching();
+      } catch {
+        // Local navigation is optional and separate from Group Drive publication.
+        // Permission can be requested later only when the user taps Recenter.
+      }
+    })();
+
+    return () => {
+      disposed = true;
+      stopWatching?.();
+    };
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -238,7 +268,8 @@ export default function ActiveDriveScreen() {
     () => new Map((details?.participants ?? []).map((participant) => [participant.userId, participant.profile])),
     [details?.participants],
   );
-  const ownLocation = details ? locationByUserId.get(details.currentUserId) ?? null : null;
+  const ownPublishedLocation = details ? locationByUserId.get(details.currentUserId) ?? null : null;
+  const cameraLocation = localNavigationLocation ?? ownPublishedLocation;
 
   const activeDrivers = useMemo<MapboxDriver[]>(
     () => locations
@@ -274,20 +305,32 @@ export default function ActiveDriveScreen() {
     }, 450);
   }, [locationByUserId]);
 
-  const recenter = useCallback(() => {
-    if (!ownLocation) {
-      Alert.alert('Location unavailable', 'Your current Group Drive location is not available yet.');
+  const recenter = useCallback(async () => {
+    let location = cameraLocation;
+    if (!location) {
+      try {
+        location = await readLocalNavigationLocation(true);
+        if (location) setLocalNavigationLocation(location);
+      } catch {
+        location = null;
+      }
+    }
+    if (!location) {
+      Alert.alert(
+        'Location unavailable',
+        'Allow location while using NOXA to recenter the map. This does not share your position with the Group Drive.',
+      );
       return;
     }
     setSelectedUserId(null);
     setFollowUser(true);
     mapRef.current?.animateToRegion({
-      latitude: ownLocation.latitude,
-      longitude: ownLocation.longitude,
+      latitude: location.latitude,
+      longitude: location.longitude,
       latitudeDelta: 0.012,
       longitudeDelta: 0.012,
     }, 350);
-  }, [ownLocation]);
+  }, [cameraLocation]);
 
   if (loading) {
     return (
@@ -320,10 +363,7 @@ export default function ActiveDriveScreen() {
       <MapboxLiveMapCompat
         ref={mapRef}
         initialRegion={initialRegion(details, snapshot)}
-        driverLocation={ownLocation ? {
-          latitude: ownLocation.latitude,
-          longitude: ownLocation.longitude,
-        } : null}
+        driverLocation={cameraLocation}
         activeDrivers={activeDrivers}
         events={[]}
         route={mapRoute}
@@ -387,12 +427,11 @@ export default function ActiveDriveScreen() {
           <Pressable
             accessibilityLabel="Recenter on me"
             accessibilityRole="button"
-            disabled={!ownLocation}
-            onPress={recenter}
+            onPress={() => void recenter()}
             style={({ pressed }) => [
               styles.recenterButton,
-              !ownLocation && styles.disabledButton,
-              pressed && ownLocation && styles.pressedButton,
+              !cameraLocation && styles.recenterButtonNeedsPermission,
+              pressed && styles.pressedButton,
             ]}
           >
             <Ionicons name="navigate" size={21} color={colors.text} />
@@ -547,8 +586,8 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
-  disabledButton: {
-    opacity: 0.42,
+  recenterButtonNeedsPermission: {
+    opacity: 0.72,
   },
   pressedButton: {
     opacity: 0.78,
