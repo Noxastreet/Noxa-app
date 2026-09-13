@@ -5,8 +5,11 @@ import process from 'node:process';
 const root = process.cwd();
 const files = [
   'src/features/group-drive/completion.ts',
+  'src/features/group-drive/runtime/locationSharingControl.ts',
+  'src/features/group-drive/runtime/pendingServerAction.ts',
   'app/group-drives/index.tsx',
   'app/group-drives/[id]/controls.tsx',
+  'app/group-drives/[id]/location-sharing.tsx',
   'app/group-drives/[id]/summary.tsx',
   'supabase/migrations/20260819080201_group_drive_phase_1.sql',
 ];
@@ -22,17 +25,25 @@ for (const file of files) {
 
 if (!failures.length) {
   const completion = source('src/features/group-drive/completion.ts');
+  const sharingControl = source('src/features/group-drive/runtime/locationSharingControl.ts');
+  const pendingAction = source('src/features/group-drive/runtime/pendingServerAction.ts');
   const list = source('app/group-drives/index.tsx');
   const controls = source('app/group-drives/[id]/controls.tsx');
+  const sharing = source('app/group-drives/[id]/location-sharing.tsx');
   const summary = source('app/group-drives/[id]/summary.tsx');
   const migration = source('supabase/migrations/20260819080201_group_drive_phase_1.sql');
 
   const requiredClient = [
     ['host end RPC is not wired', completion, /noxa_end_drive/],
     ['terminal summary RPC is not wired', completion, /noxa_get_drive_summary/],
-    ['participant leave does not use reviewed lifecycle API', completion, /leaveDrive\(driveSessionId\)/],
-    ['end does not stop the native Group Drive writer', completion, /endGroupDrive[\s\S]*stopGroupDriveLocationSession/],
-    ['leave does not stop the native Group Drive writer', completion, /leaveGroupDriveAndStopLocation[\s\S]*stopGroupDriveLocationSession/],
+    ['participant leave RPC is not wired', completion, /noxa_leave_drive/],
+    ['end does not stop local Group Drive publishing before the server RPC', completion, /endGroupDrive[\s\S]*stopLocalWriterAndStage\('end'[\s\S]*noxa_end_drive/],
+    ['leave does not stop local Group Drive publishing before the server RPC', completion, /leaveGroupDriveAndStopLocation[\s\S]*stopLocalWriterAndStage\('leave'[\s\S]*noxa_leave_drive/],
+    ['pending lifecycle action is not persisted', completion, /stagePendingGroupDriveServerAction/],
+    ['independent Group Drive Stop Sharing is not wired', sharing, /Stop Group Drive sharing/],
+    ['Stop Sharing does not stop the native writer first', sharingControl, /stopGroupDriveLocationSession\(\)[\s\S]*stagePendingGroupDriveServerAction/],
+    ['Stop Sharing does not clear server location state', sharingControl, /noxa_clear_my_drive_location/],
+    ['pending server action storage is missing', pendingAction, /GROUP_DRIVE_PENDING_SERVER_ACTION_KEY/],
     ['terminal list items do not route to summary', list, /terminal[\s\S]*\/group-drives\/\[id\]\/summary/],
     ['active list items do not expose lifecycle controls', list, /active[\s\S]*\/group-drives\/\[id\]\/controls/],
     ['host End Drive control missing', controls, /End Group Drive/],
