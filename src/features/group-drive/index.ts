@@ -4,5 +4,6 @@ export * from './components';
 export * from './format';
 export * from './GroupDrivePrimitives';
 export * from './lobby';
+export * from './participantManagement';
 export * from './runtime';
 export * from './types';
