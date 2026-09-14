@@ -65,6 +65,11 @@ type ReportTarget = {
   type: Extract<ReportTargetType, "post" | "comment">;
 };
 
+type CommentLoadResult = {
+  data: CommentViewModel[];
+  error: Error | null;
+};
+
 const postImagesBucket = "post-images";
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -122,6 +127,71 @@ function ownedPostImagePath(publicUrl: string, userId: string) {
   } catch {
     return null;
   }
+}
+
+async function loadCommentViewModels(postId: string, userId: string | null): Promise<CommentLoadResult> {
+  const { data: commentData, error: commentError } = await supabase
+    .from("post_comments")
+    .select("id,post_id,author_id,reply_to_user_id,body,created_at")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true })
+    .limit(100);
+
+  if (commentError) return { data: [], error: new Error(commentError.message) };
+
+  const commentRows = (commentData ?? []) as CommentRow[];
+  const profileIds = Array.from(
+    new Set(
+      commentRows.flatMap((comment) =>
+        comment.reply_to_user_id
+          ? [comment.author_id, comment.reply_to_user_id]
+          : [comment.author_id],
+      ),
+    ),
+  );
+  const commentIds = commentRows.map((comment) => comment.id);
+  const [profilesResult, commentLikesResult] = await Promise.all([
+    profileIds.length
+      ? supabase
+          .from("profiles")
+          .select("id,display_name,username,avatar_url,city")
+          .in("id", profileIds)
+      : Promise.resolve({ data: [], error: null }),
+    commentIds.length
+      ? supabase
+          .from("post_comment_likes")
+          .select("comment_id,user_id")
+          .in("comment_id", commentIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const relatedError = profilesResult.error || commentLikesResult.error;
+  if (relatedError) {
+    return { data: [], error: new Error(relatedError.message ?? "Comments could not be loaded.") };
+  }
+
+  const profileMap = new Map(
+    ((profilesResult.data ?? []) as Profile[]).map((profile) => [profile.id, profile]),
+  );
+  const commentLikeCounts = new Map<string, number>();
+  const myCommentLikes = new Set<string>();
+  for (const row of commentLikesResult.data ?? []) {
+    commentLikeCounts.set(row.comment_id, (commentLikeCounts.get(row.comment_id) ?? 0) + 1);
+    if (row.user_id === userId) myCommentLikes.add(row.comment_id);
+  }
+
+  return {
+    data: commentRows.map((comment) => ({
+      ...comment,
+      author: profileMap.get(comment.author_id) ?? null,
+      replyTo: comment.reply_to_user_id
+        ? profileMap.get(comment.reply_to_user_id) ?? null
+        : null,
+      likeCount: commentLikeCounts.get(comment.id) ?? 0,
+      likedByMe: myCommentLikes.has(comment.id),
+    })),
+    error: null,
+  };
 }
 
 function ProfileAvatar({ profile, size = 42 }: { profile: Profile | null; size?: number }) {
@@ -236,12 +306,7 @@ export default function PostDetailsScreen() {
                 .eq("user_id", userId)
                 .maybeSingle()
             : Promise.resolve({ data: null, error: null }),
-          supabase
-            .from("post_comments")
-            .select("id,post_id,author_id,reply_to_user_id,body,created_at")
-            .eq("post_id", loadedPost.id)
-            .order("created_at", { ascending: true })
-            .limit(100),
+          loadCommentViewModels(loadedPost.id, userId),
         ]);
 
       const firstError =
@@ -256,64 +321,12 @@ export default function PostDetailsScreen() {
         return;
       }
 
-      const commentRows = (commentsResult.data ?? []) as CommentRow[];
-      const profileIds = Array.from(
-        new Set(
-          commentRows.flatMap((comment) =>
-            comment.reply_to_user_id
-              ? [comment.author_id, comment.reply_to_user_id]
-              : [comment.author_id],
-          ),
-        ),
-      );
-      const commentIds = commentRows.map((comment) => comment.id);
-      const [profilesResult, commentLikesResult] = await Promise.all([
-        profileIds.length
-          ? supabase
-              .from("profiles")
-              .select("id,display_name,username,avatar_url,city")
-              .in("id", profileIds)
-          : Promise.resolve({ data: [], error: null }),
-        commentIds.length
-          ? supabase
-              .from("post_comment_likes")
-              .select("comment_id,user_id")
-              .in("comment_id", commentIds)
-          : Promise.resolve({ data: [], error: null }),
-      ]);
-
-      if (profilesResult.error || commentLikesResult.error) {
-        setError((profilesResult.error || commentLikesResult.error)?.message ?? "Comments could not be loaded.");
-        setLoading(false);
-        return;
-      }
-
-      const profileMap = new Map(
-        ((profilesResult.data ?? []) as Profile[]).map((profile) => [profile.id, profile]),
-      );
-      const commentLikeCounts = new Map<string, number>();
-      const myCommentLikes = new Set<string>();
-      for (const row of commentLikesResult.data ?? []) {
-        commentLikeCounts.set(row.comment_id, (commentLikeCounts.get(row.comment_id) ?? 0) + 1);
-        if (row.user_id === userId) myCommentLikes.add(row.comment_id);
-      }
-
       setPost(loadedPost);
       setAuthor((authorResult.data as Profile | null) ?? null);
       setLikeCount(likesResult.count ?? 0);
       setLiked(Boolean(myLikeResult.data));
       setSaved(Boolean(savedResult.data));
-      setComments(
-        commentRows.map((comment) => ({
-          ...comment,
-          author: profileMap.get(comment.author_id) ?? null,
-          replyTo: comment.reply_to_user_id
-            ? profileMap.get(comment.reply_to_user_id) ?? null
-            : null,
-          likeCount: commentLikeCounts.get(comment.id) ?? 0,
-          likedByMe: myCommentLikes.has(comment.id),
-        })),
-      );
+      setComments(commentsResult.data);
       setLoading(false);
     },
     [postId],
@@ -360,7 +373,7 @@ export default function PostDetailsScreen() {
 
   const toggleCommentLike = useCallback(
     async (comment: CommentViewModel) => {
-      if (!currentUserId || commentActionId) return;
+      if (!currentUserId || commentActionId || submittingComment) return;
       setCommentActionId(comment.id);
       const result = comment.likedByMe
         ? await supabase
@@ -388,14 +401,14 @@ export default function PostDetailsScreen() {
       }
       setCommentActionId(null);
     },
-    [commentActionId, currentUserId],
+    [commentActionId, currentUserId, submittingComment],
   );
 
   const beginReply = useCallback((profile: Profile | null) => {
-    if (!profile) return;
+    if (!profile || submittingComment) return;
     setReplyTarget(profile);
     inputRef.current?.focus();
-  }, []);
+  }, [submittingComment]);
 
   const submitComment = useCallback(async () => {
     const body = commentBody.trim();
@@ -417,14 +430,16 @@ export default function PostDetailsScreen() {
     else {
       setCommentBody("");
       setReplyTarget(null);
-      await loadPost(false);
+      const commentsResult = await loadCommentViewModels(post.id, currentUserId);
+      if (commentsResult.error) setError(commentsResult.error.message);
+      else setComments(commentsResult.data);
     }
     setSubmittingComment(false);
-  }, [commentBody, currentUserId, loadPost, post, replyTarget, submittingComment]);
+  }, [commentBody, currentUserId, post, replyTarget, submittingComment]);
 
   const confirmDeleteComment = useCallback(
     (comment: CommentViewModel) => {
-      if (!currentUserId || (comment.author_id !== currentUserId && !isAuthor)) return;
+      if (submittingComment || !currentUserId || (comment.author_id !== currentUserId && !isAuthor)) return;
       Alert.alert("Delete comment?", "This comment will be removed from the post.", [
         { text: "Cancel", style: "cancel" },
         {
@@ -441,7 +456,7 @@ export default function PostDetailsScreen() {
         },
       ]);
     },
-    [currentUserId, isAuthor],
+    [currentUserId, isAuthor, submittingComment],
   );
 
   const sharePost = useCallback(async () => {
@@ -550,7 +565,7 @@ export default function PostDetailsScreen() {
 
   const openCommentActions = useCallback(
     (comment: CommentViewModel) => {
-      if (!currentUserId) return;
+      if (!currentUserId || submittingComment) return;
       if (comment.author_id === currentUserId) {
         confirmDeleteComment(comment);
         return;
@@ -579,7 +594,7 @@ export default function PostDetailsScreen() {
       buttons.push({ text: "Cancel", style: "cancel" });
       Alert.alert("Comment actions", "Choose an action for this comment.", buttons);
     },
-    [confirmBlockDriver, confirmDeleteComment, currentUserId, isAuthor],
+    [confirmBlockDriver, confirmDeleteComment, currentUserId, isAuthor, submittingComment],
   );
 
   return (
@@ -693,6 +708,7 @@ export default function PostDetailsScreen() {
                       <CommentItem
                         busy={commentActionId === comment.id}
                         comment={comment}
+                        disabled={submittingComment}
                         index={index}
                         key={comment.id}
                         onDelete={() => openCommentActions(comment)}
@@ -832,6 +848,7 @@ function ActionButton({
 function CommentItem({
   busy,
   comment,
+  disabled,
   index,
   onDelete,
   onLike,
@@ -840,6 +857,7 @@ function CommentItem({
 }: {
   busy: boolean;
   comment: CommentViewModel;
+  disabled: boolean;
   index: number;
   onDelete: () => void;
   onLike: () => void;
@@ -851,7 +869,7 @@ function CommentItem({
       <Pressable accessibilityRole="button" onPress={onOpenProfile}>
         <ProfileAvatar profile={comment.author} size={38} />
       </Pressable>
-      <Pressable delayLongPress={450} onLongPress={onDelete} style={styles.commentMain}>
+      <Pressable disabled={disabled} delayLongPress={450} onLongPress={onDelete} style={styles.commentMain}>
         <Text style={styles.commentBody}>
           <Text style={styles.commentAuthor}>{profileName(comment.author)} </Text>
           {comment.replyTo ? (
@@ -866,7 +884,7 @@ function CommentItem({
               {comment.likeCount} {comment.likeCount === 1 ? "like" : "likes"}
             </Text>
           ) : null}
-          <Pressable accessibilityRole="button" onPress={onReply}>
+          <Pressable accessibilityRole="button" disabled={disabled} onPress={onReply}>
             <Text style={styles.replyButtonText}>Reply</Text>
           </Pressable>
         </View>
@@ -874,7 +892,7 @@ function CommentItem({
       <Pressable
         accessibilityLabel={comment.likedByMe ? "Unlike comment" : "Like comment"}
         accessibilityRole="button"
-        disabled={busy}
+        disabled={busy || disabled}
         onPress={onLike}
         style={({ pressed }) => [styles.commentLike, pressed && styles.pressed]}>
         {busy ? (
