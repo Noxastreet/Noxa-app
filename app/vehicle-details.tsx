@@ -39,6 +39,7 @@ type VehicleOwner = {
   city: string | null;
 };
 
+const vehicleImagesBucket = 'vehicle-images';
 const vehicleSelect = `
   id,
   owner_id,
@@ -75,6 +76,22 @@ function isUuid(value: string) {
 
 function getParamId(id: string | string[] | undefined) {
   return Array.isArray(id) ? id[0] : id;
+}
+
+function getOwnedVehicleImagePath(publicUrl: string | null, userId: string) {
+  if (!publicUrl) return null;
+
+  try {
+    const url = new URL(publicUrl);
+    const marker = `/storage/v1/object/public/${vehicleImagesBucket}/`;
+    const markerIndex = url.pathname.indexOf(marker);
+    if (markerIndex === -1) return null;
+
+    const path = decodeURIComponent(url.pathname.slice(markerIndex + marker.length));
+    return path.split('/')[0] === userId ? path : null;
+  } catch {
+    return null;
+  }
 }
 
 function formatOwnerInitials(owner: VehicleOwner) {
@@ -328,6 +345,14 @@ export default function VehicleDetailsScreen() {
       setIsDeleting(false);
       Alert.alert('Unable to delete vehicle', 'No vehicle was deleted. Please try again.');
       return;
+    }
+
+    const imagePath = getOwnedVehicleImagePath(vehicle.cover_image_url, currentUser.id);
+    if (imagePath) {
+      const { error: storageError } = await supabase.storage.from(vehicleImagesBucket).remove([imagePath]);
+      if (storageError) {
+        console.warn('Vehicle deleted, but its cover image could not be cleaned up.', storageError.message);
+      }
     }
 
     setIsDeleting(false);
