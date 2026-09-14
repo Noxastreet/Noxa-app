@@ -33,7 +33,13 @@ jobs:
         run: npm ci
 
       - name: Apply only non-breaking npm audit fixes to lockfile
-        run: npm audit fix --package-lock-only
+        shell: bash
+        run: |
+          set +e
+          npm audit fix --package-lock-only
+          status=$?
+          echo "AUDIT_FIX_EXIT=$status (non-zero is expected while unfixed advisories remain)"
+          exit 0
 
       - name: Ensure package.json was not changed
         run: git diff --exit-code -- package.json
