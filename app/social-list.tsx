@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -188,6 +188,7 @@ export default function SocialListScreen() {
     () => normalizeMode(mode) ?? normalizeMode(tab),
     [mode, tab],
   );
+  const loadRequestIdRef = useRef(0);
   const [activeTab, setActiveTab] = useState<SocialTab>(
     initialMode ?? "followers",
   );
@@ -212,6 +213,10 @@ export default function SocialListScreen() {
 
   const loadSocialList = useCallback(
     async ({ refreshing = false } = {}) => {
+      const requestId = ++loadRequestIdRef.current;
+      const requestedTab = activeTab;
+      const isCurrentRequest = () => requestId === loadRequestIdRef.current;
+
       if (hasInvalidMode) {
         setErrorMessage("This social list mode is invalid.");
         setProfiles([]);
@@ -230,10 +235,12 @@ export default function SocialListScreen() {
       let targetId = routeUserId;
       if (!targetId) {
         const { data } = await supabase.auth.getUser();
+        if (!isCurrentRequest()) return;
         targetId = data.user?.id ?? "";
       }
 
       if (!uuidPattern.test(targetId)) {
+        if (!isCurrentRequest()) return;
         setTargetUserId(targetId);
         setProfiles([]);
         setErrorMessage("This social list link is invalid.");
@@ -242,6 +249,7 @@ export default function SocialListScreen() {
         return;
       }
 
+      if (!isCurrentRequest()) return;
       setTargetUserId(targetId);
 
       const [followersResult, followingResult, followResult] =
@@ -254,7 +262,7 @@ export default function SocialListScreen() {
             .from("follows")
             .select("following_id", { count: "exact", head: true })
             .eq("follower_id", targetId),
-          activeTab === "followers"
+          requestedTab === "followers"
             ? supabase
                 .from("follows")
                 .select("follower_id, created_at")
@@ -267,6 +275,7 @@ export default function SocialListScreen() {
                 .order("created_at", { ascending: false }),
         ]);
 
+      if (!isCurrentRequest()) return;
       setFollowersCount(followersResult.count ?? 0);
       setFollowingCount(followingResult.count ?? 0);
 
@@ -288,13 +297,14 @@ export default function SocialListScreen() {
             follower_id?: string | null;
             following_id?: string | null;
           };
-          return activeTab === "followers"
+          return requestedTab === "followers"
             ? followRow.follower_id
             : followRow.following_id;
         })
         .filter((id): id is string => Boolean(id));
 
       if (profileIds.length === 0) {
+        if (!isCurrentRequest()) return;
         setProfiles([]);
         setIsLoading(false);
         setIsRefreshing(false);
@@ -306,6 +316,7 @@ export default function SocialListScreen() {
         .select("id, display_name, username, avatar_url, city")
         .in("id", profileIds);
 
+      if (!isCurrentRequest()) return;
       if (profileError) {
         setProfiles([]);
         setErrorMessage("Unable to load driver profiles.");
