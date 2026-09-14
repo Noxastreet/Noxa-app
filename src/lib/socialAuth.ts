@@ -4,9 +4,10 @@ import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
+import { AUTH_CALLBACK_REDIRECT_URI } from '@/src/lib/authRedirects';
 import { supabase } from '@/src/lib/supabase';
 
-export const SOCIAL_AUTH_REDIRECT_URI = 'noxa://auth/callback';
+export const SOCIAL_AUTH_REDIRECT_URI = AUTH_CALLBACK_REDIRECT_URI;
 
 export type SocialAuthResult =
   | { status: 'cancelled' }
