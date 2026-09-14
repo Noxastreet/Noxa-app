@@ -57,6 +57,9 @@ jobs:
       - name: Live Drive initial-presence contract
         run: node ./scripts/verify-live-drive-presence.mjs
 
+      - name: Live Drive offline-stop smoke
+        run: node ./scripts/test-live-drive-offline-stop.mjs
+
       - name: Map location revocation contract
         run: node ./scripts/verify-map-location-revocation.mjs
 

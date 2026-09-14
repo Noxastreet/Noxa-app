@@ -55,10 +55,17 @@ assert(
   nativeStartIndex > initialPresenceIndex,
   'Initial presence must exist before the background writer becomes the continuing source.',
 );
+const rollbackDeleteIndex = liveDrive.indexOf(
+  'await deleteLiveDrivePresence(userId, session.expiresAt);',
+  nativeStartIndex,
+);
+const rollbackQueueIndex = liveDrive.indexOf(
+  'queuePresenceCleanup(session);',
+  rollbackDeleteIndex,
+);
 assert(
-  liveDrive.indexOf('await deleteLiveDrivePresence(userId).catch(() => undefined);', nativeStartIndex) >
-    nativeStartIndex,
-  'Failed Live Drive startup must roll back any initial presence row.',
+  rollbackDeleteIndex > nativeStartIndex && rollbackQueueIndex > rollbackDeleteIndex,
+  'Failed Live Drive startup must delete its scoped presence or queue retryable cleanup.',
 );
 
 const taskIndex = liveDrive.indexOf('TaskManager.defineTask<LiveDriveTaskData>(');
