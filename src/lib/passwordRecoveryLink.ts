@@ -9,6 +9,7 @@ let activeRecoveryUrl: string | null = null;
 let activeRecoveryPromise: Promise<PasswordRecoveryLinkResult> | null = null;
 let lastRecoveryUrl: string | null = null;
 let lastRecoveryResult: PasswordRecoveryLinkResult | null = null;
+let acceptedRecoveryUserId: string | null = null;
 
 function decodePart(value: string) {
   try {
@@ -49,6 +50,16 @@ export function isPasswordRecoveryUrl(url: string) {
   );
 }
 
+export function getAcceptedPasswordRecoveryUserId() {
+  return acceptedRecoveryUserId;
+}
+
+export function clearAcceptedPasswordRecoverySession() {
+  acceptedRecoveryUserId = null;
+  lastRecoveryUrl = null;
+  lastRecoveryResult = null;
+}
+
 async function processPasswordRecoveryUrl(
   url: string,
 ): Promise<PasswordRecoveryLinkResult> {
@@ -59,23 +70,27 @@ async function processPasswordRecoveryUrl(
   }
 
   if (params.access_token && params.refresh_token) {
-    const { error } = await supabase.auth.setSession({
+    const { data, error } = await supabase.auth.setSession({
       access_token: params.access_token,
       refresh_token: params.refresh_token,
     });
+    if (!error && data.session?.user.id) acceptedRecoveryUserId = data.session.user.id;
     return { handled: true, error: error?.message ?? null };
   }
 
   if (params.code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(params.code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
+    if (!error && data.session?.user.id) acceptedRecoveryUserId = data.session.user.id;
     return { handled: true, error: error?.message ?? null };
   }
 
   if (params.token_hash) {
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       token_hash: params.token_hash,
       type: 'recovery',
     });
+    const recoveredUserId = data.session?.user.id ?? data.user?.id ?? null;
+    if (!error && recoveredUserId) acceptedRecoveryUserId = recoveredUserId;
     return { handled: true, error: error?.message ?? null };
   }
 
@@ -97,6 +112,7 @@ export async function acceptPasswordRecoveryUrl(
     return activeRecoveryPromise;
   }
 
+  acceptedRecoveryUserId = null;
   activeRecoveryUrl = url;
   activeRecoveryPromise = processPasswordRecoveryUrl(url);
 
