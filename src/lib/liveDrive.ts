@@ -7,7 +7,9 @@ export const LIVE_DRIVE_TASK_NAME = 'noxa-live-drive-location-v1';
 export const LIVE_DRIVE_DURATION_MS = 4 * 60 * 60 * 1000;
 
 const LIVE_DRIVE_SESSION_KEY = 'noxa.live-drive-session.v1';
+const PENDING_LIVE_DRIVE_CLEANUP_KEY = 'noxa.live-drive-pending-cleanup.v1';
 const PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000;
+const PENDING_CLEANUP_RETRY_DELAYS_MS = [5_000, 15_000, 30_000] as const;
 
 export type LiveDriveVisibilityMode = 'crew' | 'friends' | 'global';
 
@@ -17,9 +19,17 @@ export type LiveDriveSession = {
   expiresAt: string;
 };
 
+type PendingLiveDriveCleanup = {
+  userId: string;
+  shareExpiresAt: string;
+};
+
 type LiveDriveTaskData = {
   locations?: Location.LocationObject[];
 };
+
+let pendingCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingCleanupRetryIndex = 0;
 
 function readStoredSession(): LiveDriveSession | null {
   try {
@@ -46,6 +56,34 @@ function storeSession(session: LiveDriveSession | null) {
     localStorage.setItem(LIVE_DRIVE_SESSION_KEY, JSON.stringify(session));
   } else {
     localStorage.removeItem(LIVE_DRIVE_SESSION_KEY);
+  }
+}
+
+function readPendingCleanup(): PendingLiveDriveCleanup | null {
+  try {
+    const raw = localStorage.getItem(PENDING_LIVE_DRIVE_CLEANUP_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PendingLiveDriveCleanup>;
+    if (
+      typeof parsed.userId !== 'string' ||
+      typeof parsed.shareExpiresAt !== 'string' ||
+      !Number.isFinite(Date.parse(parsed.shareExpiresAt))
+    ) {
+      localStorage.removeItem(PENDING_LIVE_DRIVE_CLEANUP_KEY);
+      return null;
+    }
+    return parsed as PendingLiveDriveCleanup;
+  } catch {
+    localStorage.removeItem(PENDING_LIVE_DRIVE_CLEANUP_KEY);
+    return null;
+  }
+}
+
+function storePendingCleanup(cleanup: PendingLiveDriveCleanup | null) {
+  if (cleanup) {
+    localStorage.setItem(PENDING_LIVE_DRIVE_CLEANUP_KEY, JSON.stringify(cleanup));
+  } else {
+    localStorage.removeItem(PENDING_LIVE_DRIVE_CLEANUP_KEY);
   }
 }
 
@@ -124,8 +162,21 @@ async function upsertLiveDrivePresence(
   return true;
 }
 
-async function deleteLiveDrivePresence(userId: string) {
-  await supabase.from('driver_locations').delete().eq('user_id', userId);
+async function deleteLiveDrivePresence(
+  userId: string,
+  shareExpiresAt?: string,
+) {
+  let request = supabase
+    .from('driver_locations')
+    .delete()
+    .eq('user_id', userId);
+
+  if (shareExpiresAt) {
+    request = request.eq('share_expires_at', shareExpiresAt);
+  }
+
+  const { error } = await request;
+  if (error) throw error;
 }
 
 async function stopNativeLocationUpdates() {
@@ -134,10 +185,76 @@ async function stopNativeLocationUpdates() {
   }
 }
 
-async function expireSession(session: LiveDriveSession) {
+function queuePresenceCleanup(session: LiveDriveSession) {
+  storePendingCleanup({
+    userId: session.userId,
+    shareExpiresAt: session.expiresAt,
+  });
+  pendingCleanupRetryIndex = 0;
+  schedulePendingCleanupRetry();
+}
+
+async function flushPendingPresenceCleanup() {
+  const pending = readPendingCleanup();
+  if (!pending) {
+    pendingCleanupRetryIndex = 0;
+    return true;
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error || data.session?.user.id !== pending.userId) return false;
+
+  try {
+    // Scope the retry to the stopped session's unique share expiry. If the
+    // user already started a newer Live Drive, this cannot delete its row.
+    await deleteLiveDrivePresence(pending.userId, pending.shareExpiresAt);
+    storePendingCleanup(null);
+    pendingCleanupRetryIndex = 0;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function schedulePendingCleanupRetry(delayMs?: number) {
+  if (pendingCleanupTimer || !readPendingCleanup()) return;
+  const nextDelay =
+    delayMs ??
+    PENDING_CLEANUP_RETRY_DELAYS_MS[
+      Math.min(pendingCleanupRetryIndex, PENDING_CLEANUP_RETRY_DELAYS_MS.length - 1)
+    ];
+
+  pendingCleanupTimer = setTimeout(() => {
+    pendingCleanupTimer = null;
+    void flushPendingPresenceCleanup().then((cleaned) => {
+      if (cleaned || !readPendingCleanup()) return;
+      pendingCleanupRetryIndex += 1;
+      if (pendingCleanupRetryIndex < PENDING_CLEANUP_RETRY_DELAYS_MS.length) {
+        schedulePendingCleanupRetry();
+      }
+    });
+  }, nextDelay);
+}
+
+async function stopSessionAndCleanupPresence(session: LiveDriveSession) {
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
-  await deleteLiveDrivePresence(session.userId);
+  try {
+    await deleteLiveDrivePresence(session.userId, session.expiresAt);
+    const pending = readPendingCleanup();
+    if (
+      pending?.userId === session.userId &&
+      pending.shareExpiresAt === session.expiresAt
+    ) {
+      storePendingCleanup(null);
+    }
+  } catch {
+    queuePresenceCleanup(session);
+  }
+}
+
+async function expireSession(session: LiveDriveSession) {
+  await stopSessionAndCleanupPresence(session);
 }
 
 if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
@@ -183,6 +300,16 @@ if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
     },
   );
 }
+
+// A transient offline stop must not become a forgotten server presence. Retry
+// after module startup and after auth/session recovery without collecting GPS.
+schedulePendingCleanupRetry(0);
+supabase.auth.onAuthStateChange((_event, session) => {
+  const pending = readPendingCleanup();
+  if (session?.user.id && pending?.userId === session.user.id) {
+    schedulePendingCleanupRetry(0);
+  }
+});
 
 export function getLiveDriveSession() {
   const session = readStoredSession();
@@ -296,7 +423,11 @@ export async function startLiveDriveSession(
   } catch (error) {
     storeSession(null);
     await stopNativeLocationUpdates().catch(() => undefined);
-    await deleteLiveDrivePresence(userId).catch(() => undefined);
+    try {
+      await deleteLiveDrivePresence(userId, session.expiresAt);
+    } catch {
+      queuePresenceCleanup(session);
+    }
     throw error;
   }
 }
@@ -313,7 +444,18 @@ export async function stopLiveDriveSession(deletePresence = true) {
   const session = readStoredSession();
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
-  if (deletePresence && session?.userId) {
-    await deleteLiveDrivePresence(session.userId);
+  if (!deletePresence || !session?.userId) return;
+
+  try {
+    await deleteLiveDrivePresence(session.userId, session.expiresAt);
+    const pending = readPendingCleanup();
+    if (
+      pending?.userId === session.userId &&
+      pending.shareExpiresAt === session.expiresAt
+    ) {
+      storePendingCleanup(null);
+    }
+  } catch {
+    queuePresenceCleanup(session);
   }
 }
