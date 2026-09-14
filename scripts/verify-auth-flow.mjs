@@ -142,9 +142,14 @@ requirePattern(
 );
 
 requirePattern(
-  'Google OAuth must use the shared auth callback constant.',
+  'Social auth redirect alias must use the shared callback constant.',
   socialAuth,
-  /redirectTo:\s*AUTH_CALLBACK_REDIRECT_URI/,
+  /SOCIAL_AUTH_REDIRECT_URI\s*=\s*AUTH_CALLBACK_REDIRECT_URI/,
+);
+requirePattern(
+  'Google OAuth must use the social auth redirect alias.',
+  socialAuth,
+  /redirectTo:\s*SOCIAL_AUTH_REDIRECT_URI/,
 );
 
 requirePattern(
