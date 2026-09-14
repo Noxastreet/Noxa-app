@@ -56,6 +56,16 @@ export default function TabLayout() {
         return;
       }
 
+      const visibilityComplete = hasCompletedVisibilitySetup(user.id);
+
+      // Returning users should not stare at a full-screen spinner while a
+      // non-critical profile lookup crosses the network. Render the tabs as
+      // soon as local auth/onboarding/visibility gates are satisfied, then
+      // reconcile the username requirement in the background.
+      if (visibilityComplete) {
+        setDestination('ready');
+      }
+
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('username')
@@ -69,9 +79,9 @@ export default function TabLayout() {
         return;
       }
 
-      setDestination(
-        hasCompletedVisibilitySetup(user.id) ? 'ready' : '/visibility-setup',
-      );
+      if (!visibilityComplete) {
+        setDestination('/visibility-setup');
+      }
     }
 
     void checkAccess();
