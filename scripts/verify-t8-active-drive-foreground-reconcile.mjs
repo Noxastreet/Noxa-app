@@ -14,6 +14,6 @@ assert.ok(active.includes("const returningToForeground =") && active.includes("&
 assert.ok(active.includes('loadActiveDriveRealtimeSnapshot(driveSessionId)'), 'Foreground reconciliation must fetch a fresh server snapshot.');
 assert.ok(active.includes('applySnapshot(nextSnapshot);'), 'Fresh foreground snapshot must replace cached runtime state.');
 assert.ok(active.includes('handleAccessRevoked();'), 'Foreground access loss must use fail-closed handler.');
-assert.ok(active.includes('onAccessRevoked: handleAccessRevoked'), 'Realtime access revocation must share the same fail-closed path.');
+assert.ok(active.includes("onAccessRevoked: () => {") && active.includes('if (disposed) return;\n          handleAccessRevoked();'), 'Realtime access revocation must share the same fail-closed path with a disposed guard.');
 
 console.log('T8 Active Drive foreground reconcile contract: PASS (12 checks)');
