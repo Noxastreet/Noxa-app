@@ -84,6 +84,9 @@ jobs:
       - name: Social list stale-response contract
         run: node ./scripts/verify-social-list-race.mjs
 
+      - name: Owned media cleanup contract
+        run: node ./scripts/verify-media-cleanup.mjs
+
       - name: Group Drive invitation push contract
         run: node ./scripts/verify-group-drive-invitation-push.mjs
 
