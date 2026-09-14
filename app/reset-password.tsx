@@ -7,6 +7,8 @@ import { NoxaAuthField, NoxaAuthScreen } from '@/src/components/auth';
 import { NoxaButton } from '@/src/components/ui';
 import {
   acceptPasswordRecoveryUrl,
+  clearAcceptedPasswordRecoverySession,
+  getAcceptedPasswordRecoveryUserId,
   isPasswordRecoveryUrl,
 } from '@/src/lib/passwordRecoveryLink';
 import { supabase } from '@/src/lib/supabase';
@@ -37,17 +39,25 @@ export default function ResetPasswordScreen() {
       setRecoveryState('ready');
     };
 
+    const markReadyFromVerifiedRecoverySession = async () => {
+      const acceptedUserId = getAcceptedPasswordRecoveryUserId();
+      if (!acceptedUserId) return false;
+
+      const { data } = await supabase.auth.getSession();
+      if (!active) return false;
+      if (data.session?.user.id !== acceptedUserId) return false;
+
+      markReady();
+      return true;
+    };
+
     const subscription = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) markReady();
+      const acceptedUserId = getAcceptedPasswordRecoveryUserId();
+      if (acceptedUserId && session?.user.id === acceptedUserId) markReady();
     }).data.subscription;
 
     const verifyRecovery = async () => {
-      const { data: existing } = await supabase.auth.getSession();
-      if (!active) return;
-      if (existing.session) {
-        markReady();
-        return;
-      }
+      if (await markReadyFromVerifiedRecoverySession()) return;
 
       const initialUrl = incomingUrl ?? (await Linking.getInitialURL());
       if (!active) return;
@@ -62,26 +72,16 @@ export default function ResetPasswordScreen() {
           return;
         }
 
-        if (result.handled) {
-          const { data } = await supabase.auth.getSession();
-          if (!active) return;
-          if (data.session) {
-            markReady();
-            return;
-          }
-        }
+        if (result.handled && await markReadyFromVerifiedRecoverySession()) return;
       }
 
       // Expo Router can navigate before this screen subscribes to a warm deep-link event.
-      // The root bridge receives that event and creates the recovery session; give it a
-      // short window before declaring the link invalid.
+      // The root bridge can consume that recovery link first, so allow a short window for
+      // the link handler to bind an authenticated session to the recovery user. A generic
+      // pre-existing session is never enough to unlock password reset.
       invalidTimer = setTimeout(() => {
-        void supabase.auth.getSession().then(({ data }) => {
-          if (!active) return;
-          if (data.session) {
-            markReady();
-            return;
-          }
+        void markReadyFromVerifiedRecoverySession().then((ready) => {
+          if (!active || ready) return;
           setLinkError('The recovery link is incomplete or has expired.');
           setRecoveryState('invalid');
         });
@@ -111,6 +111,14 @@ export default function ResetPasswordScreen() {
       return;
     }
 
+    const acceptedUserId = getAcceptedPasswordRecoveryUserId();
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!acceptedUserId || sessionData.session?.user.id !== acceptedUserId) {
+      setLinkError('The recovery session is no longer valid. Request a new reset link.');
+      setRecoveryState('invalid');
+      return;
+    }
+
     setPasswordError(undefined);
     setFormError(null);
     setIsSaving(true);
@@ -122,6 +130,7 @@ export default function ResetPasswordScreen() {
       return;
     }
 
+    clearAcceptedPasswordRecoverySession();
     setRecoveryState('saved');
     await supabase.auth.signOut();
     setIsSaving(false);
