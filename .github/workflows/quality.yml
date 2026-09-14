@@ -48,6 +48,9 @@ jobs:
       - name: Chat latest-window contract
         run: node ./scripts/verify-chat-window.mjs
 
+      - name: Live Drive initial-presence contract
+        run: node ./scripts/verify-live-drive-presence.mjs
+
       - name: Home / Map progressive disclosure contract
         run: npm run verify:home-map-disclosure
 
