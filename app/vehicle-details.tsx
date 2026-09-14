@@ -408,8 +408,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

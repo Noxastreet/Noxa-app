@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   primaryButtonCompact: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
   },
   primaryButtonSurface: {

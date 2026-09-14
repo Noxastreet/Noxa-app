@@ -985,8 +985,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   categoryOption: {
-    minHeight: 42,
+    minHeight: 44,
     flexBasis: "47%",
     flexGrow: 1,
     flexDirection: "row",
