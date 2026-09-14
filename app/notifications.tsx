@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -265,8 +265,10 @@ export default function NotificationsScreen() {
   const [isSignedIn, setIsSignedIn] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [busyInvitationId, setBusyInvitationId] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   const loadActivities = useCallback(async (refreshing = false) => {
+    const requestId = ++requestIdRef.current;
     if (refreshing) setIsRefreshing(true);
     else setIsLoading(true);
     setErrorMessage(null);
@@ -277,13 +279,13 @@ export default function NotificationsScreen() {
 
       const user = authData.user;
       if (!user) {
+        if (requestId !== requestIdRef.current) return;
         setActivities([]);
         setIsSignedIn(false);
         return;
       }
 
-      setIsSignedIn(true);
-      const [followsResult, invitationsResult, attendanceResult] = await Promise.all([
+      const [followsResult, invitationsResult, attendanceResult, driveRows] = await Promise.all([
         supabase
           .from('follows')
           .select('follower_id,created_at')
@@ -303,6 +305,7 @@ export default function NotificationsScreen() {
           .eq('user_id', user.id)
           .order('joined_at', { ascending: false })
           .limit(50),
+        listMyGroupDrives(),
       ]);
 
       if (followsResult.error) throw followsResult.error;
@@ -401,7 +404,6 @@ export default function NotificationsScreen() {
         .filter((item): item is ActivityItem => item !== null)
         .sort((a, b) => new Date(a.startsAt ?? 0).getTime() - new Date(b.startsAt ?? 0).getTime());
 
-      const driveRows = await listMyGroupDrives().catch(() => []);
       const driveActivities: ActivityItem[] = driveRows
         .filter((drive) => Boolean(drive.invitationId) && drive.myInvitationStatus === 'invited')
         .map((drive) => ({
@@ -416,6 +418,8 @@ export default function NotificationsScreen() {
           routeId: drive.invitationId as string,
         }));
 
+      if (requestId !== requestIdRef.current) return;
+      setIsSignedIn(true);
       setActivities([
         ...driveActivities,
         ...invitationActivities,
@@ -423,10 +427,13 @@ export default function NotificationsScreen() {
         ...followActivities,
       ]);
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setErrorMessage('Activity could not be loaded. Check your connection and try again.');
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, []);
 
@@ -498,7 +505,6 @@ export default function NotificationsScreen() {
           title="NOTIFICATIONS"
           subtitle="Real activity from your NOXA world"
         />
-
 
         {isLoading ? (
           <View style={styles.centerState}>
