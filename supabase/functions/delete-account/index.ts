@@ -27,10 +27,19 @@ const userOwnedBuckets = [
   "crew-gallery",
 ] as const;
 
+type UserOwnedBucket = (typeof userOwnedBuckets)[number];
+
 type StorageFile = {
   id?: string | null;
   metadata?: Record<string, unknown> | null;
   name: string;
+};
+
+type StorageCleanupPlan = {
+  userId: string;
+  userPathsByBucket: Record<UserOwnedBucket, string[]>;
+  relatedEventGalleryPaths: string[];
+  relatedCrewGalleryPaths: string[];
 };
 
 function response(body: Record<string, unknown>, status = 200) {
@@ -162,15 +171,24 @@ async function loadGalleryPaths(
   return paths;
 }
 
-async function removeAccountStorage(
+async function buildStorageCleanupPlan(
   admin: ReturnType<typeof createClient>,
   userId: string,
-) {
-  const [ownedEventIds, ownedCrewIds] = await Promise.all([
+): Promise<StorageCleanupPlan> {
+  // Complete every read before the first irreversible Storage delete. If a
+  // bucket, gallery query, or ownership lookup is unavailable, deletion stops
+  // here with the account and all files untouched.
+  const [ownedEventIds, ownedCrewIds, userPathEntries] = await Promise.all([
     loadOwnedIds(admin, "events", userId),
     loadOwnedIds(admin, "crews", userId),
+    Promise.all(
+      userOwnedBuckets.map(async (bucket) => [
+        bucket,
+        await collectFolderFiles(admin, bucket, userId),
+      ] as const),
+    ),
   ]);
-  const [ownedEventGalleryPaths, ownedCrewGalleryPaths] = await Promise.all([
+  const [relatedEventGalleryPaths, relatedCrewGalleryPaths] = await Promise.all([
     loadGalleryPaths(
       admin,
       "event_gallery_items",
@@ -185,16 +203,88 @@ async function removeAccountStorage(
     ),
   ]);
 
+  return {
+    userId,
+    userPathsByBucket: Object.fromEntries(userPathEntries) as Record<
+      UserOwnedBucket,
+      string[]
+    >,
+    relatedEventGalleryPaths,
+    relatedCrewGalleryPaths,
+  };
+}
+
+async function removeUserOwnedStorage(
+  admin: ReturnType<typeof createClient>,
+  plan: StorageCleanupPlan,
+) {
+  const failures: string[] = [];
+
+  // Account-owned files are the only Storage objects that need to disappear
+  // before auth.admin.deleteUser can succeed. Try every bucket so a retry can
+  // continue from the remaining files instead of stopping after the first one.
   for (const bucket of userOwnedBuckets) {
-    const userPaths = await collectFolderFiles(admin, bucket, userId);
-    const relatedPaths =
-      bucket === "event-gallery"
-        ? ownedEventGalleryPaths
-        : bucket === "crew-gallery"
-          ? ownedCrewGalleryPaths
-          : [];
-    await removePaths(admin, bucket, [...userPaths, ...relatedPaths]);
+    try {
+      await removePaths(admin, bucket, plan.userPathsByBucket[bucket]);
+    } catch (error) {
+      failures.push(
+        `${bucket}: ${error instanceof Error ? error.message : "remove failed"}`,
+      );
+    }
   }
+
+  // Re-list from Storage instead of trusting remove() responses. This also
+  // catches a file uploaded between preflight and cleanup. The server-side
+  // Storage policies force normal user uploads under the user's first folder.
+  const remainingEntries = await Promise.all(
+    userOwnedBuckets.map(async (bucket) => [
+      bucket,
+      await collectFolderFiles(admin, bucket, plan.userId),
+    ] as const),
+  );
+  const remaining = remainingEntries.flatMap(([bucket, paths]) =>
+    paths.map((path) => `${bucket}/${path}`),
+  );
+
+  if (remaining.length > 0) {
+    console.error("NOXA account-owned Storage cleanup incomplete.", {
+      failures,
+      remainingCount: remaining.length,
+    });
+    throw new Error("Account-owned Storage cleanup is incomplete.");
+  }
+
+  if (failures.length > 0) {
+    // A remove request may report an error after the underlying objects were
+    // already removed. Verification is authoritative, so deletion may proceed.
+    console.warn("NOXA Storage remove reported recoverable errors.", failures);
+  }
+}
+
+function pathsOutsideUserFolder(paths: string[], userId: string) {
+  const ownPrefix = `${userId}/`;
+  return [...new Set(paths)].filter((path) => !path.startsWith(ownPrefix));
+}
+
+async function removeRelatedGalleryStorageAfterAccountDeletion(
+  admin: ReturnType<typeof createClient>,
+  plan: StorageCleanupPlan,
+) {
+  // These files may belong to other uploaders. They do not block deletion of
+  // this auth user, so never destroy them before the account deletion commits.
+  const eventPaths = pathsOutsideUserFolder(
+    plan.relatedEventGalleryPaths,
+    plan.userId,
+  );
+  const crewPaths = pathsOutsideUserFolder(
+    plan.relatedCrewGalleryPaths,
+    plan.userId,
+  );
+
+  await Promise.all([
+    removePaths(admin, "event-gallery", eventPaths),
+    removePaths(admin, "crew-gallery", crewPaths),
+  ]);
 }
 
 Deno.serve(async (req) => {
@@ -245,17 +335,13 @@ Deno.serve(async (req) => {
     );
   }
 
+  let cleanupPlan: StorageCleanupPlan;
   try {
-    await removeAccountStorage(admin, user.id);
-    const { error: deleteError } = await admin.auth.admin.deleteUser(
-      user.id,
-      false,
-    );
-    if (deleteError) throw deleteError;
-    return response({ success: true });
+    cleanupPlan = await buildStorageCleanupPlan(admin, user.id);
+    await removeUserOwnedStorage(admin, cleanupPlan);
   } catch (error) {
     console.error(
-      "NOXA account deletion failed.",
+      "NOXA account deletion preflight/storage cleanup failed.",
       error instanceof Error ? error.message : "Unknown error",
     );
     return response(
@@ -263,4 +349,30 @@ Deno.serve(async (req) => {
       500,
     );
   }
+
+  const { error: deleteError } = await admin.auth.admin.deleteUser(
+    user.id,
+    false,
+  );
+  if (deleteError) {
+    console.error("NOXA auth user deletion failed.", deleteError.message);
+    return response(
+      { error: "Your account could not be deleted. Please try again." },
+      500,
+    );
+  }
+
+  try {
+    await removeRelatedGalleryStorageAfterAccountDeletion(admin, cleanupPlan);
+  } catch (error) {
+    // The user's account is already deleted. Do not turn a successful account
+    // deletion into a client-visible failure that can no longer be retried with
+    // the deleted user's token. Related orphan cleanup is operational follow-up.
+    console.error(
+      "NOXA post-delete related gallery cleanup failed.",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+  }
+
+  return response({ success: true });
 });
