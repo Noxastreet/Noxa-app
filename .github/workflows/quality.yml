@@ -48,6 +48,9 @@ jobs:
       - name: Home / Map F12 performance contract
         run: npm run verify:home-map-performance
 
+      - name: T9 app data performance contract
+        run: npm run verify:t9-performance-pass
+
       - name: T8 runtime signout contract
         run: npm run verify:t8-runtime-signout
 
