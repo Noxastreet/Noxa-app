@@ -10,7 +10,7 @@ assert.ok(active.includes('setSnapshot(null);'), 'Access revocation must remove 
 assert.ok(active.includes('setDetails(null);'), 'Access revocation must remove active drive details before navigation completes.');
 assert.ok(active.includes("router.replace('/group-drives')"), 'Access revocation must leave the stale Active Drive route.');
 assert.ok(active.includes("AppState.addEventListener('change'"), 'Active Drive must reconcile when app state changes.');
-assert.ok(active.includes("nextState !== 'active'"), 'Foreground reconciliation must only run on active transition.');
+assert.ok(active.includes("const returningToForeground =") && active.includes("&& nextState === 'active';"), 'Foreground reconciliation must only run on an inactive/background to active transition.');
 assert.ok(active.includes('loadActiveDriveRealtimeSnapshot(driveSessionId)'), 'Foreground reconciliation must fetch a fresh server snapshot.');
 assert.ok(active.includes('applySnapshot(nextSnapshot);'), 'Fresh foreground snapshot must replace cached runtime state.');
 assert.ok(active.includes('handleAccessRevoked();'), 'Foreground access loss must use fail-closed handler.');
