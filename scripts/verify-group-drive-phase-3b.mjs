@@ -70,7 +70,7 @@ if (!failures.length) {
     failures.push('platform permission copy must disclose active Group Drive background location');
   }
 
-  const expectedPersonalLiveDriveBlob = '8e4b16ee70ee2cbd3b6e1ef5640f7790a632f02d';
+  const expectedPersonalLiveDriveBlob = '63def95c081fcd4f2cf357eeec4e4d84c9292d17';
   const actualPersonalLiveDriveBlob = gitBlobSha(personalLiveDrive);
   if (actualPersonalLiveDriveBlob !== expectedPersonalLiveDriveBlob) {
     failures.push(`personal Live Drive changed unexpectedly (${actualPersonalLiveDriveBlob})`);

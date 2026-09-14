@@ -25,6 +25,7 @@ import type {
 import {
   LIVE_DRIVE_TASK_NAME,
   getLiveDriveSession,
+  hasLiveDriveRuntimeAccess,
   requestLiveDrivePermissions,
   startLiveDriveSession,
   stopLiveDriveSession,
@@ -541,6 +542,28 @@ export default function LiveMapScreen() {
     [insets.bottom, insets.top],
   );
 
+  const invalidateDriverLocation = useCallback(
+    (message: string) => {
+      driverLocationRef.current = null;
+      routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
+      routeRequestKeyRef.current = null;
+      if (!isMountedRef.current) return;
+      setDriverLocation(null);
+      setIsRouteFollowing(false);
+      setRoute(null);
+      if (isRouteMode) {
+        setRouteStatus("error");
+        setRouteMessage(message);
+      } else {
+        setRouteStatus("idle");
+        setRouteMessage(null);
+      }
+    },
+    [isRouteMode],
+  );
+
   const loadDriverLocation = useCallback(
     async ({
       requestPermission,
@@ -567,6 +590,9 @@ export default function LiveMapScreen() {
               permission.status === Location.PermissionStatus.DENIED,
             );
           }
+          invalidateDriverLocation(
+            "Location permission is off. Enable location, then retry.",
+          );
           return null;
         }
         if (isMountedRef.current) setPermissionDenied(false);
@@ -577,9 +603,13 @@ export default function LiveMapScreen() {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         };
+        driverLocationRef.current = point;
         if (isMountedRef.current) setDriverLocation(point);
         return point;
       } catch {
+        invalidateDriverLocation(
+          "Current location is unavailable. Check GPS, then retry.",
+        );
         if (isMountedRef.current) {
           setLocationError(
             "Could not get your location. Check GPS and try again.",
@@ -593,7 +623,7 @@ export default function LiveMapScreen() {
         }
       }
     },
-    [],
+    [invalidateDriverLocation],
   );
 
   const deletePresence = useCallback(async (userId?: string | null) => {
@@ -840,6 +870,15 @@ export default function LiveMapScreen() {
     const { data } = await supabase.auth.getSession();
     if (data.session?.user.id !== activeSession.userId) {
       await stopSharing(true);
+      return;
+    }
+    if (!(await hasLiveDriveRuntimeAccess())) {
+      await stopSharing(true);
+      if (isMountedRef.current) {
+        setSharingError(
+          "Live Drive stopped because location access or GPS is unavailable.",
+        );
+      }
       return;
     }
     if (!(await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME))) {
@@ -1241,12 +1280,15 @@ export default function LiveMapScreen() {
     const subscription = AppState.addEventListener("change", (nextState) => {
       isAppForegroundRef.current = nextState === "active";
       if (nextState === "active") {
-        void restoreLiveDriveSession();
-        if (mapFocusedRef.current) void refreshActiveDrivers();
+        void (async () => {
+          await loadDriverLocation({ requestPermission: false });
+          await restoreLiveDriveSession();
+          if (mapFocusedRef.current) await refreshActiveDrivers();
+        })();
       }
     });
     return () => subscription.remove();
-  }, [refreshActiveDrivers, restoreLiveDriveSession]);
+  }, [loadDriverLocation, refreshActiveDrivers, restoreLiveDriveSession]);
 
   useEffect(() => {
     if (!liveDriveExpiresAt) return;
