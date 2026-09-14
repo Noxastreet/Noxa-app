@@ -891,6 +891,7 @@ export default function CanonicalCrewsScreen() {
     );
   }, [
     busyCrewId,
+    error,
     discovery.length,
     eventForCrew,
     filter,
