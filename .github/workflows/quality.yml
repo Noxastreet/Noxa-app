@@ -42,6 +42,9 @@ jobs:
       - name: Auth flow contract
         run: npm run verify:auth-flow
 
+      - name: Delete Account storage-order contract
+        run: node ./scripts/verify-delete-account-flow.mjs
+
       - name: Interaction wiring audit
         run: npm run verify:interactions
 
