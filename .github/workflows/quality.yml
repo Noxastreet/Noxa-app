@@ -75,6 +75,9 @@ jobs:
       - name: Notifications reliability contract
         run: node ./scripts/verify-notifications-reliability.mjs
 
+      - name: Group Drive invitation push contract
+        run: node ./scripts/verify-group-drive-invitation-push.mjs
+
       - name: Group Drive account isolation smoke
         run: node ./scripts/test-group-drive-account-isolation.mjs
 
