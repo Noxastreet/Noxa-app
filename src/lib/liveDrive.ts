@@ -52,9 +52,13 @@ function finiteOrNull(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function hasPreciseAndroidLocation(permission: Location.LocationPermissionResponse) {
-  const accuracy = permission.android?.accuracy;
-  return accuracy !== 'coarse' && accuracy !== 'none';
+function hasPreciseForegroundLocation(
+  permission: Location.LocationPermissionResponse,
+) {
+  if (permission.status !== Location.PermissionStatus.GRANTED) return false;
+  if (permission.ios?.accuracy === 'reduced') return false;
+  const androidAccuracy = permission.android?.accuracy;
+  return androidAccuracy !== 'coarse' && androidAccuracy !== 'none';
 }
 
 function buildPresencePayload(
@@ -144,6 +148,14 @@ if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
       const latestLocation = data?.locations?.at(-1);
       if (!latestLocation) return;
 
+      const foreground = await Location.getForegroundPermissionsAsync().catch(
+        () => null,
+      );
+      if (!foreground || !hasPreciseForegroundLocation(foreground)) {
+        await expireSession(session).catch(() => undefined);
+        return;
+      }
+
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user.id !== session.userId) {
         await expireSession(session);
@@ -179,7 +191,7 @@ export async function requestLiveDrivePermissions() {
   if (foreground.status !== Location.PermissionStatus.GRANTED) {
     throw new Error('Allow location while using NOXA to start Live Drive.');
   }
-  if (!hasPreciseAndroidLocation(foreground)) {
+  if (!hasPreciseForegroundLocation(foreground)) {
     throw new Error('Precise location is required for Live Drive. Enable precise location in system settings.');
   }
   if (!(await Location.hasServicesEnabledAsync())) {
@@ -201,8 +213,7 @@ export async function hasLiveDriveRuntimeAccess() {
     ]);
     return (
       servicesEnabled &&
-      foreground.status === Location.PermissionStatus.GRANTED &&
-      hasPreciseAndroidLocation(foreground) &&
+      hasPreciseForegroundLocation(foreground) &&
       background.status === Location.PermissionStatus.GRANTED
     );
   } catch {
