@@ -56,13 +56,7 @@ jobs:
 
       - name: Commit performance pass
         run: |
-          git add app src scripts package.json .github/workflows/quality.yml
-          git reset scripts/_apply_t9_performance_pass.py .github/workflows/_t9_performance_builder.yml
+          git add app src scripts package.json
+          git reset scripts/_apply_t9_performance_pass.py
           git commit -m "perf(app): bound and stage core data loading [perf-builder]"
-          git push origin HEAD:perf/t9-app-data-loading-20260914
-
-      - name: Remove temporary builder files
-        run: |
-          git rm scripts/_apply_t9_performance_pass.py .github/workflows/_t9_performance_builder.yml
-          git commit -m "chore: remove performance builder [perf-builder]"
           git push origin HEAD:perf/t9-app-data-loading-20260914
