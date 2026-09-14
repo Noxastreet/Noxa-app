@@ -104,6 +104,10 @@ async function upsertLiveDrivePresence(
   return true;
 }
 
+async function deleteLiveDrivePresence(userId: string) {
+  await supabase.from('driver_locations').delete().eq('user_id', userId);
+}
+
 async function stopNativeLocationUpdates() {
   if (await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME)) {
     await Location.stopLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME);
@@ -113,7 +117,7 @@ async function stopNativeLocationUpdates() {
 async function expireSession(session: LiveDriveSession) {
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
-  await supabase.from('driver_locations').delete().eq('user_id', session.userId);
+  await deleteLiveDrivePresence(session.userId);
 }
 
 if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
@@ -224,7 +228,7 @@ export async function startLiveDriveSession(
   } catch (error) {
     storeSession(null);
     await stopNativeLocationUpdates().catch(() => undefined);
-    await supabase.from('driver_locations').delete().eq('user_id', userId).catch(() => undefined);
+    await deleteLiveDrivePresence(userId).catch(() => undefined);
     throw error;
   }
 }
@@ -242,6 +246,6 @@ export async function stopLiveDriveSession(deletePresence = true) {
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
   if (deletePresence && session?.userId) {
-    await supabase.from('driver_locations').delete().eq('user_id', session.userId);
+    await deleteLiveDrivePresence(session.userId);
   }
 }
