@@ -116,11 +116,6 @@ export async function createSessionFromAuthLink(url: string): Promise<AuthLinkRe
     return readConfirmedSession();
   }
 
-  const currentSession = await readConfirmedSession();
-  if (currentSession.ok) {
-    return currentSession;
-  }
-
   return {
     message: 'The confirmation link is incomplete. Open the newest email from NOXA and try again.',
     ok: false,
