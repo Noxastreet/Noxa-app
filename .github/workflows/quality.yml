@@ -78,6 +78,9 @@ jobs:
       - name: Post flow reliability contract
         run: node ./scripts/verify-post-flow-reliability.mjs
 
+      - name: Editor save navigation contract
+        run: node ./scripts/verify-editor-save-navigation.mjs
+
       - name: Group Drive invitation push contract
         run: node ./scripts/verify-group-drive-invitation-push.mjs
 
