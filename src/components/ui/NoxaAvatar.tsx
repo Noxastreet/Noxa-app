@@ -16,7 +16,9 @@ export function NoxaAvatar({ imageUrl, initials = 'NX', size = 48 }: NoxaAvatarP
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}> 
       {imageUrl ? (
         <Image
+          cachePolicy="memory-disk"
           contentFit="cover"
+          recyclingKey={imageUrl}
           source={{ uri: imageUrl }}
           style={[styles.image, { borderRadius: size / 2 }]}
           transition={120}
