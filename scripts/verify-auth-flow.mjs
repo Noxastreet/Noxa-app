@@ -169,6 +169,16 @@ requirePattern(
   authLinks,
   /supabase\.auth\.exchangeCodeForSession\(/,
 );
+requirePattern(
+  'Auth link parser must fail closed for incomplete callbacks.',
+  authLinks,
+  /message:\s*['"]The confirmation link is incomplete\. Open the newest email from NOXA and try again\.['"][\s\S]*ok:\s*false/,
+);
+forbidPattern(
+  'Incomplete auth callbacks must never fall back to an unrelated existing session.',
+  authLinks,
+  /const\s+currentSession\s*=\s*await\s+readConfirmedSession\(\)[\s\S]*return\s+currentSession/,
+);
 
 requirePattern(
   'Social auth redirect alias must use the shared callback constant.',
