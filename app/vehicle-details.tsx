@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
 
 import { NoxaAvatar, NoxaBadge, NoxaScreen } from '@/src/components/ui';
+import { invalidateData } from '@/src/lib/dataInvalidation';
 import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -330,6 +331,7 @@ export default function VehicleDetailsScreen() {
       return;
     }
 
+    invalidateData('garage', 'profile');
     setIsDeleting(false);
     router.replace('/(tabs)/garage');
   }, [isDeleting, vehicle]);

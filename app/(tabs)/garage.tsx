@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { NoxaBadge, NoxaScreen } from '@/src/components/ui';
+import { getDataVersion, invalidateData } from '@/src/lib/dataInvalidation';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -226,6 +227,7 @@ export default function GarageScreen() {
   const [primaryBusyId, setPrimaryBusyId] = useState<string | null>(null);
   const hasLoadedVehiclesRef = useRef(false);
   const lastLoadedVehiclesAtRef = useRef(0);
+  const loadedGarageVersionRef = useRef(-1);
 
   const loadVehicles = useCallback(async () => {
     setIsLoadingVehicles(!hasLoadedVehiclesRef.current);
@@ -253,6 +255,7 @@ export default function GarageScreen() {
     } else {
       setVehicles((data ?? []) as GarageVehicle[]);
       lastLoadedVehiclesAtRef.current = Date.now();
+      loadedGarageVersionRef.current = getDataVersion('garage');
     }
 
     hasLoadedVehiclesRef.current = true;
@@ -263,6 +266,7 @@ export default function GarageScreen() {
     useCallback(() => {
       const shouldRefresh =
         !hasLoadedVehiclesRef.current ||
+        loadedGarageVersionRef.current !== getDataVersion('garage') ||
         Date.now() - lastLoadedVehiclesAtRef.current >= GARAGE_REFRESH_TTL_MS;
       if (shouldRefresh) void loadVehicles();
     }, [loadVehicles]),
@@ -280,6 +284,7 @@ export default function GarageScreen() {
     if (error || data !== true) {
       setHasVehicleError(true);
     } else {
+      invalidateData('profile');
       await loadVehicles();
     }
     setPrimaryBusyId(null);

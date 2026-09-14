@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
+import { getDataVersion } from '@/src/lib/dataInvalidation';
 import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
@@ -413,6 +414,7 @@ export default function ProfileScreen() {
   const [posts, setPosts] = useState<ProfilePost[]>([]);
   const hasLoadedProfileRef = useRef(false);
   const lastLoadedProfileAtRef = useRef(0);
+  const loadedProfileVersionRef = useRef(-1);
 
   const loadProfile = useCallback(async () => {
     if (!hasLoadedProfileRef.current) setIsProfileLoading(true);
@@ -449,6 +451,7 @@ export default function ProfileScreen() {
     setProfileData(profileResult.data as CurrentUserProfile);
     hasLoadedProfileRef.current = true;
     lastLoadedProfileAtRef.current = Date.now();
+    loadedProfileVersionRef.current = getDataVersion('profile');
     setIsProfileLoading(false);
 
     const [followersResult, followingResult, vehiclesResult, postsResult] = await Promise.all([
@@ -498,6 +501,7 @@ export default function ProfileScreen() {
     useCallback(() => {
       const shouldRefresh =
         !hasLoadedProfileRef.current ||
+        loadedProfileVersionRef.current !== getDataVersion('profile') ||
         Date.now() - lastLoadedProfileAtRef.current >= PROFILE_REFRESH_TTL_MS;
       if (shouldRefresh) void loadProfile();
     }, [loadProfile]),

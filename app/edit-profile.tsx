@@ -19,6 +19,7 @@ import { isValidCountryCode } from "@/src/data/countryCatalog";
 import { CityField } from "@/src/features/city-picker";
 import { CountryField } from "@/src/features/country-picker";
 import { isMissingColumnError, normalizeProfileCountryCode } from "@/src/features/profile/profileIdentityPersistence";
+import { invalidateData } from "@/src/lib/dataInvalidation";
 import { supabase } from "@/src/lib/supabase";
 import { useUnsavedChangesGuard } from "@/src/navigation/useUnsavedChangesGuard";
 import { colors, radius, spacing, typography } from "@/src/theme";
@@ -384,6 +385,7 @@ export default function EditProfileScreen() {
         await supabase.storage.from(avatarBucket).remove([previousAvatarPath]);
       }
 
+      invalidateData("profile");
       setIsSubmitting(false);
       navigateWithoutPrompt(() => router.back());
     } catch (error) {

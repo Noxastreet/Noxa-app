@@ -5,6 +5,7 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
+import { invalidateData } from '@/src/lib/dataInvalidation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { supabase } from '@/src/lib/supabase';
 import { useUnsavedChangesGuard } from '@/src/navigation/useUnsavedChangesGuard';
@@ -685,6 +686,7 @@ export default function VehicleEditorScreen() {
           await removeOwnedCoverImage(form.coverImageUrl, user.id);
         }
 
+        invalidateData('garage', 'profile');
         setIsSubmitting(false);
         navigateWithoutPrompt(() =>
           router.replace({ pathname: '/vehicle-details', params: { id: vehicleId } }),
@@ -711,6 +713,7 @@ export default function VehicleEditorScreen() {
         return;
       }
 
+      invalidateData('garage', 'profile');
       setIsSubmitting(false);
 
       if (vehicle?.id) {
