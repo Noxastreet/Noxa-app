@@ -6,9 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { PushNotificationBridge } from '@/src/features/notifications/PushNotificationBridge';
-import { hasCompletedOnboarding } from '@/src/lib/onboarding';
+import {
+  hasCompletedOnboarding,
+  resolveOnboardingCompletion,
+} from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
-import { hasCompletedVisibilitySetup } from '@/src/lib/visibilitySetup';
+import {
+  hasCompletedVisibilitySetup,
+  markVisibilitySetupComplete,
+} from '@/src/lib/visibilitySetup';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
@@ -17,7 +23,6 @@ type TabDestination =
   | 'ready'
   | '/welcome'
   | '/onboarding'
-  | '/choose-username'
   | '/visibility-setup'
   | null;
 
@@ -51,22 +56,22 @@ export default function TabLayout() {
         return;
       }
 
-      if (!hasCompletedOnboarding(user.id)) {
+      const hadLocalOnboarding = hasCompletedOnboarding(user.id);
+      const onboardingComplete = hadLocalOnboarding
+        ? true
+        : await resolveOnboardingCompletion(user.id);
+
+      if (!isMounted) return;
+
+      if (!onboardingComplete) {
         setDestination('/onboarding');
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!isMounted) return;
-
-      if (!profileError && !profile?.username?.trim()) {
-        setDestination('/choose-username');
-        return;
+      // Recovered existing accounts default to Ghost if a reinstall removed the
+      // historical device-only visibility marker. Never resume sharing implicitly.
+      if (!hadLocalOnboarding && !hasCompletedVisibilitySetup(user.id)) {
+        markVisibilitySetupComplete(user.id, 'ghost');
       }
 
       setDestination(
