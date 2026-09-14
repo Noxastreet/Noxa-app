@@ -52,6 +52,11 @@ function finiteOrNull(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function hasPreciseAndroidLocation(permission: Location.LocationPermissionResponse) {
+  const accuracy = permission.android?.accuracy;
+  return accuracy !== 'coarse' && accuracy !== 'none';
+}
+
 function buildPresencePayload(
   session: LiveDriveSession,
   coords: Location.LocationObjectCoords,
@@ -174,10 +179,34 @@ export async function requestLiveDrivePermissions() {
   if (foreground.status !== Location.PermissionStatus.GRANTED) {
     throw new Error('Allow location while using NOXA to start Live Drive.');
   }
+  if (!hasPreciseAndroidLocation(foreground)) {
+    throw new Error('Precise location is required for Live Drive. Enable precise location in system settings.');
+  }
+  if (!(await Location.hasServicesEnabledAsync())) {
+    throw new Error('Location services are off. Enable GPS to start Live Drive.');
+  }
 
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== Location.PermissionStatus.GRANTED) {
     throw new Error('Allow background location so your 4-hour Live Drive session can continue.');
+  }
+}
+
+export async function hasLiveDriveRuntimeAccess() {
+  try {
+    const [foreground, background, servicesEnabled] = await Promise.all([
+      Location.getForegroundPermissionsAsync(),
+      Location.getBackgroundPermissionsAsync(),
+      Location.hasServicesEnabledAsync(),
+    ]);
+    return (
+      servicesEnabled &&
+      foreground.status === Location.PermissionStatus.GRANTED &&
+      hasPreciseAndroidLocation(foreground) &&
+      background.status === Location.PermissionStatus.GRANTED
+    );
+  } catch {
+    return false;
   }
 }
 
