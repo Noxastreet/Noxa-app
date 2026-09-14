@@ -20,6 +20,8 @@ let taskStarted = false;
 let taskStopped = false;
 let foregroundStatus = 'granted';
 let backgroundStatus = 'granted';
+let iosAccuracy = 'full';
+let androidAccuracy = 'fine';
 let rpcError = null;
 let rpcCalls = [];
 let authUserId = 'user-a';
@@ -38,14 +40,20 @@ const currentLocation = {
   timestamp: Date.now(),
 };
 
+const foregroundPermission = () => ({
+  status: foregroundStatus,
+  ios: { accuracy: iosAccuracy },
+  android: { accuracy: androidAccuracy },
+});
+
 const Location = {
   PermissionStatus: { GRANTED: 'granted' },
   Accuracy: { High: 4 },
   ActivityType: { AutomotiveNavigation: 1 },
   isBackgroundLocationAvailableAsync: async () => true,
-  requestForegroundPermissionsAsync: async () => ({ status: foregroundStatus }),
+  requestForegroundPermissionsAsync: async () => foregroundPermission(),
   requestBackgroundPermissionsAsync: async () => ({ status: backgroundStatus }),
-  getForegroundPermissionsAsync: async () => ({ status: foregroundStatus }),
+  getForegroundPermissionsAsync: async () => foregroundPermission(),
   getBackgroundPermissionsAsync: async () => ({ status: backgroundStatus }),
   hasStartedLocationUpdatesAsync: async () => taskStarted,
   startLocationUpdatesAsync: async () => { taskStarted = true; taskStopped = false; },
@@ -125,6 +133,22 @@ await assert.rejects(
 );
 assert.equal(taskStarted, false, 'permission refusal must not start native location');
 foregroundStatus = 'granted';
+
+iosAccuracy = 'reduced';
+await assert.rejects(
+  native.requestGroupDriveLocationPermissions(),
+  /Precise location is required for Group Drive/,
+  'iOS Reduced Accuracy must fail closed',
+);
+iosAccuracy = 'full';
+
+androidAccuracy = 'coarse';
+await assert.rejects(
+  native.requestGroupDriveLocationPermissions(),
+  /Precise location is required for Group Drive/,
+  'Android coarse location must fail closed',
+);
+androidAccuracy = 'fine';
 backgroundStatus = 'granted';
 
 await assert.rejects(
@@ -161,6 +185,16 @@ await taskHandler({
 assert.equal(taskStarted, true, 'transient network failure must keep the writer alive for retry');
 assert.equal(native.getGroupDriveLocationSession()?.driveSessionId, 'drive-a');
 
+rpcError = null;
+iosAccuracy = 'reduced';
+await taskHandler({ data: { locations: [currentLocation] }, error: null });
+assert.equal(taskStarted, false, 'turning off iOS Precise Location must stop Group Drive publishing');
+assert.equal(native.getGroupDriveLocationSession(), null, 'precision revocation must clear local Group Drive state');
+iosAccuracy = 'full';
+
+const secondConsent = native.acceptGroupDriveLocationDisclosure('drive-a');
+await native.startGroupDriveLocationSession(secondConsent);
+assert.equal(taskStarted, true);
 rpcError = { message: 'Only an active Group Drive participant can publish location' };
 await taskHandler({ data: { locations: [currentLocation] }, error: null });
 assert.equal(taskStarted, false, 'authorization revocation must stop native location');
@@ -169,12 +203,12 @@ assert.equal(native.getGroupDriveLocationSession(), null, 'revocation must clear
 
 rpcError = null;
 taskStopped = false;
-const secondConsent = native.acceptGroupDriveLocationDisclosure('drive-a');
-await native.startGroupDriveLocationSession(secondConsent);
+const thirdConsent = native.acceptGroupDriveLocationDisclosure('drive-a');
+await native.startGroupDriveLocationSession(thirdConsent);
 assert.equal(taskStarted, true);
 authChange?.('SIGNED_OUT');
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(taskStarted, false, 'sign-out must stop the Group Drive writer');
 assert.equal(native.getGroupDriveLocationSession(), null, 'sign-out must clear local Group Drive session');
 
-console.log('Group Drive Phase 3B deterministic native runtime smoke: PASS (18 assertions)');
+console.log('Group Drive Phase 3B deterministic native runtime smoke: PASS (24 assertions)');
