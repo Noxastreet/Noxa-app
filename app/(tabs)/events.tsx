@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
   historyButton: {
     position: 'absolute',
     right: spacing.md,
-    minHeight: 40,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

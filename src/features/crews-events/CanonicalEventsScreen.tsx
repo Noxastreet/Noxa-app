@@ -230,16 +230,16 @@ function EventListCard({ event }: { event: EventCardModel }) {
   );
 }
 
-function NearbyStrip({ count }: { count: number }) {
+function NearTermStrip({ count }: { count: number }) {
   return (
     <View style={styles.nearbyStrip}>
       <View style={styles.nearbyAccent} />
       <View style={styles.nearbyCopy}>
-        <Text style={styles.nearbyEyebrow}>NEARBY NOW</Text>
+        <Text style={styles.nearbyEyebrow}>LIVE & NEXT 7 DAYS</Text>
         <Text style={styles.nearbyText}>
           {count
-            ? `${count} event${count === 1 ? "" : "s"} available around you`
-            : "New local events will appear here"}
+            ? `${count} event${count === 1 ? "" : "s"} live or starting within 7 days`
+            : "No live or near-term events right now"}
         </Text>
       </View>
       <Ionicons name="navigate-outline" size={20} color={colors.textMuted} />
@@ -378,7 +378,7 @@ export default function CanonicalEventsScreen() {
 
   const hero = events[0] ?? null;
   const upcoming = events.slice(1, 5);
-  const nearbyCount = events.filter((event) => {
+  const nearTermCount = events.filter((event) => {
     const lifecycle = getEventLifecycle(event);
     if (lifecycle === "live") return true;
     const diff = new Date(event.starts_at).getTime() - Date.now();
@@ -477,7 +477,7 @@ export default function CanonicalEventsScreen() {
           </>
         ) : null}
 
-        <NearbyStrip count={nearbyCount} />
+        <NearTermStrip count={nearTermCount} />
 
         {events.length > 5 ? (
           <>
@@ -535,7 +535,7 @@ export default function CanonicalEventsScreen() {
     heroAttendees,
     loading,
     load,
-    nearbyCount,
+    nearTermCount,
     setGoing,
     upcoming,
   ]);
@@ -559,7 +559,7 @@ export default function CanonicalEventsScreen() {
         <View style={styles.topBar}>
           <View style={styles.heading}>
             <Text style={styles.pageTitle}>EVENTS</Text>
-            <Text style={styles.pageSubtitle}>What is happening around you.</Text>
+            <Text style={styles.pageSubtitle}>What is live and coming up.</Text>
           </View>
           <Pressable
             accessibilityLabel="Create event"
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.caption,
   },
   createButton: {
-    minHeight: 36,
+    minHeight: 44,
     marginTop: spacing.xxs,
     flexDirection: "row",
     alignItems: "center",

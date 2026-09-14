@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   addButton: {
-    minHeight: 38,
+    minHeight: 44,
     marginTop: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
