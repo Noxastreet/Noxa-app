@@ -72,6 +72,9 @@ jobs:
       - name: App data-loading performance contract
         run: node ./scripts/verify-app-data-loading.mjs
 
+      - name: Notifications reliability contract
+        run: node ./scripts/verify-notifications-reliability.mjs
+
       - name: Group Drive account isolation smoke
         run: node ./scripts/test-group-drive-account-isolation.mjs
 
