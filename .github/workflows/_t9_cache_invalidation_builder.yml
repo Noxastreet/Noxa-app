@@ -1,0 +1,53 @@
+name: T9 Cache Invalidation Builder
+
+on:
+  push:
+    branches:
+      - t9/acceptance-integration-20260914
+
+permissions:
+  contents: write
+
+jobs:
+  apply-cache-invalidation:
+    if: ${{ !contains(github.event.head_commit.message, '[cache-builder]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply invalidation pass
+        run: python3 scripts/_apply_t9_invalidation.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Performance contract
+        run: npm run verify:t9-performance-pass
+
+      - name: MVP completion
+        run: npm run verify:mvp-completion
+
+      - name: Diff check
+        run: git diff --check
+
+      - name: Commit product changes
+        run: |
+          git add app src
+          git reset scripts/_apply_t9_invalidation.py .github/workflows/_t9_cache_invalidation_builder.yml || true
+          git commit -m "fix(t9): invalidate cached tabs after mutations [cache-builder]"
+          git push origin HEAD:t9/acceptance-integration-20260914
