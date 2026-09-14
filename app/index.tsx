@@ -2,9 +2,15 @@ import { Redirect, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { hasCompletedOnboarding } from '@/src/lib/onboarding';
+import {
+  hasCompletedOnboarding,
+  resolveOnboardingCompletion,
+} from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
-import { hasCompletedVisibilitySetup } from '@/src/lib/visibilitySetup';
+import {
+  hasCompletedVisibilitySetup,
+  markVisibilitySetupComplete,
+} from '@/src/lib/visibilitySetup';
 
 type Destination =
   | '/welcome'
@@ -33,9 +39,23 @@ export default function IndexRoute() {
         return;
       }
 
-      if (!hasCompletedOnboarding(user.id)) {
+      const hadLocalOnboarding = hasCompletedOnboarding(user.id);
+      const onboardingComplete = hadLocalOnboarding
+        ? true
+        : await resolveOnboardingCompletion(user.id);
+
+      if (!isMounted) return;
+
+      if (!onboardingComplete) {
         setDestination('/onboarding');
         return;
+      }
+
+      // Existing accounts recovered from durable server profile data may have lost
+      // the old device-only visibility marker after reinstall. Recover them into
+      // privacy-safe Ghost instead of forcing a completed account through setup.
+      if (!hadLocalOnboarding && !hasCompletedVisibilitySetup(user.id)) {
+        markVisibilitySetupComplete(user.id, 'ghost');
       }
 
       setDestination(
