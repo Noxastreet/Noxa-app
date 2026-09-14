@@ -50,12 +50,20 @@ assert(
   'Runtime access must require foreground permission, background permission and location services.',
 );
 assert(
-  /permission\.android\?\.accuracy[\s\S]*accuracy !== 'coarse'[\s\S]*accuracy !== 'none'/.test(liveDrive),
+  /permission\.ios\?\.accuracy === 'reduced'/.test(liveDrive),
+  'iOS Live Drive must reject Reduced Accuracy location access.',
+);
+assert(
+  /permission\.android\?\.accuracy[\s\S]*androidAccuracy !== 'coarse'[\s\S]*androidAccuracy !== 'none'/.test(liveDrive),
   'Android Live Drive must reject coarse-only location access.',
 );
 assert(
-  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseAndroidLocation\(foreground\)/.test(liveDrive),
-  'Live Drive startup must enforce precise Android access before sharing.',
+  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundLocation\(foreground\)/.test(liveDrive),
+  'Live Drive startup must enforce precise location access before sharing.',
+);
+assert(
+  /TaskManager\.defineTask[\s\S]*getForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundLocation\(foreground\)[\s\S]*expireSession\(session\)/.test(liveDrive),
+  'Active Live Drive must stop when precise foreground access is revoked.',
 );
 
 if (!process.exitCode) {
