@@ -9,6 +9,8 @@ function assert(condition, message) {
 
 const supabase = fs.readFileSync('src/lib/supabase.ts', 'utf8');
 const tabs = fs.readFileSync('app/(tabs)/_layout.tsx', 'utf8');
+const avatar = fs.readFileSync('src/components/ui/NoxaAvatar.tsx', 'utf8');
+const canonical = fs.readFileSync('src/features/crews-events/CanonicalPrimitives.tsx', 'utf8');
 
 assert(
   /let currentSessionUserPromise: Promise<User \| null> \| null = null/.test(supabase),
@@ -38,6 +40,15 @@ assert(
 assert(
   /if \(!visibilityComplete\)[\s\S]*setDestination\('\/visibility-setup'\)/.test(tabs),
   'Visibility setup gate must remain enforced.',
+);
+
+assert(
+  /cachePolicy="memory-disk"/.test(avatar),
+  'Shared NOXA avatars must use memory+disk caching.',
+);
+assert(
+  /from "expo-image"/.test(canonical) && /cachePolicy="memory-disk"/.test(canonical),
+  'Crew/Event canonical avatars must use expo-image memory+disk caching.',
 );
 
 if (!process.exitCode) {
