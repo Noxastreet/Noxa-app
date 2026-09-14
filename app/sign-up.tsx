@@ -31,7 +31,7 @@ export default function SignUpScreen() {
       footer={
         <Pressable accessibilityRole="button" onPress={() => router.push('/sign-in')} style={styles.switchButton}>
           <Text style={styles.switchText}>
-            {pendingEmail ? 'Already confirmed? ' : 'Already have an account? '}
+            {pendingEmail ? 'Already confirmed or registered? ' : 'Already have an account? '}
             <Text style={styles.switchLink}>Sign In</Text>
           </Text>
         </Pressable>
@@ -46,7 +46,7 @@ export default function SignUpScreen() {
       }}
       subtitle={
         pendingEmail
-          ? `We sent a secure confirmation link to ${pendingEmail}.`
+          ? `If this is a new NOXA account, check ${pendingEmail} for a confirmation email.`
           : 'Start your automotive journey today.'
       }
       title={pendingEmail ? 'Check your inbox.' : 'Join NOXA.'}>
@@ -93,13 +93,15 @@ function EmailConfirmationPending({ email }: { email: string }) {
         setResendMessage(
           error.message.toLowerCase().includes('rate')
             ? 'Please wait before requesting another confirmation email.'
-            : 'Unable to resend the confirmation email. Please try again.',
+            : 'Unable to request another confirmation email. Please try again.',
         );
         return;
       }
 
       setSecondsRemaining(AUTH_EMAIL_RESEND_COOLDOWN_SECONDS);
-      setResendMessage('A new confirmation email was sent.');
+      setResendMessage(
+        'If this email is waiting for NOXA confirmation, a new message has been requested.',
+      );
     } catch {
       setResendMessage('Unable to connect. Check your internet connection and try again.');
     } finally {
@@ -119,8 +121,8 @@ function EmailConfirmationPending({ email }: { email: string }) {
       </View>
       <Text style={styles.confirmationTitle}>Confirm on this phone</Text>
       <Text style={styles.confirmationText}>
-        Tap “Confirm email address” in the newest NOXA email. The link will return you to NOXA and
-        open your account automatically.
+        For a new account, tap “Confirm email address” in the newest NOXA email. The link will return
+        you to NOXA and open your account automatically.
       </Text>
       <View style={styles.confirmationAction}>
         <NoxaButton
