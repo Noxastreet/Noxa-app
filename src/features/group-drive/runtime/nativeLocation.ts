@@ -65,6 +65,15 @@ function finiteOrNull(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function hasPreciseForegroundLocation(
+  permission: Location.LocationPermissionResponse,
+) {
+  if (permission.status !== Location.PermissionStatus.GRANTED) return false;
+  if (permission.ios?.accuracy === 'reduced') return false;
+  const androidAccuracy = permission.android?.accuracy;
+  return androidAccuracy !== 'coarse' && androidAccuracy !== 'none';
+}
+
 function validConsent(consent: GroupDriveLocationConsent) {
   const acceptedAt = Date.parse(consent.acceptedAt);
   return (
@@ -156,6 +165,15 @@ if (!TaskManager.isTaskDefined(GROUP_DRIVE_LOCATION_TASK_NAME)) {
 
       const latestLocation = data?.locations?.at(-1);
       if (!latestLocation) return;
+
+      const foreground = await Location.getForegroundPermissionsAsync().catch(
+        () => null,
+      );
+      if (!foreground || !hasPreciseForegroundLocation(foreground)) {
+        await clearLocalRuntime();
+        return;
+      }
+
       await publishLocation(session, latestLocation);
     },
   );
@@ -196,6 +214,9 @@ export async function requestGroupDriveLocationPermissions() {
   if (foreground.status !== Location.PermissionStatus.GRANTED) {
     throw new Error('Allow precise location while using NOXA to share your position in this Group Drive.');
   }
+  if (!hasPreciseForegroundLocation(foreground)) {
+    throw new Error('Precise location is required for Group Drive. Enable precise location in system settings.');
+  }
 
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== Location.PermissionStatus.GRANTED) {
@@ -209,10 +230,10 @@ async function assertPermissionsAlreadyGranted() {
     Location.getBackgroundPermissionsAsync(),
   ]);
   if (
-    foreground.status !== Location.PermissionStatus.GRANTED
+    !hasPreciseForegroundLocation(foreground)
     || background.status !== Location.PermissionStatus.GRANTED
   ) {
-    throw new Error('Location permission is not granted for this Group Drive.');
+    throw new Error('Precise location permission is not granted for this Group Drive.');
   }
 }
 
