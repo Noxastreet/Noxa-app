@@ -773,18 +773,12 @@ export default function CanonicalCrewsScreen() {
         return;
       }
 
-      const { error: membershipError } = await supabase
-        .from("crew_members")
-        .insert({ crew_id: data.id, user_id: userId, role: "owner" });
-
-      if (membershipError) {
-        setError(membershipError.message);
-      } else {
-        setCreateVisible(false);
-        setFilter("mine");
-        await load(false);
-        router.push({ pathname: "/crew/[id]", params: { id: data.id } });
-      }
+      // Production Supabase creates the owner membership atomically in the
+      // noxa_insert_crew_owner_membership_trigger attached to public.crews.
+      setCreateVisible(false);
+      setFilter("mine");
+      await load(false);
+      router.push({ pathname: "/crew/[id]", params: { id: data.id } });
       setCreating(false);
     },
     [creating, load, userId],
