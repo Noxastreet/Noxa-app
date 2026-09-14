@@ -45,6 +45,9 @@ jobs:
       - name: Delete Account storage-order contract
         run: node ./scripts/verify-delete-account-flow.mjs
 
+      - name: Supabase migration history contract
+        run: npm run verify:supabase-migrations
+
       - name: Interaction wiring audit
         run: npm run verify:interactions
 
