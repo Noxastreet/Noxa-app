@@ -372,18 +372,19 @@ export default function CrewCalendarScreen() {
                 const key = localDateKey(date);
                 const isCurrentMonth = date.getMonth() === visibleMonth.getMonth();
                 const hasEvents = (eventsByDay.get(key)?.length ?? 0) > 0;
-                const isSelected = selectedDate === key;
+                const isSelected = isCurrentMonth && selectedDate === key;
                 const isToday = todayKey === key;
                 return (
                   <Pressable
                     accessibilityLabel={`Select ${new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date)}`}
                     accessibilityRole="button"
+                    disabled={!isCurrentMonth}
                     key={key}
                     onPress={() => setSelectedDate((current) => current === key ? null : key)}
                     style={({ pressed }) => [
                       styles.dayCell,
                       isSelected && styles.dayCellSelected,
-                      pressed && styles.pressed,
+                      pressed && isCurrentMonth && styles.pressed,
                     ]}
                   >
                     <Text
