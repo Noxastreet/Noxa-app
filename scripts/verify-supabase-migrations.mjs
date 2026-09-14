@@ -42,8 +42,10 @@ const required = [
   'restrict_push_device_client_writes',
   'add_live_drive_background_sharing',
   'create_prelaunch_waitlist',
+  'group_drive_phase_1',
   'complete_remote_push_dispatch',
   'remove_duplicate_activity_notification_triggers',
+  'add_group_drive_invitation_notifications',
   'harden_driver_location_defaults_and_freshness',
 ];
 
@@ -73,6 +75,8 @@ before('add_push_notifications', 'harden_push_device_registration');
 before('harden_push_device_registration', 'restrict_push_device_client_writes');
 before('add_push_notifications', 'complete_remote_push_dispatch');
 before('complete_remote_push_dispatch', 'remove_duplicate_activity_notification_triggers');
+before('remove_duplicate_activity_notification_triggers', 'add_group_drive_invitation_notifications');
+before('group_drive_phase_1', 'add_group_drive_invitation_notifications');
 before('add_live_drive_background_sharing', 'harden_driver_location_defaults_and_freshness');
 
 console.log(`Supabase migration contract OK (${files.length} migrations).`);
