@@ -38,6 +38,9 @@ if (!failures.length) {
     ['scoped disclosure primitive missing', /acceptGroupDriveLocationDisclosure/],
     ['foreground permission request missing', /requestForegroundPermissionsAsync/],
     ['background permission request missing', /requestBackgroundPermissionsAsync/],
+    ['iOS reduced-accuracy rejection missing', /permission\.ios\?\.accuracy === 'reduced'/],
+    ['Android coarse-accuracy rejection missing', /permission\.android\?\.accuracy[\s\S]*androidAccuracy !== 'coarse'[\s\S]*androidAccuracy !== 'none'/],
+    ['active precise-permission reconciliation missing', /TaskManager\.defineTask[\s\S]*getForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundLocation\(foreground\)[\s\S]*clearLocalRuntime\(\)/],
     ['server-owned active expiry missing', /activeExpiresAt/],
     ['protected location RPC missing', /\.rpc\('noxa_upsert_drive_location'/],
     ['auth mismatch cleanup missing', /authData\.session\?\.user\.id !== session\.userId[\s\S]*clearLocalRuntime/],
@@ -70,7 +73,7 @@ if (!failures.length) {
     failures.push('platform permission copy must disclose active Group Drive background location');
   }
 
-  const expectedPersonalLiveDriveBlob = '63def95c081fcd4f2cf357eeec4e4d84c9292d17';
+  const expectedPersonalLiveDriveBlob = '147ea68534f67d5160a2d680a3a759e358c90596';
   const actualPersonalLiveDriveBlob = gitBlobSha(personalLiveDrive);
   if (actualPersonalLiveDriveBlob !== expectedPersonalLiveDriveBlob) {
     failures.push(`personal Live Drive changed unexpectedly (${actualPersonalLiveDriveBlob})`);
