@@ -50,20 +50,25 @@ assert(
   'Runtime access must require foreground permission, background permission and location services.',
 );
 assert(
-  /permission\.ios\?\.accuracy === 'reduced'/.test(liveDrive),
-  'iOS Live Drive must reject Reduced Accuracy location access.',
+  /PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000/.test(liveDrive) &&
+    /coords\.accuracy[\s\S]*accuracy < PRECISE_LOCATION_MAX_ACCURACY_METERS/.test(liveDrive),
+  'Live Drive must reject kilometer-scale delivered location uncertainty.',
 );
 assert(
   /permission\.android\?\.accuracy[\s\S]*androidAccuracy !== 'coarse'[\s\S]*androidAccuracy !== 'none'/.test(liveDrive),
   'Android Live Drive must reject coarse-only location access.',
 );
 assert(
-  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundLocation\(foreground\)/.test(liveDrive),
-  'Live Drive startup must enforce precise location access before sharing.',
+  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*getCurrentPositionAsync\([\s\S]*hasPreciseLocationSample\(current\.coords\)/.test(liveDrive),
+  'Live Drive startup permission flow must require a usable precise sample before background access.',
 );
 assert(
-  /TaskManager\.defineTask[\s\S]*getForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundLocation\(foreground\)[\s\S]*expireSession\(session\)/.test(liveDrive),
-  'Active Live Drive must stop when precise foreground access is revoked.',
+  /TaskManager\.defineTask[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*hasPreciseLocationSample\(latestLocation\.coords\)[\s\S]*expireSession\(session\)/.test(liveDrive),
+  'Active Live Drive must stop when permission or delivered accuracy becomes unsuitable.',
+);
+assert(
+  /buildPresencePayload[\s\S]*!hasPreciseLocationSample\(coords\)[\s\S]*return null/.test(liveDrive),
+  'Live Drive persistence must fail closed for imprecise coordinates.',
 );
 
 if (!process.exitCode) {
