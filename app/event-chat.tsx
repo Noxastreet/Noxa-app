@@ -75,14 +75,14 @@ export default function EventChatScreen() {
       .from("event_messages")
       .select("id,event_id,sender_id,body,created_at")
       .eq("event_id", eventId)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(250);
     if (messagesError) {
       setError(messagesError.message);
       return;
     }
 
-    const nextMessages = (data ?? []) as MessageRow[];
+    const nextMessages = ((data ?? []) as MessageRow[]).slice().reverse();
     setMessages(nextMessages);
     const senderIds = Array.from(new Set(nextMessages.map((message) => message.sender_id)));
     if (!senderIds.length) {
