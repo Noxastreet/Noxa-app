@@ -38,9 +38,10 @@ if (!failures.length) {
     ['scoped disclosure primitive missing', /acceptGroupDriveLocationDisclosure/],
     ['foreground permission request missing', /requestForegroundPermissionsAsync/],
     ['background permission request missing', /requestBackgroundPermissionsAsync/],
-    ['iOS reduced-accuracy rejection missing', /permission\.ios\?\.accuracy === 'reduced'/],
+    ['Expo 54 sample-accuracy guard missing', /PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000[\s\S]*coords\.accuracy[\s\S]*accuracy < PRECISE_LOCATION_MAX_ACCURACY_METERS/],
     ['Android coarse-accuracy rejection missing', /permission\.android\?\.accuracy[\s\S]*androidAccuracy !== 'coarse'[\s\S]*androidAccuracy !== 'none'/],
-    ['active precise-permission reconciliation missing', /TaskManager\.defineTask[\s\S]*getForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundLocation\(foreground\)[\s\S]*clearLocalRuntime\(\)/],
+    ['imprecise background cleanup missing', /TaskManager\.defineTask[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*hasPreciseLocationSample\(latestLocation\.coords\)[\s\S]*clearRemoteLocationAndRuntime\(session\)/],
+    ['protected remote cleanup RPC missing', /\.rpc\('noxa_clear_my_drive_location'/],
     ['server-owned active expiry missing', /activeExpiresAt/],
     ['protected location RPC missing', /\.rpc\('noxa_upsert_drive_location'/],
     ['auth mismatch cleanup missing', /authData\.session\?\.user\.id !== session\.userId[\s\S]*clearLocalRuntime/],
@@ -73,7 +74,7 @@ if (!failures.length) {
     failures.push('platform permission copy must disclose active Group Drive background location');
   }
 
-  const expectedPersonalLiveDriveBlob = '147ea68534f67d5160a2d680a3a759e358c90596';
+  const expectedPersonalLiveDriveBlob = '1fcff7a6eb220f7ebb9f206da12d2464d24ee1d8';
   const actualPersonalLiveDriveBlob = gitBlobSha(personalLiveDrive);
   if (actualPersonalLiveDriveBlob !== expectedPersonalLiveDriveBlob) {
     failures.push(`personal Live Drive changed unexpectedly (${actualPersonalLiveDriveBlob})`);
