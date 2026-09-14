@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
 import type { ReactNode } from "react";
-import { Image, ImageBackground, Pressable, StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
+import { ImageBackground, Pressable, StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -108,12 +109,16 @@ export function CanonicalAvatar({
   const name = profileName(profile);
   if (profile?.avatar_url) {
     return (
-      <Image
+      <ExpoImage
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        recyclingKey={profile.avatar_url}
         source={{ uri: profile.avatar_url }}
         style={[
           styles.avatarImage,
           { width: size, height: size, borderRadius: size / 2 },
         ]}
+        transition={100}
       />
     );
   }
