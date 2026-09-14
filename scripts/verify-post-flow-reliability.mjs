@@ -9,6 +9,8 @@ function assert(condition, message) {
 
 const editor = fs.readFileSync('app/post-editor.tsx', 'utf8');
 const details = fs.readFileSync('app/post-details.tsx', 'utf8');
+const errorBlock =
+  details.match(/\{error \? \(\s*<View style=\{styles\.errorCard\}>[\s\S]*?<\/View>\s*\) : null\}/)?.[0] ?? '';
 
 assert(
   /useNavigation/.test(editor) && /navigation\.addListener\("beforeRemove"/.test(editor),
@@ -31,11 +33,11 @@ assert(
   'Successful publish must explicitly unlock navigation before replacing the editor.',
 );
 assert(
-  /\{error \? \([\s\S]*<Pressable onPress=\{\(\) => void loadPost\(false\)\} style=\{styles\.retryButton\}>[\s\S]*RETRY[\s\S]*\) : null\}/.test(details),
+  Boolean(errorBlock) && /loadPost\(false\)/.test(errorBlock) && /RETRY/.test(errorBlock),
   'Post load errors must always expose Retry, including the initial load before post data exists.',
 );
 assert(
-  !/\{post \? \([\s\S]*loadPost\(false\)[\s\S]*\) : null\}[\s\S]*<\/View>[\s\S]*\) : null\}/.test(details),
+  !/\{post \? \(/.test(errorBlock),
   'Retry must not be gated on an already-loaded post.',
 );
 
