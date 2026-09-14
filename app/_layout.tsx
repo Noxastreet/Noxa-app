@@ -13,6 +13,8 @@ import {
   acceptPasswordRecoveryUrl,
   isPasswordRecoveryUrl,
 } from '@/src/lib/passwordRecoveryLink';
+import { supabase } from '@/src/lib/supabase';
+import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
 import { colors } from '@/src/theme/colors';
 
 SplashScreen.setOptions({
@@ -43,11 +45,25 @@ function AuthDeepLinkBridge() {
   return null;
 }
 
+function AuthSessionBoundary() {
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event !== 'SIGNED_OUT' || session) return;
+      resetToSignedOutHome();
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={noxaTheme}>
         <AuthDeepLinkBridge />
+        <AuthSessionBoundary />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="welcome" />
