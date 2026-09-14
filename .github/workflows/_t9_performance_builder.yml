@@ -1,0 +1,68 @@
+name: T9 Performance Builder
+
+on:
+  push:
+    branches:
+      - perf/t9-app-data-loading-20260914
+
+permissions:
+  contents: write
+
+jobs:
+  build-performance-pass:
+    if: ${{ !contains(github.event.head_commit.message, '[perf-builder]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Apply performance codemod
+        run: python3 scripts/_apply_t9_performance_pass.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify performance contract
+        run: npm run verify:t9-performance-pass
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Expo doctor
+        run: npx expo-doctor
+
+      - name: Existing Home Map performance contract
+        run: npm run verify:home-map-performance
+
+      - name: Group Drive Phase 5
+        run: npm run verify:group-drive-phase-5
+
+      - name: MVP completion
+        run: npm run verify:mvp-completion
+
+      - name: Diff check
+        run: git diff --check
+
+      - name: Commit performance pass
+        run: |
+          git add app src scripts package.json .github/workflows/quality.yml
+          git reset scripts/_apply_t9_performance_pass.py .github/workflows/_t9_performance_builder.yml
+          git commit -m "perf(app): bound and stage core data loading [perf-builder]"
+          git push origin HEAD:perf/t9-app-data-loading-20260914
+
+      - name: Remove temporary builder files
+        run: |
+          git rm scripts/_apply_t9_performance_pass.py .github/workflows/_t9_performance_builder.yml
+          git commit -m "chore: remove performance builder [perf-builder]"
+          git push origin HEAD:perf/t9-app-data-loading-20260914
