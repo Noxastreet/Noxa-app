@@ -39,6 +39,9 @@ jobs:
       - name: Expo doctor
         run: npx expo-doctor
 
+      - name: Auth flow contract
+        run: npm run verify:auth-flow
+
       - name: Interaction wiring audit
         run: npm run verify:interactions
 
