@@ -52,6 +52,58 @@ function finiteOrNull(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function buildPresencePayload(
+  session: LiveDriveSession,
+  coords: Location.LocationObjectCoords,
+) {
+  const latitude = finiteOrNull(coords.latitude);
+  const longitude = finiteOrNull(coords.longitude);
+  if (
+    latitude === null ||
+    longitude === null ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return null;
+  }
+
+  const heading = finiteOrNull(coords.heading);
+  const speed = finiteOrNull(coords.speed);
+  const accuracy = finiteOrNull(coords.accuracy);
+
+  return {
+    latitude,
+    longitude,
+    heading: heading !== null && heading >= 0 && heading < 360 ? heading : null,
+    speed_mps: speed !== null && speed >= 0 ? speed : null,
+    accuracy_meters: accuracy !== null && accuracy >= 0 ? accuracy : null,
+    visibility_mode: session.visibilityMode,
+    share_expires_at: session.expiresAt,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function upsertLiveDrivePresence(
+  session: LiveDriveSession,
+  coords: Location.LocationObjectCoords,
+) {
+  const payload = buildPresencePayload(session, coords);
+  if (!payload) return false;
+
+  const { error } = await supabase.from('driver_locations').upsert(
+    {
+      user_id: session.userId,
+      ...payload,
+    },
+    { onConflict: 'user_id' },
+  );
+
+  if (error) throw error;
+  return true;
+}
+
 async function stopNativeLocationUpdates() {
   if (await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME)) {
     await Location.stopLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME);
@@ -89,35 +141,9 @@ if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
         return;
       }
 
-      const latitude = finiteOrNull(latestLocation.coords.latitude);
-      const longitude = finiteOrNull(latestLocation.coords.longitude);
-      if (
-        latitude === null ||
-        longitude === null ||
-        latitude < -90 ||
-        latitude > 90 ||
-        longitude < -180 ||
-        longitude > 180
-      ) {
-        return;
-      }
-
-      const heading = finiteOrNull(latestLocation.coords.heading);
-      const speed = finiteOrNull(latestLocation.coords.speed);
-      const accuracy = finiteOrNull(latestLocation.coords.accuracy);
-      await supabase
-        .from('driver_locations')
-        .update({
-          latitude,
-          longitude,
-          heading: heading !== null && heading >= 0 && heading < 360 ? heading : null,
-          speed_mps: speed !== null && speed >= 0 ? speed : null,
-          accuracy_meters: accuracy !== null && accuracy >= 0 ? accuracy : null,
-          visibility_mode: session.visibilityMode,
-          share_expires_at: session.expiresAt,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', session.userId);
+      await upsertLiveDrivePresence(session, latestLocation.coords).catch(
+        () => undefined,
+      );
     },
   );
 }
@@ -166,6 +192,18 @@ export async function startLiveDriveSession(
     if (await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME)) {
       await Location.stopLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME);
     }
+
+    const initialLocation = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    const didPublishInitialPresence = await upsertLiveDrivePresence(
+      session,
+      initialLocation.coords,
+    );
+    if (!didPublishInitialPresence) {
+      throw new Error('Live Drive could not publish a valid initial location.');
+    }
+
     await Location.startLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME, {
       accuracy: Location.Accuracy.High,
       timeInterval: 15_000,
@@ -185,6 +223,8 @@ export async function startLiveDriveSession(
     return session;
   } catch (error) {
     storeSession(null);
+    await stopNativeLocationUpdates().catch(() => undefined);
+    await supabase.from('driver_locations').delete().eq('user_id', userId).catch(() => undefined);
     throw error;
   }
 }
