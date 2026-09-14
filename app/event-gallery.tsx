@@ -265,30 +265,36 @@ export default function EventGalleryScreen() {
         text: "Remove",
         style: "destructive",
         onPress: async () => {
+          const item = selectedItem;
           setDeleting(true);
           setError(null);
-          const { error: storageError } = await supabase.storage
-            .from(eventGalleryBucket)
-            .remove([selectedItem.object_path]);
-          if (storageError) {
-            setError(storageError.message);
+
+          const { data: deletedRows, error: rowError } = await supabase
+            .from("event_gallery_items")
+            .delete()
+            .eq("id", item.id)
+            .select("id");
+          if (rowError || !deletedRows?.length) {
+            setError(rowError?.message ?? "Photo was not removed. Refresh and try again.");
             setDeleting(false);
             return;
           }
-          const { error: rowError } = await supabase
-            .from("event_gallery_items")
-            .delete()
-            .eq("id", selectedItem.id);
-          if (rowError) setError(rowError.message);
-          else {
-            setSelectedItem(null);
-            await loadItems();
+
+          setSelectedItem(null);
+          setItems((current) => current.filter((entry) => entry.id !== item.id));
+
+          const { error: storageError } = await supabase.storage
+            .from(eventGalleryBucket)
+            .remove([item.object_path]);
+          if (storageError) {
+            console.warn("Event gallery storage cleanup failed after metadata deletion", storageError.message);
+            setError("Photo was removed from the gallery, but its media file could not be cleaned up.");
           }
           setDeleting(false);
         },
       },
     ]);
-  }, [deleting, loadItems, selectedItem]);
+  }, [deleting, selectedItem]);
 
   return (
     <NoxaScreen padded={false}>
