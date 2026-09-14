@@ -18,6 +18,7 @@ import {
   stopGroupDriveLocationSharing,
   subscribeToActiveDriveAccess,
 } from '@/src/features/group-drive';
+import { getCurrentSessionUser } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveLocationSharingScreen() {
@@ -28,6 +29,7 @@ export default function GroupDriveLocationSharingScreen() {
   const [active, setActive] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [cleanupPending, setCleanupPending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -37,16 +39,27 @@ export default function GroupDriveLocationSharingScreen() {
       return;
     }
     try {
+      const currentUser = await getCurrentSessionUser();
+      if (!currentUser) throw new Error('Sign in to open this Active Drive.');
       await loadActiveDriveLifecycleSnapshot(driveSessionId);
+      setCurrentUserId(currentUser.id);
       setActive(true);
       const session = getGroupDriveLocationSession();
-      const isSharing = session?.driveSessionId === driveSessionId;
+      const isSharing = session?.driveSessionId === driveSessionId && session.userId === currentUser.id;
       setSharing(isSharing);
 
-      const pending = getPendingGroupDriveServerAction(driveSessionId);
+      const pending = getPendingGroupDriveServerAction(
+        currentUser.id,
+        driveSessionId,
+      );
       if (isSharing && pending?.kind === 'clear_location') {
-        // A new explicit sharing session supersedes an older cleanup intent.
-        clearPendingGroupDriveServerAction('clear_location', driveSessionId);
+        // A new explicit sharing session supersedes an older cleanup intent for
+        // this account only. Other accounts on the device keep their own state.
+        clearPendingGroupDriveServerAction(
+          currentUser.id,
+          'clear_location',
+          driveSessionId,
+        );
         setCleanupPending(false);
       } else {
         setCleanupPending(pending?.kind === 'clear_location');
@@ -54,6 +67,7 @@ export default function GroupDriveLocationSharingScreen() {
       setError(null);
     } catch (loadError) {
       setActive(false);
+      setCurrentUserId(null);
       setError(loadError instanceof Error ? loadError.message : 'This Active Drive is unavailable.');
     } finally {
       setLoading(false);
@@ -72,12 +86,25 @@ export default function GroupDriveLocationSharingScreen() {
     void subscribeToActiveDriveAccess(driveSessionId, {
       onAccessRevoked: () => {
         if (disposed) return;
+        const revokedUserId = currentUserId;
         setActive(false);
         setSharing(false);
         setCleanupPending(false);
-        clearPendingGroupDriveServerAction(undefined, driveSessionId);
         setError('Your access to this Group Drive ended.');
         void stopGroupDriveLocationSession();
+        // Preserve retry state across sign-out/account switches. Clear it only
+        // when the same account is still authenticated and server access ended.
+        if (revokedUserId) {
+          void getCurrentSessionUser().then((user) => {
+            if (user?.id === revokedUserId) {
+              clearPendingGroupDriveServerAction(
+                revokedUserId,
+                undefined,
+                driveSessionId,
+              );
+            }
+          });
+        }
       },
       onError: (syncError) => {
         if (!disposed) setError(syncError.message);
@@ -91,17 +118,21 @@ export default function GroupDriveLocationSharingScreen() {
       disposed = true;
       if (teardown) void teardown();
     };
-  }, [active, driveSessionId]);
+  }, [active, currentUserId, driveSessionId]);
 
   const enableSharing = async () => {
-    if (!driveSessionId || !active) return;
+    if (!driveSessionId || !active || !currentUserId) return;
     setWorking(true);
     setError(null);
     try {
       const consent = acceptGroupDriveLocationDisclosure(driveSessionId);
       await requestGroupDriveLocationPermissions();
       await startGroupDriveLocationSession(consent);
-      clearPendingGroupDriveServerAction('clear_location', driveSessionId);
+      clearPendingGroupDriveServerAction(
+        currentUserId,
+        'clear_location',
+        driveSessionId,
+      );
       setCleanupPending(false);
       setSharing(true);
     } catch (shareError) {

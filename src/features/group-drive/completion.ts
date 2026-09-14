@@ -59,11 +59,11 @@ async function stopLocalWriterAndStage(
   // Privacy first: once the user confirms Leave/End, this device must stop
   // publishing immediately instead of waiting for a network round-trip.
   await stopGroupDriveLocationSession();
-  await stagePendingGroupDriveServerAction(kind, driveSessionId);
+  return stagePendingGroupDriveServerAction(kind, driveSessionId);
 }
 
 export async function endGroupDrive(driveSessionId: string) {
-  await stopLocalWriterAndStage('end', driveSessionId);
+  const pending = await stopLocalWriterAndStage('end', driveSessionId);
 
   const { data, error } = await supabase.rpc('noxa_end_drive', {
     target_drive_session_id: driveSessionId,
@@ -71,7 +71,9 @@ export async function endGroupDrive(driveSessionId: string) {
 
   if (error) {
     if (isNonRetryableLifecycleError(error.message)) {
-      clearPendingGroupDriveServerAction('end', driveSessionId);
+      if (pending) {
+        clearPendingGroupDriveServerAction(pending.userId, 'end', driveSessionId);
+      }
       throw new Error(lifecycleError(error.message));
     }
     throw new Error(
@@ -83,7 +85,9 @@ export async function endGroupDrive(driveSessionId: string) {
   // already terminal (for example after a lost response), which is also safe to
   // treat as confirmed after the server answered.
   if (data === true || data === false) {
-    clearPendingGroupDriveServerAction('end', driveSessionId);
+    if (pending) {
+      clearPendingGroupDriveServerAction(pending.userId, 'end', driveSessionId);
+    }
     return true;
   }
 
@@ -93,7 +97,7 @@ export async function endGroupDrive(driveSessionId: string) {
 }
 
 export async function leaveGroupDriveAndStopLocation(driveSessionId: string) {
-  await stopLocalWriterAndStage('leave', driveSessionId);
+  const pending = await stopLocalWriterAndStage('leave', driveSessionId);
 
   const { data, error } = await supabase.rpc('noxa_leave_drive', {
     target_drive_session_id: driveSessionId,
@@ -101,7 +105,9 @@ export async function leaveGroupDriveAndStopLocation(driveSessionId: string) {
 
   if (error) {
     if (isNonRetryableLifecycleError(error.message)) {
-      clearPendingGroupDriveServerAction('leave', driveSessionId);
+      if (pending) {
+        clearPendingGroupDriveServerAction(pending.userId, 'leave', driveSessionId);
+      }
       throw new Error(lifecycleError(error.message));
     }
     throw new Error(
@@ -110,7 +116,9 @@ export async function leaveGroupDriveAndStopLocation(driveSessionId: string) {
   }
 
   if (data === true || data === false) {
-    clearPendingGroupDriveServerAction('leave', driveSessionId);
+    if (pending) {
+      clearPendingGroupDriveServerAction(pending.userId, 'leave', driveSessionId);
+    }
     return true;
   }
 

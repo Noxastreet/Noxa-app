@@ -39,7 +39,10 @@ export default function ActiveDriveControlsScreen() {
       }
       setDrive(next);
 
-      const pending = getPendingGroupDriveServerAction(driveSessionId);
+      const pending = getPendingGroupDriveServerAction(
+        next.currentUserId,
+        driveSessionId,
+      );
       if (pending?.kind === 'leave') {
         setError(
           'Location sharing is already stopped on this device. Leaving the Group Drive is waiting for server confirmation. Retry Leave Drive when you are online.',
