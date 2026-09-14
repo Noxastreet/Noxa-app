@@ -135,9 +135,9 @@ try {
   networkOffline = false;
   const retry = scheduledTimers.shift();
   retry.callback();
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 3; index += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
 
   assert.equal(localStorage.getItem('noxa.live-drive-pending-cleanup.v1'), null, 'successful retry must clear pending cleanup');
   assert.deepEqual(deleteCalls.at(-1), [
@@ -151,7 +151,7 @@ try {
   }));
   authUserId = 'user-b';
   authChange?.('SIGNED_IN', { user: { id: 'user-b' } });
-  await Promise.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.ok(localStorage.getItem('noxa.live-drive-pending-cleanup.v1'), 'another account must not consume user A cleanup');
 
   console.log('Live Drive offline-stop deterministic smoke: PASS');
