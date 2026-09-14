@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -19,6 +18,7 @@ type SignUpErrors = {
 };
 
 const emailPattern = /^\S+@\S+\.\S+$/;
+const SIGNUP_REDIRECT_URI = 'noxa://auth/callback';
 
 export default function SignUpScreen() {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
@@ -127,7 +127,7 @@ function SignUpForm({
         email: normalizedEmail,
         password,
         options: {
-          emailRedirectTo: Linking.createURL('/auth/callback'),
+          emailRedirectTo: SIGNUP_REDIRECT_URI,
           data: {
             display_name: displayName.trim(),
           },
