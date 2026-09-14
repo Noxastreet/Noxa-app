@@ -83,7 +83,7 @@ replace_once(
 # Vehicle editor changes both Garage and Profile summary data.
 insert_after(
     "app/vehicle-editor.tsx",
-    "import { NoxaButton, NoxaScreen } from '@/src/components/ui';\n",
+    "import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';\n",
     "import { invalidateData } from '@/src/lib/dataInvalidation';\n",
 )
 replace_once(
@@ -97,24 +97,22 @@ replace_once(
     "      invalidateData('garage', 'profile');\n      setIsSubmitting(false);\n\n      if (vehicle?.id) {\n        navigateWithoutPrompt(() => router.back());\n      }\n",
 )
 
-# Vehicle picker/finalize is another creation path; invalidate after successful insert.
+# Quick-add is the vehicle picker creation path.
 insert_after(
-    "src/features/garage/vehicle-picker/VehicleFinalizeFlow.tsx",
+    "src/features/garage/vehicleQuickAdd.ts",
     "import { supabase } from '@/src/lib/supabase';\n",
     "import { invalidateData } from '@/src/lib/dataInvalidation';\n",
 )
-# The finalize flow has one successful insert followed by navigation. Anchor on the
-# setIsSaving(false) immediately after insert success via vehicle.id block.
 replace_once(
-    "src/features/garage/vehicle-picker/VehicleFinalizeFlow.tsx",
-    "      if (vehicle?.id) {\n        router.replace({ pathname: '/vehicle-details', params: { id: vehicle.id } });\n      }\n",
-    "      if (vehicle?.id) {\n        invalidateData('garage', 'profile');\n        router.replace({ pathname: '/vehicle-details', params: { id: vehicle.id } });\n      }\n",
+    "src/features/garage/vehicleQuickAdd.ts",
+    "    return vehicle.id as string;\n",
+    "    invalidateData('garage', 'profile');\n    return vehicle.id as string;\n",
 )
 
 # Vehicle deletion also invalidates both surfaces.
 insert_after(
     "app/vehicle-details.tsx",
-    "import { NoxaBadge, NoxaButton, NoxaScreen } from '@/src/components/ui';\n",
+    "import { NoxaAvatar, NoxaBadge, NoxaScreen } from '@/src/components/ui';\n",
     "import { invalidateData } from '@/src/lib/dataInvalidation';\n",
 )
 replace_once(
