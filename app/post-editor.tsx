@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -47,6 +48,9 @@ function safeExtension(asset: ImagePicker.ImagePickerAsset, contentType: string)
 }
 
 export default function PostEditorScreen() {
+  const navigation = useNavigation();
+  const publishingRef = useRef(false);
+  const allowNavigationRef = useRef(false);
   const [imageAsset, setImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [caption, setCaption] = useState("");
   const [locationName, setLocationName] = useState("");
@@ -56,6 +60,15 @@ export default function PostEditorScreen() {
   const canPublish = useMemo(
     () => Boolean(imageAsset && !publishing),
     [imageAsset, publishing],
+  );
+
+  useEffect(
+    () =>
+      navigation.addListener("beforeRemove", (event) => {
+        if (!publishingRef.current || allowNavigationRef.current) return;
+        event.preventDefault();
+      }),
+    [navigation],
   );
 
   const chooseImage = useCallback(async () => {
@@ -99,6 +112,8 @@ export default function PostEditorScreen() {
       return;
     }
 
+    publishingRef.current = true;
+    allowNavigationRef.current = false;
     setPublishing(true);
     setError(null);
     let uploadedPath: string | null = null;
@@ -154,6 +169,9 @@ export default function PostEditorScreen() {
       if (postError || !post) throw postError ?? new Error("Post could not be created.");
 
       uploadedPath = null;
+      allowNavigationRef.current = true;
+      publishingRef.current = false;
+      setPublishing(false);
       router.replace({ pathname: "/post-details", params: { id: post.id } });
     } catch (publishError) {
       if (uploadedPath) {
@@ -163,6 +181,7 @@ export default function PostEditorScreen() {
         publishError instanceof Error ? publishError.message : "Post could not be published.",
       );
     } finally {
+      publishingRef.current = false;
       setPublishing(false);
     }
   }, [caption, imageAsset, locationName, publishing]);
@@ -176,8 +195,13 @@ export default function PostEditorScreen() {
           <Pressable
             accessibilityLabel="Go back"
             accessibilityRole="button"
+            disabled={publishing}
             onPress={() => router.back()}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
+            style={({ pressed }) => [
+              styles.headerButton,
+              publishing && styles.disabled,
+              pressed && !publishing && styles.pressed,
+            ]}>
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>
           <View style={styles.headerCopy}>
@@ -372,5 +396,6 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.glass,
   },
+  disabled: { opacity: 0.48 },
   pressed: { opacity: 0.84, transform: [{ translateY: 1 }, { scale: 0.99 }] },
 });

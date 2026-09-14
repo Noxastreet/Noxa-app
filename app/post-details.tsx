@@ -721,11 +721,9 @@ export default function PostDetailsScreen() {
           {error ? (
             <View style={styles.errorCard}>
               <Text style={styles.errorText}>{error}</Text>
-              {post ? (
-                <Pressable onPress={() => void loadPost(false)} style={styles.retryButton}>
-                  <Text style={styles.retryText}>RETRY</Text>
-                </Pressable>
-              ) : null}
+              <Pressable onPress={() => void loadPost(false)} style={styles.retryButton}>
+                <Text style={styles.retryText}>RETRY</Text>
+              </Pressable>
             </View>
           ) : null}
         </ScrollView>
