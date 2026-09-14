@@ -21,6 +21,7 @@
     "verify:group-drive-phase-5": "node ./scripts/verify-group-drive-phase-5.mjs",
     "verify:home-map-disclosure": "node ./scripts/verify-home-map-disclosure.mjs",
     "verify:home-map-performance": "node ./scripts/verify-home-map-performance.mjs",
+    "verify:t8-active-drive-foreground-reconcile": "node ./scripts/verify-t8-active-drive-foreground-reconcile.mjs",
     "verify:mvp-completion": "node ./scripts/verify-mvp-completion.mjs",
     "verify:interactions": "node ./scripts/verify-interactions.mjs",
     "android": "expo run:android",
