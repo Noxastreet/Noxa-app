@@ -8,7 +8,7 @@ function assert(condition, message) {
 }
 
 const migration = fs.readFileSync(
-  'supabase/migrations/20260914185000_add_group_drive_invitation_notifications.sql',
+  'supabase/migrations/20260914185251_add_group_drive_invitation_notifications.sql',
   'utf8',
 );
 const bridge = fs.readFileSync(
