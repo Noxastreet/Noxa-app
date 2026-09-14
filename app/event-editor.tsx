@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -164,6 +165,9 @@ function prefillFromEvent(event: EventRow): EventForm {
 }
 
 export default function EventEditorScreen() {
+  const navigation = useNavigation();
+  const savingRef = useRef(false);
+  const allowNavigationRef = useRef(false);
   const params = useLocalSearchParams<{ id?: string; crewId?: string }>();
   const eventId = typeof params.id === "string" ? params.id : undefined;
   const requestedCrewId = typeof params.crewId === "string" ? params.crewId : undefined;
@@ -182,6 +186,15 @@ export default function EventEditorScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
   const [draftDate, setDraftDate] = useState<Date>(futureStart());
+
+  useEffect(
+    () =>
+      navigation.addListener("beforeRemove", (event) => {
+        if (!savingRef.current || allowNavigationRef.current) return;
+        event.preventDefault();
+      }),
+    [navigation],
+  );
 
   const title = useMemo(
     () => (isEditing ? "EDIT EVENT" : "CREATE EVENT"),
@@ -448,11 +461,14 @@ export default function EventEditorScreen() {
       setError(valid);
       return;
     }
+    savingRef.current = true;
+    allowNavigationRef.current = false;
     setSaving(true);
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData.user?.id ?? currentUserId;
     if (!userId) {
       setError("Sign in to save events.");
+      savingRef.current = false;
       setSaving(false);
       return;
     }
@@ -485,14 +501,17 @@ export default function EventEditorScreen() {
             .single();
     if (result.error || !result.data) {
       setError(result.error?.message ?? "Event could not be saved.");
+      savingRef.current = false;
       setSaving(false);
       return;
     }
+    allowNavigationRef.current = true;
+    savingRef.current = false;
+    setSaving(false);
     router.replace({
       pathname: "/event-details",
       params: { id: result.data.id },
     });
-    setSaving(false);
   }, [currentUserId, eventId, form, isEditing, saving, validate]);
 
   return (
@@ -505,10 +524,12 @@ export default function EventEditorScreen() {
           <Pressable
             accessibilityLabel="Go back"
             accessibilityRole="button"
+            disabled={saving}
             onPress={() => router.back()}
             style={({ pressed }) => [
               styles.backButton,
-              pressed && styles.pressed,
+              saving && styles.disabled,
+              pressed && !saving && styles.pressed,
             ]}
           >
             <Ionicons name="chevron-back" size={22} color={colors.text} />
