@@ -209,7 +209,7 @@ function HeroCrew({
 
         <View style={styles.heroTopRow}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOUR CREW" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOUR CREW" : "DISCOVER"}
             tone={event ? "accent" : "neutral"}
           />
           <View style={styles.heroMenuButton}>
@@ -280,7 +280,7 @@ function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
         <View style={styles.compactShade} />
         <View style={styles.compactTop}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOURS" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOURS" : "DISCOVER"}
           />
           <Text style={styles.compactMemberCount}>{crew.memberCount}</Text>
         </View>
@@ -794,12 +794,27 @@ export default function CanonicalCrewsScreen() {
       );
     }
 
+    if (error && !hero) {
+      return (
+        <View style={styles.stateCard}>
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.primary} />
+          <Text style={styles.stateTitle}>Crews unavailable</Text>
+          <Text style={styles.stateText}>NOXA could not load Crew discovery.</Text>
+          <CanonicalPrimaryButton
+            label="TRY AGAIN"
+            variant="surface"
+            onPress={() => void load()}
+          />
+        </View>
+      );
+    }
+
     if (!hero) {
       return (
         <View style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
           <Text style={styles.stateTitle}>
-            {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
+            {filter === "mine" ? "No crews yet" : "Nothing to discover yet"}
           </Text>
           <Text style={styles.stateText}>
             {filter === "mine"
@@ -829,7 +844,7 @@ export default function CanonicalCrewsScreen() {
         {secondaryCrews.length ? (
           <>
             <CanonicalSectionHeader
-              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE NEAR YOU"}
+              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE CREWS"}
             />
             <ScrollView
               horizontal
@@ -854,7 +869,7 @@ export default function CanonicalCrewsScreen() {
         <View style={styles.peopleStrip}>
           <View style={styles.peopleCopy}>
             <Text style={styles.peopleEyebrow}>
-              {filter === "mine" ? "YOUR COMMUNITY" : "PEOPLE NEARBY"}
+              {filter === "mine" ? "YOUR COMMUNITY" : "COMMUNITY PICKS"}
             </Text>
             <Text style={styles.peopleText}>
               {filter === "mine"
@@ -985,7 +1000,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.caption,
   },
   createButton: {
-    minHeight: 36,
+    minHeight: 44,
     marginTop: spacing.xxs,
     flexDirection: "row",
     alignItems: "center",
@@ -1013,7 +1028,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   filterButton: {
-    minHeight: 42,
+    minHeight: 44,
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
