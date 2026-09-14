@@ -1026,8 +1026,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   headerButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -1135,7 +1135,7 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     minWidth: 0,
-    minHeight: 40,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xs,

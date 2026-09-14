@@ -55,6 +55,7 @@ export function NoxaButton({
       accessibilityRole="button"
       accessibilityState={{ busy: loading, disabled: isDisabled }}
       disabled={isDisabled}
+      hitSlop={size === 'sm' ? 6 : undefined}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,

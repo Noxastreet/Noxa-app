@@ -558,8 +558,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   bio: { color: colors.text, fontSize: 13, fontWeight: '600', lineHeight: 20 },
   editButton: {
-    minHeight: 42,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.button,
