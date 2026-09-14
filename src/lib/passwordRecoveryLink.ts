@@ -5,6 +5,11 @@ export type PasswordRecoveryLinkResult = {
   error: string | null;
 };
 
+let activeRecoveryUrl: string | null = null;
+let activeRecoveryPromise: Promise<PasswordRecoveryLinkResult> | null = null;
+let lastRecoveryUrl: string | null = null;
+let lastRecoveryResult: PasswordRecoveryLinkResult | null = null;
+
 function decodePart(value: string) {
   try {
     return decodeURIComponent(value.replace(/\+/g, ' '));
@@ -44,13 +49,9 @@ export function isPasswordRecoveryUrl(url: string) {
   );
 }
 
-export async function acceptPasswordRecoveryUrl(
+async function processPasswordRecoveryUrl(
   url: string,
 ): Promise<PasswordRecoveryLinkResult> {
-  if (!isPasswordRecoveryUrl(url)) {
-    return { handled: false, error: null };
-  }
-
   const params = parseLinkParams(url);
   const authError = params.error_description || params.error;
   if (authError) {
@@ -79,4 +80,35 @@ export async function acceptPasswordRecoveryUrl(
   }
 
   return { handled: false, error: null };
+}
+
+export async function acceptPasswordRecoveryUrl(
+  url: string,
+): Promise<PasswordRecoveryLinkResult> {
+  if (!isPasswordRecoveryUrl(url)) {
+    return { handled: false, error: null };
+  }
+
+  if (lastRecoveryUrl === url && lastRecoveryResult) {
+    return lastRecoveryResult;
+  }
+
+  if (activeRecoveryUrl === url && activeRecoveryPromise) {
+    return activeRecoveryPromise;
+  }
+
+  activeRecoveryUrl = url;
+  activeRecoveryPromise = processPasswordRecoveryUrl(url);
+
+  try {
+    const result = await activeRecoveryPromise;
+    lastRecoveryUrl = url;
+    lastRecoveryResult = result;
+    return result;
+  } finally {
+    if (activeRecoveryUrl === url) {
+      activeRecoveryUrl = null;
+      activeRecoveryPromise = null;
+    }
+  }
 }

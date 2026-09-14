@@ -1,10 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { NoxaAuthField, NoxaAuthScreen, NoxaSocialAuth } from '@/src/components/auth';
 import { NoxaButton } from '@/src/components/ui';
+import {
+  AUTH_CALLBACK_REDIRECT_URI,
+  AUTH_EMAIL_RESEND_COOLDOWN_SECONDS,
+} from '@/src/lib/authRedirects';
 import { supabase } from '@/src/lib/supabase';
 import { resetToAuthenticatedApp } from '@/src/navigation/authNavigation';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -18,7 +22,6 @@ type SignUpErrors = {
 };
 
 const emailPattern = /^\S+@\S+\.\S+$/;
-const SIGNUP_REDIRECT_URI = 'noxa://auth/callback';
 
 export default function SignUpScreen() {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export default function SignUpScreen() {
       footer={
         <Pressable accessibilityRole="button" onPress={() => router.push('/sign-in')} style={styles.switchButton}>
           <Text style={styles.switchText}>
-            {pendingEmail ? 'Already confirmed? ' : 'Already have an account? '}
+            {pendingEmail ? 'Already confirmed or registered? ' : 'Already have an account? '}
             <Text style={styles.switchLink}>Sign In</Text>
           </Text>
         </Pressable>
@@ -43,12 +46,12 @@ export default function SignUpScreen() {
       }}
       subtitle={
         pendingEmail
-          ? `We sent a secure confirmation link to ${pendingEmail}.`
+          ? `If this is a new NOXA account, check ${pendingEmail} for a confirmation email.`
           : 'Start your automotive journey today.'
       }
       title={pendingEmail ? 'Check your inbox.' : 'Join NOXA.'}>
       {pendingEmail ? (
-        <EmailConfirmationPending />
+        <EmailConfirmationPending email={pendingEmail} />
       ) : (
         <SignUpForm onConfirmationRequired={setPendingEmail} />
       )}
@@ -56,7 +59,61 @@ export default function SignUpScreen() {
   );
 }
 
-function EmailConfirmationPending() {
+function EmailConfirmationPending({ email }: { email: string }) {
+  const [secondsRemaining, setSecondsRemaining] = useState(AUTH_EMAIL_RESEND_COOLDOWN_SECONDS);
+  const [isResending, setIsResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (secondsRemaining <= 0) return;
+
+    const timer = setInterval(() => {
+      setSecondsRemaining((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [secondsRemaining]);
+
+  const resendConfirmation = async () => {
+    if (isResending || secondsRemaining > 0) return;
+
+    setIsResending(true);
+    setResendMessage(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: AUTH_CALLBACK_REDIRECT_URI,
+        },
+      });
+
+      if (error) {
+        setResendMessage(
+          error.message.toLowerCase().includes('rate')
+            ? 'Please wait before requesting another confirmation email.'
+            : 'Unable to request another confirmation email. Please try again.',
+        );
+        return;
+      }
+
+      setSecondsRemaining(AUTH_EMAIL_RESEND_COOLDOWN_SECONDS);
+      setResendMessage(
+        'If this email is waiting for NOXA confirmation, a new message has been requested.',
+      );
+    } catch {
+      setResendMessage('Unable to connect. Check your internet connection and try again.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const resendTitle =
+    secondsRemaining > 0
+      ? `Resend in ${secondsRemaining}s`
+      : 'Resend confirmation email';
+
   return (
     <View style={styles.confirmationState}>
       <View style={styles.confirmationIcon}>
@@ -64,9 +121,20 @@ function EmailConfirmationPending() {
       </View>
       <Text style={styles.confirmationTitle}>Confirm on this phone</Text>
       <Text style={styles.confirmationText}>
-        Tap “Confirm email address” in the newest NOXA email. The link will return you to NOXA and
-        open your account automatically.
+        For a new account, tap “Confirm email address” in the newest NOXA email. The link will return
+        you to NOXA and open your account automatically.
       </Text>
+      <View style={styles.confirmationAction}>
+        <NoxaButton
+          disabled={isResending || secondsRemaining > 0}
+          fullWidth
+          loading={isResending}
+          onPress={() => void resendConfirmation()}
+          title={resendTitle}
+          variant="secondary"
+        />
+      </View>
+      {resendMessage ? <Text style={styles.confirmationMessage}>{resendMessage}</Text> : null}
     </View>
   );
 }
@@ -127,7 +195,7 @@ function SignUpForm({
         email: normalizedEmail,
         password,
         options: {
-          emailRedirectTo: SIGNUP_REDIRECT_URI,
+          emailRedirectTo: AUTH_CALLBACK_REDIRECT_URI,
           data: {
             display_name: displayName.trim(),
           },
@@ -296,6 +364,20 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.body,
     fontSize: typography.body,
     lineHeight: typography.lineHeight.body,
+    textAlign: 'center',
+  },
+  confirmationAction: {
+    width: '100%',
+    maxWidth: 320,
+    marginTop: spacing.xl,
+  },
+  confirmationMessage: {
+    maxWidth: 310,
+    marginTop: spacing.sm,
+    color: colors.textMuted,
+    fontFamily: typography.fontFamily.body,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
     textAlign: 'center',
   },
   submit: {

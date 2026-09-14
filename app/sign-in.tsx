@@ -1,9 +1,13 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { NoxaAuthField, NoxaAuthScreen, NoxaSocialAuth } from '@/src/components/auth';
 import { NoxaButton } from '@/src/components/ui';
+import {
+  AUTH_CALLBACK_REDIRECT_URI,
+  AUTH_EMAIL_RESEND_COOLDOWN_SECONDS,
+} from '@/src/lib/authRedirects';
 import { supabase } from '@/src/lib/supabase';
 import { resetToAuthenticatedApp } from '@/src/navigation/authNavigation';
 import { colors, spacing, typography } from '@/src/theme';
@@ -14,18 +18,27 @@ type SignInErrors = {
   form?: string;
 };
 
+type SignInAuthError = {
+  code?: string;
+  message?: string;
+};
+
 const emailPattern = /^\S+@\S+\.\S+$/;
 
-function getSignInErrorMessage(message?: string) {
-  if (message === 'Invalid login credentials') {
+function isEmailNotConfirmedError(error?: SignInAuthError | null) {
+  return error?.code === 'email_not_confirmed' || error?.message === 'Email not confirmed';
+}
+
+function getSignInErrorMessage(error?: SignInAuthError | null) {
+  if (error?.code === 'invalid_credentials' || error?.message === 'Invalid login credentials') {
     return 'Incorrect email or password.';
   }
 
-  if (message === 'Email not confirmed') {
+  if (isEmailNotConfirmedError(error)) {
     return 'Confirm your email before signing in.';
   }
 
-  if (message === 'Network request failed') {
+  if (error?.message === 'Network request failed') {
     return 'Unable to connect. Check your internet connection.';
   }
 
@@ -63,7 +76,21 @@ function SignInForm() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<SignInErrors>({});
+
+  useEffect(() => {
+    if (secondsRemaining <= 0) return;
+
+    const timer = setInterval(() => {
+      setSecondsRemaining((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [secondsRemaining]);
 
   const validate = () => {
     const nextErrors: SignInErrors = {};
@@ -90,6 +117,8 @@ function SignInForm() {
     }
 
     setErrors({});
+    setNeedsConfirmation(false);
+    setResendMessage(null);
     setIsLoading(true);
 
     try {
@@ -99,7 +128,8 @@ function SignInForm() {
       });
 
       if (error) {
-        setErrors({ form: getSignInErrorMessage(error.message) });
+        setNeedsConfirmation(isEmailNotConfirmedError(error));
+        setErrors({ form: getSignInErrorMessage(error) });
         return;
       }
 
@@ -108,15 +138,56 @@ function SignInForm() {
       }
     } catch (error) {
       setErrors({
-        form:
-          error instanceof Error
-            ? getSignInErrorMessage(error.message)
-            : 'Unable to sign in. Please try again.',
+        form: getSignInErrorMessage(
+          error instanceof Error ? { message: error.message } : null,
+        ),
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const resendConfirmation = async () => {
+    if (isResending || secondsRemaining > 0) return;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!emailPattern.test(normalizedEmail)) {
+      setErrors({ email: 'Enter a valid email address.' });
+      return;
+    }
+
+    setIsResending(true);
+    setResendMessage(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: AUTH_CALLBACK_REDIRECT_URI,
+        },
+      });
+
+      if (error) {
+        setResendMessage(
+          error.message.toLowerCase().includes('rate')
+            ? 'Please wait before requesting another confirmation email.'
+            : 'Unable to resend the confirmation email. Please try again.',
+        );
+        return;
+      }
+
+      setSecondsRemaining(AUTH_EMAIL_RESEND_COOLDOWN_SECONDS);
+      setResendMessage('A new confirmation email was sent.');
+    } catch {
+      setResendMessage('Unable to connect. Check your internet connection and try again.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const resendTitle =
+    secondsRemaining > 0 ? `Resend in ${secondsRemaining}s` : 'Resend confirmation email';
 
   return (
     <View style={styles.form}>
@@ -128,7 +199,12 @@ function SignInForm() {
         inputMode="email"
         keyboardType="email-address"
         label="Email"
-        onChangeText={setEmail}
+        onChangeText={(value) => {
+          setEmail(value);
+          setNeedsConfirmation(false);
+          setResendMessage(null);
+          setSecondsRemaining(0);
+        }}
         placeholder="you@example.com"
         returnKeyType="next"
         textContentType="emailAddress"
@@ -151,6 +227,20 @@ function SignInForm() {
       />
 
       {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
+
+      {needsConfirmation ? (
+        <View style={styles.confirmationRecovery}>
+          <NoxaButton
+            disabled={isResending || secondsRemaining > 0}
+            fullWidth
+            loading={isResending}
+            onPress={() => void resendConfirmation()}
+            title={resendTitle}
+            variant="secondary"
+          />
+          {resendMessage ? <Text style={styles.resendMessage}>{resendMessage}</Text> : null}
+        </View>
+      ) : null}
 
       <View style={styles.submit}>
         <NoxaButton
@@ -179,6 +269,16 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: '600',
     lineHeight: typography.lineHeight.caption,
+  },
+  confirmationRecovery: {
+    gap: spacing.sm,
+  },
+  resendMessage: {
+    color: colors.textMuted,
+    fontFamily: typography.fontFamily.body,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
+    textAlign: 'center',
   },
   footer: {
     alignItems: 'center',
