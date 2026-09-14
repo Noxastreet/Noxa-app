@@ -1,17 +1,16 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import { NoxaAppleAuthButton } from '@/src/components/auth/NoxaAppleAuthButton';
 import { NoxaGoogleAuthButton } from '@/src/components/auth/NoxaGoogleAuthButton';
-import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 import {
   getSocialAuthErrorMessage,
   signInWithApple,
   signInWithGoogle,
 } from '@/src/lib/socialAuth';
+import { resetToAuthenticatedApp } from '@/src/navigation/authNavigation';
 import { colors, spacing, typography } from '@/src/theme';
 
 type SocialProvider = 'apple' | 'google';
@@ -42,10 +41,6 @@ export function NoxaSocialAuth() {
     };
   }, []);
 
-  const continueAfterAuth = (userId: string) => {
-    router.replace(hasCompletedOnboarding(userId) ? '/(tabs)' : '/onboarding');
-  };
-
   const handleProvider = async (provider: SocialProvider) => {
     if (activeProvider) return;
 
@@ -58,7 +53,7 @@ export function NoxaSocialAuth() {
         : await signInWithApple();
 
       if (result.status === 'success') {
-        continueAfterAuth(result.userId);
+        await resetToAuthenticatedApp(result.userId);
       }
     } catch (error) {
       setErrorMessage(getSocialAuthErrorMessage(provider, error));

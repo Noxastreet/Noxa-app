@@ -5,6 +5,7 @@ import {
   getCatalogVehicleModel,
 } from '@/src/data/vehicleCatalogRegistry';
 import { supabase } from '@/src/lib/supabase';
+import { invalidateData } from '@/src/lib/dataInvalidation';
 
 import { isValidVehiclePickerSelection } from './vehicle-picker/selectors';
 import type { VehiclePickerSelection } from './vehicle-picker/types';
@@ -148,6 +149,7 @@ export async function createVehicleFromPicker({ color, coverAsset, selection }: 
       throw new Error('Vehicle was saved, but its id was not returned.');
     }
 
+    invalidateData('garage', 'profile');
     return vehicle.id as string;
   } catch (error) {
     if (uploadedCover) {

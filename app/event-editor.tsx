@@ -25,6 +25,7 @@ import { MapboxEventLocationPickerCompat } from "@/src/features/mapbox/MapboxEve
 import { NOXA_FALLBACK_COORDINATE } from "@/src/features/mapbox/config";
 import type { LatLng } from "@/src/features/mapbox/types";
 import { supabase } from "@/src/lib/supabase";
+import { useUnsavedChangesGuard } from "@/src/navigation/useUnsavedChangesGuard";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type EventForm = {
@@ -99,6 +100,10 @@ const timeFormatter = new Intl.DateTimeFormat("en-GB", {
   hour12: false,
 });
 
+function snapshotEventForm(form: EventForm) {
+  return JSON.stringify(form);
+}
+
 function isValidDate(value: Date | null) {
   return value instanceof Date && !Number.isNaN(value.getTime());
 }
@@ -172,7 +177,7 @@ export default function EventEditorScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [managedCrews, setManagedCrews] = useState<ManagedCrew[]>([]);
   const [crewLoadError, setCrewLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(Boolean(eventId));
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapModalVisible, setMapModalVisible] = useState(false);
@@ -182,6 +187,13 @@ export default function EventEditorScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
   const [draftDate, setDraftDate] = useState<Date>(futureStart());
+  const [baselineSnapshot, setBaselineSnapshot] = useState<string | null>(null);
+  const hasUnsavedChanges =
+    baselineSnapshot !== null && snapshotEventForm(form) !== baselineSnapshot;
+  const { navigateWithoutPrompt } = useUnsavedChangesGuard({
+    hasUnsavedChanges,
+    isBusy: saving,
+  });
 
   const title = useMemo(
     () => (isEditing ? "EDIT EVENT" : "CREATE EVENT"),
@@ -269,6 +281,12 @@ export default function EventEditorScreen() {
   useEffect(() => {
     void loadEvent();
   }, [loadEvent]);
+
+  useEffect(() => {
+    if (!loading && !error && baselineSnapshot === null) {
+      setBaselineSnapshot(snapshotEventForm(form));
+    }
+  }, [baselineSnapshot, error, form, loading]);
 
   const openPicker = useCallback(
     (target: PickerTarget) => {
@@ -488,12 +506,15 @@ export default function EventEditorScreen() {
       setSaving(false);
       return;
     }
-    router.replace({
-      pathname: "/event-details",
-      params: { id: result.data.id },
-    });
+    const savedEventId = result.data.id;
     setSaving(false);
-  }, [currentUserId, eventId, form, isEditing, saving, validate]);
+    navigateWithoutPrompt(() =>
+      router.replace({
+        pathname: "/event-details",
+        params: { id: savedEventId },
+      }),
+    );
+  }, [currentUserId, eventId, form, isEditing, navigateWithoutPrompt, saving, validate]);
 
   return (
     <NoxaScreen padded={false}>
@@ -985,8 +1006,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -1138,7 +1159,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   categoryOption: {
-    minHeight: 42,
+    minHeight: 44,
     flexBasis: "47%",
     flexGrow: 1,
     flexDirection: "row",

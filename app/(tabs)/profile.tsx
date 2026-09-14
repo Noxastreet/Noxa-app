@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
+import { getDataVersion } from '@/src/lib/dataInvalidation';
 import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
@@ -371,6 +372,8 @@ function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: b
   );
 }
 
+const PROFILE_REFRESH_TTL_MS = 60_000;
+
 function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; onSignOut: () => void }) {
   return (
     <Animated.View style={[styles.section, useEntryAnimation(225)]}>
@@ -410,6 +413,8 @@ export default function ProfileScreen() {
   const [featuredVehicle, setFeaturedVehicle] = useState<ProfileVehicle | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
   const hasLoadedProfileRef = useRef(false);
+  const lastLoadedProfileAtRef = useRef(0);
+  const loadedProfileVersionRef = useRef(-1);
 
   const loadProfile = useCallback(async () => {
     if (!hasLoadedProfileRef.current) setIsProfileLoading(true);
@@ -430,12 +435,26 @@ export default function ProfileScreen() {
       return;
     }
 
-    const [profileResult, followersResult, followingResult, vehiclesResult, postsResult] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, display_name, username, avatar_url, bio, city, country_code')
-        .eq('id', user.id)
-        .single(),
+    const profileResult = await supabase
+      .from('profiles')
+      .select('id, display_name, username, avatar_url, bio, city, country_code')
+      .eq('id', user.id)
+      .single();
+
+    if (profileResult.error) {
+      setProfileError('Unable to load profile.');
+      hasLoadedProfileRef.current = true;
+      setIsProfileLoading(false);
+      return;
+    }
+
+    setProfileData(profileResult.data as CurrentUserProfile);
+    hasLoadedProfileRef.current = true;
+    lastLoadedProfileAtRef.current = Date.now();
+    loadedProfileVersionRef.current = getDataVersion('profile');
+    setIsProfileLoading(false);
+
+    const [followersResult, followingResult, vehiclesResult, postsResult] = await Promise.all([
       supabase
         .from('follows')
         .select('follower_id', { count: 'exact', head: true })
@@ -460,27 +479,31 @@ export default function ProfileScreen() {
         .limit(12),
     ]);
 
-    if (profileResult.error || followersResult.error || followingResult.error || vehiclesResult.error) {
-      setProfileError('Unable to load profile.');
-      hasLoadedProfileRef.current = true;
-      setIsProfileLoading(false);
-      return;
+    if (!followersResult.error) setFollowersCount(followersResult.count ?? 0);
+    if (!followingResult.error) setFollowingCount(followingResult.count ?? 0);
+    if (!vehiclesResult.error) {
+      setVehiclesCount(vehiclesResult.count ?? 0);
+      setFeaturedVehicle((vehiclesResult.data as ProfileVehicle | null) ?? null);
     }
+    if (!postsResult.error) setPosts((postsResult.data ?? []) as ProfilePost[]);
 
-    setProfileData(profileResult.data as CurrentUserProfile);
-    setFollowersCount(followersResult.count ?? 0);
-    setFollowingCount(followingResult.count ?? 0);
-    setVehiclesCount(vehiclesResult.count ?? 0);
-    setFeaturedVehicle((vehiclesResult.data as ProfileVehicle | null) ?? null);
-    setPosts(postsResult.error ? [] : (postsResult.data ?? []) as ProfilePost[]);
-    if (postsResult.error) setProfileError('Profile loaded, but moments are unavailable.');
-    hasLoadedProfileRef.current = true;
-    setIsProfileLoading(false);
+    if (
+      followersResult.error ||
+      followingResult.error ||
+      vehiclesResult.error ||
+      postsResult.error
+    ) {
+      setProfileError('Profile loaded, but some activity is still updating.');
+    }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void loadProfile();
+      const shouldRefresh =
+        !hasLoadedProfileRef.current ||
+        loadedProfileVersionRef.current !== getDataVersion('profile') ||
+        Date.now() - lastLoadedProfileAtRef.current >= PROFILE_REFRESH_TTL_MS;
+      if (shouldRefresh) void loadProfile();
     }, [loadProfile]),
   );
 
@@ -558,8 +581,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -592,7 +615,7 @@ const styles = StyleSheet.create({
   location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   bio: { color: colors.text, fontSize: 13, fontWeight: '600', lineHeight: 20 },
   editButton: {
-    minHeight: 42,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.button,

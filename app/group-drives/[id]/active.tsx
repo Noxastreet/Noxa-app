@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -80,6 +80,8 @@ export default function ActiveDriveScreen() {
   const orderRef = useRef<ParticipantStackOrderState>(emptyParticipantStackOrderState());
   const detailsRef = useRef<GroupDriveDetails | null>(null);
   const locationPromptedRef = useRef(false);
+  const accessVerifiedRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
 
   const [details, setDetails] = useState<GroupDriveDetails | null>(null);
   const [snapshot, setSnapshot] = useState<ActiveDriveRealtimeSnapshot | null>(null);
@@ -122,6 +124,19 @@ export default function ActiveDriveScreen() {
     setOrder(nextOrder);
     setSnapshot(nextSnapshot);
   }, [driveSessionId]);
+
+  const handleAccessRevoked = useCallback(() => {
+    accessVerifiedRef.current = false;
+    detailsRef.current = null;
+    setConnection('closed');
+    setSelectedUserId(null);
+    setDetails(null);
+    setSnapshot(null);
+    setError('Your access to this Active Drive ended.');
+    void stopGroupDriveLocationSession().finally(() => {
+      router.replace('/group-drives');
+    });
+  }, []);
 
   const offerLocationSharing = useCallback(() => {
     if (!driveSessionId || locationPromptedRef.current) return;
@@ -194,6 +209,7 @@ export default function ActiveDriveScreen() {
       loadActiveDriveRealtimeSnapshot(driveSessionId),
     ]).then(([nextDetails, nextSnapshot]) => {
       if (disposed) return;
+      accessVerifiedRef.current = true;
       detailsRef.current = nextDetails;
       setDetails(nextDetails);
       applySnapshot(nextSnapshot);
@@ -203,18 +219,14 @@ export default function ActiveDriveScreen() {
 
       void subscribeToActiveDriveRealtime(driveSessionId, {
         onSnapshot: (liveSnapshot) => {
-          if (!disposed) applySnapshot(liveSnapshot);
+          if (!disposed && accessVerifiedRef.current) applySnapshot(liveSnapshot);
         },
         onConnectionChange: (state) => {
           if (!disposed) setConnection(state);
         },
         onAccessRevoked: () => {
           if (disposed) return;
-          setConnection('closed');
-          setError('Your access to this Active Drive ended.');
-          void stopGroupDriveLocationSession().finally(() => {
-            if (!disposed) router.replace('/group-drives');
-          });
+          handleAccessRevoked();
         },
         onError: (syncError) => {
           if (!disposed) setError(syncError.message);
@@ -233,7 +245,48 @@ export default function ActiveDriveScreen() {
       disposed = true;
       if (teardown) void teardown();
     };
-  }, [applySnapshot, driveSessionId, offerLocationSharing]);
+  }, [applySnapshot, driveSessionId, handleAccessRevoked, offerLocationSharing]);
+
+  useEffect(() => {
+    let disposed = false;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+      const returningToForeground =
+        (previousState === 'background' || previousState === 'inactive')
+        && nextState === 'active';
+
+      if (!returningToForeground || !driveSessionId) return;
+
+      accessVerifiedRef.current = false;
+      setSnapshot(null);
+      setConnection('reconnecting');
+
+      void loadActiveDriveRealtimeSnapshot(driveSessionId)
+        .then((nextSnapshot) => {
+          if (disposed) return;
+          accessVerifiedRef.current = true;
+          applySnapshot(nextSnapshot);
+          setError(null);
+        })
+        .catch((foregroundError) => {
+          if (disposed) return;
+          const message = foregroundError instanceof Error
+            ? foregroundError.message
+            : 'Active Drive state could not be synchronized.';
+          if (/access is no longer available/i.test(message)) {
+            handleAccessRevoked();
+            return;
+          }
+          setError(message);
+        });
+    });
+
+    return () => {
+      disposed = true;
+      subscription.remove();
+    };
+  }, [applySnapshot, driveSessionId, handleAccessRevoked]);
 
   const identities = useMemo(
     () => (details?.participants ?? [])

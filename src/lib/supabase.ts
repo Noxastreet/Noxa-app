@@ -1,5 +1,5 @@
 import 'expo-sqlite/localStorage/install';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 
 import { requireClientEnv } from '@/src/config/env';
 
@@ -17,9 +17,29 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
 let sessionRefreshPromise: ReturnType<typeof supabase.auth.refreshSession> | null =
   null;
 
+let cachedSessionUser: User | null | undefined;
+let sessionUserPromise: Promise<User | null> | null = null;
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  cachedSessionUser = session?.user ?? null;
+});
+
 export async function getCurrentSessionUser() {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user ?? null;
+  if (cachedSessionUser !== undefined) return cachedSessionUser;
+
+  if (!sessionUserPromise) {
+    sessionUserPromise = supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        cachedSessionUser = data.session?.user ?? null;
+        return cachedSessionUser;
+      })
+      .finally(() => {
+        sessionUserPromise = null;
+      });
+  }
+
+  return sessionUserPromise;
 }
 
 export function isJwtValidationError(error: unknown) {

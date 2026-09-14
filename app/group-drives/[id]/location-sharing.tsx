@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
 import { NoxaButton, NoxaEmptyState, NoxaLoadingState } from '@/src/components/ui';
 import {
   acceptGroupDriveLocationDisclosure,
   clearPendingGroupDriveServerAction,
-  getGroupDriveLocationSession,
   getPendingGroupDriveServerAction,
+  reconcileGroupDriveLocationRuntime,
   loadActiveDriveLifecycleSnapshot,
   requestGroupDriveLocationPermissions,
   retryGroupDriveLocationCleanup,
@@ -39,8 +39,19 @@ export default function GroupDriveLocationSharingScreen() {
     try {
       await loadActiveDriveLifecycleSnapshot(driveSessionId);
       setActive(true);
-      const session = getGroupDriveLocationSession();
-      const isSharing = session?.driveSessionId === driveSessionId;
+      const runtime = await reconcileGroupDriveLocationRuntime(driveSessionId);
+      let runtimeError: string | null = null;
+      let runtimeCleanupPending = false;
+
+      if (runtime.reason) {
+        const cleanup = await retryGroupDriveLocationCleanup(driveSessionId);
+        runtimeCleanupPending = !cleanup.serverCleared;
+        runtimeError = runtime.reason === 'permission_revoked'
+          ? 'Group Drive sharing stopped because location permission is no longer granted. Re-enable location permission, then start sharing again.'
+          : 'Group Drive sharing stopped because the background location writer is no longer active. Start sharing again to resume.';
+      }
+
+      const isSharing = runtime.sharing;
       setSharing(isSharing);
 
       const pending = getPendingGroupDriveServerAction(driveSessionId);
@@ -49,9 +60,9 @@ export default function GroupDriveLocationSharingScreen() {
         clearPendingGroupDriveServerAction('clear_location', driveSessionId);
         setCleanupPending(false);
       } else {
-        setCleanupPending(pending?.kind === 'clear_location');
+        setCleanupPending(runtimeCleanupPending || pending?.kind === 'clear_location');
       }
-      setError(null);
+      setError(runtimeError);
     } catch (loadError) {
       setActive(false);
       setError(loadError instanceof Error ? loadError.message : 'This Active Drive is unavailable.');
@@ -62,6 +73,13 @@ export default function GroupDriveLocationSharingScreen() {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') void refresh();
+    });
+    return () => subscription.remove();
   }, [refresh]);
 
   useEffect(() => {

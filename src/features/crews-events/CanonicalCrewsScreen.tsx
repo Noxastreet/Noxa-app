@@ -80,6 +80,9 @@ type Crew = CrewRow & {
   pendingJoinRequestId: string | null;
 };
 
+const CREWS_REFRESH_TTL_MS = 60_000;
+const CREWS_FEED_LIMIT = 40;
+
 function getOwnerName(row: CrewRow) {
   const relation = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   return relation?.display_name || relation?.username || "NOXA driver";
@@ -209,7 +212,7 @@ function HeroCrew({
 
         <View style={styles.heroTopRow}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOUR CREW" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOUR CREW" : "DISCOVER"}
             tone={event ? "accent" : "neutral"}
           />
           <View style={styles.heroMenuButton}>
@@ -280,7 +283,7 @@ function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
         <View style={styles.compactShade} />
         <View style={styles.compactTop}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOURS" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOURS" : "DISCOVER"}
           />
           <Text style={styles.compactMemberCount}>{crew.memberCount}</Text>
         </View>
@@ -557,8 +560,10 @@ export default function CanonicalCrewsScreen() {
   const [createVisible, setCreateVisible] = useState(false);
   const [creating, setCreating] = useState(false);
   const hasLoadedRef = useRef(false);
+  const lastLoadedAtRef = useRef(0);
 
   const load = useCallback(async (showSpinner = true) => {
+    const isInitialLoad = !hasLoadedRef.current;
     if (showSpinner) setLoading(true);
     setError(null);
 
@@ -570,7 +575,8 @@ export default function CanonicalCrewsScreen() {
       .select(
         "id,owner_id,name,description,city,logo_url,cover_image_url,is_public,join_policy,created_at,profiles:owner_id(display_name,username)",
       )
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(CREWS_FEED_LIMIT);
 
     if (crewsResult.error) {
       setError(crewsResult.error.message);
@@ -591,15 +597,17 @@ export default function CanonicalCrewsScreen() {
     } satisfies Crew));
 
     setCrews(baseModels);
+    lastLoadedAtRef.current = Date.now();
     setEvents([]);
     setProfiles([]);
-    setFilter("discover");
+    if (isInitialLoad) setFilter("discover");
     setLoading(false);
     setRefreshing(false);
     hasLoadedRef.current = true;
 
     if (rows.length === 0) return;
 
+    const crewIds = rows.map((row) => row.id);
     const requestsQuery = currentUserId
       ? supabase
           .from("crew_join_requests")
@@ -609,21 +617,20 @@ export default function CanonicalCrewsScreen() {
       : Promise.resolve({ data: [], error: null });
 
     void Promise.all([
-      supabase.from("crew_members").select("crew_id,user_id,role"),
+      supabase
+        .from("crew_members")
+        .select("crew_id,user_id,role")
+        .in("crew_id", crewIds),
       requestsQuery,
       supabase
         .from("events")
         .select("id,crew_id,title,location_name,starts_at,cover_image_url")
-        .not("crew_id", "is", null)
+        .in("crew_id", crewIds)
         .eq("status", "scheduled")
         .gte("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true })
         .limit(8),
-      supabase
-        .from("profiles")
-        .select("id,display_name,username,avatar_url")
-        .limit(8),
-    ]).then(([membersResult, requestsResult, eventsResult, profilesResult]) => {
+    ]).then(async ([membersResult, requestsResult, eventsResult]) => {
       const memberRows = membersResult.error
         ? []
         : ((membersResult.data ?? []) as CrewMemberRow[]);
@@ -657,16 +664,31 @@ export default function CanonicalCrewsScreen() {
 
       setCrews(models);
       if (!eventsResult.error) setEvents((eventsResult.data ?? []) as CrewEvent[]);
-      if (!profilesResult.error) {
-        setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
+
+      const profileIds = Array.from(
+        new Set(memberRows.map((member) => member.user_id)),
+      ).slice(0, 8);
+      if (profileIds.length > 0) {
+        const profilesResult = await supabase
+          .from("profiles")
+          .select("id,display_name,username,avatar_url")
+          .in("id", profileIds);
+        if (!profilesResult.error) {
+          setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
+        }
       }
-      setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
+      if (isInitialLoad) {
+        setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
+      }
     });
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void load(!hasLoadedRef.current);
+      const shouldRefresh =
+        !hasLoadedRef.current ||
+        Date.now() - lastLoadedAtRef.current >= CREWS_REFRESH_TTL_MS;
+      if (shouldRefresh) void load(!hasLoadedRef.current);
     }, [load]),
   );
 
@@ -773,18 +795,12 @@ export default function CanonicalCrewsScreen() {
         return;
       }
 
-      const { error: membershipError } = await supabase
-        .from("crew_members")
-        .insert({ crew_id: data.id, user_id: userId, role: "owner" });
-
-      if (membershipError) {
-        setError(membershipError.message);
-      } else {
-        setCreateVisible(false);
-        setFilter("mine");
-        await load(false);
-        router.push({ pathname: "/crew/[id]", params: { id: data.id } });
-      }
+      // Production Supabase creates the owner membership atomically in the
+      // noxa_insert_crew_owner_membership_trigger attached to public.crews.
+      setCreateVisible(false);
+      setFilter("mine");
+      await load(false);
+      router.push({ pathname: "/crew/[id]", params: { id: data.id } });
       setCreating(false);
     },
     [creating, load, userId],
@@ -800,12 +816,27 @@ export default function CanonicalCrewsScreen() {
       );
     }
 
+    if (error && !hero) {
+      return (
+        <View style={styles.stateCard}>
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.primary} />
+          <Text style={styles.stateTitle}>Crews unavailable</Text>
+          <Text style={styles.stateText}>NOXA could not load Crew discovery.</Text>
+          <CanonicalPrimaryButton
+            label="TRY AGAIN"
+            variant="surface"
+            onPress={() => void load()}
+          />
+        </View>
+      );
+    }
+
     if (!hero) {
       return (
         <View style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
           <Text style={styles.stateTitle}>
-            {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
+            {filter === "mine" ? "No crews yet" : "Nothing to discover yet"}
           </Text>
           <Text style={styles.stateText}>
             {filter === "mine"
@@ -835,7 +866,7 @@ export default function CanonicalCrewsScreen() {
         {secondaryCrews.length ? (
           <>
             <CanonicalSectionHeader
-              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE NEAR YOU"}
+              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE CREWS"}
             />
             <ScrollView
               horizontal
@@ -860,7 +891,7 @@ export default function CanonicalCrewsScreen() {
         <View style={styles.peopleStrip}>
           <View style={styles.peopleCopy}>
             <Text style={styles.peopleEyebrow}>
-              {filter === "mine" ? "YOUR COMMUNITY" : "PEOPLE NEARBY"}
+              {filter === "mine" ? "YOUR COMMUNITY" : "COMMUNITY PICKS"}
             </Text>
             <Text style={styles.peopleText}>
               {filter === "mine"
@@ -879,6 +910,7 @@ export default function CanonicalCrewsScreen() {
     );
   }, [
     busyCrewId,
+    error,
     discovery.length,
     eventForCrew,
     filter,
@@ -991,7 +1023,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.caption,
   },
   createButton: {
-    minHeight: 36,
+    minHeight: 44,
     marginTop: spacing.xxs,
     flexDirection: "row",
     alignItems: "center",
@@ -1019,7 +1051,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   filterButton: {
-    minHeight: 42,
+    minHeight: 44,
     flex: 1,
     flexDirection: "row",
     alignItems: "center",

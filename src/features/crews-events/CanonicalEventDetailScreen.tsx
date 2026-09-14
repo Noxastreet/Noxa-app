@@ -697,6 +697,12 @@ export default function CanonicalEventDetailScreen() {
           <Ionicons name="calendar-outline" size={38} color={colors.primary} />
           <Text style={styles.stateTitle}>Event unavailable</Text>
           <Text style={styles.stateText}>{error || "This event no longer exists."}</Text>
+          {uuidPattern.test(eventId) ? (
+            <NoxaButton
+              title="Retry"
+              onPress={() => void load()}
+            />
+          ) : null}
           <NoxaButton
             title="Go back"
             variant="secondary"

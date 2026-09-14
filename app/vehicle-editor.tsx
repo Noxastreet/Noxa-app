@@ -5,8 +5,10 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
+import { invalidateData } from '@/src/lib/dataInvalidation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { supabase } from '@/src/lib/supabase';
+import { useUnsavedChangesGuard } from '@/src/navigation/useUnsavedChangesGuard';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 const colorsAvailable = [
@@ -410,6 +412,10 @@ function getParamId(id: string | string[] | undefined) {
   return Array.isArray(id) ? id[0] : id;
 }
 
+function snapshotVehicleEditor(form: VehicleForm, vehicleType: VehicleType) {
+  return JSON.stringify({ form, vehicleType });
+}
+
 function FieldError({ children, message }: { children: ReactNode; message?: string }) {
   return (
     <View style={styles.fieldWrap}>
@@ -431,6 +437,16 @@ export default function VehicleEditorScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCoverAsset, setSelectedCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isCoverRemoved, setIsCoverRemoved] = useState(false);
+  const [baselineSnapshot, setBaselineSnapshot] = useState<string | null>(null);
+  const hasUnsavedChanges =
+    baselineSnapshot !== null
+    && (snapshotVehicleEditor(form, vehicleType) !== baselineSnapshot
+      || selectedCoverAsset !== null
+      || isCoverRemoved);
+  const { navigateWithoutPrompt } = useUnsavedChangesGuard({
+    hasUnsavedChanges,
+    isBusy: isSubmitting,
+  });
 
   const setField = (field: keyof VehicleForm, value: string | boolean) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -532,6 +548,7 @@ export default function VehicleEditorScreen() {
     if (!vehicleId) {
       setForm(initialForm);
       setVehicleType('car');
+      setBaselineSnapshot(snapshotVehicleEditor(initialForm, 'car'));
       setLoadError(null);
       setIsLoadingVehicle(false);
       return;
@@ -569,8 +586,11 @@ export default function VehicleEditorScreen() {
     }
 
     const loadedVehicle = vehicle as VehicleRecord;
-    setForm(formFromVehicle(loadedVehicle));
-    setVehicleType(loadedVehicle.vehicle_type === 'motorcycle' ? 'motorcycle' : 'car');
+    const loadedForm = formFromVehicle(loadedVehicle);
+    const loadedVehicleType = loadedVehicle.vehicle_type === 'motorcycle' ? 'motorcycle' : 'car';
+    setForm(loadedForm);
+    setVehicleType(loadedVehicleType);
+    setBaselineSnapshot(snapshotVehicleEditor(loadedForm, loadedVehicleType));
     setSelectedCoverAsset(null);
     setIsCoverRemoved(false);
     setIsLoadingVehicle(false);
@@ -666,8 +686,11 @@ export default function VehicleEditorScreen() {
           await removeOwnedCoverImage(form.coverImageUrl, user.id);
         }
 
+        invalidateData('garage', 'profile');
         setIsSubmitting(false);
-        router.replace({ pathname: '/vehicle-details', params: { id: vehicleId } });
+        navigateWithoutPrompt(() =>
+          router.replace({ pathname: '/vehicle-details', params: { id: vehicleId } }),
+        );
         return;
       }
 
@@ -690,10 +713,11 @@ export default function VehicleEditorScreen() {
         return;
       }
 
+      invalidateData('garage', 'profile');
       setIsSubmitting(false);
 
       if (vehicle?.id) {
-        router.back();
+        navigateWithoutPrompt(() => router.back());
       }
     } catch (error) {
       setIsSubmitting(false);
@@ -836,8 +860,8 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -960,7 +984,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   coverActionButton: {
-    minHeight: 42,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

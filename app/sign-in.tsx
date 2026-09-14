@@ -104,7 +104,7 @@ function SignInForm() {
       }
 
       if (data.session) {
-        resetToAuthenticatedApp(data.session.user.id);
+        await resetToAuthenticatedApp(data.session.user.id);
       }
     } catch (error) {
       setErrors({

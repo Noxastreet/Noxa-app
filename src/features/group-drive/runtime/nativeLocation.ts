@@ -184,6 +184,42 @@ export function getGroupDriveLocationSession() {
   return session;
 }
 
+export type GroupDriveLocationRuntimeReconcileResult = {
+  sharing: boolean;
+  reason: 'permission_revoked' | 'writer_stopped' | null;
+  session: GroupDriveLocationSession | null;
+};
+
+export async function reconcileGroupDriveLocationRuntime(
+  driveSessionId: string,
+): Promise<GroupDriveLocationRuntimeReconcileResult> {
+  const session = getGroupDriveLocationSession();
+  if (!session || session.driveSessionId !== driveSessionId) {
+    return { sharing: false, reason: null, session: null };
+  }
+
+  const [foreground, background, taskStarted] = await Promise.all([
+    Location.getForegroundPermissionsAsync(),
+    Location.getBackgroundPermissionsAsync(),
+    Location.hasStartedLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME),
+  ]);
+  const permissionsGranted =
+    foreground.status === Location.PermissionStatus.GRANTED
+    && background.status === Location.PermissionStatus.GRANTED;
+
+  if (permissionsGranted && taskStarted) {
+    return { sharing: true, reason: null, session };
+  }
+
+  // Fail closed when OS permission or the native writer changed while NOXA was backgrounded.
+  await clearLocalRuntime();
+  return {
+    sharing: false,
+    reason: permissionsGranted ? 'writer_stopped' : 'permission_revoked',
+    session,
+  };
+}
+
 export async function requestGroupDriveLocationPermissions() {
   if (!(await TaskManager.isAvailableAsync())) {
     throw new Error('Group Drive background location requires a development or store build.');
