@@ -81,6 +81,9 @@ jobs:
       - name: Editor save navigation contract
         run: node ./scripts/verify-editor-save-navigation.mjs
 
+      - name: Social list stale-response contract
+        run: node ./scripts/verify-social-list-race.mjs
+
       - name: Group Drive invitation push contract
         run: node ./scripts/verify-group-drive-invitation-push.mjs
 
