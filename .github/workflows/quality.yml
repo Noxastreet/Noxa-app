@@ -51,6 +51,9 @@ jobs:
       - name: Live Drive initial-presence contract
         run: node ./scripts/verify-live-drive-presence.mjs
 
+      - name: Map location revocation contract
+        run: node ./scripts/verify-map-location-revocation.mjs
+
       - name: Home / Map progressive disclosure contract
         run: npm run verify:home-map-disclosure
 
