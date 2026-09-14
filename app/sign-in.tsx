@@ -18,18 +18,27 @@ type SignInErrors = {
   form?: string;
 };
 
+type SignInAuthError = {
+  code?: string;
+  message?: string;
+};
+
 const emailPattern = /^\S+@\S+\.\S+$/;
 
-function getSignInErrorMessage(message?: string) {
-  if (message === 'Invalid login credentials') {
+function isEmailNotConfirmedError(error?: SignInAuthError | null) {
+  return error?.code === 'email_not_confirmed' || error?.message === 'Email not confirmed';
+}
+
+function getSignInErrorMessage(error?: SignInAuthError | null) {
+  if (error?.code === 'invalid_credentials' || error?.message === 'Invalid login credentials') {
     return 'Incorrect email or password.';
   }
 
-  if (message === 'Email not confirmed') {
+  if (isEmailNotConfirmedError(error)) {
     return 'Confirm your email before signing in.';
   }
 
-  if (message === 'Network request failed') {
+  if (error?.message === 'Network request failed') {
     return 'Unable to connect. Check your internet connection.';
   }
 
@@ -119,8 +128,8 @@ function SignInForm() {
       });
 
       if (error) {
-        setNeedsConfirmation(error.message === 'Email not confirmed');
-        setErrors({ form: getSignInErrorMessage(error.message) });
+        setNeedsConfirmation(isEmailNotConfirmedError(error));
+        setErrors({ form: getSignInErrorMessage(error) });
         return;
       }
 
@@ -129,10 +138,9 @@ function SignInForm() {
       }
     } catch (error) {
       setErrors({
-        form:
-          error instanceof Error
-            ? getSignInErrorMessage(error.message)
-            : 'Unable to sign in. Please try again.',
+        form: getSignInErrorMessage(
+          error instanceof Error ? { message: error.message } : null,
+        ),
       });
     } finally {
       setIsLoading(false);
@@ -195,6 +203,7 @@ function SignInForm() {
           setEmail(value);
           setNeedsConfirmation(false);
           setResendMessage(null);
+          setSecondsRemaining(0);
         }}
         placeholder="you@example.com"
         returnKeyType="next"
