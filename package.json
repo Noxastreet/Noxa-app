@@ -24,6 +24,7 @@
     "verify:auth-flow": "node ./scripts/verify-auth-flow.mjs",
     "verify:mvp-completion": "node ./scripts/verify-mvp-completion.mjs",
     "verify:interactions": "node ./scripts/verify-interactions.mjs",
+    "verify:supabase-migrations": "node ./scripts/verify-supabase-migrations.mjs",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
