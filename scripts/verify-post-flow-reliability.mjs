@@ -11,6 +11,8 @@ const editor = fs.readFileSync('app/post-editor.tsx', 'utf8');
 const details = fs.readFileSync('app/post-details.tsx', 'utf8');
 const errorBlock =
   details.match(/\{error \? \(\s*<View style=\{styles\.errorCard\}>[\s\S]*?<\/View>\s*\) : null\}/)?.[0] ?? '';
+const submitCommentBlock =
+  details.match(/const submitComment = useCallback\([\s\S]*?const confirmDeleteComment = useCallback/)?.[0] ?? '';
 
 assert(
   /useNavigation/.test(editor) && /navigation\.addListener\("beforeRemove"/.test(editor),
@@ -39,6 +41,30 @@ assert(
 assert(
   !/\{post \? \(/.test(errorBlock),
   'Retry must not be gated on an already-loaded post.',
+);
+assert(
+  /async function loadCommentViewModels\(/.test(details) && /\.from\("post_comments"\)/.test(details),
+  'Comment refresh must have a dedicated comments-only loader.',
+);
+assert(
+  /loadCommentViewModels\(loadedPost\.id, userId\)/.test(details),
+  'Initial post loading must reuse the comments-only loader.',
+);
+assert(
+  Boolean(submitCommentBlock) && /loadCommentViewModels\(post\.id, currentUserId\)/.test(submitCommentBlock),
+  'Comment submission must refresh only the comment graph.',
+);
+assert(
+  Boolean(submitCommentBlock) && !/loadPost\(false\)/.test(submitCommentBlock),
+  'Comment submission must not refetch Like/Save/post state and overwrite concurrent actions.',
+);
+assert(
+  /if \(!currentUserId \|\| commentActionId \|\| submittingComment\) return;/.test(details),
+  'Comment likes must be blocked while the post-submit comment refresh is in flight.',
+);
+assert(
+  /disabled=\{busy \|\| disabled\}/.test(details),
+  'Comment interaction controls must stay disabled during the post-submit comment refresh.',
 );
 
 if (!process.exitCode) {
