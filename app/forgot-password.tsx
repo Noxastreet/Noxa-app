@@ -64,7 +64,7 @@ export default function ForgotPasswordScreen() {
         setFormError(
           error.message.toLowerCase().includes('rate')
             ? 'Please wait before requesting another reset email.'
-            : 'Unable to send the reset email. Please try again.',
+            : 'Unable to request the reset email. Please try again.',
         );
         return;
       }
@@ -72,7 +72,9 @@ export default function ForgotPasswordScreen() {
       setSentTo(normalizedEmail);
       setSecondsRemaining(AUTH_EMAIL_RESEND_COOLDOWN_SECONDS);
       if (targetEmail) {
-        setStatusMessage('A new password reset email was sent.');
+        setStatusMessage(
+          'If a NOXA account exists for this email, a new reset message has been requested.',
+        );
       }
     } catch {
       setFormError('Unable to connect. Check your internet connection and try again.');
@@ -89,8 +91,8 @@ export default function ForgotPasswordScreen() {
       onBack={backToSignIn}
       subtitle={
         sentTo
-          ? `We sent a reset link to ${sentTo}. Check your spam folder if you do not see it.`
-          : "Enter the email address linked to your NOXA account. We'll send you a reset link."
+          ? `If a NOXA account exists for ${sentTo}, a reset link will arrive there. Check spam if you do not see it.`
+          : "Enter the email address linked to your NOXA account. We'll request a reset link."
       }
       title={sentTo ? 'Check your inbox.' : 'Reset password.'}>
       {sentTo ? (
