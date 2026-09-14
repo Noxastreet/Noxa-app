@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
@@ -249,9 +250,14 @@ function getSaveErrorMessage(error: { message?: string } | unknown) {
   return message || 'Unable to save vehicle. Please try again.';
 }
 
-function BackButton() {
+function BackButton({ disabled }: { disabled: boolean }) {
   return (
-    <Pressable accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityLabel="Go back"
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={() => router.back()}
+      style={({ pressed }) => [styles.backButton, disabled && styles.disabled, pressed && !disabled && styles.pressed]}>
       <Ionicons name="chevron-back" size={22} color={colors.text} />
     </Pressable>
   );
@@ -420,6 +426,9 @@ function FieldError({ children, message }: { children: ReactNode; message?: stri
 }
 
 export default function VehicleEditorScreen() {
+  const navigation = useNavigation();
+  const submittingRef = useRef(false);
+  const allowNavigationRef = useRef(false);
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const vehicleId = getParamId(id);
   const isEditMode = Boolean(vehicleId);
@@ -431,6 +440,15 @@ export default function VehicleEditorScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCoverAsset, setSelectedCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isCoverRemoved, setIsCoverRemoved] = useState(false);
+
+  useEffect(
+    () =>
+      navigation.addListener('beforeRemove', (event) => {
+        if (!submittingRef.current || allowNavigationRef.current) return;
+        event.preventDefault();
+      }),
+    [navigation],
+  );
 
   const setField = (field: keyof VehicleForm, value: string | boolean) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -593,6 +611,8 @@ export default function VehicleEditorScreen() {
       return;
     }
 
+    submittingRef.current = true;
+    allowNavigationRef.current = false;
     setIsSubmitting(true);
 
     try {
@@ -600,6 +620,7 @@ export default function VehicleEditorScreen() {
 
       if (error) {
         setErrors({ form: getSaveErrorMessage(error) });
+        submittingRef.current = false;
         setIsSubmitting(false);
         return;
       }
@@ -608,6 +629,7 @@ export default function VehicleEditorScreen() {
 
       if (!user) {
         setErrors({ form: 'Sign in to save your vehicle.' });
+        submittingRef.current = false;
         setIsSubmitting(false);
         return;
       }
@@ -647,6 +669,7 @@ export default function VehicleEditorScreen() {
             await supabase.storage.from(vehicleImagesBucket).remove([uploadedCoverImage.path]);
           }
 
+          submittingRef.current = false;
           setIsSubmitting(false);
           setErrors({ form: getSaveErrorMessage(updateError) });
           return;
@@ -657,6 +680,7 @@ export default function VehicleEditorScreen() {
             await supabase.storage.from(vehicleImagesBucket).remove([uploadedCoverImage.path]);
           }
 
+          submittingRef.current = false;
           setIsSubmitting(false);
           setErrors({ form: 'Vehicle not found or you do not have permission to edit it.' });
           return;
@@ -666,6 +690,8 @@ export default function VehicleEditorScreen() {
           await removeOwnedCoverImage(form.coverImageUrl, user.id);
         }
 
+        allowNavigationRef.current = true;
+        submittingRef.current = false;
         setIsSubmitting(false);
         router.replace({ pathname: '/vehicle-details', params: { id: vehicleId } });
         return;
@@ -685,17 +711,24 @@ export default function VehicleEditorScreen() {
           await supabase.storage.from(vehicleImagesBucket).remove([uploadedCoverImage.path]);
         }
 
+        submittingRef.current = false;
         setIsSubmitting(false);
         setErrors({ form: getSaveErrorMessage(insertError) });
         return;
       }
 
-      setIsSubmitting(false);
-
       if (vehicle?.id) {
+        allowNavigationRef.current = true;
+        submittingRef.current = false;
+        setIsSubmitting(false);
         router.back();
+        return;
       }
+
+      submittingRef.current = false;
+      setIsSubmitting(false);
     } catch (error) {
+      submittingRef.current = false;
       setIsSubmitting(false);
       setErrors({ form: getSaveErrorMessage(error) });
     }
@@ -728,7 +761,7 @@ export default function VehicleEditorScreen() {
     <NoxaScreen padded={false}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoiding}>
         <View style={styles.editorHeader}>
-          <BackButton />
+          <BackButton disabled={isSubmitting} />
           <Text style={styles.headerTitle}>{isEditMode ? 'EDIT VEHICLE' : 'ADD VEHICLE'}</Text>
           <View style={styles.headerSpacer} />
         </View>

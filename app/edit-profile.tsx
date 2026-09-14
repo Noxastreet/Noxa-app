@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -166,6 +167,9 @@ function Section({ eyebrow, title, children }: { eyebrow: string; title: string;
 }
 
 export default function EditProfileScreen() {
+  const navigation = useNavigation();
+  const submittingRef = useRef(false);
+  const allowNavigationRef = useRef(false);
   const [form, setForm] = useState<ProfileForm>(initialForm);
   const [errors, setErrors] = useState<ProfileErrors>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -173,6 +177,15 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<SelectedAvatar | null>(null);
   const [shouldRemoveAvatar, setShouldRemoveAvatar] = useState(false);
+
+  useEffect(
+    () =>
+      navigation.addListener("beforeRemove", (event) => {
+        if (!submittingRef.current || allowNavigationRef.current) return;
+        event.preventDefault();
+      }),
+    [navigation],
+  );
 
   const setField = (field: keyof Omit<ProfileForm, "countryCode">, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -317,6 +330,8 @@ export default function EditProfileScreen() {
       return;
     }
 
+    submittingRef.current = true;
+    allowNavigationRef.current = false;
     setIsSubmitting(true);
     setErrors({});
 
@@ -326,6 +341,7 @@ export default function EditProfileScreen() {
 
       if (!user) {
         setErrors({ form: "Sign in to save your profile." });
+        submittingRef.current = false;
         setIsSubmitting(false);
         return;
       }
@@ -358,6 +374,7 @@ export default function EditProfileScreen() {
       if (error) {
         if (uploadedPath) await supabase.storage.from(avatarBucket).remove([uploadedPath]);
         setErrors({ form: error instanceof Error && error.message.includes("5 MB") ? error.message : mapSaveError(error) });
+        submittingRef.current = false;
         setIsSubmitting(false);
         return;
       }
@@ -367,9 +384,12 @@ export default function EditProfileScreen() {
         await supabase.storage.from(avatarBucket).remove([previousAvatarPath]);
       }
 
+      allowNavigationRef.current = true;
+      submittingRef.current = false;
       setIsSubmitting(false);
       router.back();
     } catch (error) {
+      submittingRef.current = false;
       setIsSubmitting(false);
       setErrors({ form: error instanceof Error && error.message.includes("5 MB") ? error.message : mapSaveError(error) });
     }
@@ -385,7 +405,12 @@ export default function EditProfileScreen() {
             title="EDIT PROFILE"
             subtitle="Identity only · privacy stays in Settings"
             left={
-              <Pressable accessibilityLabel="Back to profile" accessibilityRole="button" onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+              <Pressable
+                accessibilityLabel="Back to profile"
+                accessibilityRole="button"
+                disabled={isSubmitting}
+                onPress={() => router.back()}
+                style={({ pressed }) => [styles.iconButton, isSubmitting && styles.disabledAction, pressed && !isSubmitting && styles.pressed]}>
                 <Ionicons name="chevron-back" size={22} color={colors.text} />
               </Pressable>
             }
@@ -495,7 +520,11 @@ export default function EditProfileScreen() {
             </Section>
 
             <Section eyebrow="PRIVACY" title="Visibility & account settings">
-              <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={({ pressed }) => [styles.settingsRow, pressed && styles.pressed]}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSubmitting}
+                onPress={() => router.push('/settings')}
+                style={({ pressed }) => [styles.settingsRow, isSubmitting && styles.disabledAction, pressed && !isSubmitting && styles.pressed]}>
                 <View style={styles.settingsIcon}><Ionicons name="shield-checkmark-outline" size={20} color={colors.text} /></View>
                 <View style={styles.settingsCopy}>
                   <Text style={styles.settingsTitle}>Open Settings</Text>
