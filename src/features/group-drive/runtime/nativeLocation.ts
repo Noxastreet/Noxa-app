@@ -10,6 +10,7 @@ export const GROUP_DRIVE_LOCATION_TASK_NAME = 'noxa-group-drive-location-v1';
 const GROUP_DRIVE_LOCATION_SESSION_KEY = 'noxa.group-drive-location-session.v1';
 const GROUP_DRIVE_CONSENT_SCOPE = 'group-drive-precise-location-v1' as const;
 const CONSENT_MAX_AGE_MS = 10 * 60 * 1000;
+const PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000;
 
 type GroupDriveTaskData = {
   locations?: Location.LocationObject[];
@@ -65,6 +66,23 @@ function finiteOrNull(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function hasPreciseForegroundPermission(
+  permission: Location.LocationPermissionResponse,
+) {
+  if (permission.status !== Location.PermissionStatus.GRANTED) return false;
+  const androidAccuracy = permission.android?.accuracy;
+  return androidAccuracy !== 'coarse' && androidAccuracy !== 'none';
+}
+
+function hasPreciseLocationSample(coords: Location.LocationObjectCoords) {
+  const accuracy = finiteOrNull(coords.accuracy);
+  return (
+    accuracy !== null
+    && accuracy >= 0
+    && accuracy < PRECISE_LOCATION_MAX_ACCURACY_METERS
+  );
+}
+
 function validConsent(consent: GroupDriveLocationConsent) {
   const acceptedAt = Date.parse(consent.acceptedAt);
   return (
@@ -92,6 +110,17 @@ async function clearLocalRuntime() {
   await stopNativeLocationUpdates().catch(() => undefined);
 }
 
+async function clearRemoteLocationAndRuntime(
+  session: GroupDriveLocationSession,
+) {
+  const { data, error } = await supabase.rpc('noxa_clear_my_drive_location', {
+    target_drive_session_id: session.driveSessionId,
+  });
+  if (error || data !== true) return false;
+  await clearLocalRuntime();
+  return true;
+}
+
 async function publishLocation(
   session: GroupDriveLocationSession,
   location: Location.LocationObject,
@@ -100,6 +129,8 @@ async function publishLocation(
     await clearLocalRuntime();
     return 'revoked';
   }
+
+  if (!hasPreciseLocationSample(location.coords)) return 'retry';
 
   const { data: authData, error: authError } = await supabase.auth.getSession();
   if (authError) return 'retry';
@@ -156,6 +187,22 @@ if (!TaskManager.isTaskDefined(GROUP_DRIVE_LOCATION_TASK_NAME)) {
 
       const latestLocation = data?.locations?.at(-1);
       if (!latestLocation) return;
+
+      const foreground = await Location.getForegroundPermissionsAsync().catch(
+        () => null,
+      );
+      if (
+        !foreground
+        || !hasPreciseForegroundPermission(foreground)
+        || !hasPreciseLocationSample(latestLocation.coords)
+      ) {
+        // Do not publish an approximate coordinate. Clear the previous exact
+        // server row first; if the network is unavailable, keep the task alive
+        // so the next callback can retry the privacy cleanup.
+        await clearRemoteLocationAndRuntime(session).catch(() => false);
+        return;
+      }
+
       await publishLocation(session, latestLocation);
     },
   );
@@ -193,8 +240,17 @@ export async function requestGroupDriveLocationPermissions() {
   }
 
   const foreground = await Location.requestForegroundPermissionsAsync();
-  if (foreground.status !== Location.PermissionStatus.GRANTED) {
-    throw new Error('Allow precise location while using NOXA to share your position in this Group Drive.');
+  if (!hasPreciseForegroundPermission(foreground)) {
+    throw new Error('Precise location is required for Group Drive. Enable precise location in system settings.');
+  }
+
+  // Expo 54 cannot expose iOS accuracyAuthorization. Fail closed using the
+  // delivered uncertainty radius before background sharing is requested.
+  const current = await Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.High,
+  });
+  if (!hasPreciseLocationSample(current.coords)) {
+    throw new Error('Precise location is unavailable. Enable Precise Location and retry where GPS has a clear signal.');
   }
 
   const background = await Location.requestBackgroundPermissionsAsync();
@@ -209,10 +265,10 @@ async function assertPermissionsAlreadyGranted() {
     Location.getBackgroundPermissionsAsync(),
   ]);
   if (
-    foreground.status !== Location.PermissionStatus.GRANTED
+    !hasPreciseForegroundPermission(foreground)
     || background.status !== Location.PermissionStatus.GRANTED
   ) {
-    throw new Error('Location permission is not granted for this Group Drive.');
+    throw new Error('Precise location permission is not granted for this Group Drive.');
   }
 }
 
@@ -237,12 +293,25 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
     activeExpiresAt: snapshot.activeExpiresAt,
     consentedAt: consent.acceptedAt,
   };
-  storeSession(session);
 
   try {
+    const current = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    if (!hasPreciseLocationSample(current.coords)) {
+      throw new Error('Group Drive needs a precise GPS fix before location sharing can start.');
+    }
+
+    storeSession(session);
     if (await Location.hasStartedLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME)) {
       await Location.stopLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME);
     }
+
+    const initialPublish = await publishLocation(session, current);
+    if (initialPublish === 'revoked') {
+      throw new Error('Group Drive location access is no longer available.');
+    }
+
     await Location.startLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME, {
       accuracy: Location.Accuracy.High,
       timeInterval: 10_000,
@@ -259,12 +328,6 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
         killServiceOnDestroy: true,
       },
     });
-
-    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-    const initialPublish = await publishLocation(session, current);
-    if (initialPublish === 'revoked') {
-      throw new Error('Group Drive location access is no longer available.');
-    }
     return session;
   } catch (error) {
     await clearLocalRuntime();
