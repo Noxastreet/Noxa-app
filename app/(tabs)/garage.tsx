@@ -59,6 +59,8 @@ const vehicleSelect = `
   updated_at
 `;
 
+const GARAGE_REFRESH_TTL_MS = 60_000;
+
 function vehicleMeta(vehicle: GarageVehicle) {
   const items = [
     vehicle.color?.trim() || null,
@@ -223,6 +225,7 @@ export default function GarageScreen() {
   const [hasVehicleError, setHasVehicleError] = useState(false);
   const [primaryBusyId, setPrimaryBusyId] = useState<string | null>(null);
   const hasLoadedVehiclesRef = useRef(false);
+  const lastLoadedVehiclesAtRef = useRef(0);
 
   const loadVehicles = useCallback(async () => {
     setIsLoadingVehicles(!hasLoadedVehiclesRef.current);
@@ -249,6 +252,7 @@ export default function GarageScreen() {
       setHasVehicleError(true);
     } else {
       setVehicles((data ?? []) as GarageVehicle[]);
+      lastLoadedVehiclesAtRef.current = Date.now();
     }
 
     hasLoadedVehiclesRef.current = true;
@@ -257,7 +261,10 @@ export default function GarageScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadVehicles();
+      const shouldRefresh =
+        !hasLoadedVehiclesRef.current ||
+        Date.now() - lastLoadedVehiclesAtRef.current >= GARAGE_REFRESH_TTL_MS;
+      if (shouldRefresh) void loadVehicles();
     }, [loadVehicles]),
   );
 

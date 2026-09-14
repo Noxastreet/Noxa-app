@@ -33,6 +33,7 @@ import {
 } from "@/src/lib/liveDrive";
 import { getEventLifecycle, type EventCategory } from "@/src/lib/eventExperience";
 import {
+  getCurrentSessionUser,
   isJwtValidationError,
   refreshSupabaseSessionOnce,
   supabase,
@@ -96,6 +97,7 @@ const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
 const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
 const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
 const DRIVER_LIST_REFRESH_MS = 30 * 1000;
+const MAP_EVENTS_REFRESH_TTL_MS = 60_000;
 const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
 const NEARBY_RADIUS_METERS = 25_000;
 const uuidPattern =
@@ -467,6 +469,7 @@ export default function LiveMapScreen() {
   const routeAbortControllerRef = useRef<AbortController | null>(null);
   const driverLocationRef = useRef<LatLng | null>(null);
   const eventsRef = useRef<EventMarkerRow[]>([]);
+  const lastEventsLoadedAtRef = useRef(0);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
@@ -570,6 +573,33 @@ export default function LiveMapScreen() {
           return null;
         }
         if (isMountedRef.current) setPermissionDenied(false);
+        if (!requestPermission) {
+          const lastKnown = await Location.getLastKnownPositionAsync({
+            maxAge: 60_000,
+            requiredAccuracy: 2_000,
+          });
+          if (lastKnown) {
+            const cachedPoint = {
+              latitude: lastKnown.coords.latitude,
+              longitude: lastKnown.coords.longitude,
+            };
+            if (isMountedRef.current) setDriverLocation(cachedPoint);
+
+            void Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            })
+              .then((freshPosition) => {
+                if (!isMountedRef.current) return;
+                setDriverLocation({
+                  latitude: freshPosition.coords.latitude,
+                  longitude: freshPosition.coords.longitude,
+                });
+              })
+              .catch(() => undefined);
+            return cachedPoint;
+          }
+        }
+
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
@@ -692,8 +722,7 @@ export default function LiveMapScreen() {
     async (mode: LiveDriveVisibilityMode) => {
       setSharingError(null);
       setIsStartingLiveDrive(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user.id;
+      const userId = (await getCurrentSessionUser())?.id;
       if (!userId) {
         visibilityModeRef.current = "ghost";
         setSharingError("Sign in to become visible on the map.");
@@ -917,7 +946,9 @@ export default function LiveMapScreen() {
   }, []);
 
   const loadEvents = useCallback(async () => {
-    if (isMountedRef.current) setEventsRequestState("loading");
+    if (isMountedRef.current && eventsRef.current.length === 0) {
+      setEventsRequestState("loading");
+    }
     try {
       const now = new Date();
       const feedFloor = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -969,6 +1000,7 @@ export default function LiveMapScreen() {
         });
 
       eventsRef.current = rows;
+      lastEventsLoadedAtRef.current = Date.now();
       if (isMountedRef.current) {
         setEvents(rows);
         setEventsRequestState("ready");
@@ -989,24 +1021,12 @@ export default function LiveMapScreen() {
     activeDriversRefreshInFlightRef.current = true;
     const requestId = activeDriversRequestIdRef.current + 1;
     activeDriversRequestIdRef.current = requestId;
-    if (isMountedRef.current) setActiveDriversRequestState("loading");
+    if (isMountedRef.current && activeDriversRef.current.length === 0) {
+      setActiveDriversRequestState("loading");
+    }
 
     try {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
-
-      if (sessionError) {
-        logMapDataFailure("drivers", sessionError);
-        if (
-          isMountedRef.current &&
-          activeDriversRequestIdRef.current === requestId
-        ) {
-          setActiveDriversRequestState("error");
-        }
-        return;
-      }
-
-      const userId = sessionData.session?.user.id;
+      const userId = (await getCurrentSessionUser())?.id;
       currentUserIdRef.current = userId ?? null;
       if (!userId) {
         if (
@@ -1134,7 +1154,6 @@ export default function LiveMapScreen() {
     useCallback(() => {
       let isActive = true;
       mapFocusedRef.current = true;
-      void refreshActiveDrivers();
 
       const refreshInterval = setInterval(() => {
         if (isActive && isAppForegroundRef.current) void refreshActiveDrivers();
@@ -1225,6 +1244,7 @@ export default function LiveMapScreen() {
           setSharingError(
             (current) => current ?? "Live driver updates are reconnecting.",
           );
+          void refreshActiveDrivers();
         }
       });
 
@@ -1262,9 +1282,13 @@ export default function LiveMapScreen() {
     useCallback(() => {
       let isActive = true;
       void (async () => {
+        const shouldRefreshEvents =
+          Boolean(focusEventId) ||
+          eventsRef.current.length === 0 ||
+          Date.now() - lastEventsLoadedAtRef.current >= MAP_EVENTS_REFRESH_TTL_MS;
         const [point, rows] = await Promise.all([
           loadDriverLocation({ requestPermission: false }),
-          loadEvents(),
+          shouldRefreshEvents ? loadEvents() : Promise.resolve(eventsRef.current),
         ]);
         if (!isActive) return;
         const focused = focusEventId

@@ -80,6 +80,9 @@ type Crew = CrewRow & {
   pendingJoinRequestId: string | null;
 };
 
+const CREWS_REFRESH_TTL_MS = 60_000;
+const CREWS_FEED_LIMIT = 40;
+
 function getOwnerName(row: CrewRow) {
   const relation = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
   return relation?.display_name || relation?.username || "NOXA driver";
@@ -557,6 +560,7 @@ export default function CanonicalCrewsScreen() {
   const [createVisible, setCreateVisible] = useState(false);
   const [creating, setCreating] = useState(false);
   const hasLoadedRef = useRef(false);
+  const lastLoadedAtRef = useRef(0);
 
   const load = useCallback(async (showSpinner = true) => {
     const isInitialLoad = !hasLoadedRef.current;
@@ -571,7 +575,8 @@ export default function CanonicalCrewsScreen() {
       .select(
         "id,owner_id,name,description,city,logo_url,cover_image_url,is_public,join_policy,created_at,profiles:owner_id(display_name,username)",
       )
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(CREWS_FEED_LIMIT);
 
     if (crewsResult.error) {
       setError(crewsResult.error.message);
@@ -592,6 +597,7 @@ export default function CanonicalCrewsScreen() {
     } satisfies Crew));
 
     setCrews(baseModels);
+    lastLoadedAtRef.current = Date.now();
     setEvents([]);
     setProfiles([]);
     if (isInitialLoad) setFilter("discover");
@@ -601,6 +607,7 @@ export default function CanonicalCrewsScreen() {
 
     if (rows.length === 0) return;
 
+    const crewIds = rows.map((row) => row.id);
     const requestsQuery = currentUserId
       ? supabase
           .from("crew_join_requests")
@@ -610,21 +617,20 @@ export default function CanonicalCrewsScreen() {
       : Promise.resolve({ data: [], error: null });
 
     void Promise.all([
-      supabase.from("crew_members").select("crew_id,user_id,role"),
+      supabase
+        .from("crew_members")
+        .select("crew_id,user_id,role")
+        .in("crew_id", crewIds),
       requestsQuery,
       supabase
         .from("events")
         .select("id,crew_id,title,location_name,starts_at,cover_image_url")
-        .not("crew_id", "is", null)
+        .in("crew_id", crewIds)
         .eq("status", "scheduled")
         .gte("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true })
         .limit(8),
-      supabase
-        .from("profiles")
-        .select("id,display_name,username,avatar_url")
-        .limit(8),
-    ]).then(([membersResult, requestsResult, eventsResult, profilesResult]) => {
+    ]).then(async ([membersResult, requestsResult, eventsResult]) => {
       const memberRows = membersResult.error
         ? []
         : ((membersResult.data ?? []) as CrewMemberRow[]);
@@ -658,8 +664,18 @@ export default function CanonicalCrewsScreen() {
 
       setCrews(models);
       if (!eventsResult.error) setEvents((eventsResult.data ?? []) as CrewEvent[]);
-      if (!profilesResult.error) {
-        setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
+
+      const profileIds = Array.from(
+        new Set(memberRows.map((member) => member.user_id)),
+      ).slice(0, 8);
+      if (profileIds.length > 0) {
+        const profilesResult = await supabase
+          .from("profiles")
+          .select("id,display_name,username,avatar_url")
+          .in("id", profileIds);
+        if (!profilesResult.error) {
+          setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
+        }
       }
       if (isInitialLoad) {
         setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
@@ -669,7 +685,10 @@ export default function CanonicalCrewsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void load(!hasLoadedRef.current);
+      const shouldRefresh =
+        !hasLoadedRef.current ||
+        Date.now() - lastLoadedAtRef.current >= CREWS_REFRESH_TTL_MS;
+      if (shouldRefresh) void load(!hasLoadedRef.current);
     }, [load]),
   );
 

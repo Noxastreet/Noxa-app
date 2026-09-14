@@ -53,6 +53,9 @@ type EventCardModel = EventRow & {
   myResponse: "going" | "maybe" | null;
 };
 
+const EVENTS_REFRESH_TTL_MS = 60_000;
+const EVENTS_FEED_LIMIT = 40;
+
 function formatDay(value: string) {
   return new Intl.DateTimeFormat(undefined, { day: "2-digit" }).format(
     new Date(value),
@@ -256,6 +259,7 @@ export default function CanonicalEventsScreen() {
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
+  const lastLoadedAtRef = useRef(0);
 
   const loadHeroProfiles = useCallback(async (eventId: string) => {
     const { data: attendanceData, error: attendanceError } = await supabase
@@ -312,7 +316,8 @@ export default function CanonicalEventsScreen() {
         )
         .eq("status", "scheduled")
         .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
-        .order("starts_at", { ascending: true });
+        .order("starts_at", { ascending: true })
+        .limit(EVENTS_FEED_LIMIT);
 
       if (eventsResult.error) {
         setError(eventsResult.error.message || "Events could not be loaded.");
@@ -334,6 +339,7 @@ export default function CanonicalEventsScreen() {
         }));
 
       setEvents(baseModels);
+      lastLoadedAtRef.current = Date.now();
       setLoading(false);
       setRefreshing(false);
       hasLoadedRef.current = true;
@@ -341,38 +347,45 @@ export default function CanonicalEventsScreen() {
       if (baseModels[0]) void loadHeroProfiles(baseModels[0].id);
       else setHeroAttendees([]);
 
-      void supabase
-        .from("event_attendees")
-        .select("event_id,user_id,response,joined_at")
-        .then((attendanceResult) => {
-          if (attendanceResult.error) return;
+      const eventIds = baseModels.map((event) => event.id);
+      if (eventIds.length > 0) {
+        void supabase
+          .from("event_attendees")
+          .select("event_id,user_id,response,joined_at")
+          .in("event_id", eventIds)
+          .then((attendanceResult) => {
+            if (attendanceResult.error) return;
 
-          const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
-          const counts = new Map<string, number>();
-          const mine = new Map<string, "going" | "maybe">();
+            const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
+            const counts = new Map<string, number>();
+            const mine = new Map<string, "going" | "maybe">();
 
-          for (const row of attendance) {
-            if (row.response === "going") {
-              counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1);
+            for (const row of attendance) {
+              if (row.response === "going") {
+                counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1);
+              }
+              if (row.user_id === currentUserId) mine.set(row.event_id, row.response);
             }
-            if (row.user_id === currentUserId) mine.set(row.event_id, row.response);
-          }
 
-          setEvents((current) =>
-            current.map((event) => ({
-              ...event,
-              attendeeCount: counts.get(event.id) ?? 0,
-              myResponse: mine.get(event.id) ?? null,
-            })),
-          );
-        });
+            setEvents((current) =>
+              current.map((event) => ({
+                ...event,
+                attendeeCount: counts.get(event.id) ?? 0,
+                myResponse: mine.get(event.id) ?? null,
+              })),
+            );
+          });
+      }
     },
     [loadHeroProfiles],
   );
 
   useFocusEffect(
     useCallback(() => {
-      void load(!hasLoadedRef.current);
+      const shouldRefresh =
+        !hasLoadedRef.current ||
+        Date.now() - lastLoadedAtRef.current >= EVENTS_REFRESH_TTL_MS;
+      if (shouldRefresh) void load(!hasLoadedRef.current);
     }, [load]),
   );
 

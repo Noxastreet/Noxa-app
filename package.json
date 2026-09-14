@@ -21,6 +21,7 @@
     "verify:group-drive-phase-5": "node ./scripts/verify-group-drive-phase-5.mjs",
     "verify:home-map-disclosure": "node ./scripts/verify-home-map-disclosure.mjs",
     "verify:home-map-performance": "node ./scripts/verify-home-map-performance.mjs",
+    "verify:t9-performance-pass": "node ./scripts/verify-t9-performance-pass.mjs",
     "verify:t8-runtime-signout": "node ./scripts/verify-t8-runtime-signout.mjs",
     "verify:mvp-completion": "node ./scripts/verify-mvp-completion.mjs",
     "verify:interactions": "node ./scripts/verify-interactions.mjs",
