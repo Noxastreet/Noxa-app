@@ -9,6 +9,10 @@ function requirePattern(label, text, pattern) {
   if (!pattern.test(text)) failures.push(label);
 }
 
+function forbidPattern(label, text, pattern) {
+  if (pattern.test(text)) failures.push(label);
+}
+
 const appJson = JSON.parse(read('app.json'));
 const redirects = read('src/lib/authRedirects.ts');
 const signUp = read('app/sign-up.tsx');
@@ -103,6 +107,11 @@ requirePattern(
   recoveryLinks,
   /activeRecoveryPromise[\s\S]*lastRecoveryResult/,
 );
+requirePattern(
+  'Recovery link handler must bind the accepted recovery identity.',
+  recoveryLinks,
+  /acceptedRecoveryUserId\s*=\s*(?:data\.session\.user\.id|recoveredUserId)/,
+);
 
 requirePattern(
   'Reset password screen must consume the recovery link.',
@@ -110,9 +119,29 @@ requirePattern(
   /acceptPasswordRecoveryUrl\(/,
 );
 requirePattern(
+  'Reset password screen must require the recovery-bound user.',
+  resetPassword,
+  /getAcceptedPasswordRecoveryUserId\(\)/,
+);
+requirePattern(
+  'Reset password screen must reject a session for a different user.',
+  resetPassword,
+  /sessionData\.session\?\.user\.id\s*!==\s*acceptedUserId/,
+);
+forbidPattern(
+  'Reset password must never unlock merely because an arbitrary existing session exists.',
+  resetPassword,
+  /if\s*\(\s*existing\.session\s*\)\s*\{[\s\S]{0,120}markReady\(\)/,
+);
+requirePattern(
   'Reset password screen must update the authenticated recovery user password.',
   resetPassword,
   /supabase\.auth\.updateUser\(\{\s*password\s*\}\)/,
+);
+requirePattern(
+  'Reset password screen must clear recovery binding after success.',
+  resetPassword,
+  /clearAcceptedPasswordRecoverySession\(\)/,
 );
 requirePattern(
   'Reset password screen must sign out after password update.',
