@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 
-import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 
 function dismissStackIfPossible() {
   if (router.canDismiss()) {
@@ -8,9 +7,11 @@ function dismissStackIfPossible() {
   }
 }
 
-export function resetToAuthenticatedApp(userId: string) {
+export function resetToAuthenticatedApp(_userId: string) {
   dismissStackIfPossible();
-  router.replace(hasCompletedOnboarding(userId) ? '/(tabs)' : '/onboarding');
+  // Route every authenticated entry through the canonical first-run resolver.
+  // Local device storage alone cannot decide whether an account is new.
+  router.replace('/');
 }
 
 export function resetToSignedOutHome() {

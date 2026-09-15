@@ -6,9 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { PushNotificationBridge } from '@/src/features/notifications/PushNotificationBridge';
-import { hasCompletedOnboarding } from '@/src/lib/onboarding';
+import { resolveOnboardingCompletion } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
-import { hasCompletedVisibilitySetup } from '@/src/lib/visibilitySetup';
+import {
+  hasCompletedVisibilitySetup,
+  markVisibilitySetupComplete,
+} from '@/src/lib/visibilitySetup';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
@@ -16,6 +19,7 @@ type IconName = keyof typeof Ionicons.glyphMap;
 type TabDestination =
   | 'ready'
   | '/welcome'
+  | '/'
   | '/onboarding'
   | '/choose-username'
   | '/visibility-setup'
@@ -51,17 +55,31 @@ export default function TabLayout() {
         return;
       }
 
-      if (!hasCompletedOnboarding(user.id)) {
+      const onboardingState = await resolveOnboardingCompletion(user.id);
+      if (!isMounted) return;
+
+      if (onboardingState === 'incomplete') {
         setDestination('/onboarding');
         return;
+      }
+
+      if (onboardingState === 'unknown') {
+        setDestination('/');
+        return;
+      }
+
+      if (
+        onboardingState === 'profile' &&
+        !hasCompletedVisibilitySetup(user.id)
+      ) {
+        markVisibilitySetupComplete(user.id, 'ghost');
       }
 
       const visibilityComplete = hasCompletedVisibilitySetup(user.id);
 
       // Returning users should not stare at a full-screen spinner while a
-      // non-critical profile lookup crosses the network. Render the tabs as
-      // soon as local auth/onboarding/visibility gates are satisfied, then
-      // reconcile the username requirement in the background.
+      // non-critical profile lookup crosses the network. A transport failure
+      // is not proof that an authenticated user needs first-run setup.
       if (visibilityComplete) {
         setDestination('ready');
       }

@@ -23,6 +23,10 @@ const authCallback = read('app/auth/callback.tsx');
 const authLinks = read('src/lib/authLinks.ts');
 const recoveryLinks = read('src/lib/passwordRecoveryLink.ts');
 const socialAuth = read('src/lib/socialAuth.ts');
+const socialAuthUi = read('src/components/auth/NoxaSocialAuth.tsx');
+const onboarding = read('src/lib/onboarding.ts');
+const indexRoute = read('app/index.tsx');
+const authNavigation = read('src/navigation/authNavigation.ts');
 const confirmationTemplate = read('supabase/templates/confirmation.html');
 const recoveryTemplate = read('supabase/templates/recovery.html');
 const authRunbook = read('supabase/templates/README.md');
@@ -189,6 +193,47 @@ requirePattern(
   'Google OAuth must use the social auth redirect alias.',
   socialAuth,
   /redirectTo:\s*SOCIAL_AUTH_REDIRECT_URI/,
+);
+
+requirePattern(
+  'Onboarding completion must reconcile against the server profile across installs.',
+  onboarding,
+  /resolveOnboardingCompletion[\s\S]*from\('profiles'\)[\s\S]*select\('username'\)/,
+);
+requirePattern(
+  'A persisted username must restore local onboarding completion for returning accounts.',
+  onboarding,
+  /data\?\.username\?\.trim\(\)[\s\S]*markOnboardingComplete\(userId\)[\s\S]*return 'profile'/,
+);
+requirePattern(
+  'A profile transport failure must remain unknown instead of being treated as a new account.',
+  onboarding,
+  /if \(error\) return 'unknown'/,
+);
+requirePattern(
+  'Authenticated navigation must always route through the canonical first-run resolver.',
+  authNavigation,
+  /resetToAuthenticatedApp[\s\S]*router\.replace\('\/'\)/,
+);
+requirePattern(
+  'Social auth must use the same canonical first-run resolver.',
+  socialAuthUi,
+  /continueAfterAuth[\s\S]*router\.replace\('\/'\)/,
+);
+requirePattern(
+  'Returning server-confirmed accounts must restore the privacy-safe Ghost visibility default.',
+  indexRoute,
+  /onboardingState === 'profile'[\s\S]*markVisibilitySetupComplete\(user\.id, 'ghost'\)/,
+);
+requirePattern(
+  'An unknown first-run state must show recovery instead of replaying onboarding.',
+  indexRoute,
+  /onboardingState === 'unknown'[\s\S]*setDestination\('retry'\)/,
+);
+forbidPattern(
+  'Authenticated navigation must not decide onboarding from device-local storage alone.',
+  authNavigation,
+  /hasCompletedOnboarding/,
 );
 
 requirePattern(
