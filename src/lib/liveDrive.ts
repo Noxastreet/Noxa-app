@@ -131,6 +131,10 @@ function buildPresencePayload(
   const speed = finiteOrNull(coords.speed);
   const accuracy = finiteOrNull(coords.accuracy);
 
+  const shareStartedAt = new Date(
+    Date.parse(session.expiresAt) - LIVE_DRIVE_DURATION_MS,
+  ).toISOString();
+
   return {
     latitude,
     longitude,
@@ -138,6 +142,7 @@ function buildPresencePayload(
     speed_mps: speed !== null && speed >= 0 ? speed : null,
     accuracy_meters: accuracy,
     visibility_mode: session.visibilityMode,
+    share_started_at: shareStartedAt,
     share_expires_at: session.expiresAt,
     updated_at: new Date().toISOString(),
   };

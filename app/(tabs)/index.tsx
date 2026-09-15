@@ -1142,12 +1142,17 @@ export default function LiveMapScreen() {
           setActiveDrivers([]);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
-          void stopSharing(true);
+          setTimeout(() => {
+            if (isActive) void stopSharing(true);
+          }, 0);
           return;
         }
         currentUserIdRef.current = session.user.id;
-        void loadCurrentProfile();
-        void loadMyDriverIds();
+        setTimeout(() => {
+          if (!isActive) return;
+          void loadCurrentProfile();
+          void loadMyDriverIds();
+        }, 0);
       },
     );
 

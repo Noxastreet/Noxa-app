@@ -4,11 +4,13 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 import '@/src/features/group-drive/runtime/nativeLocation';
 import '@/src/lib/liveDrive';
+import { supabase } from '@/src/lib/supabase';
 import {
   acceptPasswordRecoveryUrl,
   isPasswordRecoveryUrl,
@@ -32,6 +34,28 @@ const noxaTheme = {
   },
 };
 
+function SupabaseAuthLifecycle() {
+  useEffect(() => {
+    const syncAutoRefresh = (state: AppStateStatus) => {
+      if (state === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    };
+
+    syncAutoRefresh(AppState.currentState);
+    const subscription = AppState.addEventListener('change', syncAutoRefresh);
+
+    return () => {
+      subscription.remove();
+      supabase.auth.stopAutoRefresh();
+    };
+  }, []);
+
+  return null;
+}
+
 function AuthDeepLinkBridge() {
   const url = Linking.useLinkingURL();
 
@@ -47,6 +71,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={noxaTheme}>
+        <SupabaseAuthLifecycle />
         <AuthDeepLinkBridge />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />

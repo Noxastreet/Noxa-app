@@ -25,6 +25,14 @@ assert(
   'Presence upsert must explicitly bind the row to the active Live Drive user.',
 );
 assert(
+  liveDrive.indexOf('Date.parse(session.expiresAt) - LIVE_DRIVE_DURATION_MS') >= 0,
+  'Each Live Drive session must derive one stable share start from its four-hour expiry.',
+);
+assert(
+  liveDrive.indexOf('share_started_at: shareStartedAt') >= 0,
+  'Presence upserts must refresh share_started_at so an expired prior row cannot block restart.',
+);
+assert(
   !liveDrive.includes(".from('driver_locations')\n        .update("),
   'Background Live Drive must not rely on UPDATE-only writes.',
 );
