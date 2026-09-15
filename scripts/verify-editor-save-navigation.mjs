@@ -31,6 +31,25 @@ const cases = [
   },
 ];
 
+const eventEditor = fs.readFileSync('app/event-editor.tsx', 'utf8');
+assert(
+  eventEditor.includes('pendingCreateEventIdRef') &&
+    eventEditor.includes('Crypto.randomUUID()'),
+  'Event create must keep one stable client-generated id across an uncertain mobile save.',
+);
+assert(
+  /insert\(\{ id: createEventId![\s\S]*creator_id: userId \}\)/.test(eventEditor),
+  'Event create must send its stable id with the INSERT.',
+);
+assert(
+  /select\("id,creator_id"\)[\s\S]*eq\("id", createEventId\)[\s\S]*recovery\.data\?\.creator_id === userId/.test(eventEditor),
+  'Event create must reconcile the stable id after an uncertain INSERT response.',
+);
+assert(
+  !eventEditor.includes('const { data: authData } = await supabase.auth.getUser();'),
+  'Event save must not add a redundant network getUser call before its database mutation.',
+);
+
 for (const item of cases) {
   const source = fs.readFileSync(item.path, 'utf8');
   assert(source.includes('useNavigation'), `${item.label} must use the navigation object.`);

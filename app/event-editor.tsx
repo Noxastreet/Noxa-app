@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as Crypto from "expo-crypto";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,7 +26,7 @@ import {
 import { MapboxEventLocationPickerCompat } from "@/src/features/mapbox/MapboxEventLocationPickerCompat";
 import { NOXA_FALLBACK_COORDINATE } from "@/src/features/mapbox/config";
 import type { LatLng } from "@/src/features/mapbox/types";
-import { supabase } from "@/src/lib/supabase";
+import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type EventForm = {
@@ -168,6 +169,7 @@ export default function EventEditorScreen() {
   const navigation = useNavigation();
   const savingRef = useRef(false);
   const allowNavigationRef = useRef(false);
+  const pendingCreateEventIdRef = useRef<string | null>(null);
   const params = useLocalSearchParams<{ id?: string; crewId?: string }>();
   const eventId = typeof params.id === "string" ? params.id : undefined;
   const requestedCrewId = typeof params.crewId === "string" ? params.crewId : undefined;
@@ -219,18 +221,18 @@ export default function EventEditorScreen() {
 
   const loadEvent = useCallback(async () => {
     setError(null);
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) {
+    const authUser = await getCurrentSessionUser();
+    if (!authUser) {
       setError("Sign in to manage events.");
       setLoading(false);
       return;
     }
-    setCurrentUserId(authData.user.id);
+    setCurrentUserId(authUser.id);
     setCrewLoadError(null);
     const { data: membershipRows, error: membershipsError } = await supabase
       .from("crew_members")
       .select("crew_id,role")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", authUser.id)
       .in("role", ["owner", "admin"]);
     if (membershipsError) {
       setManagedCrews([]);
@@ -273,7 +275,7 @@ export default function EventEditorScreen() {
       .maybeSingle();
     if (eventError) setError(eventError.message);
     else if (!data) setError("Event not found.");
-    else if ((data as EventRow).creator_id !== authData.user.id)
+    else if ((data as EventRow).creator_id !== authUser.id)
       setError("Only the event host can edit this event.");
     else setForm(prefillFromEvent(data as EventRow));
     setLoading(false);
@@ -464,8 +466,7 @@ export default function EventEditorScreen() {
     savingRef.current = true;
     allowNavigationRef.current = false;
     setSaving(true);
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id ?? currentUserId;
+    const userId = currentUserId ?? (await getCurrentSessionUser())?.id ?? null;
     if (!userId) {
       setError("Sign in to save events.");
       savingRef.current = false;
@@ -485,6 +486,11 @@ export default function EventEditorScreen() {
       latitude: form.latitude,
       longitude: form.longitude,
     };
+    const createEventId = isEditing
+      ? null
+      : (pendingCreateEventIdRef.current ?? Crypto.randomUUID());
+    if (createEventId) pendingCreateEventIdRef.current = createEventId;
+
     const result =
       isEditing && eventId
         ? await supabase
@@ -496,21 +502,38 @@ export default function EventEditorScreen() {
             .maybeSingle()
         : await supabase
             .from("events")
-            .insert({ ...payload, creator_id: userId })
+            .insert({ id: createEventId!, ...payload, creator_id: userId })
             .select("id")
             .single();
-    if (result.error || !result.data) {
-      setError(result.error?.message ?? "Event could not be saved.");
+
+    let savedEventId = result.data?.id ?? null;
+    if (!savedEventId && createEventId) {
+      // A mobile network can deliver the INSERT to PostgREST but lose the
+      // response. Reconcile the stable client-generated id before reporting a
+      // failure so a retry cannot silently create a duplicate event.
+      const recovery = await supabase
+        .from("events")
+        .select("id,creator_id")
+        .eq("id", createEventId)
+        .maybeSingle();
+      if (!recovery.error && recovery.data?.creator_id === userId) {
+        savedEventId = recovery.data.id;
+      }
+    }
+
+    if (!savedEventId) {
+      setError(result.error?.message ?? "Event could not be saved. Check your connection and try again.");
       savingRef.current = false;
       setSaving(false);
       return;
     }
+    pendingCreateEventIdRef.current = null;
     allowNavigationRef.current = true;
     savingRef.current = false;
     setSaving(false);
     router.replace({
       pathname: "/event-details",
-      params: { id: result.data.id },
+      params: { id: savedEventId },
     });
   }, [currentUserId, eventId, form, isEditing, saving, validate]);
 
