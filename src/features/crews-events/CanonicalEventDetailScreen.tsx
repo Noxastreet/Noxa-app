@@ -49,7 +49,7 @@ import {
   type EventResponse,
   uuidPattern,
 } from "@/src/lib/eventExperience";
-import { supabase } from "@/src/lib/supabase";
+import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
 type EventCrew = {
@@ -269,10 +269,6 @@ export default function CanonicalEventDetailScreen() {
       return;
     }
 
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id ?? null;
-    setCurrentUserId(userId);
-
     const { data: eventData, error: eventError } = await supabase
       .from("events")
       .select("*")
@@ -287,6 +283,13 @@ export default function CanonicalEventDetailScreen() {
 
     const nextEvent = eventData as EventExperienceRow;
     setEvent(nextEvent);
+    // The event row is the critical render path. Optional organizer, RSVP,
+    // history and gallery data must never keep the whole screen behind
+    // “Opening event...” on a slow mobile connection.
+    setLoading(false);
+
+    const userId = (await getCurrentSessionUser())?.id ?? null;
+    setCurrentUserId(userId);
 
     const [
       creatorResult,
@@ -409,7 +412,6 @@ export default function CanonicalEventDetailScreen() {
       setGallery(signed.filter((item): item is GalleryItem => Boolean(item)));
     }
 
-    setLoading(false);
   }, [eventId]);
 
   useEffect(() => {
@@ -496,10 +498,9 @@ export default function CanonicalEventDetailScreen() {
     setIsDeleting(true);
     setError(null);
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    const currentUser = authData.user;
+    const currentUser = await getCurrentSessionUser();
 
-    if (authError || !currentUser) {
+    if (!currentUser) {
       setIsDeleting(false);
       Alert.alert("Unable to delete event", "You must be signed in to delete this event.");
       return;
