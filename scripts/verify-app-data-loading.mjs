@@ -9,6 +9,8 @@ function assert(condition, message) {
 
 const supabase = fs.readFileSync('src/lib/supabase.ts', 'utf8');
 const tabs = fs.readFileSync('app/(tabs)/_layout.tsx', 'utf8');
+const root = fs.readFileSync('app/_layout.tsx', 'utf8');
+const map = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
 const avatar = fs.readFileSync('src/components/ui/NoxaAvatar.tsx', 'utf8');
 const canonical = fs.readFileSync('src/features/crews-events/CanonicalPrimitives.tsx', 'utf8');
 
@@ -23,6 +25,26 @@ assert(
 assert(
   /finally \{[\s\S]*currentSessionUserPromise = null/.test(supabase),
   'Session-user deduplication must clear after completion so auth changes are not cached indefinitely.',
+);
+
+assert(
+  /AppState\.addEventListener\('change', syncAutoRefresh\)/.test(root) &&
+    /supabase\.auth\.startAutoRefresh\(\)/.test(root) &&
+    /supabase\.auth\.stopAutoRefresh\(\)/.test(root),
+  'Native app foreground/background changes must explicitly manage Supabase auth auto-refresh.',
+);
+
+const authListenerIndex = map.indexOf('supabase.auth.onAuthStateChange(');
+const authListenerEnd = map.indexOf('return () => {', authListenerIndex);
+const authListenerBlock = map.slice(authListenerIndex, authListenerEnd);
+assert(
+  authListenerIndex >= 0 && /setTimeout\(\(\) => \{/.test(authListenerBlock),
+  'Map auth-state work must be deferred until the Supabase auth callback releases its lock.',
+);
+assert(
+  !/currentUserIdRef\.current = session\.user\.id;\s*void loadCurrentProfile\(\);/.test(authListenerBlock) &&
+    !/currentUserIdRef\.current = session\.user\.id;[\s\S]{0,80}void loadMyDriverIds\(\);/.test(authListenerBlock),
+  'Map must not start Supabase-backed profile/relationship reads directly inside onAuthStateChange.',
 );
 
 const readyIndex = tabs.indexOf("setDestination('ready');");

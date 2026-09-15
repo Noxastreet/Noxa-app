@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaScreen } from "@/src/components/ui";
 import {
@@ -355,6 +355,7 @@ function CreateCrewModal({
     joinPolicy: JoinPolicy;
   }) => void;
 }) {
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [description, setDescription] = useState("");
@@ -378,8 +379,13 @@ function CreateCrewModal({
       visible={visible}
       onRequestClose={close}
     >
-      <SafeAreaView style={styles.modalScreen}>
-        <View style={styles.modalHeader}>
+      <View style={styles.modalScreen}>
+        <View
+          style={[
+            styles.modalHeader,
+            { height: 58 + insets.top, paddingTop: insets.top },
+          ]}
+        >
           <Pressable
             accessibilityLabel="Close"
             accessibilityRole="button"
@@ -523,7 +529,12 @@ function CreateCrewModal({
           ) : null}
         </ScrollView>
 
-        <View style={styles.modalFooter}>
+        <View
+          style={[
+            styles.modalFooter,
+            { paddingBottom: Math.max(spacing.xl, insets.bottom) },
+          ]}
+        >
           <CanonicalPrimaryButton
             disabled={name.trim().length < 2 || creating}
             loading={creating}
@@ -539,7 +550,7 @@ function CreateCrewModal({
             }
           />
         </View>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
