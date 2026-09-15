@@ -18,6 +18,12 @@ assert(
   /let currentSessionUserPromise: Promise<User \| null> \| null = null/.test(supabase),
   'Concurrent session-user reads must share one in-flight promise.',
 );
+
+assert(
+  /SUPABASE_DB_TIMEOUT_MS = 12_000/.test(supabase) &&
+    /db:\s*\{[\s\S]*timeout: SUPABASE_DB_TIMEOUT_MS/.test(supabase),
+  'PostgREST requests must have a bounded mobile timeout instead of relying on the native fetch timeout.',
+);
 assert(
   /if \(!currentSessionUserPromise\)[\s\S]*supabase\.auth[\s\S]*\.getSession\(\)/.test(supabase),
   'getCurrentSessionUser must deduplicate concurrent getSession calls.',

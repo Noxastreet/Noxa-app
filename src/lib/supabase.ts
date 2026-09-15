@@ -5,7 +5,12 @@ import { requireClientEnv } from '@/src/config/env';
 
 const { supabaseUrl, supabasePublishableKey } = requireClientEnv();
 
+export const SUPABASE_DB_TIMEOUT_MS = 12_000;
+
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+  db: {
+    timeout: SUPABASE_DB_TIMEOUT_MS,
+  },
   auth: {
     storage: localStorage,
     autoRefreshToken: true,
