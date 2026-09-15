@@ -13,6 +13,7 @@ const root = fs.readFileSync('app/_layout.tsx', 'utf8');
 const map = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
 const avatar = fs.readFileSync('src/components/ui/NoxaAvatar.tsx', 'utf8');
 const canonical = fs.readFileSync('src/features/crews-events/CanonicalPrimitives.tsx', 'utf8');
+const eventDetail = fs.readFileSync('src/features/crews-events/CanonicalEventDetailScreen.tsx', 'utf8');
 
 assert(
   /let currentSessionUserPromise: Promise<User \| null> \| null = null/.test(supabase),
@@ -51,6 +52,18 @@ assert(
   !/currentUserIdRef\.current = session\.user\.id;\s*void loadCurrentProfile\(\);/.test(authListenerBlock) &&
     !/currentUserIdRef\.current = session\.user\.id;[\s\S]{0,80}void loadMyDriverIds\(\);/.test(authListenerBlock),
   'Map must not start Supabase-backed profile/relationship reads directly inside onAuthStateChange.',
+);
+
+const eventRowIndex = eventDetail.indexOf('setEvent(nextEvent);');
+const eventReadyIndex = eventDetail.indexOf('setLoading(false);', eventRowIndex);
+const eventSecondaryIndex = eventDetail.indexOf('const [', eventReadyIndex);
+assert(
+  eventDetail.includes('getCurrentSessionUser') && !eventDetail.includes('supabase.auth.getUser()'),
+  'Event detail must use the local session helper instead of a redundant network getUser call.',
+);
+assert(
+  eventRowIndex >= 0 && eventReadyIndex > eventRowIndex && eventSecondaryIndex > eventReadyIndex,
+  'Event detail must render the base event before optional organizer, RSVP, history and gallery reads.',
 );
 
 const readyIndex = tabs.indexOf("setDestination('ready');");
