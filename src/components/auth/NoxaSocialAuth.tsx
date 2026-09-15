@@ -6,7 +6,6 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { NoxaAppleAuthButton } from '@/src/components/auth/NoxaAppleAuthButton';
 import { NoxaGoogleAuthButton } from '@/src/components/auth/NoxaGoogleAuthButton';
-import { hasCompletedOnboarding } from '@/src/lib/onboarding';
 import {
   getSocialAuthErrorMessage,
   signInWithApple,
@@ -42,8 +41,10 @@ export function NoxaSocialAuth() {
     };
   }, []);
 
-  const continueAfterAuth = (userId: string) => {
-    router.replace(hasCompletedOnboarding(userId) ? '/(tabs)' : '/onboarding');
+  const continueAfterAuth = (_userId: string) => {
+    // Root route resolves server-backed first-run state for both new and
+    // returning accounts, including installs with no local onboarding flag.
+    router.replace('/');
   };
 
   const handleProvider = async (provider: SocialProvider) => {

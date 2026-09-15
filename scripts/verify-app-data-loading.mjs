@@ -26,6 +26,18 @@ assert(
   'PostgREST requests must have a bounded mobile timeout instead of relying on the native fetch timeout.',
 );
 assert(
+  /fetch as expoFetch/.test(supabase) &&
+    /SUPABASE_HTTP_TIMEOUT_MS = 12_000/.test(supabase) &&
+    /global:\s*\{[\s\S]*fetch: supabaseFetch/.test(supabase),
+  'All Supabase HTTP traffic must use the bounded Expo native fetch transport on mobile.',
+);
+assert(
+  /const supabaseFetch: typeof globalThis\.fetch = async/.test(supabase) &&
+    /setTimeout\(\(\) => controller\.abort\(\), SUPABASE_HTTP_TIMEOUT_MS\)/.test(supabase) &&
+    /upstreamSignal\?\.addEventListener\('abort', abortFromUpstream/.test(supabase),
+  'The shared Supabase fetch must bound requests and preserve upstream cancellation.',
+);
+assert(
   /if \(!currentSessionUserPromise\)[\s\S]*supabase\.auth[\s\S]*\.getSession\(\)/.test(supabase),
   'getCurrentSessionUser must deduplicate concurrent getSession calls.',
 );
