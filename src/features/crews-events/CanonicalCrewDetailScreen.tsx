@@ -35,6 +35,7 @@ import {
   setEntityCover,
   uploadEntityCover,
 } from "@/src/lib/entityCover";
+import { publicErrorMessage } from "@/src/lib/publicError";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -656,10 +657,10 @@ export default function CanonicalCrewDetailScreen() {
 
     if (crewResult.error || memberResult.error || eventResult.error) {
       setError(
-        crewResult.error?.message ||
-          memberResult.error?.message ||
-          eventResult.error?.message ||
-          "Crew could not be loaded.",
+        publicErrorMessage(
+          crewResult.error || memberResult.error || eventResult.error,
+          "Crew could not be loaded. Retry.",
+        ),
       );
       setLoading(false);
       return;
@@ -699,7 +700,13 @@ export default function CanonicalCrewDetailScreen() {
 
     const detailError =
       profilesResult.error || vehiclesResult.error || ownerResult.error;
-    if (detailError) setError(detailError.message);
+    if (detailError)
+      setError(
+        publicErrorMessage(
+          detailError,
+          "Some crew details could not be loaded. Retry.",
+        ),
+      );
 
     const profileRows = (profilesResult.data ?? []) as CanonicalProfile[];
     const byId = new Map(profileRows.map((profile) => [profile.id, profile]));
@@ -749,7 +756,8 @@ export default function CanonicalCrewDetailScreen() {
             role: "member",
           });
 
-    if (result.error) setError(result.error.message);
+    if (result.error)
+      setError(publicErrorMessage(result.error, "Crew could not be joined. Retry."));
     else await load();
     setBusy(false);
   }, [busy, crew, currentUserId, load]);
@@ -768,7 +776,8 @@ export default function CanonicalCrewDetailScreen() {
             .delete()
             .eq("crew_id", crew.id)
             .eq("user_id", currentUserId);
-          if (leaveError) setError(leaveError.message);
+          if (leaveError)
+            setError(publicErrorMessage(leaveError, "Crew could not be left. Retry."));
           else await load();
           setBusy(false);
         },
@@ -783,7 +792,8 @@ export default function CanonicalCrewDetailScreen() {
       .from("crew_join_requests")
       .delete()
       .eq("id", joinRequest.id);
-    if (requestError) setError(requestError.message);
+    if (requestError)
+      setError(publicErrorMessage(requestError, "Request could not be cancelled. Retry."));
     else await load();
     setBusy(false);
   }, [busy, joinRequest, load]);
@@ -816,9 +826,7 @@ export default function CanonicalCrewDetailScreen() {
     } catch (coverError) {
       Alert.alert(
         "Cover not changed",
-        coverError instanceof Error
-          ? coverError.message
-          : "Unable to change this cover.",
+        publicErrorMessage(coverError, "Unable to change this cover."),
       );
     } finally {
       setBusy(false);
@@ -836,9 +844,7 @@ export default function CanonicalCrewDetailScreen() {
     } catch (coverError) {
       Alert.alert(
         "Cover not removed",
-        coverError instanceof Error
-          ? coverError.message
-          : "Unable to remove this cover.",
+        publicErrorMessage(coverError, "Unable to remove this cover."),
       );
     } finally {
       setBusy(false);
@@ -970,7 +976,12 @@ export default function CanonicalCrewDetailScreen() {
         />
 
         {error ? (
-          <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
+          <Pressable
+            accessibilityLabel="Retry crew loading"
+            accessibilityRole="button"
+            onPress={() => void load()}
+            style={styles.errorBanner}
+          >
             <Ionicons
               name="alert-circle-outline"
               size={16}
