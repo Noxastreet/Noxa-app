@@ -9,6 +9,7 @@ export const LIVE_DRIVE_DURATION_MS = 4 * 60 * 60 * 1000;
 const LIVE_DRIVE_SESSION_KEY = 'noxa.live-drive-session.v1';
 const PENDING_LIVE_DRIVE_CLEANUP_KEY = 'noxa.live-drive-pending-cleanup.v1';
 const PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000;
+const PRECISE_LOCATION_MAX_AGE_MS = 15_000;
 const PENDING_CLEANUP_RETRY_DELAYS_MS = [5_000, 15_000, 30_000] as const;
 
 export type LiveDriveVisibilityMode = 'crew' | 'friends' | 'global';
@@ -106,6 +107,25 @@ function hasPreciseLocationSample(coords: Location.LocationObjectCoords) {
     accuracy >= 0 &&
     accuracy < PRECISE_LOCATION_MAX_ACCURACY_METERS
   );
+}
+
+async function getPreciseLocationSample() {
+  const lastKnown = await Location.getLastKnownPositionAsync({
+    maxAge: PRECISE_LOCATION_MAX_AGE_MS,
+    requiredAccuracy: PRECISE_LOCATION_MAX_ACCURACY_METERS,
+  }).catch(() => null);
+  if (lastKnown && hasPreciseLocationSample(lastKnown.coords)) {
+    return lastKnown;
+  }
+
+  try {
+    const current = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    return hasPreciseLocationSample(current.coords) ? current : null;
+  } catch {
+    return null;
+  }
 }
 
 function buildPresencePayload(
@@ -345,10 +365,8 @@ export async function requestLiveDrivePermissions() {
   // Expo 54 cannot expose iOS accuracyAuthorization. Reduced Accuracy normally
   // yields kilometer-scale uncertainty, so reject any sample that is not useful
   // for driving before asking for background access.
-  const current = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
-  });
-  if (!hasPreciseLocationSample(current.coords)) {
+  const current = await getPreciseLocationSample();
+  if (!current) {
     throw new Error('Precise location is unavailable. Enable Precise Location and retry where GPS has a clear signal.');
   }
 
@@ -356,6 +374,8 @@ export async function requestLiveDrivePermissions() {
   if (background.status !== Location.PermissionStatus.GRANTED) {
     throw new Error('Allow background location so your 4-hour Live Drive session can continue.');
   }
+
+  return current;
 }
 
 export async function hasLiveDriveRuntimeAccess() {
@@ -372,10 +392,7 @@ export async function hasLiveDriveRuntimeAccess() {
     ) {
       return false;
     }
-    const current = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-    return hasPreciseLocationSample(current.coords);
+    return Boolean(await getPreciseLocationSample());
   } catch {
     return false;
   }
@@ -384,6 +401,7 @@ export async function hasLiveDriveRuntimeAccess() {
 export async function startLiveDriveSession(
   userId: string,
   visibilityMode: LiveDriveVisibilityMode,
+  initialLocation: Location.LocationObject,
 ) {
   const session: LiveDriveSession = {
     userId,
@@ -397,9 +415,6 @@ export async function startLiveDriveSession(
       await Location.stopLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME);
     }
 
-    const initialLocation = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
     const didPublishInitialPresence = await upsertLiveDrivePresence(
       session,
       initialLocation.coords,
