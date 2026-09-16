@@ -733,16 +733,17 @@ export default function LiveMapScreen() {
         return;
       }
       try {
-        await requestLiveDrivePermissions();
-        const liveDriveSession = await startLiveDriveSession(userId, mode);
+        const initialLocation = await requestLiveDrivePermissions();
+        const liveDriveSession = await startLiveDriveSession(
+          userId,
+          mode,
+          initialLocation,
+        );
         visibilityModeRef.current = mode;
         sharingUserIdRef.current = userId;
         setVisibilityMode(mode);
         setLiveDriveExpiresAt(liveDriveSession.expiresAt);
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
-        upsertPresence(userId, position.coords);
+        upsertPresence(userId, initialLocation.coords);
         if (isMountedRef.current) setIsVisibleOnMap(true);
       } catch (error) {
         sharingUserIdRef.current = null;

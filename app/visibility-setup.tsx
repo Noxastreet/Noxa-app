@@ -117,8 +117,8 @@ export default function VisibilitySetupScreen() {
     setErrorMessage(null);
 
     try {
-      await requestLiveDrivePermissions();
-      await startLiveDriveSession(userId, 'global');
+      const initialLocation = await requestLiveDrivePermissions();
+      await startLiveDriveSession(userId, 'global', initialLocation);
       completeSetup('global');
     } catch (error) {
       await stopLiveDriveSession(true).catch(() => undefined);

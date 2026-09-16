@@ -59,7 +59,7 @@ assert(
   'Android Live Drive must reject coarse-only location access.',
 );
 assert(
-  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*getCurrentPositionAsync\([\s\S]*hasPreciseLocationSample\(current\.coords\)/.test(liveDrive),
+  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*const current = await getPreciseLocationSample\(\);[\s\S]*if \(!current\)[\s\S]*requestBackgroundPermissionsAsync\(\)/.test(liveDrive),
   'Live Drive startup permission flow must require a usable precise sample before background access.',
 );
 assert(
