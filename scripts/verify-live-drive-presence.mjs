@@ -143,6 +143,48 @@ assert(
   'Visibility setup must reuse the validated location and only complete Global after session start succeeds.',
 );
 
+
+const stopSessionIndex = liveDrive.indexOf('export async function stopLiveDriveSession(');
+const stopSessionSlice = liveDrive.slice(stopSessionIndex);
+assert(
+  stopSessionSlice.indexOf('persistPresenceCleanup(session);') >= 0 &&
+    stopSessionSlice.indexOf('persistPresenceCleanup(session);') < stopSessionSlice.indexOf('storeSession(null);'),
+  'Ghost must persist cleanup intent before clearing the local Live Drive session.',
+);
+
+const mapLocationIndex = mapScreen.indexOf('const loadDriverLocation = useCallback(');
+const mapLocationEndIndex = mapScreen.indexOf('const deletePresence = useCallback(', mapLocationIndex);
+const mapLocationSlice = mapScreen.slice(mapLocationIndex, mapLocationEndIndex);
+assert(
+  mapScreen.includes('const locationPositionRequestRef = useRef<Promise<Location.LocationObject> | null>(null);') &&
+    mapLocationSlice.includes('let positionRequest = locationPositionRequestRef.current;') &&
+    mapLocationSlice.includes('locationPositionRequestRef.current = positionRequest;'),
+  'Foreground Map location calls must share one in-flight CoreLocation request.',
+);
+
+assert(
+  mapScreen.includes('const liveDriveStartGenerationRef = useRef(0);'),
+  'Map Live Drive startup must own a monotonic cancellation generation.',
+);
+const stopSharingIndex = mapScreen.indexOf('const stopSharing = useCallback(');
+const stopSharingEndIndex = mapScreen.indexOf('const writePresencePayload = useCallback(', stopSharingIndex);
+const stopSharingSlice = mapScreen.slice(stopSharingIndex, stopSharingEndIndex);
+assert(
+  stopSharingSlice.includes('liveDriveStartGenerationRef.current += 1;'),
+  'Ghost must invalidate any pending Live Drive startup before cleanup.',
+);
+assert(
+  mapStartSlice.includes('const startGeneration = ++liveDriveStartGenerationRef.current;') &&
+    mapStartSlice.includes('liveDriveStartGenerationRef.current !== startGeneration') &&
+    mapStartSlice.includes('currentSession?.expiresAt === liveDriveSession.expiresAt'),
+  'Stale Live Drive startup must be cancelled and only clean up the session it actually created.',
+);
+const mapUnmountIndex = mapScreen.indexOf('return () => {', mapScreen.indexOf('isMountedRef.current = true;'));
+assert(
+  mapScreen.indexOf('liveDriveStartGenerationRef.current += 1;', mapUnmountIndex) > mapUnmountIndex,
+  'Unmount/remount must invalidate an older pending Live Drive startup.',
+);
+
 if (!process.exitCode) {
   console.log('Live Drive initial-presence contract passed.');
 }

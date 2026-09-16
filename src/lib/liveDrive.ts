@@ -210,12 +210,16 @@ async function stopNativeLocationUpdates() {
   }
 }
 
-function queuePresenceCleanup(session: LiveDriveSession) {
+function persistPresenceCleanup(session: LiveDriveSession) {
   storePendingCleanup({
     userId: session.userId,
     shareExpiresAt: session.expiresAt,
   });
   pendingCleanupRetryIndex = 0;
+}
+
+function queuePresenceCleanup(session: LiveDriveSession) {
+  persistPresenceCleanup(session);
   schedulePendingCleanupRetry();
 }
 
@@ -262,6 +266,9 @@ function schedulePendingCleanupRetry(delayMs?: number) {
 }
 
 async function stopSessionAndCleanupPresence(session: LiveDriveSession) {
+  // Arm cleanup before clearing local state. If iOS terminates the process
+  // between Ghost and the server DELETE, the next launch can still finish it.
+  persistPresenceCleanup(session);
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
   try {
@@ -462,6 +469,10 @@ export async function updateLiveDriveVisibility(visibilityMode: LiveDriveVisibil
 
 export async function stopLiveDriveSession(deletePresence = true) {
   const session = readStoredSession();
+  if (deletePresence && session?.userId) {
+    // Persist intent first so a force-quit cannot leave a hidden server row.
+    persistPresenceCleanup(session);
+  }
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
   if (!deletePresence || !session?.userId) return;

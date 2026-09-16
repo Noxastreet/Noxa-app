@@ -470,6 +470,8 @@ export default function LiveMapScreen() {
   const eventsRef = useRef<EventMarkerRow[]>([]);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
+  const locationPositionRequestRef = useRef<Promise<Location.LocationObject> | null>(null);
+  const liveDriveStartGenerationRef = useRef(0);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
   const sharingUserIdRef = useRef<string | null>(null);
   const visibilityModeRef = useRef<LocationVisibilityMode>("ghost");
@@ -596,9 +598,24 @@ export default function LiveMapScreen() {
           return null;
         }
         if (isMountedRef.current) setPermissionDenied(false);
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        let positionRequest = locationPositionRequestRef.current;
+        if (!positionRequest) {
+          positionRequest = Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          locationPositionRequestRef.current = positionRequest;
+          void positionRequest.then(
+            () => {
+              if (locationPositionRequestRef.current === positionRequest)
+                locationPositionRequestRef.current = null;
+            },
+            () => {
+              if (locationPositionRequestRef.current === positionRequest)
+                locationPositionRequestRef.current = null;
+            },
+          );
+        }
+        const position = await positionRequest;
         const point = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -634,6 +651,7 @@ export default function LiveMapScreen() {
 
   const stopSharing = useCallback(
     async (deleteRow = true) => {
+      liveDriveStartGenerationRef.current += 1;
       lastPresenceWriteRef.current = 0;
       latestPresencePayloadRef.current = null;
       const userId = sharingUserIdRef.current;
@@ -644,6 +662,7 @@ export default function LiveMapScreen() {
         setVisibilityMode("ghost");
         setVisibilityMenuOpen(false);
         setPendingVisibilityMode(null);
+        setIsStartingLiveDrive(false);
         setLiveDriveExpiresAt(null);
         setSharingError(null);
       }
@@ -720,9 +739,15 @@ export default function LiveMapScreen() {
 
   const startSharing = useCallback(
     async (mode: LiveDriveVisibilityMode) => {
+      const startGeneration = ++liveDriveStartGenerationRef.current;
       setSharingError(null);
       setIsStartingLiveDrive(true);
       const { data: sessionData } = await supabase.auth.getSession();
+      if (
+        !isMountedRef.current ||
+        liveDriveStartGenerationRef.current !== startGeneration
+      )
+        return;
       const userId = sessionData.session?.user.id;
       if (!userId) {
         visibilityModeRef.current = "ghost";
@@ -734,11 +759,25 @@ export default function LiveMapScreen() {
       }
       try {
         const initialLocation = await requestLiveDrivePermissions();
+        if (
+          !isMountedRef.current ||
+          liveDriveStartGenerationRef.current !== startGeneration
+        )
+          return;
         const liveDriveSession = await startLiveDriveSession(
           userId,
           mode,
           initialLocation,
         );
+        if (
+          !isMountedRef.current ||
+          liveDriveStartGenerationRef.current !== startGeneration
+        ) {
+          const currentSession = getLiveDriveSession();
+          if (currentSession?.expiresAt === liveDriveSession.expiresAt)
+            await stopLiveDriveSession(true).catch(() => undefined);
+          return;
+        }
         visibilityModeRef.current = mode;
         sharingUserIdRef.current = userId;
         setVisibilityMode(mode);
@@ -746,6 +785,7 @@ export default function LiveMapScreen() {
         upsertPresence(userId, initialLocation.coords);
         if (isMountedRef.current) setIsVisibleOnMap(true);
       } catch (error) {
+        if (liveDriveStartGenerationRef.current !== startGeneration) return;
         sharingUserIdRef.current = null;
         visibilityModeRef.current = "ghost";
         latestPresencePayloadRef.current = null;
@@ -762,7 +802,10 @@ export default function LiveMapScreen() {
           );
         }
       } finally {
-        if (isMountedRef.current) {
+        if (
+          isMountedRef.current &&
+          liveDriveStartGenerationRef.current === startGeneration
+        ) {
           setIsStartingLiveDrive(false);
           setPendingVisibilityMode(null);
         }
@@ -1159,6 +1202,7 @@ export default function LiveMapScreen() {
 
     return () => {
       isActive = false;
+      liveDriveStartGenerationRef.current += 1;
       isMountedRef.current = false;
       mapFocusedRef.current = false;
       activeDriversRequestIdRef.current += 1;

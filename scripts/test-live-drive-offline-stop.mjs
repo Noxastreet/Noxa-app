@@ -5,10 +5,11 @@ import ts from 'typescript';
 
 const root = process.cwd();
 const storage = new Map();
+const storageOperations = [];
 globalThis.localStorage = {
   getItem: (key) => storage.get(key) ?? null,
-  setItem: (key, value) => storage.set(key, String(value)),
-  removeItem: (key) => storage.delete(key),
+  setItem: (key, value) => { storageOperations.push(['set', key]); storage.set(key, String(value)); },
+  removeItem: (key) => { storageOperations.push(['remove', key]); storage.delete(key); },
   clear: () => storage.clear(),
   key: (index) => Array.from(storage.keys())[index] ?? null,
   get length() { return storage.size; },
@@ -35,6 +36,7 @@ localStorage.setItem('noxa.live-drive-session.v1', JSON.stringify({
   visibilityMode: 'friends',
   expiresAt,
 }));
+storageOperations.length = 0;
 
 const Location = {
   PermissionStatus: { GRANTED: 'granted' },
@@ -126,6 +128,14 @@ try {
   assert.equal(taskStopped, true, 'Ghost must call native stop while offline');
   assert.equal(localStorage.getItem('noxa.live-drive-session.v1'), null, 'Ghost must clear the active local session');
   assert.ok(localStorage.getItem('noxa.live-drive-pending-cleanup.v1'), 'Failed server delete must remain pending');
+  const pendingSetIndex = storageOperations.findIndex(([op, key]) =>
+    op === 'set' && key === 'noxa.live-drive-pending-cleanup.v1');
+  const sessionRemoveIndex = storageOperations.findIndex(([op, key]) =>
+    op === 'remove' && key === 'noxa.live-drive-session.v1');
+  assert.ok(
+    pendingSetIndex >= 0 && sessionRemoveIndex >= 0 && pendingSetIndex < sessionRemoveIndex,
+    'Ghost must persist scoped cleanup intent before clearing the local session',
+  );
   assert.deepEqual(deleteCalls.at(-1), [
     ['user_id', 'user-a'],
     ['share_expires_at', expiresAt],
