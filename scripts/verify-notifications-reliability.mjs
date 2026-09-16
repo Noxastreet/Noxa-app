@@ -42,6 +42,22 @@ assert(
   'Only the newest request may clear loading indicators.',
 );
 
+const pushBridge = fs.readFileSync('src/features/notifications/PushNotificationBridge.tsx', 'utf8');
+const pushNotifications = fs.readFileSync('src/lib/pushNotifications.ts', 'utf8');
+
+assert(
+  /addPushTokenListener\(\(devicePushToken\) => \{[\s\S]*refreshCurrentPushDevice\(devicePushToken\)/.test(pushBridge),
+  'Push-token listener must reuse the emitted device token instead of fetching it again.',
+);
+assert(
+  /getExpoPushTokenAsync\(\{[\s\S]*devicePushToken/.test(pushNotifications),
+  'Push-token refresh must pass the emitted device token to Expo token lookup to avoid recursive listener events.',
+);
+assert(
+  /pendingRegistration[\s\S]*pendingRegisteredExpoPushToken[\s\S]*pendingRegisteredAccessToken/.test(pushNotifications),
+  'Push-device registration must deduplicate an identical in-flight registration.',
+);
+
 if (!process.exitCode) {
   console.log('Notifications reliability contract passed.');
 }
