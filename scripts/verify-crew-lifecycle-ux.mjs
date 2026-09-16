@@ -7,6 +7,7 @@ const detail = fs.readFileSync(
 );
 const publicError = fs.readFileSync('src/lib/publicError.ts', 'utf8');
 const deleteCrew = fs.readFileSync('supabase/functions/delete-crew/index.ts', 'utf8');
+const deleteCrewDeno = fs.readFileSync('supabase/functions/delete-crew/deno.json', 'utf8');
 
 const failures = [];
 const expect = (condition, message) => {
@@ -43,6 +44,10 @@ expect(
     deleteCrew.includes('entity-covers') &&
     deleteCrew.includes('crew-gallery'),
   'Delete Crew Edge Function must verify ownership, delete the Crew, and clean Crew media.',
+);
+expect(
+  deleteCrewDeno.includes('npm:@supabase/supabase-js@2.109.0'),
+  'Delete Crew Edge Function must declare the Supabase JS import map for production bundling.',
 );
 expect(
   detail.includes('publicErrorMessage') && manage.includes('publicErrorMessage'),
