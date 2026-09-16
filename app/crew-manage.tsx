@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleS
 
 import { NoxaButton, NoxaScreen } from '@/src/components/ui';
 import { CanonicalAvatar, CanonicalPill, type CanonicalProfile } from '@/src/features/crews-events/CanonicalPrimitives';
+import { publicErrorMessage } from '@/src/lib/publicError';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
@@ -12,6 +13,8 @@ type CrewRole = 'owner' | 'admin' | 'member';
 type Member = { user_id: string; role: CrewRole; profile: CanonicalProfile | null };
 type JoinRequest = { id: string; user_id: string; profile: CanonicalProfile | null };
 type Crew = { id: string; name: string; owner_id: string };
+type FriendInviteState = 'available' | 'pending' | 'member';
+type FriendCandidate = { profile: CanonicalProfile; state: FriendInviteState };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -45,6 +48,7 @@ export default function CrewManageScreen() {
   const [role, setRole] = useState<CrewRole | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [requests, setRequests] = useState<JoinRequest[]>([]);
+  const [friendCandidates, setFriendCandidates] = useState<FriendCandidate[]>([]);
   const [inviteUsername, setInviteUsername] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,19 +77,30 @@ export default function CrewManageScreen() {
       if (myRole !== 'owner' && myRole !== 'admin') {
         setMembers([]);
         setRequests([]);
+        setFriendCandidates([]);
         setError('Only Crew owners and admins can manage members.');
         return;
       }
 
-      const [memberResult, requestResult] = await Promise.all([
+      const [memberResult, requestResult, outgoingResult, incomingResult, invitationResult] = await Promise.all([
         supabase.from('crew_members').select('user_id,role').eq('crew_id', crewId),
         supabase.from('crew_join_requests').select('id,user_id').eq('crew_id', crewId).eq('status', 'pending').order('created_at'),
+        supabase.from('follows').select('following_id').eq('follower_id', currentUserId),
+        supabase.from('follows').select('follower_id').eq('following_id', currentUserId),
+        supabase.from('crew_invitations').select('invited_user_id,status').eq('crew_id', crewId).eq('status', 'pending'),
       ]);
-      if (memberResult.error || requestResult.error) throw memberResult.error ?? requestResult.error;
+      const managementError = memberResult.error ?? requestResult.error ?? outgoingResult.error ?? incomingResult.error ?? invitationResult.error;
+      if (managementError) throw managementError;
 
       const memberRows = (memberResult.data ?? []) as { user_id: string; role: CrewRole }[];
       const requestRows = (requestResult.data ?? []) as { id: string; user_id: string }[];
-      const ids = Array.from(new Set([...memberRows.map((row) => row.user_id), ...requestRows.map((row) => row.user_id)]));
+      const memberIds = new Set(memberRows.map((row) => row.user_id));
+      const pendingInviteIds = new Set((invitationResult.data ?? []).map((row) => String(row.invited_user_id)));
+      const outgoingIds = new Set((outgoingResult.data ?? []).map((row) => String(row.following_id)));
+      const mutualIds = (incomingResult.data ?? [])
+        .map((row) => String(row.follower_id))
+        .filter((id) => outgoingIds.has(id) && id !== currentUserId);
+      const ids = Array.from(new Set([...memberRows.map((row) => row.user_id), ...requestRows.map((row) => row.user_id), ...mutualIds]));
       const profilesResult = ids.length
         ? await supabase.from('profiles').select('id,display_name,username,avatar_url').in('id', ids)
         : { data: [], error: null };
@@ -93,8 +108,16 @@ export default function CrewManageScreen() {
       const profiles = new Map(((profilesResult.data ?? []) as CanonicalProfile[]).map((profile) => [profile.id, profile]));
       setMembers(memberRows.map((row) => ({ ...row, profile: profiles.get(row.user_id) ?? null })));
       setRequests(requestRows.map((row) => ({ ...row, profile: profiles.get(row.user_id) ?? null })));
+      setFriendCandidates(mutualIds
+        .map((id) => profiles.get(id))
+        .filter((profile): profile is CanonicalProfile => Boolean(profile))
+        .map((profile): FriendCandidate => ({
+          profile,
+          state: memberIds.has(profile.id) ? 'member' : pendingInviteIds.has(profile.id) ? 'pending' : 'available',
+        }))
+        .sort((a, b) => nameOf(a.profile).localeCompare(nameOf(b.profile))));
     } catch (value) {
-      setError(value instanceof Error ? value.message : 'Crew management could not be loaded.');
+      setError(publicErrorMessage(value, 'Crew management could not be loaded. Retry.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -111,7 +134,7 @@ export default function CrewManageScreen() {
     setBusy(request.id);
     setError(null);
     const { data, error: rpcError } = await supabase.rpc('noxa_review_crew_join_request', { target_request_id: request.id, approve });
-    if (rpcError || data !== true) setError(rpcError?.message ?? 'Request could not be reviewed.');
+    if (rpcError || data !== true) setError(publicErrorMessage(rpcError, 'Request could not be reviewed.'));
     else await load(false);
     setBusy(null);
   }, [busy, load]);
@@ -126,7 +149,7 @@ export default function CrewManageScreen() {
       target_user_id: member.user_id,
       target_role: nextRole,
     });
-    if (rpcError || data !== true) setError(rpcError?.message ?? 'Member role could not be changed.');
+    if (rpcError || data !== true) setError(publicErrorMessage(rpcError, 'Member role could not be changed.'));
     else await load(false);
     setBusy(null);
   }, [busy, crewId, load, role]);
@@ -142,13 +165,54 @@ export default function CrewManageScreen() {
             target_crew_id: crewId,
             target_user_id: member.user_id,
           });
-          if (rpcError || data !== true) setError(rpcError?.message ?? 'Member could not be removed.');
+          if (rpcError || data !== true) setError(publicErrorMessage(rpcError, 'Member could not be removed.'));
           else await load(false);
           setBusy(null);
         },
       },
     ]);
   }, [busy, crewId, load]);
+
+  const inviteFriend = useCallback(async (candidate: FriendCandidate) => {
+    if (busy || candidate.state !== 'available' || memberIds.has(candidate.profile.id)) return;
+    setBusy(`friend:${candidate.profile.id}`);
+    setError(null);
+    const { data, error: inviteError } = await supabase.rpc('noxa_invite_to_crew', {
+      target_crew_id: crewId,
+      target_user_id: candidate.profile.id,
+    });
+    if (inviteError || !data) setError(publicErrorMessage(inviteError, 'Invitation could not be sent.'));
+    else await load(false);
+    setBusy(null);
+  }, [busy, crewId, load, memberIds]);
+
+  const confirmDeleteCrew = useCallback(() => {
+    if (!crew || !userId || role !== 'owner' || busy) return;
+    Alert.alert('Delete Crew permanently?', `Delete ${crew.name}? Members will lose access immediately. This cannot be undone.`, [
+      { text: 'Keep Crew', style: 'cancel' },
+      {
+        text: 'Delete Crew', style: 'destructive', onPress: async () => {
+          setBusy('delete');
+          setError(null);
+          const { data, error: deleteError } = await supabase.functions.invoke<{
+            success?: boolean;
+            error?: string;
+          }>('delete-crew', { body: { crewId } });
+          if (deleteError || !data?.success) {
+            setError(
+              publicErrorMessage(
+                data?.error ?? deleteError,
+                'Crew could not be deleted. Retry.',
+              ),
+            );
+            setBusy(null);
+            return;
+          }
+          router.replace('/(tabs)/crews');
+        },
+      },
+    ]);
+  }, [busy, crew, crewId, role, userId]);
 
   const invite = useCallback(async () => {
     if (busy) return;
@@ -162,7 +226,7 @@ export default function CrewManageScreen() {
       .ilike('username', username)
       .maybeSingle();
     if (profileError || !profile) {
-      setError(profileError?.message ?? 'No driver found with that username.');
+      setError(publicErrorMessage(profileError, 'No driver found with that username.'));
       setBusy(null);
       return;
     }
@@ -175,7 +239,7 @@ export default function CrewManageScreen() {
       target_crew_id: crewId,
       target_user_id: profile.id,
     });
-    if (inviteError || !data) setError(inviteError?.message ?? 'Invitation could not be sent.');
+    if (inviteError || !data) setError(publicErrorMessage(inviteError, 'Invitation could not be sent.'));
     else {
       setInviteUsername('');
       Alert.alert('Invitation sent', `${nameOf(profile as CanonicalProfile)} can accept it from NOXA activity.`);
@@ -226,7 +290,21 @@ export default function CrewManageScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>INVITE BY USERNAME</Text>
+              <Text style={styles.sectionTitle}>INVITE FRIENDS · {friendCandidates.length}</Text>
+              {friendCandidates.length ? friendCandidates.slice(0, 12).map((candidate) => {
+                const title = candidate.state === 'member' ? 'MEMBER' : candidate.state === 'pending' ? 'PENDING' : 'INVITE';
+                return (
+                  <View key={candidate.profile.id} style={styles.row}>
+                    <CanonicalAvatar profile={candidate.profile} size={42} />
+                    <View style={styles.copy}><Text numberOfLines={1} style={styles.name}>{nameOf(candidate.profile)}</Text><Text style={styles.meta}>{handleOf(candidate.profile) ?? 'Mutual friend'}</Text></View>
+                    <MiniAction title={title} disabled={candidate.state !== 'available' || Boolean(busy)} onPress={() => void inviteFriend(candidate)} />
+                  </View>
+                );
+              }) : <Text style={styles.muted}>No mutual friends available to invite yet.</Text>}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>SEARCH BY USERNAME</Text>
               <View style={styles.inviteRow}>
                 <TextInput autoCapitalize="none" autoCorrect={false} onChangeText={setInviteUsername} onSubmitEditing={() => void invite()} placeholder="@username" placeholderTextColor={colors.textSubtle} returnKeyType="send" selectionColor={colors.primary} style={styles.input} value={inviteUsername} />
                 <MiniAction title="INVITE" disabled={busy === 'invite' || inviteUsername.trim().length < 2} onPress={() => void invite()} />
@@ -253,6 +331,14 @@ export default function CrewManageScreen() {
                 );
               })}
             </View>
+
+            {role === 'owner' ? (
+              <View style={styles.dangerZone}>
+                <Text style={styles.sectionTitle}>DANGER ZONE</Text>
+                <Text style={styles.dangerCopy}>Deleting this Crew removes membership and access permanently.</Text>
+                <NoxaButton fullWidth disabled={Boolean(busy)} loading={busy === 'delete'} onPress={confirmDeleteCrew} title="Delete Crew" variant="danger" />
+              </View>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -288,6 +374,8 @@ const styles = StyleSheet.create({
   input: { flex: 1, minHeight: 42, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, color: colors.text, fontSize: 13 },
   memberBlock: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   memberActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xs, paddingBottom: spacing.sm },
+  dangerZone: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
+  dangerCopy: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
 });

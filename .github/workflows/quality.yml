@@ -87,6 +87,9 @@ jobs:
       - name: Owned media cleanup contract
         run: node ./scripts/verify-media-cleanup.mjs
 
+      - name: Crew lifecycle UX contract
+        run: node ./scripts/verify-crew-lifecycle-ux.mjs
+
       - name: Group Drive invitation push contract
         run: node ./scripts/verify-group-drive-invitation-push.mjs
 
