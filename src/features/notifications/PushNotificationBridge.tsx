@@ -101,8 +101,8 @@ export function PushNotificationBridge() {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
       openNotificationResponse,
     );
-    const tokenSubscription = Notifications.addPushTokenListener(() => {
-      void refreshCurrentPushDevice().catch((error) => {
+    const tokenSubscription = Notifications.addPushTokenListener((devicePushToken) => {
+      void refreshCurrentPushDevice(devicePushToken).catch((error) => {
         console.warn('[noxa-push] Push token refresh failed.', error);
       });
     });

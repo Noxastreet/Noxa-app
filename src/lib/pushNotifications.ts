@@ -15,6 +15,9 @@ const ONE_MINUTE_MS = 60 * 1000;
 
 let lastRegisteredExpoPushToken: string | null = null;
 let lastRegisteredAccessToken: string | null = null;
+let pendingRegisteredExpoPushToken: string | null = null;
+let pendingRegisteredAccessToken: string | null = null;
+let pendingRegistration: Promise<void> | null = null;
 
 if (Platform.OS !== 'web') {
   Notifications.setNotificationHandler({
@@ -158,31 +161,61 @@ export async function syncUpcomingEventReminders(userId: string) {
 }
 
 async function registerExpoToken(expoPushToken: string, accessToken: string) {
+  if (
+    lastRegisteredExpoPushToken === expoPushToken &&
+    lastRegisteredAccessToken === accessToken
+  ) {
+    return;
+  }
+
+  if (
+    pendingRegistration &&
+    pendingRegisteredExpoPushToken === expoPushToken &&
+    pendingRegisteredAccessToken === accessToken
+  ) {
+    return pendingRegistration;
+  }
+
   const projectId = easProjectId();
   if (!projectId) {
     throw new Error('Expo project ID is missing from the app configuration.');
   }
 
-  const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>(
-    'push-device',
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: {
-        action: 'register',
-        expo_push_token: expoPushToken,
-        platform: Platform.OS,
-        project_id: projectId,
-        app_id: NOXA_APP_ID,
+  pendingRegisteredExpoPushToken = expoPushToken;
+  pendingRegisteredAccessToken = accessToken;
+  const registration = (async () => {
+    const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>(
+      'push-device',
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: {
+          action: 'register',
+          expo_push_token: expoPushToken,
+          platform: Platform.OS,
+          project_id: projectId,
+          app_id: NOXA_APP_ID,
+        },
       },
-    },
-  );
+    );
 
-  if (error || !data?.success) {
-    throw new Error(data?.error ?? error?.message ?? 'Push device registration failed.');
+    if (error || !data?.success) {
+      throw new Error(data?.error ?? error?.message ?? 'Push device registration failed.');
+    }
+
+    lastRegisteredExpoPushToken = expoPushToken;
+    lastRegisteredAccessToken = accessToken;
+  })();
+  pendingRegistration = registration;
+
+  try {
+    await registration;
+  } finally {
+    if (pendingRegistration === registration) {
+      pendingRegistration = null;
+      pendingRegisteredExpoPushToken = null;
+      pendingRegisteredAccessToken = null;
+    }
   }
-
-  lastRegisteredExpoPushToken = expoPushToken;
-  lastRegisteredAccessToken = accessToken;
 }
 
 export async function registerCurrentPushDevice() {
@@ -212,7 +245,9 @@ export async function registerCurrentPushDevice() {
   return expoPushToken;
 }
 
-export async function refreshCurrentPushDevice() {
+export async function refreshCurrentPushDevice(
+  devicePushToken?: Notifications.DevicePushToken,
+) {
   if (!isNativeAppRuntime()) return null;
 
   const { data: sessionData } = await supabase.auth.getSession();
@@ -226,7 +261,10 @@ export async function refreshCurrentPushDevice() {
   if (!projectId) return null;
 
   const expoPushToken = (
-    await Notifications.getExpoPushTokenAsync({ projectId })
+    await Notifications.getExpoPushTokenAsync({
+      projectId,
+      ...(devicePushToken ? { devicePushToken } : {}),
+    })
   ).data;
   await registerExpoToken(expoPushToken, session.access_token);
   return expoPushToken;
