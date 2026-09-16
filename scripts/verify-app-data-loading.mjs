@@ -33,9 +33,13 @@ assert(
 );
 assert(
   /const supabaseFetch: typeof globalThis\.fetch = async/.test(supabase) &&
-    /setTimeout\(\(\) => controller\.abort\(\), SUPABASE_HTTP_TIMEOUT_MS\)/.test(supabase) &&
+    /SUPABASE_BODY_TIMEOUT_MS = 12_000/.test(supabase) &&
+    /readResponseBytesViaStream/.test(supabase) &&
+    /body\.getReader\(\)/.test(supabase) &&
+    /reader\.cancel\('Supabase response body timed out'\)/.test(supabase) &&
+    /resolve\(wrapExpoResponse\(response\)\)/.test(supabase) &&
     /upstreamSignal\?\.addEventListener\('abort', abortFromUpstream/.test(supabase),
-  'The shared Supabase fetch must bound requests and preserve upstream cancellation.',
+  'The shared Supabase fetch must use bounded streaming response bodies and preserve upstream cancellation.',
 );
 assert(
   /if \(!currentSessionUserPromise\)[\s\S]*supabase\.auth[\s\S]*\.getSession\(\)/.test(supabase),
