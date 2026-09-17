@@ -24,8 +24,8 @@ import {
   CanonicalPrimaryButton,
   CanonicalSectionHeader,
   initials,
-  type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
+import { publicErrorMessage } from "@/src/lib/publicError";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -190,14 +190,7 @@ function HeroCrew({
   const artworkUri = crew.cover_image_url || event?.cover_image_url || null;
 
   return (
-    <Pressable
-      accessibilityLabel={`Open ${crew.name}`}
-      accessibilityRole="button"
-      onPress={() =>
-        router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
-      }
-      style={({ pressed }) => [styles.heroCard, pressed && styles.pressed]}
-    >
+    <View style={styles.heroCard}>
       <CanonicalArtwork
         uri={artworkUri}
         style={styles.heroArtwork}
@@ -209,15 +202,27 @@ function HeroCrew({
 
         <View style={styles.heroTopRow}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOUR CREW" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOUR CREW" : "DISCOVER"}
             tone={event ? "accent" : "neutral"}
           />
-          <View style={styles.heroMenuButton}>
-            <Ionicons name="ellipsis-horizontal" size={18} color={colors.text} />
+          <View style={styles.heroStatusIcon}>
+            <Ionicons
+              name={crew.isCurrentUserMember ? "checkmark-circle" : "compass-outline"}
+              size={19}
+              color={colors.text}
+            />
           </View>
         </View>
 
-        <View style={styles.heroCopy}>
+        <Pressable
+          accessibilityLabel={`Open ${crew.name}`}
+          accessibilityRole="button"
+          accessibilityHint="Opens crew details"
+          onPress={() =>
+            router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
+          }
+          style={({ pressed }) => [styles.heroOpenArea, pressed && styles.pressed]}
+        >
           <View style={styles.heroIdentity}>
             <CrewLogo crew={crew} size={46} />
             <View style={styles.heroNameBlock}>
@@ -228,6 +233,7 @@ function HeroCrew({
                 {(crew.city || "NOXA").toUpperCase()} · {crew.memberCount} MEMBERS
               </Text>
             </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </View>
 
           {event ? (
@@ -235,29 +241,29 @@ function HeroCrew({
               NEXT: {event.title.toUpperCase()} · {formatDrive(event.starts_at)}
             </Text>
           ) : null}
+        </Pressable>
 
-          <View style={styles.heroFooter}>
-            <View style={styles.organizerBlock}>
-              <Text style={styles.organizerEyebrow}>ORGANIZER</Text>
-              <Text numberOfLines={1} style={styles.organizerName}>
-                {crew.ownerName}
-              </Text>
-            </View>
-            <View style={styles.heroActionArea}>
-              <CanonicalAvatarStack total={crew.memberCount} max={3} size={27} />
-              <CanonicalPrimaryButton
-                compact
-                disabled={!canAction || busy}
-                loading={busy}
-                label={label}
-                variant={crew.isCurrentUserMember ? "surface" : "accent"}
-                onPress={() => onAction(crew)}
-              />
-            </View>
+        <View style={styles.heroFooter}>
+          <View style={styles.organizerBlock}>
+            <Text style={styles.organizerEyebrow}>ORGANIZER</Text>
+            <Text numberOfLines={1} style={styles.organizerName}>
+              {crew.ownerName}
+            </Text>
+          </View>
+          <View style={styles.heroActionArea}>
+            <CanonicalAvatarStack total={crew.memberCount} max={3} size={27} />
+            <CanonicalPrimaryButton
+              compact
+              disabled={!canAction || busy}
+              loading={busy}
+              label={label}
+              variant={crew.isCurrentUserMember ? "surface" : "accent"}
+              onPress={() => onAction(crew)}
+            />
           </View>
         </View>
       </CanonicalArtwork>
-    </Pressable>
+    </View>
   );
 }
 
@@ -280,7 +286,7 @@ function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
         <View style={styles.compactShade} />
         <View style={styles.compactTop}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOURS" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOURS" : "DISCOVER"}
           />
           <Text style={styles.compactMemberCount}>{crew.memberCount}</Text>
         </View>
@@ -558,7 +564,6 @@ function CreateCrewModal({
 export default function CanonicalCrewsScreen() {
   const [crews, setCrews] = useState<Crew[]>([]);
   const [events, setEvents] = useState<CrewEvent[]>([]);
-  const [profiles, setProfiles] = useState<CanonicalProfile[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CrewFilter>("mine");
   const [loading, setLoading] = useState(true);
@@ -570,6 +575,7 @@ export default function CanonicalCrewsScreen() {
   const hasLoadedRef = useRef(false);
 
   const load = useCallback(async (showSpinner = true) => {
+    const isInitialLoad = !hasLoadedRef.current;
     if (showSpinner) setLoading(true);
     setError(null);
 
@@ -584,7 +590,7 @@ export default function CanonicalCrewsScreen() {
       .order("created_at", { ascending: false });
 
     if (crewsResult.error) {
-      setError(crewsResult.error.message);
+      setError(publicErrorMessage(crewsResult.error, "Crews could not be loaded. Retry."));
       setLoading(false);
       setRefreshing(false);
       hasLoadedRef.current = true;
@@ -603,8 +609,7 @@ export default function CanonicalCrewsScreen() {
 
     setCrews(baseModels);
     setEvents([]);
-    setProfiles([]);
-    setFilter("discover");
+    if (isInitialLoad) setFilter("discover");
     setLoading(false);
     setRefreshing(false);
     hasLoadedRef.current = true;
@@ -630,11 +635,7 @@ export default function CanonicalCrewsScreen() {
         .gte("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true })
         .limit(8),
-      supabase
-        .from("profiles")
-        .select("id,display_name,username,avatar_url")
-        .limit(8),
-    ]).then(([membersResult, requestsResult, eventsResult, profilesResult]) => {
+    ]).then(([membersResult, requestsResult, eventsResult]) => {
       const memberRows = membersResult.error
         ? []
         : ((membersResult.data ?? []) as CrewMemberRow[]);
@@ -668,10 +669,9 @@ export default function CanonicalCrewsScreen() {
 
       setCrews(models);
       if (!eventsResult.error) setEvents((eventsResult.data ?? []) as CrewEvent[]);
-      if (!profilesResult.error) {
-        setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
+      if (isInitialLoad) {
+        setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
       }
-      setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
     });
   }, []);
 
@@ -717,7 +717,7 @@ export default function CanonicalCrewsScreen() {
                 .delete()
                 .eq("crew_id", crew.id)
                 .eq("user_id", userId);
-              if (leaveError) setError(leaveError.message);
+              if (leaveError) setError(publicErrorMessage(leaveError, "Crew could not be left. Retry."));
               else await load(false);
               setBusyCrewId(null);
             },
@@ -734,17 +734,17 @@ export default function CanonicalCrewsScreen() {
           .from("crew_join_requests")
           .delete()
           .eq("id", crew.pendingJoinRequestId);
-        if (cancelError) setError(cancelError.message);
+        if (cancelError) setError(publicErrorMessage(cancelError, "Request could not be cancelled. Retry."));
       } else if (crew.join_policy === "approval") {
         const { error: requestError } = await supabase
           .from("crew_join_requests")
           .insert({ crew_id: crew.id, user_id: userId, status: "pending" });
-        if (requestError) setError(requestError.message);
+        if (requestError) setError(publicErrorMessage(requestError, "Join request could not be sent. Retry."));
       } else if (crew.join_policy === "open" && crew.is_public) {
         const { error: joinError } = await supabase
           .from("crew_members")
           .insert({ crew_id: crew.id, user_id: userId, role: "member" });
-        if (joinError) setError(joinError.message);
+        if (joinError) setError(publicErrorMessage(joinError, "Crew could not be joined. Retry."));
       }
 
       await load(false);
@@ -779,7 +779,7 @@ export default function CanonicalCrewsScreen() {
         .single();
 
       if (createError) {
-        setError(createError.message);
+        setError(publicErrorMessage(createError, "Crew could not be created. Retry."));
         setCreating(false);
         return;
       }
@@ -810,7 +810,7 @@ export default function CanonicalCrewsScreen() {
         <View style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
           <Text style={styles.stateTitle}>
-            {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
+            {filter === "mine" ? "No crews yet" : "No public crews yet"}
           </Text>
           <Text style={styles.stateText}>
             {filter === "mine"
@@ -840,7 +840,7 @@ export default function CanonicalCrewsScreen() {
         {secondaryCrews.length ? (
           <>
             <CanonicalSectionHeader
-              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE NEAR YOU"}
+              title={filter === "mine" ? "MORE OF YOUR CREWS" : "MORE TO DISCOVER"}
             />
             <ScrollView
               horizontal
@@ -863,22 +863,23 @@ export default function CanonicalCrewsScreen() {
         ) : null}
 
         <View style={styles.peopleStrip}>
+          <View style={styles.communityIcon}>
+            <Ionicons
+              name={filter === "mine" ? "people" : "compass-outline"}
+              size={20}
+              color={colors.primaryHover}
+            />
+          </View>
           <View style={styles.peopleCopy}>
             <Text style={styles.peopleEyebrow}>
-              {filter === "mine" ? "YOUR COMMUNITY" : "PEOPLE NEARBY"}
+              {filter === "mine" ? "YOUR COMMUNITY" : "PUBLIC CREWS"}
             </Text>
             <Text style={styles.peopleText}>
               {filter === "mine"
-                ? `${myCrews.length} crew${myCrews.length === 1 ? "" : "s"} connected to your garage`
+                ? `${myCrews.length} crew${myCrews.length === 1 ? "" : "s"} connected to your profile`
                 : `${discovery.length} public crew${discovery.length === 1 ? "" : "s"} to discover`}
             </Text>
           </View>
-          <CanonicalAvatarStack
-            profiles={profiles}
-            total={profiles.length}
-            max={4}
-            size={30}
-          />
         </View>
       </>
     );
@@ -894,7 +895,6 @@ export default function CanonicalCrewsScreen() {
     myCrews.length,
     nextEvent,
     nextEventCrew,
-    profiles,
     secondaryCrews,
   ]);
 
@@ -996,7 +996,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.caption,
   },
   createButton: {
-    minHeight: 36,
+    minHeight: 48,
     marginTop: spacing.xxs,
     flexDirection: "row",
     alignItems: "center",
@@ -1024,7 +1024,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   filterButton: {
-    minHeight: 42,
+    minHeight: 48,
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -1124,14 +1124,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.sm,
   },
-  heroMenuButton: {
-    width: 36,
-    height: 36,
+  heroStatusIcon: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 18,
+    borderRadius: 22,
     backgroundColor: "rgba(6,6,10,0.62)",
   },
+  heroOpenArea: { gap: spacing.sm, paddingVertical: spacing.xxs },
   heroCopy: { gap: spacing.sm },
   heroIdentity: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   heroNameBlock: { flex: 1 },
@@ -1166,8 +1167,8 @@ const styles = StyleSheet.create({
   organizerBlock: { flex: 1, minWidth: 0 },
   organizerEyebrow: {
     color: colors.textSubtle,
-    fontSize: 8,
-    lineHeight: 10,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: "900",
     letterSpacing: 0.45,
   },
@@ -1227,7 +1228,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: "900",
   },
-  compactMeta: { color: colors.textMuted, fontSize: 9, lineHeight: 12 },
+  compactMeta: { color: colors.textMuted, fontSize: 11, lineHeight: 14 },
   driveCard: {
     minHeight: 126,
     flexDirection: "row",
@@ -1278,6 +1279,14 @@ const styles = StyleSheet.create({
   },
   driveMeta: { color: colors.textMuted, fontSize: 11, lineHeight: 15 },
   driveSignal: { color: colors.textSubtle, fontSize: 10, lineHeight: 14 },
+  communityIcon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: colors.primaryMuted,
+  },
   peopleStrip: {
     minHeight: 78,
     flexDirection: "row",
