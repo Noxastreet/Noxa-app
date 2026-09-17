@@ -14,6 +14,7 @@ export type MapboxDriver = {
   label: string;
   avatar_url: string | null;
   vehicle_label?: string | null;
+  can_invite_directly?: boolean;
   is_relevant?: boolean;
   is_dimmed?: boolean;
 };
