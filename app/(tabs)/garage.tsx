@@ -12,10 +12,11 @@ import {
   View,
   type ImageStyle,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { NoxaBadge, NoxaScreen } from '@/src/components/ui';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 type GarageVehicle = {
   id: string;
@@ -126,17 +127,38 @@ function VehicleCard({
   busy: boolean;
   onMakePrimary: (vehicle: GarageVehicle) => void;
 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(18)).current;
+  const reduceMotion = useReducedMotion();
+  const opacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const translateY = useRef(new Animated.Value(reduceMotion ? 0 : animations.entranceDistance)).current;
   const meta = vehicleMeta(vehicle);
   const modelName = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 420, delay: index * 50, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 420, delay: index * 50, useNativeDriver: true }),
-    ]).start();
-  }, [index, opacity, translateY]);
+    if (reduceMotion) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+
+    const delay = Math.min(index * 40, animations.micro);
+    const animation = Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: animations.entrance,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: animations.entrance,
+        delay,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    animation.start();
+    return () => animation.stop();
+  }, [index, opacity, reduceMotion, translateY]);
 
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
@@ -161,6 +183,7 @@ function VehicleCard({
           <Pressable
             accessibilityLabel={`Make ${modelName || 'vehicle'} primary`}
             accessibilityRole="button"
+            accessibilityState={{ busy, disabled: busy }}
             disabled={busy}
             onPress={() => onMakePrimary(vehicle)}
             style={({ pressed }) => [styles.primaryAction, pressed && !busy && styles.pressed, busy && styles.disabled]}>
@@ -359,7 +382,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   addButton: {
-    minHeight: 38,
+    minHeight: 48,
     marginTop: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
@@ -416,7 +439,8 @@ const styles = StyleSheet.create({
   identityCopy: { flex: 1, minWidth: 0 },
   vehicleType: {
     color: colors.textSubtle,
-    fontSize: 8,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '900',
     letterSpacing: 1,
   },
@@ -427,7 +451,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryAction: {
-    minHeight: 46,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -436,9 +460,9 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
     backgroundColor: colors.surfaceSoft,
   },
-  primaryActionText: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  primaryActionText: { color: colors.primaryHover, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
   primaryLockedRow: {
-    minHeight: 42,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -446,7 +470,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
   },
-  primaryLockedText: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  primaryLockedText: { color: colors.textMuted, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
   collectionState: {
     minHeight: 280,
     alignItems: 'center',
@@ -477,7 +501,7 @@ const styles = StyleSheet.create({
   },
   stateText: { maxWidth: 260, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700', lineHeight: 18, textAlign: 'center' },
   retryButton: {
-    minHeight: 40,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
