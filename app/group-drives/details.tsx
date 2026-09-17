@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
-import { NoxaButton, NoxaInput } from '@/src/components/ui';
+import { NoxaButton, NoxaInput, NoxaLoadingState } from '@/src/components/ui';
 import {
   GroupDriveHeader,
   GroupDriveStep,
@@ -81,21 +81,33 @@ export default function GroupDriveDetailsEditorScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <Screen constrained={false} contentStyle={styles.content}>
+        <GroupDriveHeader
+          title={editMode ? 'EDIT DETAILS' : 'EDIT DRIVE'}
+          subtitle="Loading drive"
+        />
+        <NoxaLoadingState label="Loading Group Drive details" />
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
         title={editMode ? 'EDIT DETAILS' : driveSessionId ? 'EDIT DRIVE' : 'NEW GROUP DRIVE'}
-        subtitle={crewId ? 'Crew context · invite-only' : 'Invite-only by design'}
+        subtitle={crewId ? 'Crew · invite-only' : 'Invite-only'}
       />
       {!editMode ? <GroupDriveStep current={1} label="Drive details" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>{editMode ? 'Update this drive.' : 'Name the shared intention.'}</Text>
-        <Text style={styles.body}>Keep it clear. The people you invite should know what this drive is for.</Text>
+        <Text style={styles.title}>{editMode ? 'Update this drive.' : 'Name your drive.'}</Text>
+        <Text style={styles.body}>Give invited drivers a clear name and an optional note.</Text>
       </View>
       <View style={styles.form}>
         <NoxaInput
           autoCapitalize="sentences"
-          editable={!loading && !saving}
+          editable={!saving}
           label="Title"
           maxLength={100}
           onChangeText={setTitle}
@@ -104,7 +116,7 @@ export default function GroupDriveDetailsEditorScreen() {
           value={title}
         />
         <NoxaInput
-          editable={!loading && !saving}
+          editable={!saving}
           hint={`${description.length}/1000 · optional`}
           label="Description"
           maxLength={1000}
@@ -120,14 +132,13 @@ export default function GroupDriveDetailsEditorScreen() {
         <Ionicons name={crewId ? 'people-outline' : 'lock-closed-outline'} size={19} color={colors.primaryHover} />
         <Text style={styles.privacyText}>
           {crewId
-            ? 'This drive is connected to your Crew, but it remains private. Drivers still join only by invitation.'
-            : 'Every MVP Group Drive is private. Only individually invited drivers can join.'}
+            ? 'Connected to your Crew, but still private. Only invited drivers can join.'
+            : 'This drive is private. Only invited drivers can join.'}
         </Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <View style={styles.footer}>
         <NoxaButton
-          disabled={loading}
           fullWidth
           loading={saving}
           onPress={() => void continueFlow()}
