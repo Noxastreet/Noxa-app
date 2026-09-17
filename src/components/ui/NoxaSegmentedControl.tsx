@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import { animations, colors, radius, spacing } from '@/src/theme';
+
+const minimumTouchTarget = Platform.OS === 'android' ? 48 : 44;
 
 type SegmentOption<T extends string> = {
   label: string;
@@ -48,7 +50,7 @@ export function NoxaSegmentedControl<T extends string>({
 
 const styles = StyleSheet.create({
   control: {
-    minHeight: 48,
+    minHeight: minimumTouchTarget + spacing.xxs * 2,
     flexDirection: 'row',
     padding: spacing.xxs,
     borderRadius: radius.lg,
@@ -57,7 +59,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   segment: {
-    minHeight: 40,
+    minHeight: minimumTouchTarget,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
