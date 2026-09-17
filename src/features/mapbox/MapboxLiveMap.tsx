@@ -91,6 +91,15 @@ function NoxaNavigationArrowAsset() {
   );
 }
 
+function formatDriverDistance(meters: number | null | undefined) {
+  if (meters === null || meters === undefined || !Number.isFinite(meters)) {
+    return null;
+  }
+  if (meters < 1_000) return "Less than 1 km away";
+  const roundedKilometers = Math.max(1, Math.round(meters / 500) * 0.5);
+  return `About ${roundedKilometers.toFixed(roundedKilometers % 1 ? 1 : 0)} km away`;
+}
+
 function eventIconName(
   category: string | null | undefined,
 ): keyof typeof Ionicons.glyphMap {
@@ -126,7 +135,11 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       followUserLocation,
       onFollowUserLocationChange,
       onUserPan,
+      onMapPress,
+      selectedDriverId,
       onDriverPress,
+      onDriverProfilePress,
+      onDriverInvitePress,
       onEventPress,
     },
     ref,
@@ -172,6 +185,13 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     const selectedEvent = useMemo(
       () => events.find((event) => event.id === selectedEventId) ?? null,
       [events, selectedEventId],
+    );
+    const selectedDriver = useMemo(
+      () =>
+        selectedDriverId
+          ? activeDrivers.find((driver) => driver.user_id === selectedDriverId) ?? null
+          : null,
+      [activeDrivers, selectedDriverId],
     );
     const shouldClusterDrivers = activeDrivers.length >= DRIVER_CLUSTER_LIMIT;
 
@@ -298,6 +318,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           onMapLoadingError={() => {
             if (!isLoaded) setHasError(true);
           }}
+          onPress={() => onMapPress?.()}
           onCameraChanged={(state) => {
             if (state.gestures.isGestureActive) {
               onUserPan();
@@ -459,6 +480,90 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 </MarkerView>
               ))
             : null}
+
+          {mapFilter !== "events" && !shouldClusterDrivers && selectedDriver ? (
+            <MarkerView
+              allowOverlap
+              anchor={{ x: 0.5, y: 1.22 }}
+              coordinate={toPosition(selectedDriver)}
+              isSelected
+              key={`driver-callout:${selectedDriver.user_id}`}
+            >
+              <View
+                accessibilityLabel={`Selected driver ${selectedDriver.label}`}
+                style={styles.driverCalloutWrap}
+              >
+                <View style={styles.driverCallout}>
+                  <View style={styles.driverCalloutIdentity}>
+                    <View style={styles.driverCalloutAvatarFrame}>
+                      {selectedDriver.avatar_url ? (
+                        <Image
+                          contentFit="cover"
+                          source={{ uri: selectedDriver.avatar_url }}
+                          style={styles.driverCalloutAvatar}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={selectedDriver.is_relevant ? "person" : "car-sport"}
+                          size={18}
+                          color={colors.text}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.driverCalloutCopy}>
+                      <Text numberOfLines={1} style={styles.driverCalloutTitle}>
+                        {selectedDriver.label}
+                      </Text>
+                      {selectedDriver.username ? (
+                        <Text numberOfLines={1} style={styles.driverCalloutUsername}>
+                          @{selectedDriver.username}
+                        </Text>
+                      ) : null}
+                      {selectedDriver.vehicle_label ? (
+                        <Text numberOfLines={1} style={styles.driverCalloutMeta}>
+                          {selectedDriver.vehicle_label}
+                        </Text>
+                      ) : null}
+                      {formatDriverDistance(selectedDriver.distance_meters) ? (
+                        <Text numberOfLines={1} style={styles.driverCalloutDistance}>
+                          {formatDriverDistance(selectedDriver.distance_meters)}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  <View style={styles.driverCalloutActions}>
+                    <TouchableOpacity
+                      accessibilityHint="Open this driver's profile"
+                      accessibilityLabel="View driver profile"
+                      accessibilityRole="button"
+                      activeOpacity={0.82}
+                      onPress={() =>
+                        (onDriverProfilePress ?? onDriverPress)(selectedDriver.user_id)
+                      }
+                      style={styles.driverCalloutSecondary}
+                    >
+                      <Text style={styles.driverCalloutSecondaryText}>Profile</Text>
+                    </TouchableOpacity>
+                    {selectedDriver.can_invite_directly && onDriverInvitePress ? (
+                      <TouchableOpacity
+                        accessibilityHint="Starts Group Drive setup with this driver selected. No invitation is sent yet."
+                        accessibilityLabel="Invite to Drive"
+                        accessibilityRole="button"
+                        activeOpacity={0.82}
+                        onPress={() => onDriverInvitePress(selectedDriver.user_id)}
+                        style={styles.driverCalloutPrimary}
+                      >
+                        <Ionicons name="navigate-outline" size={16} color={colors.text} />
+                        <Text style={styles.driverCalloutPrimaryText}>Invite to Drive</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.driverCalloutPointer} />
+              </View>
+            </MarkerView>
+          ) : null}
 
           {mapFilter !== "drivers" || isRouteMode ? (
             <ShapeSource
@@ -663,6 +768,121 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: radius.pill,
+  },
+  driverCalloutWrap: {
+    width: 276,
+    alignItems: "center",
+  },
+  driverCallout: {
+    width: 276,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.98)",
+    shadowColor: colors.black,
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  driverCalloutPointer: {
+    width: 12,
+    height: 12,
+    marginTop: -7,
+    transform: [{ rotate: "45deg" }],
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.98)",
+  },
+  driverCalloutIdentity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  driverCalloutAvatarFrame: {
+    width: 46,
+    height: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
+  },
+  driverCalloutAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+  },
+  driverCalloutCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  driverCalloutTitle: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: "900",
+  },
+  driverCalloutUsername: {
+    marginTop: 1,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "700",
+  },
+  driverCalloutMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
+  },
+  driverCalloutDistance: {
+    marginTop: 2,
+    color: colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
+  },
+  driverCalloutActions: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  driverCalloutSecondary: {
+    minWidth: 84,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+  },
+  driverCalloutPrimary: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  driverCalloutSecondaryText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  driverCalloutPrimaryText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "900",
   },
   eventMarkerPressTarget: {
     width: 44,
