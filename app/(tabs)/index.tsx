@@ -1026,7 +1026,7 @@ export default function LiveMapScreen() {
     const relevantIds = [...new Set([...mutualIds, ...crewMemberIds])];
     if (isMountedRef.current) {
       setMyDriverIds(new Set(relevantIds));
-      setDirectInviteDriverIds(new Set(mutualIds));
+      setDirectInviteDriverIds(new Set(relevantIds));
     }
 
     if (relevantIds.length === 0) {
