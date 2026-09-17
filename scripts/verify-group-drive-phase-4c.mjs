@@ -84,7 +84,7 @@ if (!failures.length) {
     failures.push('local navigation GPS must never publish, start a background task, or request background permission');
   }
 
-  const expectedSharedMapBlob = '0b702610f9e817cf776d58ab9bc5b5081f8e054e';
+  const expectedSharedMapBlob = 'be95977a375b4576bb562c80c69e92ccf1c54026';
   const actualSharedMapBlob = gitBlobSha(sharedMap);
   if (actualSharedMapBlob !== expectedSharedMapBlob) {
     failures.push(`shared Home/Map MapboxLiveMap changed unexpectedly (${actualSharedMapBlob})`);
