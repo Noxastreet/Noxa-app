@@ -69,7 +69,7 @@ export default function GroupDriveReviewScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="REVIEW" subtitle="Nothing starts without the host" />
+      <GroupDriveHeader title="REVIEW" subtitle="Check before finishing" />
       <GroupDriveStep current={5} label="Confirm" />
       <View style={styles.intro}>
         <Text style={styles.title}>{drive.title}</Text>
@@ -95,7 +95,7 @@ export default function GroupDriveReviewScreen() {
       <View style={styles.privacyNote}>
         <Ionicons name="lock-closed-outline" size={20} color={colors.primaryHover} />
         <Text style={styles.privacyText}>
-          Creating this drive does not start GPS sharing. Active Drive consent and location begin only after a later explicit host start.
+          Finishing setup does not share location. GPS starts only after an explicit Active Drive start and location consent.
         </Text>
       </View>
       <View style={styles.actions}>
