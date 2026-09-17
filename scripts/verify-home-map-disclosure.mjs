@@ -22,9 +22,12 @@ if (!failures.length) {
   const requiredCompat = [
     ['Home progressive-disclosure scope missing', /mapFilter === "all"[\s\S]*!props\.isRouteMode/],
     ['stranger avatar masking missing', /avatar_url: null/],
+    ['stranger vehicle masking missing', /vehicle_label: null/],
     ['stranger label masking missing', /label: "NOXA driver"/],
     ['driver preview state missing', /selectedDriverId/],
     ['pin press must open preview before profile', /setSelectedDriverId\(driverId\)/],
+    ['trusted preview avatar missing', /selectedDriver\.is_relevant && selectedDriver\.avatar_url/],
+    ['trusted preview vehicle missing', /selectedDriver\.vehicle_label/],
     ['explicit profile action missing', /View profile/],
     ['preview close action missing', /Close driver preview/],
   ];
@@ -37,6 +40,22 @@ if (!failures.length) {
   }
   if (!/myDriverIds\.has\(driver\.user_id\)/.test(home)) {
     failures.push('Home trusted-driver relationship signal is missing');
+  }
+
+  if (!/mapFocusedRef\.current = true;[\s\S]{0,120}void loadMyDriverIds\(\);/.test(home)) {
+    failures.push('Map focus must refresh trusted-driver relationships');
+  }
+  if (!/Promise\.all\(\[loadMyDriverIds\(\), refreshActiveDrivers\(\)\]\)/.test(home)) {
+    failures.push('Map foreground resume must refresh trusted-driver relationships');
+  }
+  if (!/\.eq\("is_public", true\)[\s\S]{0,80}\.eq\("is_primary", true\)/.test(home)) {
+    failures.push('Trusted driver preview must load only public primary vehicles');
+  }
+  const relationshipErrorStart = home.indexOf('if (relationshipError) {');
+  const relationshipErrorEnd = home.indexOf('const outgoing = new Set(', relationshipErrorStart);
+  const relationshipErrorBlock = home.slice(relationshipErrorStart, relationshipErrorEnd);
+  if (relationshipErrorStart < 0 || !relationshipErrorBlock.includes('return;') || relationshipErrorBlock.includes('setMyDriverIds')) {
+    failures.push('Transient relationship failures must preserve the previous trusted-driver set');
   }
 }
 
