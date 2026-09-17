@@ -40,19 +40,19 @@ export function MapboxEventPreviewCompat(props: Props) {
     );
   }
 
-  const state = runtime === "expo-go"
+  const state = runtime === "web"
     ? {
-        title: "Map preview unavailable in Expo Go",
-        message: "Use a NOXA development or production build to load the native Mapbox preview.",
+        title: "Map preview unavailable",
+        message: "Open this event in the iOS or Android app to see its map preview.",
       }
-    : runtime === "web"
+    : runtime === "expo-go"
       ? {
-          title: "Map preview unavailable on web",
-          message: "The native map preview is available in the iOS and Android app.",
+          title: "Map preview unavailable",
+          message: "Open NOXA in a development or production build to see the map preview.",
         }
       : {
-          title: "Map preview failed to load",
-          message: "The native Mapbox module could not be initialized in this build.",
+          title: "Map preview unavailable",
+          message: "The map preview could not load. Restart NOXA and try again.",
         };
 
   return (
