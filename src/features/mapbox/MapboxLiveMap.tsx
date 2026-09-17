@@ -266,9 +266,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     if (!MAPBOX_ACCESS_TOKEN) {
       return (
         <View style={styles.stateView}>
-          <Text style={styles.stateTitle}>Mapbox token missing</Text>
+          <Text style={styles.stateTitle}>Map unavailable</Text>
           <Text style={styles.stateBody}>
-            Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN for the native map runtime.
+            The map could not start in this build. Restart NOXA and try again.
           </Text>
         </View>
       );
@@ -426,7 +426,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 >
                   <TouchableOpacity
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
+                    accessibilityRole="button"
                     activeOpacity={0.82}
+                    hitSlop={6}
                     onPress={() => onDriverPress(driver.user_id)}
                     style={[
                       styles.driverMarker,
@@ -490,6 +492,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 >
                   <TouchableOpacity
                     accessibilityLabel={`${event.title} event`}
+                    accessibilityRole="button"
                     activeOpacity={0.82}
                     onPress={() => onEventPress(event)}
                     style={styles.eventMarkerPressTarget}
@@ -551,7 +554,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             <View style={styles.errorCard}>
               <Text style={styles.stateTitle}>Map unavailable</Text>
               <Text style={styles.stateBody}>
-                Check the Mapbox token and native build configuration.
+                The map could not load. Check your connection and try again.
               </Text>
             </View>
           </View>
