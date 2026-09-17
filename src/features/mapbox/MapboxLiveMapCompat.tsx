@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import {
   type ComponentType,
@@ -50,19 +49,13 @@ function distanceBetweenMeters(
   return 2 * earthRadius * Math.asin(Math.sqrt(haversine));
 }
 
-function formatApproximateDistance(meters: number) {
-  if (!Number.isFinite(meters)) return "Distance unavailable";
-  if (meters < 1_000) return "Less than 1 km away";
-  const roundedKilometers = Math.max(1, Math.round(meters / 500) * 0.5);
-  return `About ${roundedKilometers.toFixed(roundedKilometers % 1 ? 1 : 0)} km away`;
-}
-
 function safeHomeDriver(driver: MapboxDriver): MapboxDriver {
   if (driver.is_relevant) return driver;
   return {
     ...driver,
     label: "NOXA driver",
     avatar_url: null,
+    username: null,
     vehicle_label: null,
     can_invite_directly: false,
   };
@@ -83,10 +76,18 @@ export const MapboxLiveMapCompat = forwardRef<
     props.mapFilter === "all" && !props.isRouteMode;
   const safeActiveDrivers = useMemo(
     () =>
-      usesHomeProgressiveDisclosure
-        ? props.activeDrivers.map(safeHomeDriver)
-        : props.activeDrivers,
-    [props.activeDrivers, usesHomeProgressiveDisclosure],
+      props.activeDrivers.map((driver) => {
+        const safeDriver = usesHomeProgressiveDisclosure
+          ? safeHomeDriver(driver)
+          : driver;
+        return {
+          ...safeDriver,
+          distance_meters: props.driverLocation
+            ? distanceBetweenMeters(props.driverLocation, safeDriver)
+            : null,
+        };
+      }),
+    [props.activeDrivers, props.driverLocation, usesHomeProgressiveDisclosure],
   );
   const selectedDriver = useMemo(
     () =>
@@ -95,11 +96,6 @@ export const MapboxLiveMapCompat = forwardRef<
         : null,
     [safeActiveDrivers, selectedDriverId],
   );
-  const selectedDriverDistance =
-    selectedDriver && props.driverLocation
-      ? distanceBetweenMeters(props.driverLocation, selectedDriver)
-      : null;
-
   useImperativeHandle(
     ref,
     () => ({
@@ -177,6 +173,15 @@ export const MapboxLiveMapCompat = forwardRef<
       <RealMapboxLiveMap
         {...props}
         activeDrivers={safeActiveDrivers}
+        selectedDriverId={
+          usesHomeProgressiveDisclosure
+            ? selectedDriverId
+            : (props.selectedDriverId ?? null)
+        }
+        onMapPress={() => {
+          if (usesHomeProgressiveDisclosure) setSelectedDriverId(null);
+          props.onMapPress?.();
+        }}
         onDriverPress={(driverId) => {
           if (usesHomeProgressiveDisclosure) {
             setSelectedDriverId(driverId);
@@ -184,98 +189,24 @@ export const MapboxLiveMapCompat = forwardRef<
           }
           props.onDriverPress(driverId);
         }}
+        onDriverProfilePress={(driverId) => {
+          if (usesHomeProgressiveDisclosure) setSelectedDriverId(null);
+          if (props.onDriverProfilePress) props.onDriverProfilePress(driverId);
+          else props.onDriverPress(driverId);
+        }}
+        onDriverInvitePress={(driverId) => {
+          if (usesHomeProgressiveDisclosure) setSelectedDriverId(null);
+          if (props.onDriverInvitePress) {
+            props.onDriverInvitePress(driverId);
+            return;
+          }
+          router.push({
+            pathname: "/group-drives/details",
+            params: { inviteUserId: driverId },
+          });
+        }}
         ref={realMapRef}
       />
-
-      {usesHomeProgressiveDisclosure && selectedDriver ? (
-        <View pointerEvents="box-none" style={styles.previewLayer}>
-          <View style={styles.driverPreview}>
-            <View style={styles.driverPreviewIcon}>
-              {selectedDriver.is_relevant && selectedDriver.avatar_url ? (
-                <Image
-                  cachePolicy="memory-disk"
-                  contentFit="cover"
-                  source={{ uri: selectedDriver.avatar_url }}
-                  style={styles.driverPreviewAvatar}
-                />
-              ) : (
-                <Ionicons
-                  name={selectedDriver.is_relevant ? "person" : "car-sport"}
-                  size={20}
-                  color={colors.text}
-                />
-              )}
-            </View>
-            <View style={styles.driverPreviewCopy}>
-              <Text numberOfLines={1} style={styles.driverPreviewTitle}>
-                {selectedDriver.label}
-              </Text>
-              <Text numberOfLines={1} style={styles.driverPreviewMeta}>
-                {selectedDriver.is_relevant
-                  ? (selectedDriver.vehicle_label ?? "Known driver")
-                  : "Public driver"}
-              </Text>
-              <Text style={styles.driverPreviewDistance}>
-                {selectedDriverDistance === null
-                  ? "Distance unavailable — your location is off"
-                  : formatApproximateDistance(selectedDriverDistance)}
-              </Text>
-            </View>
-            <Pressable
-              accessibilityLabel="Close driver preview"
-              accessibilityRole="button"
-              hitSlop={6}
-              onPress={() => setSelectedDriverId(null)}
-              style={({ pressed }) => [
-                styles.driverPreviewClose,
-                pressed && styles.driverPreviewActionPressed,
-              ]}
-            >
-              <Ionicons name="close" size={18} color={colors.textMuted} />
-            </Pressable>
-            <View style={styles.driverPreviewActions}>
-              <Pressable
-                accessibilityHint="Open this driver's profile"
-                accessibilityLabel="View driver profile"
-                accessibilityRole="button"
-                onPress={() => {
-                  const driverId = selectedDriver.user_id;
-                  setSelectedDriverId(null);
-                  props.onDriverPress(driverId);
-                }}
-                style={({ pressed }) => [
-                  styles.driverPreviewAction,
-                  pressed && styles.driverPreviewActionPressed,
-                ]}
-              >
-                <Text style={styles.driverPreviewActionText}>Profile</Text>
-              </Pressable>
-              {selectedDriver.can_invite_directly ? (
-                <Pressable
-                  accessibilityHint="Starts Group Drive setup with this driver selected. No invitation is sent yet."
-                  accessibilityLabel="Invite to Drive"
-                  accessibilityRole="button"
-                  onPress={() => {
-                    const inviteUserId = selectedDriver.user_id;
-                    setSelectedDriverId(null);
-                    router.push({
-                      pathname: "/group-drives/details",
-                      params: { inviteUserId },
-                    });
-                  }}
-                  style={({ pressed }) => [
-                    styles.driverPreviewInvite,
-                    pressed && styles.driverPreviewActionPressed,
-                  ]}
-                >
-                  <Ionicons name="navigate-outline" size={16} color={colors.text} />
-                  <Text style={styles.driverPreviewInviteText}>Invite to Drive</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 });
@@ -306,114 +237,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.background,
-  },
-  previewLayer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
-    paddingHorizontal: spacing.md,
-    paddingBottom: 88,
-  },
-  driverPreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    minHeight: 104,
-    padding: spacing.md,
-    paddingRight: 52,
-    paddingBottom: 72,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.96)",
-  },
-  driverPreviewIcon: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: "rgba(200,16,46,0.14)",
-  },
-  driverPreviewAvatar: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.pill,
-  },
-  driverPreviewCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  driverPreviewTitle: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: "800",
-  },
-  driverPreviewMeta: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  driverPreviewDistance: {
-    marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  driverPreviewClose: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-  },
-  driverPreviewActions: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.md,
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  driverPreviewAction: {
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
-  },
-  driverPreviewInvite: {
-    flex: 1,
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
-  driverPreviewActionPressed: {
-    opacity: 0.78,
-  },
-  driverPreviewActionText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  driverPreviewInviteText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "900",
   },
   fallback: {
     ...StyleSheet.absoluteFillObject,
