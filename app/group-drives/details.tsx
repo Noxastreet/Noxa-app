@@ -15,9 +15,15 @@ import {
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveDetailsEditorScreen() {
-  const params = useLocalSearchParams<{ id?: string; crewId?: string; mode?: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    crewId?: string;
+    inviteUserId?: string;
+    mode?: string;
+  }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : null;
   const requestedCrewId = typeof params.crewId === 'string' ? params.crewId : null;
+  const inviteUserId = typeof params.inviteUserId === 'string' ? params.inviteUserId : null;
   const editMode = params.mode === 'edit' && Boolean(driveSessionId);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -72,7 +78,10 @@ export default function GroupDriveDetailsEditorScreen() {
       if (editMode) {
         router.replace({ pathname: '/group-drives/[id]', params: { id } });
       } else {
-        router.replace({ pathname: '/group-drives/route', params: { id } });
+        router.replace({
+          pathname: '/group-drives/route',
+          params: inviteUserId ? { id, inviteUserId } : { id },
+        });
       }
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Group Drive could not be saved.');
