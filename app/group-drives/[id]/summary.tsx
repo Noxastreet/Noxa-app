@@ -87,7 +87,7 @@ export default function GroupDriveSummaryScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="DRIVE SUMMARY" subtitle="Recorded Group Drive outcome" />
+      <GroupDriveHeader title="DRIVE SUMMARY" subtitle="Recorded outcome" />
 
       <View style={styles.hero}>
         <DriveStatus status={summary.sessionStatus} />
@@ -114,7 +114,7 @@ export default function GroupDriveSummaryScreen() {
         </View>
       </View>
       <Text style={styles.truthNote}>
-        NOXA does not infer distance driven, speed, rank or arrival history from this summary. These values describe the route that was planned for the Group Drive.
+        These are the planned route values, not measured driving distance, speed, rank or arrival history.
       </Text>
 
       <View style={styles.section}>
@@ -170,10 +170,10 @@ const styles = StyleSheet.create({
   },
   metricBlock: { flex: 1, gap: spacing.xxs },
   metric: { color: colors.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  metricLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
+  metricLabel: { color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.1 },
   truthNote: {
     marginTop: -spacing.md,
-    color: colors.textSubtle,
+    color: colors.textMuted,
     fontSize: 11,
     lineHeight: 17,
   },
