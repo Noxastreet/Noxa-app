@@ -1807,6 +1807,9 @@ export default function LiveMapScreen() {
         longitude: driver.longitude,
         label: driverLabel(driver),
         avatar_url: driver.profile?.avatar_url ?? null,
+        username: myDriverIds.has(driver.user_id)
+          ? (driver.profile?.username ?? null)
+          : null,
         vehicle_label: myDriverIds.has(driver.user_id)
           ? (primaryVehicleByUserId.get(driver.user_id) ?? null)
           : null,
