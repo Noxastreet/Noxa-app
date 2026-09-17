@@ -513,6 +513,9 @@ export default function LiveMapScreen() {
     useState<MapDataRequestState>("loading");
   const [currentProfile, setCurrentProfile] = useState<ProfileMarkerRow | null>(null);
   const [myDriverIds, setMyDriverIds] = useState<Set<string>>(() => new Set());
+  const [directInviteDriverIds, setDirectInviteDriverIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [primaryVehicleByUserId, setPrimaryVehicleByUserId] = useState<Map<string, string>>(
     () => new Map(),
   );
@@ -970,6 +973,7 @@ export default function LiveMapScreen() {
     if (!userId) {
       if (isMountedRef.current) {
         setMyDriverIds(new Set());
+        setDirectInviteDriverIds(new Set());
         setPrimaryVehicleByUserId(new Map());
       }
       return;
@@ -1020,7 +1024,10 @@ export default function LiveMapScreen() {
     }
 
     const relevantIds = [...new Set([...mutualIds, ...crewMemberIds])];
-    if (isMountedRef.current) setMyDriverIds(new Set(relevantIds));
+    if (isMountedRef.current) {
+      setMyDriverIds(new Set(relevantIds));
+      setDirectInviteDriverIds(new Set(mutualIds));
+    }
 
     if (relevantIds.length === 0) {
       if (isMountedRef.current) setPrimaryVehicleByUserId(new Map());
@@ -1235,6 +1242,7 @@ export default function LiveMapScreen() {
           setActiveDrivers([]);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
+          setDirectInviteDriverIds(new Set());
           setPrimaryVehicleByUserId(new Map());
           setTimeout(() => {
             if (isActive) void stopSharing(true);
@@ -1736,10 +1744,17 @@ export default function LiveMapScreen() {
         vehicle_label: myDriverIds.has(driver.user_id)
           ? (primaryVehicleByUserId.get(driver.user_id) ?? null)
           : null,
+        can_invite_directly: directInviteDriverIds.has(driver.user_id),
         is_relevant: myDriverIds.has(driver.user_id),
         is_dimmed: mapLens === "mine" && !myDriverIds.has(driver.user_id),
       })),
-    [activeDrivers, mapLens, myDriverIds, primaryVehicleByUserId],
+    [
+      activeDrivers,
+      directInviteDriverIds,
+      mapLens,
+      myDriverIds,
+      primaryVehicleByUserId,
+    ],
   );
   const mapboxEvents = useMemo<MapboxEvent[]>(
     () =>
