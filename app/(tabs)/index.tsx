@@ -347,6 +347,38 @@ function EventCard({
   );
 }
 
+function RouteDestinationCard({
+  event,
+  status,
+  topOffset,
+}: {
+  event: EventMarkerRow;
+  status: RouteStatus;
+  topOffset: number;
+}) {
+  return (
+    <View
+      accessibilityLabel={`Route to ${event.title}`}
+      style={[styles.routeDestinationCard, { top: topOffset }]}
+    >
+      <View style={styles.routeDestinationIcon}>
+        <Ionicons name="navigate" size={21} color={colors.text} />
+      </View>
+      <View style={styles.routeDestinationCopy}>
+        <Text style={styles.routeDestinationEyebrow}>
+          {status === "loading" ? "BUILDING ROUTE" : "ROUTE TO"}
+        </Text>
+        <Text numberOfLines={1} style={styles.routeDestinationTitle}>
+          {event.title}
+        </Text>
+        <Text numberOfLines={1} style={styles.routeDestinationMeta}>
+          {event.location_name ?? "Event destination"}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 function RouteCard({
   event,
   route,
@@ -371,77 +403,111 @@ function RouteCard({
   onRetry: () => void;
 }) {
   const loading = status === "loading";
+
   return (
-    <View style={[styles.routeCard, { bottom: bottomOffset }]}>
-      <View style={styles.routeHeader}>
-        <View style={styles.routeTitleWrap}>
-          <Text style={styles.cardKicker}>NOXA route</Text>
-          <Text style={styles.routeTitle} numberOfLines={1}>
-            {event.title}
-          </Text>
-        </View>
-        <NoxaIconButton
-          accessibilityLabel="Exit route mode"
-          icon="close"
-          iconSize={18}
-          onPress={onClose}
-          size={40}
-          variant="ghost"
-        />
-      </View>
+    <View
+      accessibilityLabel={`Trip controls for ${event.title}`}
+      style={[styles.routeCard, { bottom: bottomOffset }]}
+    >
+      <View style={styles.routeHandle} />
+
       {loading ? (
         <View style={styles.routeStatusRow}>
           <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={styles.routeStatusText}>Building road route…</Text>
+          <View style={styles.routeStatusCopy}>
+            <Text style={styles.routeStatusTitle}>Building route</Text>
+            <Text style={styles.routeStatusText}>Finding a drivable route to the event.</Text>
+          </View>
         </View>
       ) : route ? (
-        <View style={styles.routeMetrics}>
-          <Text style={styles.routeMetric}>
-            {formatDistance(route.distanceMeters)}
-          </Text>
-          <Text style={styles.routeMetricMuted}>•</Text>
-          <Text style={styles.routeMetric}>
-            ~{formatDuration(route.durationSeconds)}
-          </Text>
-        </View>
+        <>
+          <View style={styles.tripSummary}>
+            <View style={styles.tripPrimary}>
+              <Text style={styles.tripValue}>~{formatDuration(route.durationSeconds)}</Text>
+              <Text style={styles.tripLabel}>EST. DRIVE TIME</Text>
+            </View>
+            <View style={styles.tripFact}>
+              <Text style={styles.tripFactValue}>{formatDistance(route.distanceMeters)}</Text>
+              <Text style={styles.tripFactLabel}>DISTANCE</Text>
+            </View>
+            <View style={styles.tripFact}>
+              <Ionicons
+                name={following ? "navigate" : "navigate-outline"}
+                size={19}
+                color={following ? colors.success : colors.textMuted}
+              />
+              <Text style={styles.tripFactLabel}>{following ? "FOLLOWING" : "OVERVIEW"}</Text>
+            </View>
+          </View>
+
+          <View style={styles.routeActions}>
+            {canFollow ? (
+              <TouchableOpacity
+                accessibilityLabel={
+                  following ? "Stop following current location" : "Follow route"
+                }
+                accessibilityRole="button"
+                accessibilityState={{ selected: following }}
+                activeOpacity={0.82}
+                onPress={onFollowToggle}
+                style={[
+                  styles.routeFollowButton,
+                  following && styles.routeFollowButtonActive,
+                ]}
+              >
+                <Ionicons
+                  name={following ? "navigate" : "navigate-outline"}
+                  size={17}
+                  color={colors.text}
+                />
+                <Text style={styles.routeFollowText}>
+                  {following ? "Following" : "Follow"}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              accessibilityLabel="Exit route"
+              accessibilityRole="button"
+              activeOpacity={0.82}
+              onPress={onClose}
+              style={styles.routeExitButton}
+            >
+              <Text style={styles.routeExitText}>Exit</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       ) : (
-        <Text style={styles.routeStatusText}>
-          {message ?? "Route unavailable. Keep exploring the NOXA map."}
-        </Text>
+        <>
+          <View style={styles.routeStatusCopy}>
+            <Text style={styles.routeStatusTitle}>Route unavailable</Text>
+            <Text style={styles.routeStatusText}>
+              {message ?? "The route could not be built right now."}
+            </Text>
+          </View>
+          <View style={styles.routeActions}>
+            {status === "error" ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                activeOpacity={0.82}
+                onPress={onRetry}
+                style={styles.routeFollowButton}
+              >
+                <Text style={styles.routeFollowText}>Retry</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              accessibilityLabel="Exit route"
+              accessibilityRole="button"
+              activeOpacity={0.82}
+              onPress={onClose}
+              style={styles.routeExitButton}
+            >
+              <Text style={styles.routeExitText}>Exit</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
-      {route && canFollow ? (
-        <TouchableOpacity
-          accessibilityLabel={
-            following ? "Stop following current location" : "Follow route"
-          }
-          accessibilityRole="button"
-          accessibilityState={{ selected: following }}
-          activeOpacity={0.82}
-          onPress={onFollowToggle}
-          style={[
-            styles.routeFollowButton,
-            following && styles.routeFollowButtonActive,
-          ]}
-        >
-          <Ionicons
-            name={following ? "navigate" : "navigate-outline"}
-            size={16}
-            color={following ? colors.text : colors.primaryHover}
-          />
-          <Text style={styles.routeFollowText}>
-            {following ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
-      ) : null}
-      {status === "error" ? (
-        <TouchableOpacity
-          activeOpacity={0.82}
-          onPress={onRetry}
-          style={styles.routeRetryButton}
-        >
-          <Text style={styles.routeRetryText}>Retry route</Text>
-        </TouchableOpacity>
-      ) : null}
     </View>
   );
 }
@@ -1822,14 +1888,16 @@ export default function LiveMapScreen() {
             message: "Location is off. Use Recenter to request access.",
           }
         : null;
-  const noticesTop = headerBottom + spacing.sm;
+  const routeDestinationTop = headerBottom + spacing.sm;
+  const noticesTop =
+    routeDestinationTop + (isRouteMode && selectedEvent ? 104 : 0);
   const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);
+    (isRouteMode && selectedEvent ? 222 : selectedEvent ? 196 : spacing.sm);
   const showRecenter =
     !isRouteFollowing && (!driverLocation || isCameraAwayFromUser);
 
@@ -1975,6 +2043,14 @@ export default function LiveMapScreen() {
               );
             })}
           </View>
+        ) : null}
+
+        {selectedEvent && isRouteMode ? (
+          <RouteDestinationCard
+            event={selectedEvent}
+            status={routeStatus}
+            topOffset={routeDestinationTop}
+          />
         ) : null}
 
         {!selectedEvent ? (
@@ -2625,67 +2701,146 @@ const styles = StyleSheet.create({
   eventPrimaryButton: {
     flex: 1.35,
   },
+  routeDestinationCard: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.94)",
+    ...shadows.card,
+  },
+  routeDestinationIcon: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  routeDestinationCopy: { flex: 1, minWidth: 0 },
+  routeDestinationEyebrow: {
+    color: colors.primaryHover,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  routeDestinationTitle: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "900",
+  },
+  routeDestinationMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "600",
+  },
   routeCard: {
     position: "absolute",
     left: 0,
     right: 0,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
     borderTopLeftRadius: radius.sheet,
     borderTopRightRadius: radius.sheet,
     borderTopWidth: 1,
-    borderTopColor: colors.divider,
-    backgroundColor: colors.surface,
+    borderTopColor: colors.borderStrong,
+    backgroundColor: "rgba(12,12,16,0.98)",
+    ...shadows.sheet,
   },
-  routeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  routeTitleWrap: { flex: 1 },
-  routeTitle: {
-    marginTop: 3,
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: -0.3,
+  routeHandle: {
+    alignSelf: "center",
+    width: 38,
+    height: 4,
+    marginBottom: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.borderStrong,
   },
   routeStatusRow: {
-    marginTop: spacing.md,
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  routeStatusCopy: { flex: 1, gap: 4 },
+  routeStatusTitle: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: "800",
   },
   routeStatusText: {
-    marginTop: spacing.sm,
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: "500",
   },
-  routeMetrics: {
-    marginTop: spacing.md,
+  tripSummary: {
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.lg,
   },
-  routeMetric: {
+  tripPrimary: { flex: 1 },
+  tripValue: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "600",
+    fontFamily: typography.fontFamily.display,
+    fontSize: 28,
+    lineHeight: 32,
+    fontWeight: "900",
+    letterSpacing: -0.8,
   },
-  routeMetricMuted: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "600",
+  tripLabel: {
+    marginTop: 3,
+    color: colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "900",
+    letterSpacing: 0.9,
+  },
+  tripFact: {
+    minWidth: 66,
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  tripFactValue: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+  tripFactLabel: {
+    color: colors.textSubtle,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
+  routeActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   routeFollowButton: {
-    marginTop: spacing.md,
-    height: 42,
+    flex: 1,
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    borderRadius: 10,
+    borderRadius: radius.button,
     borderWidth: 1,
     borderColor: colors.borderAccent,
     backgroundColor: colors.primaryMuted,
@@ -2696,21 +2851,22 @@ const styles = StyleSheet.create({
   routeFollowText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
   },
-  routeRetryButton: {
-    marginTop: spacing.md,
-    height: 40,
+  routeExitButton: {
+    minWidth: 92,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
     borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
   },
-  routeRetryText: {
+  routeExitText: {
     color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "800",
   },
 });
