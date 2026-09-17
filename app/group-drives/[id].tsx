@@ -109,7 +109,12 @@ function InvitationRow({ invitation, onCancel }: { invitation: DriveInvitation; 
         <Text style={styles.personMeta}>{invitation.status}</Text>
       </View>
       {onCancel ? (
-        <Pressable accessibilityLabel={`Cancel invitation for ${name}`} onPress={onCancel} hitSlop={8}>
+        <Pressable
+          accessibilityLabel={`Cancel invitation for ${name}`}
+          accessibilityRole="button"
+          onPress={onCancel}
+          style={({ pressed }) => [styles.cancelInviteButton, pressed && styles.pressed]}
+        >
           <Text style={styles.cancelInvite}>Cancel</Text>
         </Pressable>
       ) : null}
@@ -423,7 +428,9 @@ export default function GroupDriveViewScreen() {
   );
   const readyCount = acceptedParticipants.filter((participant) => Boolean(participant.readyAt)).length;
   const waitingCount = acceptedParticipants.length - readyCount;
-  const setupComplete = drive.routeVersion > 0 && acceptedParticipants.length > 0;
+  const hasRoute = drive.routeVersion > 0;
+  const hasAcceptedParticipants = acceptedParticipants.length > 0;
+  const setupComplete = hasRoute && hasAcceptedParticipants;
   const canStart = isHost && preActive && setupComplete && waitingCount === 0;
   const start = drive.stops.find((stop) => stop.kind === 'start');
   const end = drive.stops.find((stop) => stop.kind === 'end');
@@ -643,11 +650,23 @@ export default function GroupDriveViewScreen() {
               fullWidth
               title={waitingCount === 1 ? 'Waiting for 1 driver at A' : `Waiting for ${waitingCount} drivers at A`}
             />
-          ) : (
+          ) : hasRoute && !hasAcceptedParticipants && pendingInvitations.length > 0 ? (
+            <NoxaButton
+              disabled
+              fullWidth
+              title={pendingInvitations.length === 1 ? 'Waiting for invited driver' : 'Waiting for invited drivers'}
+            />
+          ) : !hasRoute ? (
             <NoxaButton
               fullWidth
               onPress={() => router.push({ pathname: '/group-drives/route', params: { id: drive.id } })}
-              title="Continue setup"
+              title="Set route"
+            />
+          ) : (
+            <NoxaButton
+              fullWidth
+              onPress={() => router.push({ pathname: '/group-drives/participants', params: { id: drive.id } })}
+              title="Add people"
             />
           )}
           <NoxaButton
@@ -690,26 +709,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.divider,
   },
-  lobbyLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  lobbyLabel: { color: colors.textSubtle, fontSize: 11, lineHeight: 14, fontWeight: '800', letterSpacing: 1.4 },
   lobbyValue: { marginTop: 4, color: colors.text, fontSize: 15, fontWeight: '800' },
   meetingCard: { gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceBase },
   meetingHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   meetingIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
   meetingCopy: { flex: 1, minWidth: 0 },
-  meetingEyebrow: { color: colors.primaryHover, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  meetingEyebrow: { color: colors.primaryHover, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 1.2 },
   meetingTitle: { marginTop: 2, color: colors.text, fontSize: 15, fontWeight: '800' },
   meetingStatus: { minHeight: 20 },
   meetingMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   meetingReady: { color: colors.success, fontSize: 12, fontWeight: '800' },
   meetingActions: { gap: spacing.xs },
-  meetingPrivacy: { color: colors.textSubtle, fontSize: 10, lineHeight: 15, textAlign: 'center' },
+  meetingPrivacy: { color: colors.textSubtle, fontSize: 11, lineHeight: 16, textAlign: 'center' },
   phaseNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
   activeNoticeCopy: { flex: 1, gap: spacing.xxs },
-  activeNoticeTitle: { color: colors.primaryHover, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  activeNoticeTitle: { color: colors.primaryHover, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 1.2 },
   phaseNoticeText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   routeSummary: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.lg, paddingVertical: spacing.lg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.divider },
   metric: { color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.6 },
-  metricLabel: { marginTop: spacing.xxs, color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  metricLabel: { marginTop: spacing.xxs, color: colors.textSubtle, fontSize: 11, lineHeight: 14, fontWeight: '800', letterSpacing: 1.4 },
   facts: { borderTopWidth: 1, borderTopColor: colors.divider },
   section: { gap: spacing.xs },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
@@ -719,10 +738,18 @@ const styles = StyleSheet.create({
   personCopy: { flex: 1, minWidth: 0 },
   personName: { color: colors.text, fontSize: 14, fontWeight: '800' },
   personMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, textTransform: 'capitalize' },
-  cancelInvite: { color: colors.primaryHover, fontSize: 12, fontWeight: '800', paddingVertical: spacing.sm },
+  cancelInviteButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.button,
+  },
+  cancelInvite: { color: colors.primaryHover, fontSize: 12, fontWeight: '800' },
+  pressed: { opacity: 0.76, transform: [{ scale: 0.98 }] },
   actions: { gap: spacing.xs },
   actionHint: { color: colors.textSubtle, fontSize: 11, lineHeight: 16, textAlign: 'center' },
   dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider },
-  dangerLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  dangerLabel: { color: colors.textSubtle, fontSize: 11, lineHeight: 14, fontWeight: '800', letterSpacing: 1.4 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
 });
