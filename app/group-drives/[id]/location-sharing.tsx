@@ -212,7 +212,7 @@ export default function GroupDriveLocationSharingScreen() {
       <View style={styles.intro}>
         <Text style={styles.title}>Share location in this drive</Text>
         <Text style={styles.body}>
-          Your precise location is visible only to participants in this Active Group Drive. You can stop sharing at any time without leaving the drive.
+          Join and Ready never enable location sharing. Your precise location is visible only to participants in this Active Group Drive, and you can stop sharing at any time without leaving the drive.
         </Text>
       </View>
 
