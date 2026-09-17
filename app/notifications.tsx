@@ -189,6 +189,7 @@ function ActivityRow({
           <View style={styles.invitationActions}>
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ busy: isBusy, disabled: isBusy }}
               disabled={isBusy}
               onPress={(event) => {
                 event.stopPropagation();
@@ -199,6 +200,7 @@ function ActivityRow({
             </Pressable>
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ busy: isBusy, disabled: isBusy }}
               disabled={isBusy}
               onPress={(event) => {
                 event.stopPropagation();
@@ -595,8 +597,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   headerAction: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -607,7 +609,7 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.48 },
   filterRow: {
-    minHeight: 46,
+    minHeight: 48,
     flexDirection: 'row',
     marginTop: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -622,7 +624,8 @@ const styles = StyleSheet.create({
   filterText: {
     paddingBottom: spacing.sm,
     color: colors.textSubtle,
-    fontSize: 10,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '800',
   },
   filterTextActive: { color: colors.text },
@@ -646,13 +649,13 @@ const styles = StyleSheet.create({
   },
   emptyStack: { gap: spacing.md },
   primaryAction: {
-    minHeight: 46,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  primaryActionText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  primaryActionText: { color: colors.text, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
   section: { gap: spacing.sm },
   sectionHeading: {
     flexDirection: 'row',
@@ -662,7 +665,8 @@ const styles = StyleSheet.create({
   },
   sectionEyebrow: {
     color: colors.primaryHover,
-    fontSize: 8,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '900',
     letterSpacing: 1.1,
   },
@@ -727,13 +731,14 @@ const styles = StyleSheet.create({
   activityMeta: {
     marginTop: spacing.xxs,
     color: colors.textSubtle,
-    fontSize: 9,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   acceptButton: {
-    minHeight: 32,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
@@ -741,7 +746,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   declineButton: {
-    minHeight: 32,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
@@ -749,6 +754,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
-  acceptText: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  declineText: { color: colors.textMuted, fontSize: 10, fontWeight: '900' },
+  acceptText: { color: colors.text, fontSize: 11, lineHeight: 14, fontWeight: '900' },
+  declineText: { color: colors.textMuted, fontSize: 11, lineHeight: 14, fontWeight: '900' },
 });

@@ -2,6 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -12,6 +19,7 @@ import {
   hasCompletedVisibilitySetup,
   markVisibilitySetupComplete,
 } from '@/src/lib/visibilitySetup';
+import { animations } from '@/src/theme/animations';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
@@ -25,11 +33,42 @@ type TabDestination =
   | '/visibility-setup'
   | null;
 
-function TabIcon({ name, color, emphasized = false }: { name: IconName; color: string; emphasized?: boolean }) {
+function TabIcon({
+  name,
+  color,
+  emphasized = false,
+  focused = false,
+}: {
+  name: IconName;
+  color: string;
+  emphasized?: boolean;
+  focused?: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  const focusProgress = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    const nextValue = focused ? 1 : 0;
+    focusProgress.value = reduceMotion
+      ? nextValue
+      : withTiming(nextValue, {
+          duration: animations.micro,
+          easing: Easing.out(Easing.cubic),
+        });
+  }, [focusProgress, focused, reduceMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: 0.72 + focusProgress.value * 0.28,
+    transform: [
+      { translateY: focusProgress.value * -1 },
+      { scale: 1 + focusProgress.value * 0.06 },
+    ],
+  }));
+
   return (
-    <View style={styles.iconWrap}>
+    <Animated.View style={[styles.iconWrap, animatedStyle]}>
       <Ionicons name={name} size={emphasized ? 24 : 22} color={color} />
-    </View>
+    </Animated.View>
   );
 }
 
@@ -145,7 +184,9 @@ export default function TabLayout() {
           options={{
             title: 'Crews',
             tabBarLabel: ({ focused }) => <TabLabel label="Crews" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -153,7 +194,9 @@ export default function TabLayout() {
           options={{
             title: 'Events',
             tabBarLabel: ({ focused }) => <TabLabel label="Events" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} focused={focused} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -161,7 +204,14 @@ export default function TabLayout() {
           options={{
             title: 'Map',
             tabBarLabel: ({ focused }) => <TabLabel label="Map" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'map' : 'map-outline'} color={color} emphasized />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'map' : 'map-outline'}
+                color={color}
+                emphasized
+                focused={focused}
+              />
+            ),
           }}
         />
         <Tabs.Screen
@@ -169,7 +219,13 @@ export default function TabLayout() {
           options={{
             title: 'Garage',
             tabBarLabel: ({ focused }) => <TabLabel label="Garage" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'car-sport' : 'car-sport-outline'}
+                color={color}
+                focused={focused}
+              />
+            ),
           }}
         />
         <Tabs.Screen
@@ -177,7 +233,9 @@ export default function TabLayout() {
           options={{
             title: 'Profile',
             tabBarLabel: ({ focused }) => <TabLabel label="Profile" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} />
+            ),
           }}
         />
       </Tabs>
@@ -209,7 +267,7 @@ const styles = StyleSheet.create({
   label: {
     marginTop: 2,
     color: colors.textSubtle,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     letterSpacing: 0.2,
   },

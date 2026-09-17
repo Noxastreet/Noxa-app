@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0 },
   label: { color: colors.text, fontSize: 14, fontWeight: '800' },
   labelDestructive: { color: colors.primaryHover },
-  caption: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '600' },
+  caption: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   value: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   pressed: { backgroundColor: colors.surfacePressed, transform: [{ scale: animations.pressedScale }] },
   pressedReduced: { backgroundColor: colors.surfacePressed },

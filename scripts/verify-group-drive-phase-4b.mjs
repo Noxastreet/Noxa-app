@@ -32,7 +32,7 @@ if (!failures.length) {
     ['Reanimated layout transition missing', /LinearTransition/],
     ['approved 320 ms reorder duration missing', /duration\(320\)/],
     ['system Reduced Motion handling missing', /ReduceMotion\.System/],
-    ['44 px interaction target missing', /(?:minHeight|height): 44/],
+    ['minimum 44 px interaction target missing', /(?:minHeight|height): (?:44|48)/],
     ['participant accessibility label missing', /accessibilityLabel=\{row\.accessibilityLabel\}/],
     ['selected accessibility state missing', /accessibilityState=\{\{ selected \}\}/],
     ['truthful Arrived state missing', /'Arrived'/],

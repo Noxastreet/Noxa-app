@@ -36,25 +36,34 @@ export function MapboxEventLocationPickerCompat(props: EventLocationPickerProps)
 
   const state = runtime === "native" && !loadFailed
     ? { loading: true }
-    : runtime === "expo-go"
+    : runtime === "web"
       ? {
-          title: "Location picker unavailable in Expo Go",
-          message: "Use a NOXA development or production build to load the native Mapbox picker.",
+          title: "Location picker unavailable",
+          message: "Open NOXA in the iOS or Android app to choose a map location.",
         }
-      : runtime === "web"
+      : runtime === "expo-go"
         ? {
-            title: "Location picker unavailable on web",
-            message: "The native location picker is available in the iOS and Android app.",
+            title: "Location picker unavailable",
+            message: "Open NOXA in a development or production build to choose a map location.",
           }
         : {
-            title: "Location picker failed to load",
-            message: "The native Mapbox module could not be initialized in this build.",
+            title: "Location picker unavailable",
+            message: "The location picker could not load. Restart NOXA and try again.",
           };
 
   return (
     <View style={styles.screen}>
       <MapboxStateView {...state} />
-      <Pressable onPress={props.onCancel} style={[styles.cancel, { top: insets.top + spacing.md }]}>
+      <Pressable
+        accessibilityLabel="Cancel location selection"
+        accessibilityRole="button"
+        onPress={props.onCancel}
+        style={({ pressed }) => [
+          styles.cancel,
+          { top: insets.top + spacing.md },
+          pressed && styles.cancelPressed,
+        ]}
+      >
         <Text style={styles.cancelText}>Cancel</Text>
       </Pressable>
     </View>
@@ -63,6 +72,18 @@ export function MapboxEventLocationPickerCompat(props: EventLocationPickerProps)
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  cancel: { position: "absolute", left: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(10,12,16,0.92)" },
+  cancel: {
+    position: "absolute",
+    left: spacing.md,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(10,12,16,0.92)",
+  },
+  cancelPressed: { opacity: 0.82 },
   cancelText: { color: colors.textMuted, fontSize: 13, fontWeight: "800" },
 });

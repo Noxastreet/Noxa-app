@@ -224,11 +224,15 @@ export const MapboxLiveMapCompat = forwardRef<
               accessibilityRole="button"
               hitSlop={6}
               onPress={() => setSelectedDriverId(null)}
-              style={styles.driverPreviewClose}
+              style={({ pressed }) => [
+                styles.driverPreviewClose,
+                pressed && styles.driverPreviewActionPressed,
+              ]}
             >
               <Ionicons name="close" size={18} color={colors.textMuted} />
             </Pressable>
             <Pressable
+              accessibilityHint="Open this driver's profile"
               accessibilityLabel="View driver profile"
               accessibilityRole="button"
               onPress={() => {
@@ -288,17 +292,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    minHeight: 96,
+    minHeight: 104,
     padding: spacing.md,
-    paddingRight: 44,
+    paddingRight: 52,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderStrong,
     backgroundColor: "rgba(12,12,16,0.96)",
   },
   driverPreviewIcon: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -307,8 +311,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(200,16,46,0.14)",
   },
   driverPreviewAvatar: {
-    width: 42,
-    height: 42,
+    width: 46,
+    height: 46,
     borderRadius: radius.pill,
   },
   driverPreviewCopy: {
@@ -317,7 +321,8 @@ const styles = StyleSheet.create({
   },
   driverPreviewTitle: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: "800",
   },
   driverPreviewMeta: {
@@ -334,10 +339,10 @@ const styles = StyleSheet.create({
   },
   driverPreviewClose: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    width: 32,
-    height: 32,
+    top: 8,
+    right: 8,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -349,8 +354,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    minHeight: 34,
-    paddingHorizontal: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceSoft,
   },
@@ -387,8 +392,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(12,12,16,0.92)",
   },
   iconFrame: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
@@ -399,15 +404,16 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: "800",
     textAlign: "center",
   },
   body: {
     marginTop: spacing.xs,
     color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: "center",
   },
 });

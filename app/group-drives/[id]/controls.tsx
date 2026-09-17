@@ -145,7 +145,7 @@ export default function ActiveDriveControlsScreen() {
     <Screen scroll constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
         title="ACTIVE DRIVE"
-        subtitle={isHost ? 'Host controls' : 'Your drive controls'}
+        subtitle={isHost ? 'Host controls' : 'Drive controls'}
       />
 
       <View style={styles.hero}>
@@ -155,20 +155,20 @@ export default function ActiveDriveControlsScreen() {
         </View>
         <Text style={styles.title}>{drive.title}</Text>
         <Text style={styles.body}>
-          Opening the map does not start location sharing. Sharing remains a separate, explicit action on this device.
+          Opening the map does not start location sharing. Sharing is controlled separately on this device.
         </Text>
       </View>
 
       <View style={styles.actions}>
         <NoxaButton
           fullWidth
-          title="Open Active Drive"
+          title="Back to map"
           onPress={() => router.push({ pathname: '/group-drives/[id]/active', params: { id: drive.id } })}
         />
         <NoxaButton
           fullWidth
           variant="secondary"
-          title="Group Drive location"
+          title="Location sharing"
           onPress={() => router.push({ pathname: '/group-drives/[id]/location-sharing', params: { id: drive.id } })}
         />
       </View>
@@ -176,9 +176,9 @@ export default function ActiveDriveControlsScreen() {
       <View style={styles.privacyCard}>
         <Ionicons name="shield-checkmark-outline" size={21} color={colors.textMuted} />
         <View style={styles.privacyCopy}>
-          <Text style={styles.privacyTitle}>Location lifecycle</Text>
+          <Text style={styles.privacyTitle}>Location control</Text>
           <Text style={styles.privacyBody}>
-            Local Group Drive publishing stops immediately after a confirmed Stop, Leave or End action. Server cleanup is shown separately until confirmed. Personal Live Drive is separate.
+            Stop, Leave and End stop Group Drive publishing on this device immediately. Personal Live Drive stays separate.
           </Text>
         </View>
       </View>
@@ -208,14 +208,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    minHeight: 28,
+    minHeight: 30,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
-  liveText: { color: colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  liveText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   privacyTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
   privacyBody: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider },
-  dangerLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  dangerLabel: { color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
   unavailable: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
 });

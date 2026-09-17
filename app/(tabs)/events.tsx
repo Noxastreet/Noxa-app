@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
   historyButton: {
     position: 'absolute',
     right: spacing.md,
-    minHeight: 40,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -48,8 +48,8 @@ const styles = StyleSheet.create({
   },
   historyText: {
     color: colors.text,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '900',
     letterSpacing: 0.6,
   },

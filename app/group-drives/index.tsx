@@ -130,10 +130,8 @@ export default function GroupDrivesScreen() {
             />
             <View style={styles.hero}>
               <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
-              <Text style={styles.heroTitle}>A route shared with the people you choose.</Text>
-              <Text style={styles.heroBody}>
-                Invite-only by default. Exact route details appear only after a driver joins.
-              </Text>
+              <Text style={styles.heroTitle}>Plan a route with people you choose.</Text>
+              <Text style={styles.heroBody}>Invite-only. Exact route details stay private until a driver joins.</Text>
               <NoxaButton
                 fullWidth
                 leadingIcon={<Ionicons name="add" size={20} color={colors.text} />}
@@ -148,9 +146,7 @@ export default function GroupDrivesScreen() {
                     <Ionicons name="navigate" size={18} color={colors.primaryHover} />
                     <Text style={styles.noticeTitle}>ACTIVE DRIVE</Text>
                   </View>
-                  <Text style={styles.noticeText}>
-                    {activeDrive.title} is active. Resume the map without changing your participation or location-sharing choice.
-                  </Text>
+                  <Text numberOfLines={2} style={styles.noticeText}>{activeDrive.title}</Text>
                 </View>
                 <NoxaButton
                   fullWidth
@@ -163,7 +159,7 @@ export default function GroupDrivesScreen() {
                 <NoxaButton
                   fullWidth
                   variant="secondary"
-                  title="Group Drive location"
+                  title="Location sharing"
                   onPress={() => router.push({
                     pathname: '/group-drives/[id]/location-sharing',
                     params: { id: activeDrive.driveSessionId },
@@ -195,7 +191,7 @@ export default function GroupDrivesScreen() {
             <NoxaEmptyState
               icon="navigate-outline"
               title="No Group Drives yet"
-              body="Create a real route and invite friends or Crew members. Nothing is invented here."
+              body="Create a route, then invite friends or Crew members."
             />
           )
         }
@@ -212,9 +208,9 @@ const styles = StyleSheet.create({
   hero: { gap: spacing.md, paddingVertical: spacing.lg },
   eyebrow: {
     color: colors.primary,
-    fontSize: typography.caption,
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 2.2,
+    letterSpacing: 1.8,
   },
   heroTitle: {
     color: colors.text,
@@ -230,7 +226,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
   },
   notice: {
-    gap: spacing.md,
+    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
@@ -240,7 +236,7 @@ const styles = StyleSheet.create({
   noticeCopy: { gap: spacing.xs },
   noticeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   noticeTitle: { color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  noticeText: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  noticeText: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   row: {
     minHeight: 148,
     padding: spacing.lg,

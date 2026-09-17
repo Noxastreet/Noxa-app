@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import { animations, colors, radius, shadows, spacing } from '@/src/theme';
+
+const minimumTouchTarget = Platform.OS === 'android' ? 48 : 44;
 
 type NoxaIconButtonProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -30,6 +32,7 @@ export function NoxaIconButton({
   const reduceMotion = useReducedMotion();
   const isDisabled = disabled || loading;
   const iconColor = variant === 'danger' ? colors.primaryHover : colors.text;
+  const touchTarget = Math.max(size, minimumTouchTarget);
 
   return (
     <Pressable
@@ -42,7 +45,7 @@ export function NoxaIconButton({
       style={({ pressed }) => [
         styles.button,
         styles[variant],
-        { width: Math.max(size, 44), height: Math.max(size, 44) },
+        { width: touchTarget, height: touchTarget },
         pressed && !isDisabled && (reduceMotion ? styles.pressedReduced : styles.pressed),
         isDisabled && styles.disabled,
       ]}>

@@ -385,6 +385,7 @@ export default function ActiveDriveScreen() {
           <Pressable
             accessibilityLabel="Back to Group Drive"
             accessibilityRole="button"
+            hitSlop={2}
             onPress={() => router.replace({ pathname: '/group-drives/[id]', params: { id: driveSessionId } })}
             style={styles.iconButton}
           >
@@ -402,6 +403,7 @@ export default function ActiveDriveScreen() {
             <Pressable
               accessibilityLabel="View participants"
               accessibilityRole="button"
+              hitSlop={2}
               onPress={() => router.push({ pathname: '/group-drives/[id]/participants', params: { id: driveSessionId } })}
               style={styles.moreButton}
             >
@@ -410,6 +412,7 @@ export default function ActiveDriveScreen() {
             <Pressable
               accessibilityLabel="Drive controls"
               accessibilityRole="button"
+              hitSlop={2}
               onPress={() => router.push({ pathname: '/group-drives/[id]/controls', params: { id: driveSessionId } })}
               style={styles.moreButton}
             >
@@ -509,8 +512,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(6,6,10,0.82)',
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -562,13 +565,13 @@ const styles = StyleSheet.create({
   },
   connectionText: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 0.7,
   },
   moreButton: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

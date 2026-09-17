@@ -26,11 +26,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
   },
   iconWrap: {
     width: 58,
@@ -51,6 +48,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   body: {
+    maxWidth: 320,
     color: colors.textMuted,
     fontSize: typography.body,
     fontWeight: '600',

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
-import { NoxaButton } from '@/src/components/ui';
+import { NoxaButton, NoxaLoadingState } from '@/src/components/ui';
 import {
   GroupDriveHeader,
   GroupDriveStep,
@@ -71,7 +71,7 @@ function PointRow({
       <View style={styles.pointCopy}>
         <Text style={styles.pointLabel}>{label}</Text>
         <Text numberOfLines={2} style={[styles.pointValue, !point && styles.pointPlaceholder]}>
-          {point?.label ?? 'Choose an exact point'}
+          {point?.label ?? 'Choose a point'}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
@@ -87,6 +87,7 @@ export default function GroupDriveRouteScreen() {
   const [end, setEnd] = useState<RoutePoint | null>(null);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
   const [draftCoordinate, setDraftCoordinate] = useState<LatLng>(NOXA_FALLBACK_COORDINATE);
+  const [loading, setLoading] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,8 +95,11 @@ export default function GroupDriveRouteScreen() {
   const load = useCallback(async () => {
     if (!driveSessionId) {
       setError('This Group Drive link is invalid.');
+      setLoading(false);
       return;
     }
+    setLoading(true);
+    setError(null);
     try {
       const drive = await loadGroupDriveDetails(driveSessionId);
       const startStop = drive.stops.find((stop) => stop.kind === 'start');
@@ -116,6 +120,8 @@ export default function GroupDriveRouteScreen() {
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Route could not be loaded.');
+    } finally {
+      setLoading(false);
     }
   }, [driveSessionId]);
 
@@ -189,14 +195,26 @@ export default function GroupDriveRouteScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <Screen constrained={false} contentStyle={styles.content}>
+        <GroupDriveHeader
+          title={editMode ? 'EDIT ROUTE' : 'BUILD ROUTE'}
+          subtitle="Loading route"
+        />
+        <NoxaLoadingState label="Loading Group Drive route" />
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title={editMode ? 'EDIT ROUTE' : 'BUILD ROUTE'} subtitle="Start and destination only" />
+      <GroupDriveHeader title={editMode ? 'EDIT ROUTE' : 'BUILD ROUTE'} subtitle="Start · destination" />
       {!editMode ? <GroupDriveStep current={2} label="Route" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>{editMode ? 'Update the route.' : 'Choose two real points.'}</Text>
+        <Text style={styles.title}>{editMode ? 'Update the route.' : 'Choose start and destination.'}</Text>
         <Text style={styles.body}>
-          The route stays private. Invited drivers receive only an approximate destination before joining.
+          The route stays private. Invited drivers see only an approximate destination before joining.
         </Text>
       </View>
       <View style={styles.routeSurface}>
@@ -206,7 +224,7 @@ export default function GroupDriveRouteScreen() {
       </View>
       <View style={styles.note}>
         <Ionicons name="map-outline" size={19} color={colors.textMuted} />
-        <Text style={styles.noteText}>{editMode ? 'Saving recalculates the route and returns to the Lobby.' : 'The calculated line, distance and duration appear on the next review steps.'}</Text>
+        <Text style={styles.noteText}>{editMode ? 'Saving recalculates the route and returns to the Lobby.' : 'Distance and duration are calculated after you continue.'}</Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <NoxaButton
@@ -241,7 +259,7 @@ const styles = StyleSheet.create({
   pointRow: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   pointIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   pointCopy: { flex: 1, minWidth: 0 },
-  pointLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase' },
+  pointLabel: { color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase' },
   pointValue: { marginTop: spacing.xxs, color: colors.text, fontSize: 14, fontWeight: '700', lineHeight: 20 },
   pointPlaceholder: { color: colors.textMuted, fontWeight: '600' },
   connector: { height: 18, width: 1, marginLeft: spacing.md + 20, backgroundColor: colors.borderStrong },
