@@ -331,7 +331,7 @@ export default function GroupDriveComposerScreen() {
   }, [crewId, description, draftId, scheduleValue, validateTitle]);
 
   const loadPeople = useCallback(
-    async (id: string, applyMapContext = true) => {
+    async (id: string | null, applyMapContext = true) => {
       setPeopleLoading(true);
       setPeopleError(null);
       try {
@@ -372,12 +372,11 @@ export default function GroupDriveComposerScreen() {
 
   const openPeople = async () => {
     setError(null);
+    setPeopleOpen(true);
     try {
-      const id = await ensureDraft();
-      setPeopleOpen(true);
-      await loadPeople(id);
-    } catch (prepareError) {
-      if (prepareError instanceof Error) setError(prepareError.message);
+      await loadPeople(draftId);
+    } catch {
+      // The modal owns its retry state. Opening People never creates a server draft.
     }
   };
 
@@ -917,14 +916,12 @@ export default function GroupDriveComposerScreen() {
             ) : peopleError ? (
               <View style={styles.peopleErrorBox}>
                 <Text accessibilityRole="alert" style={styles.error}>{peopleError}</Text>
-                {draftId ? (
-                  <NoxaButton
-                    fullWidth
-                    onPress={() => void loadPeople(draftId)}
-                    title="Retry"
-                    variant="secondary"
-                  />
-                ) : null}
+                <NoxaButton
+                  fullWidth
+                  onPress={() => void loadPeople(draftId)}
+                  title="Retry"
+                  variant="secondary"
+                />
               </View>
             ) : (
               <>
