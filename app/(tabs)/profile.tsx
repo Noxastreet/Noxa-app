@@ -13,6 +13,7 @@ import {
   View,
   type ImageStyle,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
 import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
@@ -52,15 +53,25 @@ type ProfilePost = {
 };
 
 function useEntryAnimation(delay = 0, distance: number = animations.entranceDistance) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(distance)).current;
+  const reduceMotion = useReducedMotion();
+  const opacity = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const translateY = useRef(new Animated.Value(reduceMotion ? 0 : distance)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    if (reduceMotion) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+
+    const animation = Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: animations.entrance, delay, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: animations.entrance, delay, useNativeDriver: true }),
-    ]).start();
-  }, [delay, opacity, translateY]);
+    ]);
+
+    animation.start();
+    return () => animation.stop();
+  }, [delay, opacity, reduceMotion, translateY]);
 
   return { opacity, transform: [{ translateY }] };
 }
@@ -123,7 +134,7 @@ function Identity({
           )}
         </View>
         <View style={styles.identityNames}>
-          <Text numberOfLines={1} style={styles.name}>{displayName}</Text>
+          <Text numberOfLines={2} style={styles.name}>{displayName}</Text>
           <Text numberOfLines={1} style={styles.username}>{isLoading ? 'Loading profile…' : username}</Text>
           {location ? (
             <View style={styles.locationRow}>
@@ -214,7 +225,11 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
     <Animated.View style={[styles.section, animatedStyle]}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionEyebrow}>YOUR GARAGE</Text>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/garage')}>
+        <Pressable
+          accessibilityLabel="View all vehicles"
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/garage')}
+          style={({ pressed }) => [styles.sectionTextAction, pressed && styles.pressed]}>
           <Text style={styles.sectionLink}>VIEW ALL</Text>
         </Pressable>
       </View>
@@ -340,7 +355,11 @@ function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: b
           <Text style={styles.sectionEyebrow}>MOMENTS</Text>
           <Text style={styles.sectionCaption}>{posts.length === 1 ? '1 shared moment' : `${posts.length} shared moments`}</Text>
         </View>
-        <Pressable accessibilityLabel="Create post" accessibilityRole="button" onPress={() => router.push('/post-editor')}>
+        <Pressable
+          accessibilityLabel="Create post"
+          accessibilityRole="button"
+          onPress={() => router.push('/post-editor')}
+          style={({ pressed }) => [styles.sectionIconAction, pressed && styles.pressed]}>
           <Ionicons name="add" size={20} color={colors.textMuted} />
         </Pressable>
       </View>
@@ -388,6 +407,7 @@ function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; on
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{ busy: isSigningOut, disabled: isSigningOut }}
           disabled={isSigningOut}
           onPress={onSignOut}
           style={({ pressed }) => [styles.contextRow, pressed && !isSigningOut && styles.pressed, isSigningOut && styles.disabled]}>
@@ -558,8 +578,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -590,9 +610,9 @@ const styles = StyleSheet.create({
   locationRow: { marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.xxs },
   locationFlag: { fontSize: 14, lineHeight: 16 },
   location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  bio: { color: colors.text, fontSize: 13, fontWeight: '600', lineHeight: 20 },
+  bio: { color: colors.text, fontSize: typography.body, fontWeight: '600', lineHeight: typography.lineHeight.body },
   editButton: {
-    minHeight: 42,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.button,
@@ -600,16 +620,36 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceSoft,
   },
-  editButtonText: { color: colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 0.75 },
+  editButtonText: { color: colors.text, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 0.75 },
   inlineErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   inlineError: { flex: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  retryButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.button, backgroundColor: colors.primarySubtle },
-  retryText: { color: colors.primaryHover, fontSize: 9, fontWeight: '900' },
+  retryButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
+    backgroundColor: colors.primarySubtle,
+  },
+  retryText: { color: colors.primaryHover, fontSize: 11, lineHeight: 14, fontWeight: '900' },
   section: { gap: spacing.sm },
-  sectionEyebrow: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  sectionEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 1.2 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  sectionLink: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  sectionCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
+  sectionTextAction: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  sectionIconAction: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
+  sectionLink: { color: colors.textMuted, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
+  sectionCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 11, lineHeight: 14, fontWeight: '700' },
   vehicleCard: {
     height: 224,
     overflow: 'hidden',
@@ -639,22 +679,23 @@ const styles = StyleSheet.create({
   },
   vehicleFallbackLabel: {
     color: colors.textMuted,
-    fontSize: 9,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '900',
     letterSpacing: 1.1,
   },
   vehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.35)' },
   vehicleTopRow: { position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   vehicleTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, minHeight: 30, borderRadius: radius.pill, backgroundColor: 'rgba(6,6,10,0.70)' },
-  vehicleTypeText: { color: colors.primaryHover, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
-  vehicleCount: { color: colors.text, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  vehicleTypeText: { color: colors.primaryHover, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
+  vehicleCount: { color: colors.text, fontSize: 11, lineHeight: 14, fontWeight: '900', letterSpacing: 0.7 },
   vehicleCopy: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md },
   vehicleTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, fontWeight: '900', textTransform: 'uppercase' },
   vehicleModel: { marginTop: 2, color: colors.text, fontSize: typography.subtitle, fontWeight: '800' },
   vehicleMeta: { marginTop: spacing.xs, color: 'rgba(240,240,244,0.70)', fontSize: typography.caption, fontWeight: '700' },
   emptyGarage: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   emptyGarageIcon: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
-  emptyGarageCopy: { flex: 1 },
+  emptyGarageCopy: { flex: 1, minWidth: 0 },
   emptyGarageTitle: { color: colors.text, fontSize: typography.body, fontWeight: '900' },
   emptyGarageText: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   contextList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
@@ -663,13 +704,13 @@ const styles = StyleSheet.create({
   contextIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
   contextCopy: { flex: 1, minWidth: 0 },
   contextLabel: { color: colors.text, fontSize: typography.body, fontWeight: '800' },
-  contextCaption: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '700' },
+  contextCaption: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   flexLabel: { flex: 1 },
   socialRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  socialMetric: { flex: 1, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: spacing.xs },
+  socialMetric: { minHeight: 48, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
   socialDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.divider },
   socialValue: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.subtitle, fontWeight: '900' },
-  socialLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
+  socialLabel: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   postGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   postTile: { width: '31.6%', aspectRatio: 1, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
   postImage: { width: '100%', height: '100%' },
