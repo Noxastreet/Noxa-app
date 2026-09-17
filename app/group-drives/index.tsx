@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   rowIntentAccent: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
-  rowIntentActive: { borderColor: colors.successBorder, backgroundColor: colors.successSubtle },
+  rowIntentActive: { borderColor: colors.success, backgroundColor: colors.successMuted },
   rowIntentText: { color: colors.textMuted, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
   rowIntentAccentText: { color: colors.primaryHover },
   rowIntentActiveText: { color: colors.success },
