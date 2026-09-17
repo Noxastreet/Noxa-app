@@ -44,7 +44,7 @@ import {
 import {
   MAPBOX_ACCESS_TOKEN,
   NOXA_MAPBOX_DEFAULT_ZOOM,
-  NOXA_MAPBOX_STYLE_URL,
+  NOXA_MAPBOX_LIVE_STYLE_URL,
 } from "./config";
 import type {
   LiveMapHandle,
@@ -311,7 +311,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           rotateEnabled
           scaleBarEnabled={false}
           style={StyleSheet.absoluteFillObject}
-          styleURL={NOXA_MAPBOX_STYLE_URL}
+          styleURL={NOXA_MAPBOX_LIVE_STYLE_URL}
         >
           <StyleImport
             config={STANDARD_BASEMAP_CONFIG}
