@@ -2758,7 +2758,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderStrong,
     backgroundColor: "rgba(12,12,16,0.98)",
-    ...shadows.sheet,
+    ...shadows.card,
   },
   routeHandle: {
     alignSelf: "center",
