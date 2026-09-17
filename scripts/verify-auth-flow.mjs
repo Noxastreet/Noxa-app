@@ -53,6 +53,11 @@ requirePattern(
 
 requirePattern('Signup must call Supabase signUp.', signUp, /supabase\.auth\.signUp\(/);
 requirePattern(
+  'Signup must keep the current 8-character new-password minimum.',
+  signUp,
+  /password\.length\s*<\s*8/,
+);
+requirePattern(
   'Signup must pass the canonical auth callback.',
   signUp,
   /emailRedirectTo:\s*AUTH_CALLBACK_REDIRECT_URI/,
@@ -64,6 +69,16 @@ requirePattern(
 );
 
 requirePattern('Sign in must use password auth.', signIn, /supabase\.auth\.signInWithPassword\(/);
+forbidPattern(
+  'Sign in must not reject existing credentials using the new-password minimum.',
+  signIn,
+  /password\.length\s*<\s*\d+/,
+);
+forbidPattern(
+  'Sign in must pass the password to Supabase without trimming or normalizing it.',
+  signIn,
+  /password\.trim\s*\(/,
+);
 requirePattern(
   'Sign in must recognize unconfirmed-email errors.',
   signIn,
@@ -121,6 +136,11 @@ requirePattern(
   'Reset password screen must consume the recovery link.',
   resetPassword,
   /acceptPasswordRecoveryUrl\(/,
+);
+requirePattern(
+  'Reset password must keep the current 8-character new-password minimum.',
+  resetPassword,
+  /password\.length\s*<\s*8/,
 );
 requirePattern(
   'Reset password screen must require the recovery-bound user.',
