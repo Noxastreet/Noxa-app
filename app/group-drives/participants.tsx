@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
@@ -78,8 +78,9 @@ function CrewRow({ crew, selected, onPress }: { crew: DriveInviteCrew; selected:
 }
 
 export default function GroupDriveParticipantsScreen() {
-  const params = useLocalSearchParams<{ id?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ id?: string; inviteUserId?: string; mode?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : '';
+  const inviteUserId = typeof params.inviteUserId === 'string' ? params.inviteUserId : null;
   const editMode = params.mode === 'edit';
   const [friends, setFriends] = useState<DriveInviteFriend[]>([]);
   const [crews, setCrews] = useState<DriveInviteCrew[]>([]);
@@ -90,6 +91,8 @@ export default function GroupDriveParticipantsScreen() {
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [inviteContextMessage, setInviteContextMessage] = useState<string | null>(null);
+  const inviteContextAppliedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!driveSessionId) {
@@ -103,6 +106,23 @@ export default function GroupDriveParticipantsScreen() {
       const options = await loadDriveInviteOptions(driveSessionId);
       setFriends(options.friends);
       setCrews(options.crews);
+
+      if (inviteUserId && !inviteContextAppliedRef.current) {
+        inviteContextAppliedRef.current = true;
+        const directMatch = options.friends.find(
+          (friend) => friend.id === inviteUserId && !friend.unavailable,
+        );
+        if (directMatch) {
+          setSelectedFriends((current) => new Set(current).add(directMatch.id));
+          setInviteContextMessage(
+            `${directMatch.displayName} is selected. No invitation is sent until you continue.`,
+          );
+        } else {
+          setInviteContextMessage(
+            'This driver is not available for a direct invitation. Choose another person or Crew.',
+          );
+        }
+      }
     } catch (loadOptionsError) {
       setLoadError(
         loadOptionsError instanceof Error
@@ -112,7 +132,7 @@ export default function GroupDriveParticipantsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [driveSessionId]);
+  }, [driveSessionId, inviteUserId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -196,6 +216,12 @@ export default function GroupDriveParticipantsScreen() {
         <Text style={styles.title}>{editMode ? 'Invite more people.' : 'Choose who to invite.'}</Text>
         <Text style={styles.body}>Selecting a Crew sends separate invitations. Nobody joins automatically.</Text>
       </View>
+      {inviteContextMessage ? (
+        <View style={styles.inviteContext}>
+          <Ionicons name="navigate-outline" size={18} color={colors.primaryHover} />
+          <Text style={styles.inviteContextText}>{inviteContextMessage}</Text>
+        </View>
+      ) : null}
       <NoxaInput
         autoCapitalize="none"
         label="Find a friend"
@@ -252,6 +278,17 @@ const styles = StyleSheet.create({
   intro: { gap: spacing.sm, paddingTop: spacing.sm },
   title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
   body: { color: colors.textMuted, ...typography.v2.body },
+  inviteContext: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.primarySubtle,
+  },
+  inviteContextText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   section: { gap: spacing.xs },
   sectionLabel: { marginBottom: spacing.xs, color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
   optionRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
