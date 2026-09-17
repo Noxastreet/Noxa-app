@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +15,8 @@ import { animations, colors, radius, shadows, spacing } from '@/src/theme';
 
 export type NoxaButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'overlay' | 'google';
 export type NoxaButtonSize = 'sm' | 'md' | 'lg';
+
+const minimumTouchTarget = Platform.OS === 'android' ? 48 : 44;
 
 type NoxaButtonProps = {
   title: string;
@@ -88,9 +91,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  sm: { minHeight: 32, paddingHorizontal: spacing.sm },
-  md: { minHeight: 44, paddingHorizontal: spacing.lg },
-  lg: { minHeight: 54, paddingHorizontal: spacing.xl },
+  sm: { minHeight: minimumTouchTarget, paddingHorizontal: spacing.sm },
+  md: { minHeight: minimumTouchTarget, paddingHorizontal: spacing.lg },
+  lg: { minHeight: 56, paddingHorizontal: spacing.xl },
   fullWidth: { width: '100%' },
   content: {
     flexDirection: 'row',
