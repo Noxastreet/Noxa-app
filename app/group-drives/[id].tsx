@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
 import { NoxaAvatar, NoxaButton, NoxaEmptyState, NoxaLoadingState } from '@/src/components/ui';
@@ -10,6 +10,7 @@ import {
   GroupDriveFact,
   GroupDriveHeader,
   cancelDrive,
+  calculateDriveRoute,
   cancelDriveInvitation,
   driveStatusCaption,
   formatDriveDate,
@@ -21,24 +22,31 @@ import {
   loadGroupDriveDetails,
   setDriveReady,
   startDrive,
+  subscribeToDriveLobbyStatus,
   type DriveInvitation,
   type DriveParticipant,
   type GroupDriveDetails,
 } from '@/src/features/group-drive';
+import { readLocalNavigationLocation } from '@/src/features/group-drive/runtime/localNavigationLocation';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('') || 'NX';
 }
 
-function exactStopValue(
+function stopLabel(
   stop: GroupDriveDetails['stops'][number] | undefined,
   fallback: string,
 ) {
-  if (!stop) return fallback;
-  const coordinates = `${stop.latitude.toFixed(5)}, ${stop.longitude.toFixed(5)}`;
-  return stop.label ? `${stop.label} · ${coordinates}` : coordinates;
+  return stop?.label?.trim() || fallback;
 }
+
+type ApproachState =
+  | { status: 'idle' | 'loading' | 'unavailable' }
+  | { status: 'ready' | 'at_meeting'; distanceMeters: number; durationSeconds: number }
+  | { status: 'error'; message: string };
+
+const MEETING_ARRIVAL_METERS = 250;
 
 function isPreActive(status: GroupDriveDetails['status']) {
   return status === 'draft' || status === 'scheduled';
@@ -63,7 +71,7 @@ function ParticipantRow({
   const isHost = participant.role === 'host';
   const ready = preActive && !isHost && participant.status === 'accepted' && Boolean(participant.readyAt);
   const waiting = preActive && !isHost && participant.status === 'accepted' && !participant.readyAt;
-  const meta = isHost ? 'Host' : ready ? 'Ready' : waiting ? 'Waiting' : participant.status;
+  const meta = isHost ? 'Host' : ready ? 'Ready at A' : waiting ? 'Going to A' : participant.status;
 
   return (
     <View style={styles.personRow}>
@@ -117,6 +125,7 @@ export default function GroupDriveViewScreen() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [approach, setApproach] = useState<ApproachState>({ status: 'idle' });
 
   const mergeReadiness = useCallback(
     (currentDrive: GroupDriveDetails, rows: Awaited<ReturnType<typeof loadDriveLobbyReadiness>>) => {
@@ -155,6 +164,61 @@ export default function GroupDriveViewScreen() {
     }
   }, [driveSessionId, mergeReadiness]);
 
+  const refreshApproachToMeeting = useCallback(async (requestPermission = false) => {
+    const currentDrive = driveRef.current;
+    const meeting = currentDrive?.stops.find((stop) => stop.kind === 'start');
+    if (!currentDrive || !isPreActive(currentDrive.status) || !meeting) {
+      setApproach({ status: 'unavailable' });
+      return;
+    }
+
+    setApproach({ status: 'loading' });
+    try {
+      const local = await readLocalNavigationLocation(requestPermission);
+      if (!local) {
+        setApproach({ status: 'unavailable' });
+        return;
+      }
+      const route = await calculateDriveRoute([
+        local,
+        { latitude: meeting.latitude, longitude: meeting.longitude },
+      ]);
+      setApproach({
+        status: route.distanceMeters <= MEETING_ARRIVAL_METERS ? 'at_meeting' : 'ready',
+        distanceMeters: route.distanceMeters,
+        durationSeconds: route.durationSeconds,
+      });
+    } catch (approachError) {
+      setApproach({
+        status: 'error',
+        message: approachError instanceof Error ? approachError.message : 'Route to meeting point is unavailable.',
+      });
+    }
+  }, []);
+
+  const openNavigationToMeeting = useCallback(async () => {
+    const currentDrive = driveRef.current;
+    const meeting = currentDrive?.stops.find((stop) => stop.kind === 'start');
+    if (!meeting) return;
+    const destination = `${meeting.latitude},${meeting.longitude}`;
+    const nativeUrl = Platform.select({
+      ios: `maps://?daddr=${destination}&dirflg=d`,
+      android: `google.navigation:q=${destination}&mode=d`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
+    });
+    if (!nativeUrl) return;
+    try {
+      const supported = await Linking.canOpenURL(nativeUrl);
+      if (supported) {
+        await Linking.openURL(nativeUrl);
+        return;
+      }
+      await Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${destination}`);
+    } catch {
+      setError('Navigation app could not be opened.');
+    }
+  }, []);
+
   const refreshLobby = useCallback(async () => {
     if (!driveSessionId) return;
     try {
@@ -183,18 +247,55 @@ export default function GroupDriveViewScreen() {
     }
   }, [driveSessionId, load, mergeReadiness]);
 
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    void load();
+    void refreshApproachToMeeting(false);
+  }, [load, refreshApproachToMeeting]));
 
   useEffect(() => {
     driveRef.current = drive;
   }, [drive]);
 
   const driveStatus = drive?.status;
+  const driveRouteVersion = drive?.routeVersion ?? 0;
   useEffect(() => {
     if (!driveStatus || (driveStatus !== 'draft' && driveStatus !== 'scheduled')) return;
     const interval = setInterval(() => void refreshLobby(), 5000);
     return () => clearInterval(interval);
   }, [driveStatus, refreshLobby]);
+
+  useEffect(() => {
+    if (!driveStatus || !isPreActive(driveStatus)) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshLobby();
+    });
+    return () => subscription.remove();
+  }, [driveStatus, refreshLobby]);
+
+  useEffect(() => {
+    if (!driveSessionId || !driveStatus || !isPreActive(driveStatus)) return;
+    const unsubscribe = subscribeToDriveLobbyStatus(driveSessionId, (status) => {
+      if (status === 'active') {
+        router.replace({ pathname: '/group-drives/[id]/active', params: { id: driveSessionId } });
+      } else if (status === 'cancelled' || status === 'completed') {
+        void load();
+      } else {
+        void refreshLobby();
+      }
+    });
+    return unsubscribe;
+  }, [driveSessionId, driveStatus, load, refreshLobby]);
+
+  useEffect(() => {
+    if (driveStatus === 'active' && driveSessionId) {
+      router.replace({ pathname: '/group-drives/[id]/active', params: { id: driveSessionId } });
+    }
+  }, [driveSessionId, driveStatus]);
+
+  useEffect(() => {
+    if (!driveStatus || !isPreActive(driveStatus)) return;
+    void refreshApproachToMeeting(false);
+  }, [driveRouteVersion, driveStatus, refreshApproachToMeeting]);
 
   const confirmCancel = () => {
     if (!drive) return;
@@ -283,7 +384,7 @@ export default function GroupDriveViewScreen() {
     setError(null);
     try {
       await startDrive(drive.id);
-      await load();
+      router.replace({ pathname: '/group-drives/[id]/active', params: { id: drive.id } });
     } catch (startError) {
       setError(startError instanceof Error ? startError.message : 'Group Drive could not be started.');
     } finally {
@@ -322,7 +423,8 @@ export default function GroupDriveViewScreen() {
   );
   const readyCount = acceptedParticipants.filter((participant) => Boolean(participant.readyAt)).length;
   const waitingCount = acceptedParticipants.length - readyCount;
-  const canStart = isHost && preActive && drive.routeVersion > 0 && acceptedParticipants.length > 0;
+  const setupComplete = drive.routeVersion > 0 && acceptedParticipants.length > 0;
+  const canStart = isHost && preActive && setupComplete && waitingCount === 0;
   const start = drive.stops.find((stop) => stop.kind === 'start');
   const end = drive.stops.find((stop) => stop.kind === 'end');
   const pendingInvitations = drive.invitations.filter((invitation) => invitation.status === 'invited');
@@ -330,18 +432,10 @@ export default function GroupDriveViewScreen() {
   const confirmStart = () => {
     if (!canStart) return;
     const pendingCount = pendingInvitations.length;
-    if (waitingCount > 0 || pendingCount > 0) {
-      const lines: string[] = [];
-      if (waitingCount > 0) {
-        lines.push(`${waitingCount} ${waitingCount === 1 ? 'driver is' : 'drivers are'} still waiting.`);
-      }
-      if (pendingCount > 0) {
-        lines.push(`${pendingCount} pending ${pendingCount === 1 ? 'invitation will' : 'invitations will'} be cancelled when the drive starts.`);
-      }
-      lines.push('Ready is coordination only; starting never grants location consent on another driver’s device.');
+    if (pendingCount > 0) {
       Alert.alert(
         'Start Group Drive?',
-        lines.join('\n\n'),
+        `${pendingCount} pending ${pendingCount === 1 ? 'invitation will' : 'invitations will'} be cancelled when the drive starts.\n\nReady never grants location consent on another driver’s device.`,
         [
           { text: 'Keep waiting', style: 'cancel' },
           { text: 'Start Drive', onPress: () => void startNow() },
@@ -406,6 +500,55 @@ export default function GroupDriveViewScreen() {
         </View>
       ) : null}
 
+      {preActive && start ? (
+        <View style={styles.meetingCard}>
+          <View style={styles.meetingHeader}>
+            <View style={styles.meetingIcon}>
+              <Ionicons name="location" size={18} color={colors.primaryHover} />
+            </View>
+            <View style={styles.meetingCopy}>
+              <Text style={styles.meetingEyebrow}>MEET AT A</Text>
+              <Text numberOfLines={1} style={styles.meetingTitle}>
+                {stopLabel(start, 'Start point')}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.meetingStatus}>
+            {approach.status === 'loading' ? (
+              <Text style={styles.meetingMeta}>Calculating your route to A…</Text>
+            ) : approach.status === 'ready' ? (
+              <Text style={styles.meetingMeta}>
+                {formatDriveDistance(approach.distanceMeters)} away · {formatDriveDuration(approach.durationSeconds)}
+              </Text>
+            ) : approach.status === 'at_meeting' ? (
+              <Text style={styles.meetingReady}>You are at A · mark yourself ready</Text>
+            ) : approach.status === 'error' ? (
+              <Text style={styles.meetingMeta}>{approach.message}</Text>
+            ) : (
+              <Text style={styles.meetingMeta}>
+                See your distance to A without sharing your position with the Group Drive.
+              </Text>
+            )}
+          </View>
+          <View style={styles.meetingActions}>
+            <NoxaButton
+              fullWidth
+              onPress={() => void openNavigationToMeeting()}
+              title="Navigate to A"
+            />
+            {(approach.status === 'unavailable' || approach.status === 'error' || approach.status === 'idle') ? (
+              <NoxaButton
+                fullWidth
+                onPress={() => void refreshApproachToMeeting(true)}
+                title="Show my distance"
+                variant="secondary"
+              />
+            ) : null}
+          </View>
+          <Text style={styles.meetingPrivacy}>Your position is used only to calculate your route to A. It is not shared with Group Drive participants. Ready does not start live sharing.</Text>
+        </View>
+      ) : null}
+
       {drive.status === 'active' ? (
         <View style={styles.phaseNotice}>
           <Ionicons name="navigate-outline" size={20} color={colors.primaryHover} />
@@ -439,8 +582,8 @@ export default function GroupDriveViewScreen() {
         </View>
       </View>
       <View style={styles.facts}>
-        <GroupDriveFact icon="radio-button-on" label="Start" value={exactStopValue(start, 'Route not set')} />
-        <GroupDriveFact icon="flag" label="Destination" value={exactStopValue(end, 'Route not set')} />
+        <GroupDriveFact icon="radio-button-on" label="Start" value={stopLabel(start, 'Route not set')} />
+        <GroupDriveFact icon="flag" label="Destination" value={stopLabel(end, 'Route not set')} />
         <GroupDriveFact icon="time-outline" label="Timing" value={formatDriveDate(drive.scheduledStartAt)} />
       </View>
 
@@ -478,10 +621,10 @@ export default function GroupDriveViewScreen() {
             fullWidth
             loading={working}
             onPress={() => void toggleReady()}
-            title={isReady ? 'Ready · tap to undo' : "I'm ready"}
+            title={isReady ? 'Ready at A · tap to undo' : "I'm at A · Ready"}
             variant={isReady ? 'secondary' : 'primary'}
           />
-          <Text style={styles.actionHint}>Ready coordinates the Lobby only. It never starts location sharing.</Text>
+          <Text style={styles.actionHint}>Ready coordinates the Lobby only. It never starts location sharing. Use it once you are prepared to leave point A.</Text>
         </View>
       ) : null}
 
@@ -493,6 +636,12 @@ export default function GroupDriveViewScreen() {
               loading={working}
               onPress={confirmStart}
               title="Start Drive"
+            />
+          ) : setupComplete && waitingCount > 0 ? (
+            <NoxaButton
+              disabled
+              fullWidth
+              title={waitingCount === 1 ? 'Waiting for 1 driver at A' : `Waiting for ${waitingCount} drivers at A`}
             />
           ) : (
             <NoxaButton
@@ -543,6 +692,17 @@ const styles = StyleSheet.create({
   },
   lobbyLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   lobbyValue: { marginTop: 4, color: colors.text, fontSize: 15, fontWeight: '800' },
+  meetingCard: { gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceBase },
+  meetingHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  meetingIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
+  meetingCopy: { flex: 1, minWidth: 0 },
+  meetingEyebrow: { color: colors.primaryHover, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  meetingTitle: { marginTop: 2, color: colors.text, fontSize: 15, fontWeight: '800' },
+  meetingStatus: { minHeight: 20 },
+  meetingMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
+  meetingReady: { color: colors.success, fontSize: 12, fontWeight: '800' },
+  meetingActions: { gap: spacing.xs },
+  meetingPrivacy: { color: colors.textSubtle, fontSize: 10, lineHeight: 15, textAlign: 'center' },
   phaseNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
   activeNoticeCopy: { flex: 1, gap: spacing.xxs },
   activeNoticeTitle: { color: colors.primaryHover, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },

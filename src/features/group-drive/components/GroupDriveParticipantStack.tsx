@@ -11,7 +11,7 @@ import Animated, { LinearTransition, ReduceMotion, useReducedMotion } from 'reac
 
 import { NoxaAvatar } from '@/src/components/ui';
 import type { ParticipantStackPresentation, ParticipantStackRow } from '@/src/features/group-drive/runtime';
-import { animations, colors, radius, spacing } from '@/src/theme';
+import { animations, colors, radius } from '@/src/theme';
 
 type GroupDriveParticipantStackProps = {
   presentation: ParticipantStackPresentation;
@@ -65,6 +65,16 @@ function ParticipantOrb({
           <NoxaAvatar imageUrl={row.avatarUrl} initials={row.initials} size={34} />
           <View style={[styles.statusDot, statusStyle]} />
         </View>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.distanceLabel,
+            row.kind === 'arrived' && styles.distanceLabelArrived,
+            row.kind === 'unavailable' && styles.distanceLabelUnavailable,
+          ]}
+        >
+          {row.kind === 'unavailable' ? '—' : row.valueLabel}
+        </Text>
         {row.isCurrentUser ? <Text style={styles.youLabel}>YOU</Text> : null}
       </Pressable>
     </Animated.View>
@@ -125,7 +135,7 @@ const styles = StyleSheet.create({
   },
   touchTarget: {
     width: 44,
-    minHeight: 44,
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -165,9 +175,23 @@ const styles = StyleSheet.create({
   statusUnavailable: {
     backgroundColor: colors.textSubtle,
   },
+  distanceLabel: {
+    maxWidth: 52,
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 8,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  distanceLabelArrived: {
+    color: colors.primary,
+  },
+  distanceLabelUnavailable: {
+    color: colors.textSubtle,
+  },
   youLabel: {
     position: 'absolute',
-    bottom: -1,
+    top: -1,
     paddingHorizontal: 3,
     borderRadius: radius.pill,
     overflow: 'hidden',

@@ -105,6 +105,9 @@ jobs:
       - name: Group Drive Phase 2 contract
         run: npm run verify:group-drive-phase-2
 
+      - name: Group Drive end-to-end UX contract
+        run: node ./scripts/verify-group-drive-end-to-end-ux.mjs
+
       - name: Group Drive Phase 3A static contract
         run: npm run verify:group-drive-phase-3a
 
