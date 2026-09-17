@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import {
   type ComponentType,
   type RefAttributes,
@@ -63,6 +64,7 @@ function safeHomeDriver(driver: MapboxDriver): MapboxDriver {
     label: "NOXA driver",
     avatar_url: null,
     vehicle_label: null,
+    can_invite_directly: false,
   };
 }
 
@@ -231,23 +233,46 @@ export const MapboxLiveMapCompat = forwardRef<
             >
               <Ionicons name="close" size={18} color={colors.textMuted} />
             </Pressable>
-            <Pressable
-              accessibilityHint="Open this driver's profile"
-              accessibilityLabel="View driver profile"
-              accessibilityRole="button"
-              onPress={() => {
-                const driverId = selectedDriver.user_id;
-                setSelectedDriverId(null);
-                props.onDriverPress(driverId);
-              }}
-              style={({ pressed }) => [
-                styles.driverPreviewAction,
-                pressed && styles.driverPreviewActionPressed,
-              ]}
-            >
-              <Text style={styles.driverPreviewActionText}>View profile</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.text} />
-            </Pressable>
+            <View style={styles.driverPreviewActions}>
+              <Pressable
+                accessibilityHint="Open this driver's profile"
+                accessibilityLabel="View driver profile"
+                accessibilityRole="button"
+                onPress={() => {
+                  const driverId = selectedDriver.user_id;
+                  setSelectedDriverId(null);
+                  props.onDriverPress(driverId);
+                }}
+                style={({ pressed }) => [
+                  styles.driverPreviewAction,
+                  pressed && styles.driverPreviewActionPressed,
+                ]}
+              >
+                <Text style={styles.driverPreviewActionText}>Profile</Text>
+              </Pressable>
+              {selectedDriver.can_invite_directly ? (
+                <Pressable
+                  accessibilityHint="Starts Group Drive setup with this driver selected. No invitation is sent yet."
+                  accessibilityLabel="Invite to Drive"
+                  accessibilityRole="button"
+                  onPress={() => {
+                    const inviteUserId = selectedDriver.user_id;
+                    setSelectedDriverId(null);
+                    router.push({
+                      pathname: "/group-drives/details",
+                      params: { inviteUserId },
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.driverPreviewInvite,
+                    pressed && styles.driverPreviewActionPressed,
+                  ]}
+                >
+                  <Ionicons name="navigate-outline" size={16} color={colors.text} />
+                  <Text style={styles.driverPreviewInviteText}>Invite to Drive</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         </View>
       ) : null}
@@ -295,6 +320,7 @@ const styles = StyleSheet.create({
     minHeight: 104,
     padding: spacing.md,
     paddingRight: 52,
+    paddingBottom: 72,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderStrong,
@@ -347,17 +373,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radius.pill,
   },
-  driverPreviewAction: {
+  driverPreviewActions: {
     position: "absolute",
+    left: spacing.md,
     right: spacing.md,
     bottom: spacing.md,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
+    gap: spacing.xs,
+  },
+  driverPreviewAction: {
     minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceSoft,
+  },
+  driverPreviewInvite: {
+    flex: 1,
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
   },
   driverPreviewActionPressed: {
     opacity: 0.78,
@@ -366,6 +409,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 11,
     fontWeight: "800",
+  },
+  driverPreviewInviteText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "900",
   },
   fallback: {
     ...StyleSheet.absoluteFillObject,
