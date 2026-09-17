@@ -64,10 +64,10 @@ if (fs.existsSync(path.join(root, 'src/features/group-drive/lobby.ts'))) {
 if (fs.existsSync(path.join(root, 'app/group-drives/[id].tsx'))) {
   const lobbyScreen = requireText('app/group-drives/[id].tsx', [
     ['Lobby title missing', /GROUP DRIVE LOBBY/],
-    ['Ready action missing', /I'm ready/],
-    ['Ready undo state missing', /Ready · tap to undo/],
+    ['Ready-at-A action missing', /I'm at A · Ready/],
+    ['Ready-at-A undo state missing', /Ready at A · tap to undo/],
     ['host Start action missing', /title="Start Drive"/],
-    ['Waiting confirmation missing', /still waiting/],
+    ['waiting-at-A start gate missing', /Waiting for .*drivers? at A/],
     ['pending-invitation Start warning missing', /pending .*invitation.*cancelled when the drive starts/],
     ['Lobby refresh missing', /setInterval\(\(\) => void refreshLobby\(\), 5000\)/],
     ['cross-device context refresh missing', /snapshot\.sessionStatus !== current\.status[\s\S]*snapshot\.routeVersion !== current\.routeVersion/],

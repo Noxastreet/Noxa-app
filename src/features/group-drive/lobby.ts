@@ -125,3 +125,40 @@ export async function startDrive(driveSessionId: string) {
     target_drive_session_id: driveSessionId,
   });
 }
+
+let driveLobbyStatusChannelSequence = 0;
+
+export function subscribeToDriveLobbyStatus(
+  driveSessionId: string,
+  onStatus: (status: DriveSessionStatus) => void,
+) {
+  driveLobbyStatusChannelSequence += 1;
+  const channel = supabase.channel(
+    `group-drive-lobby-status:${driveSessionId}:${driveLobbyStatusChannelSequence}`,
+  );
+  channel.on(
+    'postgres_changes',
+    {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'drive_sessions',
+      filter: `id=eq.${driveSessionId}`,
+    },
+    (payload) => {
+      const status = (payload.new as { status?: unknown }).status;
+      if (
+        status === 'draft'
+        || status === 'scheduled'
+        || status === 'active'
+        || status === 'completed'
+        || status === 'cancelled'
+      ) {
+        onStatus(status);
+      }
+    },
+  );
+  channel.subscribe();
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
