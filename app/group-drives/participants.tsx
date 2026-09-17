@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
-import { NoxaAvatar, NoxaButton, NoxaInput, NoxaLoadingState } from '@/src/components/ui';
+import {
+  NoxaAvatar,
+  NoxaButton,
+  NoxaEmptyState,
+  NoxaInput,
+  NoxaLoadingState,
+} from '@/src/components/ui';
 import {
   GroupDriveHeader,
   GroupDriveStep,
@@ -24,7 +30,7 @@ function SelectMark({ selected, disabled }: { selected: boolean; disabled?: bool
   return (
     <View style={[styles.mark, selected && styles.markSelected, disabled && styles.markDisabled]}>
       <Ionicons
-        name={disabled ? 'checkmark' : selected ? 'checkmark' : 'add'}
+        name={selected || disabled ? 'checkmark' : 'add'}
         size={17}
         color={selected ? colors.text : colors.textMuted}
       />
@@ -82,22 +88,27 @@ export default function GroupDriveParticipantsScreen() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!driveSessionId) {
-      setError('This Group Drive link is invalid.');
+      setLoadError('This Group Drive link is invalid.');
       setLoading(false);
       return;
     }
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const options = await loadDriveInviteOptions(driveSessionId);
       setFriends(options.friends);
       setCrews(options.crews);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Invite options could not be loaded.');
+    } catch (loadOptionsError) {
+      setLoadError(
+        loadOptionsError instanceof Error
+          ? loadOptionsError.message
+          : 'Invite options could not be loaded.',
+      );
     } finally {
       setLoading(false);
     }
@@ -154,13 +165,36 @@ export default function GroupDriveParticipantsScreen() {
     ? selectionCount ? 'Send invitations' : 'Done'
     : selectionCount ? 'Send invitations' : 'Continue without invitations';
 
+  if (loading) {
+    return (
+      <Screen constrained={false} contentStyle={styles.content}>
+        <GroupDriveHeader title={editMode ? 'EDIT PEOPLE' : 'ADD PEOPLE'} subtitle="Loading invitations" />
+        <NoxaLoadingState label="Loading people and Crews" />
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen constrained={false} contentStyle={styles.content}>
+        <GroupDriveHeader title={editMode ? 'EDIT PEOPLE' : 'ADD PEOPLE'} />
+        <NoxaEmptyState
+          body={loadError}
+          icon="people-outline"
+          title="Invitations unavailable"
+        />
+        <NoxaButton fullWidth onPress={() => void load()} title="Retry" variant="secondary" />
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title={editMode ? 'EDIT PEOPLE' : 'ADD PEOPLE'} subtitle="Each person chooses for themselves" />
+      <GroupDriveHeader title={editMode ? 'EDIT PEOPLE' : 'ADD PEOPLE'} subtitle="Invitations only" />
       {!editMode ? <GroupDriveStep current={3} label="Participants" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>{editMode ? 'Invite more people.' : 'Choose who gets an invitation.'}</Text>
-        <Text style={styles.body}>Selecting a Crew sends separate invitations to its current members. Nobody joins automatically.</Text>
+        <Text style={styles.title}>{editMode ? 'Invite more people.' : 'Choose who to invite.'}</Text>
+        <Text style={styles.body}>Selecting a Crew sends separate invitations. Nobody joins automatically.</Text>
       </View>
       <NoxaInput
         autoCapitalize="none"
@@ -169,44 +203,40 @@ export default function GroupDriveParticipantsScreen() {
         placeholder="Name or username"
         value={query}
       />
-      {loading ? <NoxaLoadingState label="Loading people…" /> : null}
-      {!loading ? (
-        <>
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>FRIENDS</Text>
-            {visibleFriends.length ? visibleFriends.map((friend) => (
-              <FriendRow
-                friend={friend}
-                key={friend.id}
-                selected={selectedFriends.has(friend.id)}
-                onPress={() => toggle(setSelectedFriends, friend.id)}
-              />
-            )) : <Text style={styles.emptyCopy}>No matching mutual friends.</Text>}
-          </View>
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>YOUR CREWS</Text>
-            {crews.length ? crews.map((crew) => (
-              <CrewRow
-                crew={crew}
-                key={crew.id}
-                selected={selectedCrews.has(crew.id)}
-                onPress={() => toggle(setSelectedCrews, crew.id)}
-              />
-            )) : <Text style={styles.emptyCopy}>You are not in a Crew with inviteable members.</Text>}
-          </View>
-        </>
-      ) : null}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>FRIENDS</Text>
+        {visibleFriends.length ? visibleFriends.map((friend) => (
+          <FriendRow
+            friend={friend}
+            key={friend.id}
+            selected={selectedFriends.has(friend.id)}
+            onPress={() => toggle(setSelectedFriends, friend.id)}
+          />
+        )) : <Text style={styles.emptyCopy}>No matching mutual friends.</Text>}
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>YOUR CREWS</Text>
+        {crews.length ? crews.map((crew) => (
+          <CrewRow
+            crew={crew}
+            key={crew.id}
+            selected={selectedCrews.has(crew.id)}
+            onPress={() => toggle(setSelectedCrews, crew.id)}
+          />
+        )) : <Text style={styles.emptyCopy}>No Crew members available to invite.</Text>}
+      </View>
       <View style={styles.consentNote}>
         <Ionicons name="paper-plane-outline" size={19} color={colors.primaryHover} />
         <Text style={styles.consentText}>
           {editMode
             ? `${recipientCount || 'No'} new ${recipientCount === 1 ? 'person' : 'people'} selected. Existing participants stay unchanged.`
-            : `Continue sends ${recipientCount || 'no'} individual ${recipientCount === 1 ? 'invitation' : 'invitations'}. You can also keep this as a draft and invite people later.`}
+            : recipientCount
+              ? `${recipientCount} ${recipientCount === 1 ? 'person' : 'people'} will receive an invitation.`
+              : 'No invitations selected. You can invite people later.'}
         </Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <NoxaButton
-        disabled={loading}
         fullWidth
         loading={saving}
         onPress={() => void continueFlow()}
