@@ -50,7 +50,15 @@ function FriendRow({ friend, selected, onPress }: { friend: DriveInviteFriend; s
       <NoxaAvatar initials={initials(friend.displayName)} size={44} />
       <View style={styles.optionCopy}>
         <Text numberOfLines={1} style={styles.optionTitle}>{friend.displayName}</Text>
-        <Text style={styles.optionCaption}>{friend.unavailable ? 'Already part of this drive' : 'Mutual friend'}</Text>
+        <Text style={styles.optionCaption}>
+          {friend.unavailable
+            ? 'Already part of this drive'
+            : friend.relationship === 'crew_member'
+              ? 'Shared Crew member'
+              : friend.relationship === 'mutual_friend_and_crew'
+                ? 'Mutual friend · shared Crew'
+                : 'Mutual friend'}
+        </Text>
       </View>
       <SelectMark selected={selected || friend.unavailable} disabled={friend.unavailable} />
     </Pressable>
@@ -166,7 +174,16 @@ export default function GroupDriveParticipantsScreen() {
     setSaving(true);
     setError(null);
     try {
-      await inviteUsersToDrive(driveSessionId, Array.from(selectedFriends));
+      const sourceCrewByUserId = Object.fromEntries(
+        friends
+          .filter((friend) => selectedFriends.has(friend.id))
+          .map((friend) => [friend.id, friend.sourceCrewId]),
+      );
+      await inviteUsersToDrive(
+        driveSessionId,
+        Array.from(selectedFriends),
+        sourceCrewByUserId,
+      );
       await inviteCrewsToDrive(driveSessionId, Array.from(selectedCrews));
       if (editMode) {
         router.replace({ pathname: '/group-drives/[id]', params: { id: driveSessionId } });
@@ -224,13 +241,13 @@ export default function GroupDriveParticipantsScreen() {
       ) : null}
       <NoxaInput
         autoCapitalize="none"
-        label="Find a friend"
+        label="Search people"
         onChangeText={setQuery}
         placeholder="Name or username"
         value={query}
       />
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>FRIENDS</Text>
+        <Text style={styles.sectionLabel}>PEOPLE</Text>
         {visibleFriends.length ? visibleFriends.map((friend) => (
           <FriendRow
             friend={friend}
@@ -238,7 +255,7 @@ export default function GroupDriveParticipantsScreen() {
             selected={selectedFriends.has(friend.id)}
             onPress={() => toggle(setSelectedFriends, friend.id)}
           />
-        )) : <Text style={styles.emptyCopy}>No matching mutual friends.</Text>}
+        )) : <Text style={styles.emptyCopy}>No matching people.</Text>}
       </View>
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>YOUR CREWS</Text>
