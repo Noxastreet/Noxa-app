@@ -518,7 +518,18 @@ export default function GroupDriveComposerScreen() {
         }
       }
 
-      await inviteUsersToDrive(id, Array.from(directInvites));
+      const sourceCrewByUserId = Object.fromEntries(
+        friends
+          .filter((friend) => directInvites.has(friend.id))
+          .map((friend) => [friend.id, friend.sourceCrewId]),
+      );
+      if (inviteUserId && directInvites.has(inviteUserId) && !(inviteUserId in sourceCrewByUserId)) {
+        const options = await loadDriveInviteOptions(id);
+        const match = options.friends.find((friend) => friend.id === inviteUserId);
+        if (match) sourceCrewByUserId[inviteUserId] = match.sourceCrewId;
+      }
+
+      await inviteUsersToDrive(id, Array.from(directInvites), sourceCrewByUserId);
       await inviteCrewsToDrive(id, Array.from(selectedCrews));
 
       router.replace({ pathname: '/group-drives/[id]', params: { id } });
@@ -918,7 +929,7 @@ export default function GroupDriveComposerScreen() {
             ) : (
               <>
                 <View style={styles.peopleSection}>
-                  <Text style={styles.peopleSectionTitle}>FRIENDS</Text>
+                  <Text style={styles.peopleSectionTitle}>PEOPLE</Text>
                   {visibleFriends.length ? (
                     visibleFriends.map((friend) => {
                       const selected = selectedFriends.has(friend.id);
@@ -950,8 +961,12 @@ export default function GroupDriveComposerScreen() {
                               {friend.unavailable
                                 ? 'Already part of this drive'
                                 : friend.username
-                                  ? `@${friend.username}`
-                                  : 'Mutual friend'}
+                                  ? `@${friend.username} · ${friend.relationship === 'crew_member' ? 'Crew' : friend.relationship === 'mutual_friend_and_crew' ? 'Friend + Crew' : 'Friend'}`
+                                  : friend.relationship === 'crew_member'
+                                    ? 'Shared Crew member'
+                                    : friend.relationship === 'mutual_friend_and_crew'
+                                      ? 'Mutual friend · shared Crew'
+                                      : 'Mutual friend'}
                             </Text>
                           </View>
                           <SelectMark
@@ -962,7 +977,7 @@ export default function GroupDriveComposerScreen() {
                       );
                     })
                   ) : (
-                    <Text style={styles.emptyCopy}>No matching friends.</Text>
+                    <Text style={styles.emptyCopy}>No matching people.</Text>
                   )}
                 </View>
 
