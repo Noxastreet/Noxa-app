@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '@/src/theme';
+
+const sideSize = Platform.OS === 'android' ? 48 : 44;
 
 type NoxaTopBarProps = {
   title?: string;
@@ -34,12 +36,12 @@ export function NoxaTopBar({ centered = false, left, right, subtitle, title }: N
 
 const styles = StyleSheet.create({
   bar: {
-    minHeight: 58,
+    minHeight: Math.max(58, sideSize),
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  side: { width: 44, minHeight: 44, justifyContent: 'center' },
+  side: { width: sideSize, minHeight: sideSize, justifyContent: 'center' },
   right: { alignItems: 'flex-end' },
   copy: { flex: 1, minWidth: 0 },
   copyCentered: { alignItems: 'center' },
