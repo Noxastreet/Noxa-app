@@ -1,7 +1,8 @@
 import { clientEnv } from "@/src/config/env";
 
 export const MAPBOX_ACCESS_TOKEN = clientEnv.mapboxAccessToken;
-export const NOXA_MAPBOX_STYLE_URL = "mapbox://styles/mapbox/standard";
+export const NOXA_MAPBOX_STYLE_URL = "mapbox://styles/mapbox/navigation-night-v1";
+export const NOXA_MAPBOX_LIVE_STYLE_URL = "mapbox://styles/mapbox/standard";
 export const NOXA_MAPBOX_DEFAULT_ZOOM = 13;
 export const NOXA_FALLBACK_COORDINATE = { latitude: 40.6401, longitude: 22.9444 };
 
