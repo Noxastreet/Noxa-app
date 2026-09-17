@@ -13,6 +13,7 @@ export type MapboxDriver = {
   longitude: number;
   label: string;
   avatar_url: string | null;
+  vehicle_label?: string | null;
   is_relevant?: boolean;
   is_dimmed?: boolean;
 };

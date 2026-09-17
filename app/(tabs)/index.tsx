@@ -60,6 +60,11 @@ type ActiveDriver = {
   updated_at: string;
   profile: ProfileMarkerRow | null;
 };
+type PrimaryVehicleRow = {
+  owner_id: string;
+  brand: string | null;
+  model: string | null;
+};
 
 type EventMarkerRow = {
   id: string;
@@ -508,6 +513,9 @@ export default function LiveMapScreen() {
     useState<MapDataRequestState>("loading");
   const [currentProfile, setCurrentProfile] = useState<ProfileMarkerRow | null>(null);
   const [myDriverIds, setMyDriverIds] = useState<Set<string>>(() => new Set());
+  const [primaryVehicleByUserId, setPrimaryVehicleByUserId] = useState<Map<string, string>>(
+    () => new Map(),
+  );
   const [mapLens] = useState<MapLens>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
   const normalizedMapMode = normalizeParam(params.mapMode);
@@ -960,7 +968,10 @@ export default function LiveMapScreen() {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user.id;
     if (!userId) {
-      if (isMountedRef.current) setMyDriverIds(new Set());
+      if (isMountedRef.current) {
+        setMyDriverIds(new Set());
+        setPrimaryVehicleByUserId(new Map());
+      }
       return;
     }
 
@@ -969,6 +980,14 @@ export default function LiveMapScreen() {
       supabase.from("follows").select("follower_id").eq("following_id", userId),
       supabase.from("crew_members").select("crew_id").eq("user_id", userId),
     ]);
+    const relationshipError =
+      outgoingResult.error || incomingResult.error || membershipResult.error;
+    if (relationshipError) {
+      console.warn("[map-relationships] trusted-driver refresh failed", {
+        code: mapDataErrorCode(relationshipError),
+      });
+      return;
+    }
 
     const outgoing = new Set(
       ((outgoingResult.data ?? []) as { following_id: string }[]).map(
@@ -984,19 +1003,49 @@ export default function LiveMapScreen() {
 
     let crewMemberIds: string[] = [];
     if (crewIds.length > 0) {
-      const { data } = await supabase
+      const crewMembersResult = await supabase
         .from("crew_members")
         .select("user_id")
         .in("crew_id", crewIds)
         .neq("user_id", userId);
-      crewMemberIds = ((data ?? []) as { user_id: string }[]).map(
+      if (crewMembersResult.error) {
+        console.warn("[map-relationships] crew relationship refresh failed", {
+          code: mapDataErrorCode(crewMembersResult.error),
+        });
+        return;
+      }
+      crewMemberIds = ((crewMembersResult.data ?? []) as { user_id: string }[]).map(
         (row) => row.user_id,
       );
     }
 
-    if (isMountedRef.current) {
-      setMyDriverIds(new Set([...mutualIds, ...crewMemberIds]));
+    const relevantIds = [...new Set([...mutualIds, ...crewMemberIds])];
+    if (isMountedRef.current) setMyDriverIds(new Set(relevantIds));
+
+    if (relevantIds.length === 0) {
+      if (isMountedRef.current) setPrimaryVehicleByUserId(new Map());
+      return;
     }
+
+    const vehicleResult = await supabase
+      .from("vehicles")
+      .select("owner_id,brand,model")
+      .in("owner_id", relevantIds)
+      .eq("is_public", true)
+      .eq("is_primary", true);
+    if (vehicleResult.error) {
+      console.warn("[map-relationships] primary vehicle refresh failed", {
+        code: mapDataErrorCode(vehicleResult.error),
+      });
+      return;
+    }
+
+    const nextVehicles = new Map<string, string>();
+    for (const row of (vehicleResult.data ?? []) as PrimaryVehicleRow[]) {
+      const label = [row.brand?.trim(), row.model?.trim()].filter(Boolean).join(" ");
+      if (label) nextVehicles.set(row.owner_id, label);
+    }
+    if (isMountedRef.current) setPrimaryVehicleByUserId(nextVehicles);
   }, []);
 
   const loadEvents = useCallback(async () => {
@@ -1186,6 +1235,7 @@ export default function LiveMapScreen() {
           setActiveDrivers([]);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
+          setPrimaryVehicleByUserId(new Map());
           setTimeout(() => {
             if (isActive) void stopSharing(true);
           }, 0);
@@ -1223,6 +1273,7 @@ export default function LiveMapScreen() {
     useCallback(() => {
       let isActive = true;
       mapFocusedRef.current = true;
+      void loadMyDriverIds();
       void refreshActiveDrivers();
 
       const refreshInterval = setInterval(() => {
@@ -1323,7 +1374,7 @@ export default function LiveMapScreen() {
         clearInterval(refreshInterval);
         void supabase.removeChannel(channel);
       };
-    }, [refreshActiveDrivers]),
+    }, [loadMyDriverIds, refreshActiveDrivers]),
   );
 
   useEffect(() => {
@@ -1333,12 +1384,14 @@ export default function LiveMapScreen() {
         void (async () => {
           await loadDriverLocation({ requestPermission: false });
           await restoreLiveDriveSession();
-          if (mapFocusedRef.current) await refreshActiveDrivers();
+          if (mapFocusedRef.current) {
+            await Promise.all([loadMyDriverIds(), refreshActiveDrivers()]);
+          }
         })();
       }
     });
     return () => subscription.remove();
-  }, [loadDriverLocation, refreshActiveDrivers, restoreLiveDriveSession]);
+  }, [loadDriverLocation, loadMyDriverIds, refreshActiveDrivers, restoreLiveDriveSession]);
 
   useEffect(() => {
     if (!liveDriveExpiresAt) return;
@@ -1680,10 +1733,13 @@ export default function LiveMapScreen() {
         longitude: driver.longitude,
         label: driverLabel(driver),
         avatar_url: driver.profile?.avatar_url ?? null,
+        vehicle_label: myDriverIds.has(driver.user_id)
+          ? (primaryVehicleByUserId.get(driver.user_id) ?? null)
+          : null,
         is_relevant: myDriverIds.has(driver.user_id),
         is_dimmed: mapLens === "mine" && !myDriverIds.has(driver.user_id),
       })),
-    [activeDrivers, mapLens, myDriverIds],
+    [activeDrivers, mapLens, myDriverIds, primaryVehicleByUserId],
   );
   const mapboxEvents = useMemo<MapboxEvent[]>(
     () =>

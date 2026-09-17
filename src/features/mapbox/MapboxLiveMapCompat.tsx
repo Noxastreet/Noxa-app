@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import {
   type ComponentType,
   type RefAttributes,
@@ -61,6 +62,7 @@ function safeHomeDriver(driver: MapboxDriver): MapboxDriver {
     ...driver,
     label: "NOXA driver",
     avatar_url: null,
+    vehicle_label: null,
   };
 }
 
@@ -187,18 +189,29 @@ export const MapboxLiveMapCompat = forwardRef<
         <View pointerEvents="box-none" style={styles.previewLayer}>
           <View style={styles.driverPreview}>
             <View style={styles.driverPreviewIcon}>
-              <Ionicons
-                name={selectedDriver.is_relevant ? "person" : "car-sport"}
-                size={20}
-                color={colors.text}
-              />
+              {selectedDriver.is_relevant && selectedDriver.avatar_url ? (
+                <Image
+                  cachePolicy="memory-disk"
+                  contentFit="cover"
+                  source={{ uri: selectedDriver.avatar_url }}
+                  style={styles.driverPreviewAvatar}
+                />
+              ) : (
+                <Ionicons
+                  name={selectedDriver.is_relevant ? "person" : "car-sport"}
+                  size={20}
+                  color={colors.text}
+                />
+              )}
             </View>
             <View style={styles.driverPreviewCopy}>
               <Text numberOfLines={1} style={styles.driverPreviewTitle}>
                 {selectedDriver.label}
               </Text>
-              <Text style={styles.driverPreviewMeta}>
-                {selectedDriver.is_relevant ? "Known driver" : "Public driver"}
+              <Text numberOfLines={1} style={styles.driverPreviewMeta}>
+                {selectedDriver.is_relevant
+                  ? (selectedDriver.vehicle_label ?? "Known driver")
+                  : "Public driver"}
               </Text>
               <Text style={styles.driverPreviewDistance}>
                 {selectedDriverDistance === null
@@ -292,6 +305,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderAccent,
     backgroundColor: "rgba(200,16,46,0.14)",
+  },
+  driverPreviewAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
   },
   driverPreviewCopy: {
     flex: 1,
