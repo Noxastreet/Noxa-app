@@ -8,6 +8,7 @@ import Mapbox, {
   MapView,
   MarkerView,
   ShapeSource,
+  StyleImport,
   SymbolLayer,
   UserTrackingMode,
 } from "@rnmapbox/maps";
@@ -43,7 +44,7 @@ import {
 import {
   MAPBOX_ACCESS_TOKEN,
   NOXA_MAPBOX_DEFAULT_ZOOM,
-  NOXA_MAPBOX_STYLE_URL,
+  NOXA_MAPBOX_LIVE_STYLE_URL,
 } from "./config";
 import type {
   LiveMapHandle,
@@ -54,6 +55,10 @@ import type {
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
 const ROUTE_FOLLOW_ZOOM = 16.5;
 const DRIVER_CLUSTER_LIMIT = 80;
+const STANDARD_BASEMAP_CONFIG = {
+  lightPreset: "night" as const,
+  show3dObjects: true,
+};
 
 const NOXA_LOCATION_ARROW_IMAGE = "noxa-location-arrow";
 const NOXA_LOCATION_TRANSPARENT_IMAGE = "noxa-location-transparent";
@@ -266,9 +271,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     if (!MAPBOX_ACCESS_TOKEN) {
       return (
         <View style={styles.stateView}>
-          <Text style={styles.stateTitle}>Map unavailable</Text>
+          <Text style={styles.stateTitle}>Mapbox token missing</Text>
           <Text style={styles.stateBody}>
-            The map could not start in this build. Restart NOXA and try again.
+            Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN for the native map runtime.
           </Text>
         </View>
       );
@@ -306,8 +311,14 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           rotateEnabled
           scaleBarEnabled={false}
           style={StyleSheet.absoluteFillObject}
-          styleURL={NOXA_MAPBOX_STYLE_URL}
+          styleURL={NOXA_MAPBOX_LIVE_STYLE_URL}
         >
+          <StyleImport
+            config={STANDARD_BASEMAP_CONFIG}
+            existing={true}
+            id="basemap"
+          />
+
           <Images>
             <MapboxImage name={NOXA_LOCATION_ARROW_IMAGE}>
               <NoxaNavigationArrowAsset />
@@ -426,9 +437,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 >
                   <TouchableOpacity
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
-                    accessibilityRole="button"
                     activeOpacity={0.82}
-                    hitSlop={6}
                     onPress={() => onDriverPress(driver.user_id)}
                     style={[
                       styles.driverMarker,
@@ -492,7 +501,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 >
                   <TouchableOpacity
                     accessibilityLabel={`${event.title} event`}
-                    accessibilityRole="button"
                     activeOpacity={0.82}
                     onPress={() => onEventPress(event)}
                     style={styles.eventMarkerPressTarget}
@@ -554,7 +562,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             <View style={styles.errorCard}>
               <Text style={styles.stateTitle}>Map unavailable</Text>
               <Text style={styles.stateBody}>
-                The map could not load. Check your connection and try again.
+                Check the Mapbox token and native build configuration.
               </Text>
             </View>
           </View>
