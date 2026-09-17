@@ -315,8 +315,10 @@ export default function GroupDriveComposerScreen() {
 
     const creation = (async () => {
       const id = await createDriveSession(cleanTitle, description);
-      await updateDriveDetails(id, cleanTitle, description, scheduledStartAt, crewId);
+      // Persist the draft id immediately so a later update failure never creates
+      // a second server draft when the user retries.
       setDraftId(id);
+      await updateDriveDetails(id, cleanTitle, description, scheduledStartAt, crewId);
       return id;
     })();
 
@@ -375,7 +377,7 @@ export default function GroupDriveComposerScreen() {
       setPeopleOpen(true);
       await loadPeople(id);
     } catch (prepareError) {
-      if (prepareError instanceof Error && !error) setError(prepareError.message);
+      if (prepareError instanceof Error) setError(prepareError.message);
     }
   };
 
