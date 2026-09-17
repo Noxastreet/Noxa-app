@@ -16,7 +16,7 @@ export function MapboxStateView({ loading = false, title, message }: {
       <View style={styles.fallbackCard}>
         <View style={styles.iconFrame}><Ionicons name="map" size={24} color={colors.primaryHover} /></View>
         <Text style={styles.title}>{title ?? "Map unavailable"}</Text>
-        <Text style={styles.body}>{message ?? "Check the Mapbox token and native build configuration."}</Text>
+        <Text style={styles.body}>{message ?? "The map could not load right now. Restart NOXA and try again."}</Text>
       </View>
     </View>
   );
