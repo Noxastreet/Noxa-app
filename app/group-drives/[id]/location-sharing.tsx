@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/src/components/layout/Screen';
 import { NoxaButton, NoxaEmptyState, NoxaLoadingState } from '@/src/components/ui';
 import {
+  GroupDriveHeader,
   acceptGroupDriveLocationDisclosure,
   clearPendingGroupDriveServerAction,
   getGroupDriveLocationSession,
@@ -53,8 +54,6 @@ export default function GroupDriveLocationSharingScreen() {
         driveSessionId,
       );
       if (isSharing && pending?.kind === 'clear_location') {
-        // A new explicit sharing session supersedes an older cleanup intent for
-        // this account only. Other accounts on the device keep their own state.
         clearPendingGroupDriveServerAction(
           currentUser.id,
           'clear_location',
@@ -92,8 +91,6 @@ export default function GroupDriveLocationSharingScreen() {
         setCleanupPending(false);
         setError('Your access to this Group Drive ended.');
         void stopGroupDriveLocationSession();
-        // Preserve retry state across sign-out/account switches. Clear it only
-        // when the same account is still authenticated and server access ended.
         if (revokedUserId) {
           void getCurrentSessionUser().then((user) => {
             if (user?.id === revokedUserId) {
@@ -190,6 +187,7 @@ export default function GroupDriveLocationSharingScreen() {
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
+        <GroupDriveHeader title="LOCATION SHARING" subtitle="Active Group Drive" />
         <NoxaLoadingState label="Checking Active Drive…" />
       </Screen>
     );
@@ -198,40 +196,38 @@ export default function GroupDriveLocationSharingScreen() {
   if (!active) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
+        <GroupDriveHeader title="LOCATION SHARING" />
         <NoxaEmptyState
           icon="location-outline"
           title="Location sharing unavailable"
           body={error ?? 'This Group Drive is no longer active.'}
         />
-        <NoxaButton fullWidth variant="secondary" title="Back" onPress={() => router.back()} />
       </Screen>
     );
   }
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <View style={styles.headerIcon}>
-        <Ionicons name="navigate" size={26} color={colors.accent} />
+      <GroupDriveHeader title="LOCATION SHARING" subtitle="Active Group Drive" />
+      <View style={styles.intro}>
+        <Text style={styles.title}>Share location in this drive</Text>
+        <Text style={styles.body}>
+          Your precise location is visible only to participants in this Active Group Drive. You can stop sharing at any time without leaving the drive.
+        </Text>
       </View>
-      <Text style={styles.eyebrow}>ACTIVE DRIVE</Text>
-      <Text style={styles.title}>Group Drive location sharing</Text>
-      <Text style={styles.body}>
-        NOXA shares your precise location only with participants of this active Group Drive.
-        Join and Ready never enable sharing. You can stop Group Drive sharing at any time and stay in the drive.
-      </Text>
 
       <View style={styles.card}>
         <View style={styles.row}>
           <Ionicons name="people-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.rowText}>Visible only to authorized active participants.</Text>
+          <Text style={styles.rowText}>Only authorized active participants can see it.</Text>
         </View>
         <View style={styles.row}>
           <Ionicons name="phone-portrait-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.rowText}>Uses precise location in foreground and background while sharing is active.</Text>
+          <Text style={styles.rowText}>Precise location can update in foreground and background while sharing is on.</Text>
         </View>
         <View style={styles.row}>
           <Ionicons name="shield-checkmark-outline" size={20} color={colors.textMuted} />
-          <Text style={styles.rowText}>Personal Live Drive / Ghost is separate from Group Drive sharing.</Text>
+          <Text style={styles.rowText}>Personal Live Drive and Ghost mode remain separate.</Text>
         </View>
       </View>
 
@@ -239,8 +235,8 @@ export default function GroupDriveLocationSharingScreen() {
         <View style={styles.statusCard}>
           <Ionicons name="checkmark-circle" size={22} color={colors.success} />
           <View style={styles.statusCopy}>
-            <Text style={styles.statusTitle}>Group Drive sharing is on</Text>
-            <Text style={styles.statusBody}>You can stop sharing without leaving this Group Drive.</Text>
+            <Text style={styles.statusTitle}>Sharing is on</Text>
+            <Text style={styles.statusBody}>Stop sharing whenever you want. You stay in the Group Drive.</Text>
           </View>
         </View>
       ) : cleanupPending ? (
@@ -255,7 +251,7 @@ export default function GroupDriveLocationSharingScreen() {
         <View style={styles.statusCard}>
           <Ionicons name="location-outline" size={22} color={colors.textMuted} />
           <View style={styles.statusCopy}>
-            <Text style={styles.statusTitle}>Group Drive sharing is off</Text>
+            <Text style={styles.statusTitle}>Sharing is off</Text>
             <Text style={styles.statusBody}>You remain an active participant without publishing your location.</Text>
           </View>
         </View>
@@ -283,17 +279,10 @@ export default function GroupDriveLocationSharingScreen() {
         <NoxaButton
           fullWidth
           loading={working}
-          title={working ? 'Starting…' : 'Share my location'}
+          title="Share my location"
           onPress={() => void enableSharing()}
         />
       )}
-      <NoxaButton
-        fullWidth
-        variant="secondary"
-        disabled={working}
-        title="Back to Group Drive"
-        onPress={() => router.back()}
-      />
     </Screen>
   );
 }
@@ -301,38 +290,22 @@ export default function GroupDriveLocationSharingScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,
-    gap: spacing.md,
+    gap: spacing.xl,
   },
-  headerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: typography.caption,
-    fontWeight: '700',
-    letterSpacing: typography.letterSpacing.label,
+  intro: {
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
   },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h1,
-    fontWeight: '700',
-    lineHeight: typography.lineHeight.h1,
-    letterSpacing: typography.letterSpacing.tight,
+    ...typography.v2.section,
+    fontWeight: '900',
   },
   body: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body,
+    ...typography.v2.body,
   },
   card: {
     borderRadius: radius.lg,
@@ -370,7 +343,7 @@ const styles = StyleSheet.create({
   statusTitle: {
     color: colors.text,
     fontSize: typography.body,
-    fontWeight: '600',
+    fontWeight: '700',
     lineHeight: typography.lineHeight.body,
   },
   statusBody: {
