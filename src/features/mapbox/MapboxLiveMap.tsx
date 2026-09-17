@@ -8,6 +8,7 @@ import Mapbox, {
   MapView,
   MarkerView,
   ShapeSource,
+  StyleImport,
   SymbolLayer,
   UserTrackingMode,
 } from "@rnmapbox/maps";
@@ -54,6 +55,10 @@ import type {
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
 const ROUTE_FOLLOW_ZOOM = 16.5;
 const DRIVER_CLUSTER_LIMIT = 80;
+const STANDARD_BASEMAP_CONFIG = {
+  lightPreset: "night" as const,
+  show3dObjects: true,
+};
 
 const NOXA_LOCATION_ARROW_IMAGE = "noxa-location-arrow";
 const NOXA_LOCATION_TRANSPARENT_IMAGE = "noxa-location-transparent";
@@ -308,6 +313,12 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           style={StyleSheet.absoluteFillObject}
           styleURL={NOXA_MAPBOX_STYLE_URL}
         >
+          <StyleImport
+            config={STANDARD_BASEMAP_CONFIG}
+            existing={true}
+            id="basemap"
+          />
+
           <Images>
             <MapboxImage name={NOXA_LOCATION_ARROW_IMAGE}>
               <NoxaNavigationArrowAsset />
