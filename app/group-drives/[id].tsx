@@ -455,29 +455,10 @@ export default function GroupDriveViewScreen() {
 
   const openEditMenu = () => {
     if (!canEdit) return;
-    Alert.alert(
-      'Edit Group Drive',
-      'Change one part, save it, and return to this Lobby.',
-      [
-        {
-          text: 'Details',
-          onPress: () => router.push({ pathname: '/group-drives/details', params: { id: drive.id, mode: 'edit' } }),
-        },
-        {
-          text: 'Route',
-          onPress: () => router.push({ pathname: '/group-drives/route', params: { id: drive.id, mode: 'edit' } }),
-        },
-        {
-          text: 'People',
-          onPress: () => router.push({ pathname: '/group-drives/participants', params: { id: drive.id, mode: 'edit' } }),
-        },
-        {
-          text: 'Timing',
-          onPress: () => router.push({ pathname: '/group-drives/schedule', params: { id: drive.id, mode: 'edit' } }),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    );
+    router.push({
+      pathname: '/group-drives/details',
+      params: { id: drive.id, mode: 'edit' },
+    });
   };
 
   return (
@@ -659,13 +640,13 @@ export default function GroupDriveViewScreen() {
           ) : !hasRoute ? (
             <NoxaButton
               fullWidth
-              onPress={() => router.push({ pathname: '/group-drives/route', params: { id: drive.id } })}
+              onPress={openEditMenu}
               title="Set route"
             />
           ) : (
             <NoxaButton
               fullWidth
-              onPress={() => router.push({ pathname: '/group-drives/participants', params: { id: drive.id } })}
+              onPress={openEditMenu}
               title="Add people"
             />
           )}
