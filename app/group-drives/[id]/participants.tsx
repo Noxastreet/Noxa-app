@@ -141,7 +141,7 @@ export default function ActiveDriveParticipantsScreen() {
       <View style={styles.intro}>
         <Text style={styles.title}>{drive.title}</Text>
         <Text style={styles.body}>
-          Everyone listed here has active Group Drive access. Location sharing remains optional on each device.
+          Everyone listed here has Active Drive access. Location sharing remains optional on each device.
         </Text>
       </View>
 
@@ -208,7 +208,7 @@ export default function ActiveDriveParticipantsScreen() {
         <View style={styles.hostNote}>
           <Ionicons name="shield-checkmark-outline" size={19} color={colors.textMuted} />
           <Text style={styles.hostNoteText}>
-            Host removal revokes Group Drive access and clears that participant’s exact Group Drive location on the server.
+            Removing someone revokes Group Drive access and clears their exact Group Drive location on the server.
           </Text>
         </View>
       ) : null}
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   removeButton: {
-    minHeight: 40,
+    minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
