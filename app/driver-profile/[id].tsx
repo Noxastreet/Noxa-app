@@ -240,9 +240,7 @@ function VehicleCollection({
   if (!rest.length) return null;
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>More vehicles</Text>
-      <View style={styles.vehicleList}>
+    <View style={styles.vehicleList}>
         {rest.map((vehicle, index) => (
           <Pressable
             key={vehicle.id}
@@ -273,7 +271,6 @@ function VehicleCollection({
             <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
           </Pressable>
         ))}
-      </View>
     </View>
   );
 }
@@ -283,10 +280,7 @@ function Moments({ posts }: { posts: PublicPost[] }) {
 
   return (
     <View style={styles.section}>
-      <View>
-        <Text style={styles.sectionTitle}>Moments</Text>
-        <Text style={styles.sectionCaption}>{posts.length === 1 ? "1 shared moment" : `${posts.length} shared moments`}</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Moments</Text>
       <View style={styles.postGrid}>
         {posts.slice(0, 6).map((post) => (
           <Pressable
@@ -559,10 +553,7 @@ export default function PublicDriverProfileScreen() {
 
             {featuredVehicle ? (
               <View style={styles.section}>
-                <View style={styles.sectionHeadingRow}>
-                  <Text style={styles.sectionTitle}>Garage</Text>
-                  <Text style={styles.sectionCaption}>{vehicles.length === 1 ? "1 vehicle" : `${vehicles.length} vehicles`}</Text>
-                </View>
+                <Text style={styles.sectionTitle}>Garage</Text>
                 <FeaturedVehicle vehicle={featuredVehicle} />
               </View>
             ) : (
@@ -627,10 +618,10 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 44, height: 44 },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.55 },
-  loadingCard: { minHeight: 220, alignItems: "center", justifyContent: "center", gap: spacing.md },
-  stateCard: { gap: spacing.md, paddingVertical: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  stateTitle: { color: colors.text, fontSize: typography.h2, fontWeight: "900" },
-  stateMessage: { color: colors.textMuted, fontSize: typography.body, fontWeight: "700", lineHeight: 22 },
+  loadingCard: { minHeight: 180, alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  stateCard: { gap: spacing.sm, paddingVertical: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
+  stateTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
+  stateMessage: { color: colors.textMuted, fontSize: 12, fontWeight: "500", lineHeight: 18 },
   identityBlock: { gap: spacing.md },
   identityTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   avatar: { width: 72, height: 72, borderRadius: radius.pill },
@@ -655,11 +646,9 @@ const styles = StyleSheet.create({
   warningText: { flex: 1, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   warningAction: { color: colors.text, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   section: { gap: spacing.sm },
-  sectionHeadingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
   sectionTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
-  sectionCaption: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   featuredVehicle: {
-    minHeight: 86,
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -668,26 +657,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.divider,
   },
-  featuredVehicleImage: { width: 82, height: 62, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
+  featuredVehicleImage: { width: 64, height: 48, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
   vehicleRowCopy: { flex: 1, minWidth: 0, gap: 3 },
-  vehicleArtwork: { flex: 1, justifyContent: "flex-end" },
-  vehicleArtworkRadius: { borderRadius: radius.hero },
   vehicleFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceSoft },
-  vehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(6,6,10,0.34)" },
-  vehicleBadge: { position: "absolute", top: spacing.md, left: spacing.md, minHeight: 30, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: "rgba(6,6,10,0.72)" },
-  vehicleBadgeText: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
-  vehicleCopy: { position: "absolute", left: spacing.md, right: 48, bottom: spacing.md },
   vehicleTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
   vehicleMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
-  vehicleChevron: { position: "absolute", right: spacing.md, bottom: spacing.md },
   emptyVehicle: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   emptyVehicleText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
   vehicleList: { gap: 0 },
   smallVehicle: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
   smallVehicleImage: { width: 64, height: 48, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
   smallVehicleFallback: { width: 64, height: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
-  smallVehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(6,6,10,0.30)" },
-  smallVehicleCopy: { position: "absolute", left: spacing.sm, right: spacing.sm, bottom: spacing.sm },
   smallVehicleDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   smallVehicleName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
   smallVehicleMeta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
