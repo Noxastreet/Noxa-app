@@ -427,7 +427,7 @@ function RouteCard({
           <Ionicons
             name={following ? "navigate" : "navigate-outline"}
             size={16}
-            color={following ? colors.text : colors.primaryHover}
+            color={colors.text}
           />
           <Text style={styles.routeFollowText}>
             {following ? "Following" : "Follow"}
@@ -2676,10 +2676,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.primary,
-    backgroundColor: "rgba(200,16,46,0.22)",
+    backgroundColor: colors.primary,
   },
   routeFollowButtonActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryHover,
   },
   routeFollowText: {
     color: colors.text,
