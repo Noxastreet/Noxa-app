@@ -69,6 +69,9 @@ jobs:
       - name: Home / Map F12 performance contract
         run: npm run verify:home-map-performance
 
+      - name: Map contextual flow contract
+        run: npm run verify:map-contextual-flows
+
       - name: App data-loading performance contract
         run: node ./scripts/verify-app-data-loading.mjs
 
