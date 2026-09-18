@@ -17,10 +17,10 @@ import {
   stopGroupDriveLocationSession,
   stopGroupDriveLocationSharing,
   subscribeToActiveDriveAccess,
+  GroupDriveHeader,
 } from '@/src/features/group-drive';
 import { getCurrentSessionUser } from '@/src/lib/supabase';
-import { GroupDriveHeader } from '@/src/features/group-drive';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveLocationSharingScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
