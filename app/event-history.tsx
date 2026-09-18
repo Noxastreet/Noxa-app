@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 
 import { NoxaIconButton, NoxaScreen, NoxaTopBar } from '@/src/components/ui';
-import { CanonicalPill } from '@/src/features/crews-events/CanonicalPrimitives';
 import {
   eventLifecycle,
   formatEventDate,
@@ -38,10 +37,6 @@ function eventType(event: EventExperienceRow) {
   if (event.category === 'drive') return 'Drive';
   if (event.category === 'track') return 'Track';
   return 'Event';
-}
-
-function lifecycleTone(event: EventExperienceRow) {
-  return eventLifecycle(event) === 'cancelled' ? 'neutral' as const : 'success' as const;
 }
 
 function lifecycleCopy(event: EventExperienceRow) {
@@ -142,12 +137,6 @@ export default function EventHistoryScreen() {
     }, [load]),
   );
 
-  const summary = useMemo(() => {
-    const hosted = events.filter((event) => event.relation === 'hosted').length;
-    const attended = events.length - hosted;
-    return `${hosted} hosted · ${attended} attended`;
-  }, [events]);
-
   return (
     <NoxaScreen padded={false}>
       <View style={styles.header}>
@@ -160,7 +149,6 @@ export default function EventHistoryScreen() {
               variant="ghost"
             />
           }
-          subtitle={loading ? "Loading…" : summary}
           title="Event History"
         />
       </View>
@@ -215,29 +203,23 @@ export default function EventHistoryScreen() {
                 onPress={() =>
                   router.push({ pathname: '/event-details', params: { id: event.id } })
                 }
-                style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.eventRow, pressed && styles.pressed]}
               >
-                <View style={styles.cardTop}>
-                  <View style={styles.pills}>
-                    <CanonicalPill label={lifecycleCopy(event)} tone={lifecycleTone(event)} />
-                    <CanonicalPill label={eventType(event)} />
-                  </View>
-                  <Text style={styles.relation}>
-                    {event.relation === 'hosted' ? 'Hosted' : 'Attended'}
+                <View style={styles.eventCopy}>
+                  <Text numberOfLines={1} style={styles.eventContext}>
+                    {lifecycleCopy(event)} · {eventType(event)} · {event.relation === 'hosted' ? 'Hosted' : 'Attended'}
                   </Text>
-                </View>
-                <Text numberOfLines={2} style={styles.eventTitle}>
-                  {event.title}
-                </Text>
-                <Text numberOfLines={1} style={styles.meta}>
-                  {formatEventDate(event.starts_at)} · {formatEventTime(event.starts_at)}
-                </Text>
-                <View style={styles.footer}>
+                  <Text numberOfLines={2} style={styles.eventTitle}>
+                    {event.title}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.meta}>
+                    {formatEventDate(event.starts_at)} · {formatEventTime(event.starts_at)}
+                  </Text>
                   <Text numberOfLines={1} style={styles.location}>
                     {event.location_name}
                   </Text>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
                 </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
               </Pressable>
             ))}
           </View>
@@ -249,28 +231,29 @@ export default function EventHistoryScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
+  content: { paddingHorizontal: spacing.md, paddingBottom: 120 },
   list: { gap: 0 },
-  card: {
-    gap: spacing.xs,
+  eventRow: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  pills: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  relation: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  eventCopy: { flex: 1, minWidth: 0, gap: 3 },
+  eventContext: { color: colors.textSubtle, fontSize: 11, lineHeight: 15, fontWeight: '500' },
   eventTitle: {
     color: colors.text,
     ...typography.v2.row,
     fontWeight: '700',
   },
   meta: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  location: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 17 },
+  location: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   stateCard: {
     minHeight: 260,
     alignItems: 'center',
@@ -280,8 +263,8 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     color: colors.text,
-    ...typography.v2.section,
-    fontWeight: '800',
+    ...typography.v2.row,
+    fontWeight: '700',
     textAlign: 'center',
   },
   stateText: { maxWidth: 290, color: colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: 'center' },
