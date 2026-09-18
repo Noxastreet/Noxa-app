@@ -108,7 +108,7 @@ export default function ChooseUsernameScreen() {
   return (
     <NoxaScreen padded={false}>
       <View style={styles.shell}>
-        <NoxaHeader title="CHOOSE USERNAME" subtitle="One-time account identity" />
+        <NoxaHeader title="Choose Username" subtitle="One-time account identity" />
         {isLoading ? (
           <View style={styles.loading}>
             <ActivityIndicator color={colors.primary} />
@@ -116,7 +116,7 @@ export default function ChooseUsernameScreen() {
         ) : (
           <View style={styles.content}>
             <View style={styles.copy}>
-              <Text style={styles.eyebrow}>YOUR PUBLIC HANDLE</Text>
+              <Text style={styles.eyebrow}>Public handle</Text>
               <Text style={styles.title}>Choose how people find you.</Text>
               <Text style={styles.body}>
                 Your username is unique in NOXA and stays attached to this account after confirmation.
@@ -161,8 +161,8 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, justifyContent: 'center', gap: spacing.xl, paddingBottom: spacing.xxxl },
   copy: { gap: spacing.sm },
-  eyebrow: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 1.25 },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
+  eyebrow: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '800' },
   body: { maxWidth: 520, color: colors.textMuted, ...typography.v2.body },
   lockNote: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   lockText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
