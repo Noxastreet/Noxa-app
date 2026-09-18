@@ -202,7 +202,6 @@ export default function PostEditorScreen() {
                 variant="ghost"
               />
             }
-            subtitle="Share your NOXA moment"
             title="New Post"
           />
         </View>
@@ -236,8 +235,7 @@ export default function PostEditorScreen() {
             ) : null}
           </Pressable>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.eyebrow}>Post details</Text>
+          <View style={styles.fields}>
             <NoxaInput
               label="Caption"
               maxLength={2200}
@@ -282,29 +280,29 @@ export default function PostEditorScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  content: { padding: spacing.lg, paddingBottom: 118, gap: spacing.lg },
+  content: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: 118, gap: spacing.md },
   imageCard: {
     position: "relative",
     width: "100%",
     aspectRatio: 1,
     overflow: "hidden",
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     backgroundColor: colors.surfaceSoft,
   },
   imagePreview: { width: "100%", height: "100%" },
-  imageEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  imageEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.xs },
   imageIcon: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   imageTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
-  imageCaption: { color: colors.textMuted, fontSize: 11, fontWeight: "700" },
+  imageCaption: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   changeBadge: {
     position: "absolute",
     right: spacing.sm,
@@ -317,18 +315,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.glass,
+    backgroundColor: colors.background,
   },
   changeText: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "600" },
-  sectionCard: {
+  fields: {
     gap: spacing.md,
-    paddingTop: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
+    paddingTop: spacing.xs,
   },
-  eyebrow: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
   captionInput: { minHeight: 118, paddingTop: spacing.md, textAlignVertical: "top" },
-  counter: { marginTop: -spacing.sm, color: colors.textSubtle, fontSize: 9, fontWeight: "800", textAlign: "right" },
+  counter: { marginTop: -spacing.sm, color: colors.textSubtle, fontSize: 10, lineHeight: 14, fontWeight: "500", textAlign: "right" },
   errorCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -345,7 +340,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
