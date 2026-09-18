@@ -917,7 +917,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   heroTitleCompact: { fontSize: 23, lineHeight: 28 },
   errorBanner: {
