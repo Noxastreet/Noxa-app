@@ -48,6 +48,7 @@ type Props = {
   startInPlanner?: boolean;
   mapCenter: LatLng;
   initialDestination?: Destination | null;
+  initialRoute?: DriveRouteResult | null;
   onClose: () => void;
   onHeightChange?: (height: number) => void;
   onMapSelectionChange: (active: boolean) => void;
@@ -339,6 +340,7 @@ export function MapGroupDriveFlow({
   startInPlanner = false,
   mapCenter,
   initialDestination = null,
+  initialRoute = null,
   onClose,
   onHeightChange,
   onMapSelectionChange,
@@ -377,10 +379,10 @@ export function MapGroupDriveFlow({
   const selectedPeopleCount = selectedFriends.size + selectedCrews.size;
 
   const resetPlanner = useCallback(
-    (seed: Destination | null) => {
+    (seed: Destination | null, seedRoute: DriveRouteResult | null = null) => {
       setDestination(seed);
       setPickingDestination(!seed);
-      setRoute(null);
+      setRoute(seedRoute);
       setInviteFriends([]);
       setInviteCrews([]);
       setSelectedFriends(new Set());
@@ -390,7 +392,7 @@ export function MapGroupDriveFlow({
       setScheduledAt(nextStart());
       setCreatedDriveId(null);
       setError(null);
-      onPreviewRoute(null, null);
+      onPreviewRoute(seedRoute, seedRoute && seed ? seed : null);
     },
     [onPreviewRoute],
   );
@@ -401,8 +403,8 @@ export function MapGroupDriveFlow({
       return;
     }
     if (startInPlanner && initialDestination && state === "hub") {
-      resetPlanner(initialDestination);
-      setState("destination");
+      resetPlanner(initialDestination, initialRoute);
+      setState(initialRoute ? "people" : "destination");
       return;
     }
     if (state === "hub") {
@@ -421,6 +423,7 @@ export function MapGroupDriveFlow({
     }
   }, [
     initialDestination,
+    initialRoute,
     onMapSelectionChange,
     resetPlanner,
     startInPlanner,
