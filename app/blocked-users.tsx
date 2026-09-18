@@ -89,7 +89,7 @@ export default function BlockedUsersScreen() {
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </Pressable>
           }
-          title="BLOCKED USERS"
+          title="Blocked Users"
           subtitle="People hidden from your NOXA experience"
         />
 
@@ -141,7 +141,7 @@ export default function BlockedUsersScreen() {
                       disabled={busy}
                       onPress={() => confirmUnblock(user)}
                       style={({ pressed }) => [styles.unblockButton, pressed && styles.pressed, busy && styles.disabled]}>
-                      {busy ? <ActivityIndicator color={colors.textMuted} size="small" /> : <Text style={styles.unblockText}>UNBLOCK</Text>}
+                      {busy ? <ActivityIndicator color={colors.textMuted} size="small" /> : <Text style={styles.unblockText}>Unblock</Text>}
                     </Pressable>
                   </View>
                 );
@@ -230,8 +230,8 @@ const styles = StyleSheet.create({
   },
   avatarInitials: { color: colors.text, fontSize: 12, fontWeight: '900' },
   userCopy: { flex: 1, minWidth: 0 },
-  userName: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  userHandle: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '700' },
+  userName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  userHandle: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   unblockButton: {
     minWidth: 82,
     minHeight: 36,
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
-  unblockText: { color: colors.text, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  unblockText: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: '600' },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.74, transform: [{ scale: 0.99 }] },
 });
