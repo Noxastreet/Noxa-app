@@ -13,7 +13,7 @@ import {
   loadGroupDriveSummary,
   type GroupDriveSummary,
 } from '@/src/features/group-drive';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 function completionLabel(summary: GroupDriveSummary) {
   if (summary.endReason === 'host_completed') return 'Completed by host';
@@ -64,7 +64,7 @@ export default function GroupDriveSummaryScreen() {
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="DRIVE SUMMARY" />
+        <GroupDriveHeader title="Drive Summary" />
         <NoxaLoadingState label="Loading drive summary…" />
       </Screen>
     );
@@ -73,7 +73,7 @@ export default function GroupDriveSummaryScreen() {
   if (!summary) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="DRIVE SUMMARY" />
+        <GroupDriveHeader title="Drive Summary" />
         <NoxaEmptyState
           icon="alert-circle-outline"
           title="Summary unavailable"
@@ -87,7 +87,7 @@ export default function GroupDriveSummaryScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="DRIVE SUMMARY" subtitle="Recorded Group Drive outcome" />
+      <GroupDriveHeader title="Drive Summary" subtitle="Recorded Group Drive outcome" />
 
       <View style={styles.hero}>
         <DriveStatus status={summary.sessionStatus} />
@@ -106,11 +106,11 @@ export default function GroupDriveSummaryScreen() {
       <View style={styles.metrics}>
         <View style={styles.metricBlock}>
           <Text style={styles.metric}>{formatDriveDistance(summary.routeDistanceMeters)}</Text>
-          <Text style={styles.metricLabel}>PLANNED ROUTE</Text>
+          <Text style={styles.metricLabel}>Planned route</Text>
         </View>
         <View style={styles.metricBlock}>
           <Text style={styles.metric}>{formatDriveDuration(summary.routeDurationSeconds)}</Text>
-          <Text style={styles.metricLabel}>PLANNED TIME</Text>
+          <Text style={styles.metricLabel}>Planned time</Text>
         </View>
       </View>
       <Text style={styles.truthNote}>
@@ -119,7 +119,7 @@ export default function GroupDriveSummaryScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>PARTICIPANTS</Text>
+          <Text style={styles.sectionTitle}>Participants</Text>
           <Text style={styles.sectionCount}>{summary.participants.length}</Text>
         </View>
         {summary.participants.length ? summary.participants.map((participant) => (
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.value,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   outcomeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs },
   outcome: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
@@ -164,13 +164,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     paddingVertical: spacing.lg,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.divider,
   },
   metricBlock: { flex: 1, gap: spacing.xxs },
-  metric: { color: colors.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  metricLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
+  metric: { color: colors.text, fontSize: 22, lineHeight: 27, fontWeight: '700' },
+  metricLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   truthNote: {
     marginTop: -spacing.md,
     color: colors.textSubtle,
@@ -179,14 +179,14 @@ const styles = StyleSheet.create({
   },
   section: { gap: spacing.xs },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  sectionTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   sectionCount: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   participantRow: {
     minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   participantIcon: {
@@ -194,13 +194,9 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
   participantCopy: { flex: 1, minWidth: 0 },
-  participantName: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  participantName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '600' },
   participantMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, textTransform: 'capitalize' },
   emptyParticipants: { color: colors.textMuted, fontSize: 13, lineHeight: 19, paddingVertical: spacing.md },
 });
