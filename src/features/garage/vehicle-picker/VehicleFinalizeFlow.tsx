@@ -128,7 +128,7 @@ export function VehicleFinalizeFlow({ onBackToPicker, onSaved, selection }: Vehi
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {step === 'color' ? (
           <VehiclePickerStage
-            eyebrow="YOUR VEHICLE"
+            eyebrow="Your vehicle"
             onBack={goBack}
             subtitle="Choose the closest color. You can refine it later in Garage."
             title="Choose color">
@@ -158,7 +158,7 @@ export function VehicleFinalizeFlow({ onBackToPicker, onSaved, selection }: Vehi
               disabled={!selectedColor}
               onPress={() => setStep('photo')}
               style={({ pressed }) => [styles.primaryButton, !selectedColor && styles.disabled, pressed && selectedColor && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>CONTINUE</Text>
+              <Text style={styles.primaryButtonText}>Continue</Text>
               <Ionicons name="arrow-forward" size={17} color={colors.text} />
             </Pressable>
           </VehiclePickerStage>
@@ -166,7 +166,7 @@ export function VehicleFinalizeFlow({ onBackToPicker, onSaved, selection }: Vehi
 
         {step === 'photo' ? (
           <VehiclePickerStage
-            eyebrow={selectedColor?.name.toUpperCase() ?? 'PHOTO'}
+            eyebrow={selectedColor?.name ?? 'Photo'}
             onBack={goBack}
             subtitle="Make the vehicle recognizable in Garage. A photo is optional."
             title="Add a photo">
@@ -188,7 +188,7 @@ export function VehicleFinalizeFlow({ onBackToPicker, onSaved, selection }: Vehi
               accessibilityRole="button"
               onPress={() => setStep('confirm')}
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-              <Text style={styles.primaryButtonText}>{coverAsset ? 'CONTINUE' : 'CONTINUE WITHOUT PHOTO'}</Text>
+              <Text style={styles.primaryButtonText}>{coverAsset ? 'Continue' : 'Continue without photo'}</Text>
               <Ionicons name="arrow-forward" size={17} color={colors.text} />
             </Pressable>
           </VehiclePickerStage>
@@ -196,7 +196,7 @@ export function VehicleFinalizeFlow({ onBackToPicker, onSaved, selection }: Vehi
 
         {step === 'confirm' && selectedColor ? (
           <VehiclePickerStage
-            eyebrow="READY FOR GARAGE"
+            eyebrow="Ready for Garage"
             onBack={goBack}
             subtitle="You can add power, tuning and other build details later."
             title="Add to garage">
@@ -279,21 +279,22 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.text,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '700',
     textAlign: 'center',
   },
   finalCard: {
     overflow: 'hidden',
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   finalArtwork: {
-    aspectRatio: 16 / 9,
+    height: 156,
     overflow: 'hidden',
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceSoft,
   },
   finalImage: {
@@ -318,29 +319,28 @@ const styles = StyleSheet.create({
   finalTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 31,
-    textTransform: 'uppercase',
+    ...typography.v2.section,
+    fontWeight: '800',
   },
   finalMeta: {
     marginTop: spacing.xs,
     color: 'rgba(240,240,244,0.72)',
-    fontSize: typography.caption,
-    fontWeight: '800',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   finalNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.xs,
-    padding: spacing.md,
+    paddingTop: spacing.md,
   },
   finalNoteText: {
     flex: 1,
     color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 17,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 18,
   },
   errorText: {
     color: colors.primaryHover,
