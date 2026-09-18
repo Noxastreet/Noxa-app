@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CanonicalCrewDetailScreen from '@/src/features/crews-events/CanonicalCrewDetailScreen';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing } from '@/src/theme';
+import { colors, radius, spacing } from '@/src/theme';
 
 type CrewRole = 'owner' | 'admin' | 'member';
 
@@ -57,7 +57,7 @@ export default function CrewScreen() {
           ]}
         >
           <Ionicons name="shield-checkmark-outline" size={16} color={colors.text} />
-          <Text style={styles.manageText}>MANAGE</Text>
+          <Text style={styles.manageText}>Manage</Text>
         </Pressable>
       ) : null}
     </View>
@@ -79,14 +79,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceRaised,
-    ...shadows.card,
   },
   manageText: {
     color: colors.text,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: '900',
-    letterSpacing: 0.6,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });
