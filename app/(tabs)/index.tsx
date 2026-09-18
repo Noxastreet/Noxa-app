@@ -359,34 +359,66 @@ function EventCard({
 
 function RouteDestinationCard({
   event,
+  route,
   status,
   topOffset,
 }: {
   event: EventMarkerRow;
+  route: RouteResult | null;
   status: RouteStatus;
   topOffset: number;
 }) {
+  const arrived = Boolean(route && route.distanceMeters <= 25);
+  const eyebrow =
+    status === "loading" ? "BUILDING ROUTE" : arrived ? "ARRIVED" : "CONTINUE TO";
+
   return (
     <View
       accessibilityLabel={`Navigation to ${event.title}`}
-      style={[styles.routeDestinationCard, { top: topOffset }]}
+      style={[
+        styles.routeDestinationCard,
+        arrived && styles.routeDestinationCardArrived,
+        { top: topOffset },
+      ]}
     >
-      <View style={styles.routeDestinationIcon}>
-        <Ionicons name="navigate" size={25} color={colors.text} />
+      <View
+        style={[
+          styles.routeDestinationIcon,
+          arrived && styles.routeDestinationIconArrived,
+        ]}
+      >
+        <Ionicons
+          name={arrived ? "checkmark" : "navigate"}
+          size={28}
+          color={colors.text}
+        />
       </View>
+
       <View style={styles.routeDestinationCopy}>
-        <Text style={styles.routeDestinationEyebrow}>
-          {status === "loading" ? "BUILDING ROUTE" : "NAVIGATING TO"}
+        <Text
+          style={[
+            styles.routeDestinationEyebrow,
+            arrived && styles.routeDestinationEyebrowArrived,
+          ]}
+        >
+          {eyebrow}
         </Text>
         <Text numberOfLines={1} style={styles.routeDestinationTitle}>
-          {event.title}
+          {arrived ? "You’re at the destination" : event.title}
         </Text>
         <Text numberOfLines={1} style={styles.routeDestinationMeta}>
-          {event.location_name ?? "Event destination"}
+          {arrived
+            ? event.title
+            : event.location_name ?? "Event destination"}
         </Text>
       </View>
-      <View style={styles.routeBrandMark}>
-        <Text style={styles.routeBrandText}>NOXA</Text>
+
+      <View style={styles.routeHudStatus}>
+        <Ionicons
+          name={arrived ? "flag" : "car-sport-outline"}
+          size={20}
+          color={arrived ? colors.success : colors.textMuted}
+        />
       </View>
     </View>
   );
@@ -399,6 +431,7 @@ function RouteCard({
   message,
   arrivalAtMs,
   bottomOffset,
+  bottomInset,
   following,
   canFollow,
   expanded,
@@ -416,6 +449,7 @@ function RouteCard({
   message: string | null;
   arrivalAtMs: number | null;
   bottomOffset: number;
+  bottomInset: number;
   following: boolean;
   canFollow: boolean;
   expanded: boolean;
@@ -428,6 +462,7 @@ function RouteCard({
   onExpandedChange: (expanded: boolean) => void;
 }) {
   const loading = status === "loading";
+  const arrived = Boolean(route && route.distanceMeters <= 25);
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -447,7 +482,7 @@ function RouteCard({
       style={[
         styles.routeCard,
         expanded && styles.routeCardExpanded,
-        { bottom: bottomOffset },
+        { bottom: bottomOffset, paddingBottom: bottomInset + spacing.md },
       ]}
     >
       <Pressable
@@ -472,31 +507,44 @@ function RouteCard({
         <>
           <View style={styles.navigationSummary}>
             <View style={styles.navigationPrimary}>
-              <Text style={styles.tripValue}>~{formatDuration(route.durationSeconds)}</Text>
+              <Text style={[styles.tripValue, arrived && styles.tripValueArrived]}>
+                {arrived ? "Arrived" : formatDuration(route.durationSeconds)}
+              </Text>
               <Text numberOfLines={1} style={styles.tripSecondaryLine}>
-                {formatDistance(route.distanceMeters)} · arrive {formatArrivalTime(arrivalAtMs)}
+                {arrived
+                  ? event.title
+                  : `${formatDistance(route.distanceMeters)} · arrive ${formatArrivalTime(arrivalAtMs)}`}
               </Text>
             </View>
 
-            <TouchableOpacity
-              accessibilityLabel="Show route overview"
-              accessibilityRole="button"
-              activeOpacity={0.82}
-              onPress={onOverview}
-              style={styles.routeRoundAction}
-            >
-              <Ionicons name="git-branch-outline" size={22} color={colors.text} />
-            </TouchableOpacity>
+            {!arrived ? (
+              <TouchableOpacity
+                accessibilityLabel="Show route overview"
+                accessibilityRole="button"
+                activeOpacity={0.82}
+                onPress={onOverview}
+                style={styles.routeRoundAction}
+              >
+                <Ionicons name="git-branch-outline" size={22} color={colors.text} />
+              </TouchableOpacity>
+            ) : null}
 
             <TouchableOpacity
-              accessibilityLabel="Exit route"
+              accessibilityLabel={arrived ? "Finish navigation" : "Exit route"}
               accessibilityRole="button"
               activeOpacity={0.82}
               onPress={onClose}
-              style={styles.routeExitButton}
+              style={[
+                styles.routeExitButton,
+                arrived && styles.routeDoneButton,
+              ]}
             >
-              <Ionicons name="close" size={19} color={colors.text} />
-              <Text style={styles.routeExitText}>Exit</Text>
+              <Ionicons
+                name={arrived ? "checkmark" : "close"}
+                size={19}
+                color={colors.text}
+              />
+              <Text style={styles.routeExitText}>{arrived ? "Done" : "Exit"}</Text>
             </TouchableOpacity>
           </View>
 
@@ -504,7 +552,7 @@ function RouteCard({
             <View style={styles.routeExpandedContent}>
               <View style={styles.routeDivider} />
 
-              {canFollow ? (
+              {canFollow && !arrived ? (
                 <TouchableOpacity
                   accessibilityLabel={
                     following ? "Stop following current location" : "Follow current location"
@@ -2058,15 +2106,13 @@ export default function LiveMapScreen() {
   const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
-  const routeCardBottom = isRouteMode
-    ? insets.bottom + spacing.sm
-    : eventCardBottom;
+  const routeCardBottom = isRouteMode ? 0 : eventCardBottom;
   const controlBottom =
     routeCardBottom +
     (isRouteMode && selectedEvent
       ? routeSheetExpanded
-        ? 344
-        : 164
+        ? 332
+        : 148
       : selectedEvent
         ? 196
         : spacing.sm);
@@ -2222,6 +2268,7 @@ export default function LiveMapScreen() {
         {selectedEvent && isRouteMode ? (
           <RouteDestinationCard
             event={selectedEvent}
+            route={route}
             status={routeStatus}
             topOffset={routeDestinationTop}
           />
@@ -2339,6 +2386,7 @@ export default function LiveMapScreen() {
             message={routeMessage}
             arrivalAtMs={routeArrivalAtMs}
             bottomOffset={routeCardBottom}
+            bottomInset={insets.bottom}
             following={isRouteFollowing}
             expanded={routeSheetExpanded}
             canFollow={routeStatus === "ready" && Boolean(driverLocation)}
@@ -2917,27 +2965,33 @@ const styles = StyleSheet.create({
   },
   routeDestinationCard: {
     position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    minHeight: 98,
+    left: spacing.sm,
+    right: spacing.sm,
+    minHeight: 112,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: "rgba(7,13,20,0.96)",
+    backgroundColor: "rgba(7,10,15,0.97)",
     ...shadows.card,
   },
+  routeDestinationCardArrived: {
+    borderColor: "rgba(52,199,89,0.32)",
+  },
   routeDestinationIcon: {
-    width: 54,
-    height: 54,
+    width: 60,
+    height: 60,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.lg,
     backgroundColor: colors.primary,
+  },
+  routeDestinationIconArrived: {
+    backgroundColor: colors.success,
   },
   routeDestinationCopy: { flex: 1, minWidth: 0 },
   routeDestinationEyebrow: {
@@ -2945,69 +2999,65 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 14,
     fontWeight: "900",
-    letterSpacing: 1.1,
+    letterSpacing: 1.2,
+  },
+  routeDestinationEyebrowArrived: {
+    color: colors.success,
   },
   routeDestinationTitle: {
-    marginTop: 2,
+    marginTop: 3,
     color: colors.text,
-    fontSize: 19,
-    lineHeight: 23,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: "900",
-    letterSpacing: -0.35,
+    letterSpacing: -0.5,
   },
   routeDestinationMeta: {
-    marginTop: 2,
+    marginTop: 3,
     color: colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "600",
   },
-  routeBrandMark: {
-    minWidth: 58,
-    minHeight: 40,
+  routeHudStatus: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceSoft,
   },
-  routeBrandText: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 2,
-  },
   routeCard: {
     position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    paddingHorizontal: spacing.md,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.lg,
     paddingTop: 0,
-    paddingBottom: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(10,10,14,0.98)",
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderStrong,
+    backgroundColor: "rgba(9,9,12,0.99)",
     ...shadows.card,
   },
   routeCardExpanded: {
     paddingBottom: spacing.lg,
   },
   routeHandleHitArea: {
-    minHeight: 28,
+    minHeight: 32,
     alignItems: "center",
     justifyContent: "center",
   },
   routeHandle: {
-    width: 38,
+    width: 40,
     height: 4,
     borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
   },
   routeStatusRow: {
-    minHeight: 84,
+    minHeight: 86,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -3016,8 +3066,8 @@ const styles = StyleSheet.create({
   routeStatusCopy: { flex: 1, gap: 4, paddingBottom: spacing.sm },
   routeStatusTitle: {
     color: colors.text,
-    fontSize: 15,
-    lineHeight: 19,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: "800",
   },
   routeStatusText: {
@@ -3027,7 +3077,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   navigationSummary: {
-    minHeight: 78,
+    minHeight: 82,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -3036,21 +3086,25 @@ const styles = StyleSheet.create({
   tripValue: {
     color: colors.success,
     fontFamily: typography.fontFamily.display,
-    fontSize: 27,
-    lineHeight: 31,
+    fontSize: 30,
+    lineHeight: 34,
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -0.9,
+  },
+  tripValueArrived: {
+    fontSize: 27,
+    lineHeight: 32,
   },
   tripSecondaryLine: {
-    marginTop: 3,
+    marginTop: 4,
     color: colors.textMuted,
     fontSize: 13,
     lineHeight: 17,
     fontWeight: "600",
   },
   routeRoundAction: {
-    width: 50,
-    height: 50,
+    width: 52,
+    height: 52,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -3059,8 +3113,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   routeExitButton: {
-    minWidth: 92,
-    minHeight: 50,
+    minWidth: 98,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -3068,6 +3122,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
+  },
+  routeDoneButton: {
+    backgroundColor: colors.success,
   },
   routeExitText: {
     color: colors.text,
@@ -3083,7 +3140,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.divider,
   },
   routeExpandedRow: {
-    minHeight: 62,
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -3091,8 +3148,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   routeExpandedIcon: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -3119,7 +3176,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   routeRetryButton: {
-    minWidth: 92,
+    minWidth: 96,
     minHeight: 50,
     alignItems: "center",
     justifyContent: "center",
