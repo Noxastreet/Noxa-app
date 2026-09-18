@@ -313,7 +313,7 @@ export default function GarageScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: 144,
     gap: spacing.sm,
@@ -328,8 +328,10 @@ const styles = StyleSheet.create({
   headingBlock: { flex: 1 },
   pageTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.section,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.3,
     fontWeight: '700',
   },
   pageSubtitle: {
@@ -347,15 +349,15 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   vehicleMain: {
-    minHeight: 96,
+    minHeight: 88,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
   },
   vehicleThumbnail: {
-    width: 88,
-    height: 68,
+    width: 80,
+    height: 60,
     overflow: 'hidden',
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceSoft,
@@ -396,7 +398,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingLeft: 104,
+    paddingLeft: 96,
   },
   makePrimaryText: {
     color: colors.primaryHover,
