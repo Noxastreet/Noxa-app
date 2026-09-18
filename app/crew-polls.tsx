@@ -22,7 +22,7 @@ import {
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type CrewRow = { id: string; name: string };
@@ -600,7 +600,7 @@ export default function CrewPollsScreen() {
         style={styles.flex}
       >
         <CrewModuleHeader
-          badge="MEMBERS"
+          badge="Members"
           right={
             <View style={styles.headerActions}>
               <CrewModuleIconButton
@@ -619,7 +619,7 @@ export default function CrewPollsScreen() {
             </View>
           }
           subtitle={crew?.name ?? "NOXA crew"}
-          title="CREW POLLS"
+          title="Crew Polls"
         />
 
         {loading ? (
@@ -680,18 +680,9 @@ export default function CrewPollsScreen() {
               </View>
             ) : null}
 
-            <View style={styles.introRow}>
-              <View style={styles.introCopy}>
-                <Text style={styles.introEyebrow}>CREW DECISIONS</Text>
-                <Text style={styles.introTitle}>VOTE TOGETHER</Text>
-                <Text style={styles.introText}>
-                  Results show totals only. Individual voter identities stay private.
-                </Text>
-              </View>
-              <View style={styles.totalBadge}>
-                <Text style={styles.totalValue}>{polls.length}</Text>
-                <Text style={styles.totalLabel}>POLLS</Text>
-              </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryTitle}>Private crew decisions</Text>
+              <Text style={styles.summaryCount}>{polls.length} polls</Text>
             </View>
 
             <View style={styles.filters}>
@@ -712,7 +703,7 @@ export default function CrewPollsScreen() {
                     ]}
                   >
                     <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                      {item.toUpperCase()}
+                      {item === "all" ? "All" : item === "open" ? "Open" : "Closed"}
                     </Text>
                     <Text style={[styles.filterCount, active && styles.filterCountActive]}>{count}</Text>
                   </Pressable>
@@ -738,7 +729,7 @@ export default function CrewPollsScreen() {
                 <View style={styles.emptyIcon}>
                   <Ionicons name="stats-chart-outline" size={28} color={colors.primaryHover} />
                 </View>
-                <Text style={styles.emptyTitle}>NO {filter === "all" ? "" : `${filter.toUpperCase()} `}POLLS</Text>
+                <Text style={styles.emptyTitle}>{filter === "all" ? "No polls" : `No ${filter} polls`}</Text>
                 <Text style={styles.emptyText}>
                   {canManage && filter === "all"
                     ? "Start a private poll when the crew needs to make a decision."
@@ -767,44 +758,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.huge,
     gap: spacing.md,
   },
-  introRow: {
+  summaryRow: {
+    minHeight: 42,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    justifyContent: "space-between",
   },
-  introCopy: { flex: 1 },
-  introEyebrow: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
-  introTitle: {
-    marginTop: 2,
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    fontWeight: "900",
-  },
-  introText: { marginTop: spacing.xs, color: colors.textMuted, fontSize: 11, fontWeight: "700", lineHeight: 17 },
-  totalBadge: {
-    width: 64,
-    height: 64,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
-  },
-  totalValue: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
-  },
-  totalLabel: { color: colors.primaryHover, fontSize: 7, fontWeight: "900", letterSpacing: 0.8 },
+  summaryTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  summaryCount: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   filters: {
     minHeight: 44,
     flexDirection: "row",
@@ -823,18 +784,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   filterButtonActive: { backgroundColor: colors.surfaceRaised },
-  filterText: { color: colors.textSubtle, fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  filterText: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "600" },
   filterTextActive: { color: colors.text },
-  filterCount: { color: colors.textSubtle, fontSize: 9, fontWeight: "900" },
+  filterCount: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   filterCountActive: { color: colors.primaryHover },
-  pollList: { gap: spacing.md },
+  pollList: { gap: 0 },
   pollCard: {
-    padding: spacing.lg,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   pollTopRow: { minHeight: 30, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   statusBadge: {
@@ -858,10 +816,8 @@ const styles = StyleSheet.create({
   question: {
     marginTop: spacing.md,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
-    lineHeight: 28,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   authorRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: spacing.xs },
   authorText: { flex: 1, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
@@ -911,28 +867,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: spacing.md,
     paddingTop: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
   },
   voteCountRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   voteCount: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   voteHint: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
   composer: {
-    padding: spacing.lg,
-    borderRadius: radius.hero,
-    borderWidth: 1,
+    paddingVertical: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
-    ...shadows.redGlow,
   },
   composerHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.lg },
-  composerEyebrow: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  composerEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   composerTitle: {
     marginTop: 2,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   dismissButton: {
     width: 36,
@@ -984,18 +937,14 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, color: colors.warning, fontSize: 11, fontWeight: "700", lineHeight: 16 },
   emptyCard: {
-    minHeight: 250,
+    minHeight: 230,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
   },
-  emptyIcon: { width: 58, height: 58, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
-  emptyTitle: { color: colors.text, fontSize: 14, fontWeight: "900", letterSpacing: 0.8 },
+  emptyIcon: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
+  emptyTitle: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "600" },
   emptyText: { maxWidth: 270, color: colors.textMuted, fontSize: 12, fontWeight: "700", lineHeight: 18, textAlign: "center" },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
 });
