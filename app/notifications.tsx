@@ -172,6 +172,7 @@ function ActivityRow({
   const meta = item.kind === 'event' && item.startsAt
     ? formatEventDate(item.startsAt)
     : formatRelativeTime(item.timestamp);
+  const subtitle = meta ? `${item.subtitle} · ${meta}` : item.subtitle;
 
   return (
     <Pressable
@@ -182,8 +183,7 @@ function ActivityRow({
       <ActivityArtwork item={item} />
       <View style={styles.activityCopy}>
         <Text numberOfLines={1} style={styles.activityTitle}>{item.title}</Text>
-        <Text numberOfLines={2} style={styles.activitySubtitle}>{item.subtitle}</Text>
-        {meta ? <Text style={styles.activityMeta}>{meta}</Text> : null}
+        <Text numberOfLines={2} style={styles.activitySubtitle}>{subtitle}</Text>
 
         {item.kind === 'crew' ? (
           <View style={styles.invitationActions}>
@@ -210,7 +210,7 @@ function ActivityRow({
           </View>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+      {item.kind === 'crew' ? null : <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />}
     </Pressable>
   );
 }
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   primaryActionText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   section: { gap: spacing.sm },
   sectionHeading: {
-    minHeight: 32,
+    minHeight: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -669,19 +669,19 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   activityRow: {
-    minHeight: 82,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   rowPressed: { opacity: 0.78 },
-  rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 64, backgroundColor: colors.divider },
-  artworkShell: { width: 48, height: 48 },
-  artworkImage: { width: 44, height: 44, borderRadius: radius.pill },
+  rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 56, backgroundColor: colors.divider },
+  artworkShell: { width: 44, height: 44 },
+  artworkImage: { width: 40, height: 40, borderRadius: radius.pill },
   artworkFallback: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -691,8 +691,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     bottom: 0,
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -700,24 +700,17 @@ const styles = StyleSheet.create({
     borderColor: colors.background,
   },
   activityCopy: { flex: 1, minWidth: 0 },
-  activityTitle: { color: colors.text, fontSize: 15, fontWeight: '600', lineHeight: 20 },
+  activityTitle: { color: colors.text, fontSize: 14, fontWeight: '600', lineHeight: 19 },
   activitySubtitle: {
     marginTop: 2,
     color: colors.textMuted,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     lineHeight: 17,
   },
-  activityMeta: {
-    marginTop: spacing.xxs,
-    color: colors.textSubtle,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '500',
-  },
-  invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
+  invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
   acceptButton: {
-    minHeight: 32,
+    minHeight: 30,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
