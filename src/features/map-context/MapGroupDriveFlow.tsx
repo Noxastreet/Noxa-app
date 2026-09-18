@@ -22,7 +22,7 @@ import {
   inviteCrewsToDrive,
   inviteUsersToDrive,
   listMyGroupDrives,
-  loadDriveInviteOptions,
+  loadDriveInviteCandidates,
   saveCalculatedDriveRoute,
   updateDriveDetails,
   type DriveInviteCrew,
@@ -434,82 +434,17 @@ export function MapGroupDriveFlow({
     }
     setPeopleLoading(true);
     setError(null);
-    void loadDriveInviteOptions("00000000-0000-0000-0000-000000000000")
+    void loadDriveInviteCandidates()
       .then((options) => {
         setInviteFriends(options.friends);
         setInviteCrews(options.crews);
       })
-      .catch(() => {
-        // The canonical API requires a real drive id to filter existing invites.
-        // Creation is intentionally deferred until Review, so load a safe subset
-        // directly from the existing social graph instead.
-        return Promise.reject(new Error("deferred-options"));
-      })
-      .catch(async () => {
-        try {
-          const { data: userData } = await (await import("@/src/lib/supabase")).supabase.auth.getUser();
-          const userId = userData.user?.id;
-          if (!userId) throw new Error("Sign in to use Group Drive.");
-          const { supabase } = await import("@/src/lib/supabase");
-          const [outgoing, incoming, memberships] = await Promise.all([
-            supabase.from("follows").select("following_id").eq("follower_id", userId),
-            supabase.from("follows").select("follower_id").eq("following_id", userId),
-            supabase.from("crew_members").select("crew_id").eq("user_id", userId),
-          ]);
-          const outgoingIds = new Set((outgoing.data ?? []).map((row) => String(row.following_id)));
-          const mutualIds = (incoming.data ?? [])
-            .map((row) => String(row.follower_id))
-            .filter((id) => outgoingIds.has(id));
-          const profiles = mutualIds.length
-            ? await supabase
-                .from("profiles")
-                .select("id,display_name,username,avatar_url")
-                .in("id", mutualIds)
-                .order("display_name")
-            : { data: [], error: null };
-          const crewIds = (memberships.data ?? []).map((row) => String(row.crew_id));
-          const [crewsResult, crewMembersResult] = await Promise.all([
-            crewIds.length
-              ? supabase.from("crews").select("id,name").in("id", crewIds).order("name")
-              : Promise.resolve({ data: [], error: null }),
-            crewIds.length
-              ? supabase.from("crew_members").select("crew_id,user_id").in("crew_id", crewIds)
-              : Promise.resolve({ data: [], error: null }),
-          ]);
-          setInviteFriends(
-            (profiles.data ?? []).map((profile) => ({
-              id: String(profile.id),
-              displayName:
-                String(profile.display_name ?? profile.username ?? "NOXA driver"),
-              username: profile.username ? String(profile.username) : null,
-              avatarUrl: profile.avatar_url ? String(profile.avatar_url) : null,
-              unavailable: false,
-            })),
-          );
-          setInviteCrews(
-            (crewsResult.data ?? []).map((crew) => {
-              const eligibleUserIds = (crewMembersResult.data ?? [])
-                .filter(
-                  (member) =>
-                    String(member.crew_id) === String(crew.id) &&
-                    String(member.user_id) !== userId,
-                )
-                .map((member) => String(member.user_id));
-              return {
-                id: String(crew.id),
-                name: String(crew.name),
-                memberCount: eligibleUserIds.length,
-                eligibleUserIds,
-              };
-            }),
-          );
-        } catch (loadError) {
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "People could not be loaded.",
-          );
-        }
+      .catch((loadError) => {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "People could not be loaded.",
+        );
       })
       .finally(() => setPeopleLoading(false));
   }, [inviteCrews.length, inviteFriends.length, state, visible]);
