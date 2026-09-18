@@ -137,7 +137,12 @@ export default function GroupDrivesScreen() {
               <NoxaButton
                 fullWidth
                 leadingIcon={<Ionicons name="add" size={20} color={colors.text} />}
-                onPress={() => router.push('/group-drives/details')}
+                onPress={() =>
+                  router.replace({
+                    pathname: '/(tabs)',
+                    params: { groupDriveMode: 'create' },
+                  })
+                }
                 title="Create Group Drive"
               />
             </View>
