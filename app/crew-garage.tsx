@@ -22,7 +22,7 @@ import {
 import { NoxaBadge, NoxaScreen } from "@/src/components/ui";
 import { initials, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRow = { id: string; name: string };
 type MemberRow = { user_id: string };
@@ -306,7 +306,7 @@ export default function CrewGarageScreen() {
   return (
     <NoxaScreen padded={false}>
       <CrewModuleHeader
-        badge="MEMBERS"
+        badge="Members"
         right={
           <CrewModuleIconButton
             disabled={refreshing}
@@ -316,7 +316,7 @@ export default function CrewGarageScreen() {
           />
         }
         subtitle={crew?.name ?? "NOXA crew"}
-        title="CREW GARAGE"
+        title="Crew Garage"
       />
 
       {loading ? (
@@ -352,25 +352,18 @@ export default function CrewGarageScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.intro}>
-            <Text style={styles.eyebrow}>SHARED COLLECTION</Text>
-            <Text style={styles.introTitle}>BUILT BY THE CREW</Text>
-            <Text style={styles.introText}>
-              Public vehicles from current members, kept together in one private crew view.
-            </Text>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryCell}>
-                <Text style={styles.summaryValue}>{vehicles.length}</Text>
-                <Text style={styles.summaryLabel}>BUILDS</Text>
-              </View>
-              <View style={[styles.summaryCell, styles.summaryBorder]}>
-                <Text style={styles.summaryValue}>{driversWithVehicles}</Text>
-                <Text style={styles.summaryLabel}>DRIVERS</Text>
-              </View>
-              <View style={[styles.summaryCell, styles.summaryBorder]}>
-                <Text style={styles.summaryValue}>{memberCount}</Text>
-                <Text style={styles.summaryLabel}>MEMBERS</Text>
-              </View>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCell}>
+              <Text style={styles.summaryValue}>{vehicles.length}</Text>
+              <Text style={styles.summaryLabel}>Builds</Text>
+            </View>
+            <View style={[styles.summaryCell, styles.summaryBorder]}>
+              <Text style={styles.summaryValue}>{driversWithVehicles}</Text>
+              <Text style={styles.summaryLabel}>Drivers</Text>
+            </View>
+            <View style={[styles.summaryCell, styles.summaryBorder]}>
+              <Text style={styles.summaryValue}>{memberCount}</Text>
+              <Text style={styles.summaryLabel}>Members</Text>
             </View>
           </View>
 
@@ -400,8 +393,8 @@ export default function CrewGarageScreen() {
           {visibleVehicles.length ? (
             <View style={styles.vehicleList}>
               <View style={styles.listHeading}>
-                <Text style={styles.listTitle}>PUBLIC BUILDS</Text>
-                <Text style={styles.listCount}>{visibleVehicles.length} VEHICLES</Text>
+                <Text style={styles.listTitle}>Public builds</Text>
+                <Text style={styles.listCount}>{visibleVehicles.length} vehicles</Text>
               </View>
               {visibleVehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} vehicle={vehicle} />
@@ -433,55 +426,22 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.huge,
     gap: spacing.md,
   },
-  intro: {
-    overflow: "hidden",
-    padding: spacing.lg,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  eyebrow: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-  },
-  introTitle: {
-    marginTop: spacing.xxs,
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    fontWeight: "900",
-    letterSpacing: 0.4,
-  },
-  introText: {
-    marginTop: spacing.xs,
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "700",
-    lineHeight: 19,
-  },
   summaryRow: {
-    minHeight: 66,
+    minHeight: 58,
     flexDirection: "row",
-    marginTop: spacing.lg,
-    overflow: "hidden",
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   summaryCell: { flex: 1, alignItems: "center", justifyContent: "center" },
   summaryBorder: { borderLeftWidth: 1, borderLeftColor: colors.divider },
   summaryValue: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
-  summaryLabel: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  summaryLabel: { marginTop: 2, color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   searchBar: {
     minHeight: 48,
     flexDirection: "row",
@@ -494,20 +454,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   searchInput: { flex: 1, color: colors.text, fontSize: 14, fontWeight: "700" },
-  vehicleList: { gap: spacing.md },
+  vehicleList: { gap: 0 },
   listHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  listTitle: { color: colors.text, fontSize: 12, fontWeight: "900", letterSpacing: 0.8 },
-  listCount: { color: colors.textSubtle, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+  listTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  listCount: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   vehicleCard: {
     overflow: "hidden",
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  artwork: { height: 190, justifyContent: "flex-end", backgroundColor: colors.surfaceSoft },
-  artworkRadius: { borderTopLeftRadius: radius.hero, borderTopRightRadius: radius.hero },
+  artwork: { height: 148, justifyContent: "flex-end", overflow: "hidden", borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
+  artworkRadius: { borderRadius: radius.md },
   artworkFallback: { alignItems: "center", justifyContent: "center" },
   artworkShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(6,6,10,0.42)" },
   artworkTopRow: {
@@ -530,30 +488,28 @@ const styles = StyleSheet.create({
   vehicleBrand: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 31,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
+    ...typography.v2.section,
+    fontWeight: "800",
   },
   vehicleModel: { marginTop: 2, color: "rgba(240,240,244,0.72)", fontSize: 13, fontWeight: "800" },
   ownerRow: {
-    minHeight: 62,
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
+    paddingHorizontal: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   avatar: { width: 38, height: 38, borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   avatarFallback: { alignItems: "center", justifyContent: "center" },
   avatarText: { color: colors.text, fontSize: 11, fontWeight: "900" },
   ownerCopy: { flex: 1, minWidth: 0 },
-  ownerEyebrow: { color: colors.primaryHover, fontSize: 7, fontWeight: "900", letterSpacing: 0.75 },
-  ownerName: { marginTop: 2, color: colors.text, fontSize: 13, fontWeight: "800" },
+  ownerEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
+  ownerName: { marginTop: 2, color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
   specRow: { minHeight: 70, flexDirection: "row" },
   spec: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xs },
-  specValue: { color: colors.text, fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
-  specLabel: { marginTop: 3, color: colors.textSubtle, fontSize: 7, fontWeight: "900", letterSpacing: 0.7 },
+  specValue: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "600" },
+  specLabel: { marginTop: 2, color: colors.textMuted, fontSize: 10, lineHeight: 14, fontWeight: "500" },
   pressed: { opacity: 0.82, transform: [{ scale: 0.988 }] },
 });
