@@ -371,6 +371,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             bearingImage={NOXA_LOCATION_ARROW_IMAGE}
             puckBearing={isRouteMode ? "course" : "heading"}
             puckBearingEnabled
+            pulsing={{ color: colors.primary, isEnabled: true, radius: 34 }}
             scale={isRouteMode ? 0.84 : 0.74}
             shadowImage={NOXA_LOCATION_TRANSPARENT_IMAGE}
             topImage={NOXA_LOCATION_TRANSPARENT_IMAGE}
