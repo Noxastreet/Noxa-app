@@ -93,6 +93,7 @@ export const privacyPolicy: LegalDocument = {
       paragraphs: [
         'Account, profile, and user content are generally retained while your account is active or as needed to provide NOXA. Content you delete is removed from active product views, subject to technical backup cycles and legal requirements.',
         'Live Drive sharing expires after no more than four hours. The active location row is designed to be deleted when you choose Ghost, sign out, or the session cleanup completes. Expired location data is not visible to other users and may remain protected until later cleanup if a device is offline.',
+        'Event RSVP attendance responses are kept only while an event is upcoming or live. NOXA deletes event attendance rows after an event is completed, cancelled, or reaches its natural end, so the service does not keep a user-by-event attendance history.',
         'Account deletion started in Settings is designed to remove the authentication account, associated database records, and owned uploads from active systems immediately after password verification. Verified deletion requests sent to support are normally completed within 30 days. Limited records may be retained for security, fraud prevention, dispute resolution, or law, and residual copies may remain temporarily in protected backups until their normal expiry.',
       ],
     },
