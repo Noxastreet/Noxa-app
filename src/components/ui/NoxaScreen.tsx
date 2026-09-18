@@ -13,9 +13,9 @@ export function NoxaScreen({ children, padded = true }: NoxaScreenProps) {
   return (
     <Screen
       constrained={false}
-      contentStyle={padded ? styles.padded : undefined}
+      contentStyle={padded ? styles.paddedVertical : undefined}
       edges={['top', 'bottom', 'left', 'right']}
-      padded={false}
+      padded={padded}
     >
       {children}
     </Screen>
@@ -23,8 +23,7 @@ export function NoxaScreen({ children, padded = true }: NoxaScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  padded: {
-    paddingHorizontal: spacing.lg,
+  paddedVertical: {
     paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,
   },
