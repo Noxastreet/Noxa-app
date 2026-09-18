@@ -488,15 +488,6 @@ export default function NotificationsScreen() {
       <View style={styles.shell}>
         <NoxaHeader
           left={<BackButton />}
-          right={
-            <Pressable
-              accessibilityLabel="Refresh activity"
-              accessibilityRole="button"
-              onPress={() => void loadActivities(true)}
-              style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}>
-              <Ionicons name="refresh" size={18} color={colors.textMuted} />
-            </Pressable>
-          }
           title="Notifications"
         />
 
@@ -585,44 +576,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     backgroundColor: colors.background,
   },
-  headerAction: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-  },
   pressed: {
     opacity: 0.72,
     transform: [{ scale: 0.985 }],
   },
   disabled: { opacity: 0.48 },
-  filterRow: {
-    minHeight: 46,
-    flexDirection: 'row',
-    marginTop: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  filterTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingTop: spacing.sm,
-  },
-  filterText: {
-    paddingBottom: spacing.sm,
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  filterTextActive: { color: colors.text },
-  filterIndicator: {
-    width: '100%',
-    height: 2,
-    backgroundColor: 'transparent',
-  },
-  filterIndicatorActive: { backgroundColor: colors.primary },
   centerState: {
     flex: 1,
     alignItems: 'center',
@@ -631,9 +589,9 @@ const styles = StyleSheet.create({
   },
   stateText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   scrollContent: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xxxl,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   emptyStack: { gap: spacing.md },
   primaryAction: {
@@ -644,7 +602,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   primaryActionText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  section: { gap: spacing.sm },
+  section: { gap: spacing.xs },
   sectionHeading: {
     minHeight: 30,
     flexDirection: 'row',
