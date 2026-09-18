@@ -475,12 +475,12 @@ export default function GroupDriveViewScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader
-        title={preActive ? 'Drive Lobby' : 'Group Drive'}
-        subtitle={isHost ? 'Host' : 'Participant'}
-      />
+      <GroupDriveHeader title={preActive ? 'Drive Lobby' : 'Group Drive'} />
       <View style={styles.hero}>
-        <DriveStatus status={drive.status} />
+        <View style={styles.heroMetaRow}>
+          <DriveStatus status={drive.status} />
+          <Text style={styles.roleLabel}>{isHost ? 'Host' : 'Participant'}</Text>
+        </View>
         <Text style={styles.title}>{drive.title}</Text>
         <Text style={styles.caption}>{driveStatusCaption(drive.status)}</Text>
         {drive.description ? <Text style={styles.description}>{drive.description}</Text> : null}
@@ -489,7 +489,7 @@ export default function GroupDriveViewScreen() {
       {preActive ? (
         <View style={styles.lobbyLine}>
           <View>
-            <Text style={styles.lobbyLabel}>Lobby</Text>
+            <Text style={styles.lobbyLabel}>Ready</Text>
             <Text style={styles.lobbyValue}>
               {acceptedParticipants.length === 0
                 ? 'Waiting for drivers'
@@ -677,11 +677,28 @@ export default function GroupDriveViewScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  hero: { gap: spacing.xs, paddingTop: spacing.xs },
+  hero: {
+    gap: spacing.xs,
+    paddingTop: spacing.xxs,
+    paddingBottom: spacing.xs,
+  },
+  heroMetaRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  roleLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.body,
@@ -722,7 +739,7 @@ const styles = StyleSheet.create({
   },
   meetingCard: {
     gap: spacing.sm,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
@@ -787,7 +804,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.divider,
