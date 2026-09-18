@@ -120,6 +120,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       activeDrivers,
       events,
       route,
+      bottomInset,
       selectionPoint,
       selectedEventId,
       mapFilter,
@@ -366,7 +367,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             followPadding={{
               paddingTop: 110,
               paddingRight: spacing.xl,
-              paddingBottom: 260,
+              paddingBottom: Math.max(180, bottomInset ?? 260),
               paddingLeft: spacing.xl,
             }}
             followPitch={54}
