@@ -780,7 +780,7 @@ export function MapGroupDriveFlow({
         disabled={!pickingDestination && !destination}
         onBack={backFromPlanner}
         onPrimary={() => {
-          if (pickingDestination) void useMapCenter();
+          if (pickingDestination) void confirmMapCenter();
           else void prepareRoute();
         }}
         primaryLabel={pickingDestination ? "Use this point" : "Continue"}
