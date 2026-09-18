@@ -7,6 +7,10 @@ on:
     paths:
       - .github/workflows/testflight-v2-pr297.yml
 
+permissions:
+  contents: read
+  actions: read
+
 concurrency:
   group: testflight-v2-pr297
   cancel-in-progress: false
@@ -37,6 +41,27 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Wait for exact-head Quality gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for attempt in $(seq 1 90); do
+            status="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow Quality --commit "$GITHUB_SHA" --limit 1 --json status --jq '.[0].status // ""')"
+            conclusion="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow Quality --commit "$GITHUB_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
+            echo "Quality gate attempt $attempt: status=${status:-not-found} conclusion=${conclusion:-pending}"
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                exit 0
+              fi
+              echo "Exact-head Quality gate did not pass."
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for exact-head Quality gate."
+          exit 1
 
       - name: Install dependencies
         run: npm ci
