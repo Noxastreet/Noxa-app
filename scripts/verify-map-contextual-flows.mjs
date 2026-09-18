@@ -18,7 +18,9 @@ const liveMap = source('src/features/mapbox/MapboxLiveMap.tsx');
 const mapTypes = source('src/features/mapbox/types.ts');
 const groupDriveApi = source('src/features/group-drive/api.ts');
 const eventDetail = source('src/features/crews-events/CanonicalEventDetailScreen.tsx');
+const rootLayout = source('app/_layout.tsx');
 
+requireMatch('Gesture-driven sheets must have one app root', rootLayout, /<GestureHandlerRootView/);
 requireMatch('Map root must keep the canonical live Mapbox surface', mapRoot, /<MapboxLiveMapCompat/);
 requireMatch('Map root must compose the contextual Group Drive flow', mapRoot, /<MapGroupDriveFlow/);
 requireMatch('Map camera must receive measured sheet inset', mapRoot, /bottomContentInset=\{mapBottomContentInset\}/);
