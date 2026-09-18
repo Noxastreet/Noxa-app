@@ -12,7 +12,7 @@ import {
   type DriveParticipant,
   type GroupDriveDetails,
 } from '@/src/features/group-drive';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 function initials(name: string) {
   return name
@@ -112,7 +112,7 @@ export default function ActiveDriveParticipantsScreen() {
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="PARTICIPANTS" />
+        <GroupDriveHeader title="Participants" />
         <NoxaLoadingState label="Loading participants…" />
       </Screen>
     );
@@ -121,7 +121,7 @@ export default function ActiveDriveParticipantsScreen() {
   if (!drive) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="PARTICIPANTS" />
+        <GroupDriveHeader title="Participants" />
         <NoxaEmptyState
           icon="people-outline"
           title="Participants unavailable"
@@ -134,7 +134,7 @@ export default function ActiveDriveParticipantsScreen() {
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
-        title="PARTICIPANTS"
+        title="Participants"
         subtitle={`${participants.length} active ${participants.length === 1 ? 'participant' : 'participants'}`}
       />
 
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   copy: {
@@ -255,7 +255,8 @@ const styles = StyleSheet.create({
   name: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    lineHeight: 20,
+    fontWeight: '600',
   },
   meta: {
     marginTop: 3,
@@ -268,19 +269,11 @@ const styles = StyleSheet.create({
     height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   removeButton: {
     minHeight: 40,
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: spacing.sm,
   },
   removeText: {
     color: colors.primaryHover,
@@ -297,11 +290,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
   },
   hostNoteText: {
     flex: 1,
