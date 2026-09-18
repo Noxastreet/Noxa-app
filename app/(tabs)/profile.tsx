@@ -262,10 +262,7 @@ function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: b
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
-        <View>
-          <Text style={styles.sectionTitle}>Moments</Text>
-          <Text style={styles.sectionCaption}>{posts.length === 1 ? '1 shared moment' : `${posts.length} shared moments`}</Text>
-        </View>
+        <Text style={styles.sectionTitle}>Moments</Text>
         <Pressable accessibilityLabel="Create post" accessibilityRole="button" onPress={() => router.push('/post-editor')}>
           <Ionicons name="add" size={20} color={colors.textMuted} />
         </Pressable>
@@ -543,12 +540,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '600',
-  },
-  sectionCaption: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
   },
   vehicleRow: {
     minHeight: 76,
