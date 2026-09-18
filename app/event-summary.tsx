@@ -228,21 +228,21 @@ export default function EventSummaryScreen() {
         </View>
       ) : !event ? (
         <View style={styles.state}>
-          <Text style={styles.stateTitle}>SUMMARY UNAVAILABLE</Text>
+          <Text style={styles.stateTitle}>Summary unavailable</Text>
           <Text style={styles.stateText}>{error ?? "Event not found."}</Text>
-          <NoxaButton title="GO BACK" onPress={() => router.back()} />
+          <NoxaButton title="Go back" onPress={() => router.back()} />
         </View>
       ) : !completed ? (
         <View style={styles.state}>
           <View style={styles.stateIcon}>
             <Ionicons name="time-outline" size={32} color={colors.primaryHover} />
           </View>
-          <Text style={styles.stateTitle}>RECAP UNLOCKS AFTER THE EVENT</Text>
+          <Text style={styles.stateTitle}>Recap unlocks after the event</Text>
           <Text style={styles.stateText}>
             The real attendance, gallery, vehicles, and duration will appear when the event is complete.
           </Text>
           <NoxaButton
-            title="BACK TO EVENT"
+            title="Back to event"
             onPress={() => router.replace({ pathname: "/event-details", params: { id: event.id } })}
           />
         </View>
@@ -269,7 +269,7 @@ export default function EventSummaryScreen() {
               <View style={styles.heroCopy}>
                 <View style={styles.completeBadge}>
                   <View style={styles.completeDot} />
-                  <Text style={styles.completeText}>COMPLETED</Text>
+                  <Text style={styles.completeText}>Completed</Text>
                 </View>
                 <Text numberOfLines={2} style={styles.heroTitle}>{event.title}</Text>
                 <Text style={styles.heroMeta}>
@@ -298,7 +298,7 @@ export default function EventSummaryScreen() {
                   </View>
                 )}
                 <View style={styles.organizerCopy}>
-                  <Text style={styles.sectionMeta}>ORGANIZER NOTE</Text>
+                  <Text style={styles.sectionMeta}>Organizer note</Text>
                   <Text style={styles.organizerMessage}>{event.description}</Text>
                 </View>
               </View>
@@ -307,8 +307,8 @@ export default function EventSummaryScreen() {
             {gallery.length ? (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>HIGHLIGHTS</Text>
-                  <Text style={styles.sectionCount}>{galleryCount} PHOTOS</Text>
+                  <Text style={styles.sectionTitle}>Highlights</Text>
+                  <Text style={styles.sectionCount}>{galleryCount} photos</Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -333,8 +333,8 @@ export default function EventSummaryScreen() {
 
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>ATTENDEES</Text>
-                <Text style={styles.sectionCount}>{attendeeCount} CONFIRMED</Text>
+                <Text style={styles.sectionTitle}>Attendees</Text>
+                <Text style={styles.sectionCount}>{attendeeCount} confirmed</Text>
               </View>
               <View style={styles.listCard}>
                 {attendees.slice(0, 8).map((attendee, index) => (
@@ -370,8 +370,8 @@ export default function EventSummaryScreen() {
             {vehicles.length ? (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>VEHICLES SPOTTED</Text>
-                  <Text style={styles.sectionCount}>{vehicles.length} PUBLIC</Text>
+                  <Text style={styles.sectionTitle}>Vehicles spotted</Text>
+                  <Text style={styles.sectionCount}>{vehicles.length} public</Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -402,7 +402,7 @@ export default function EventSummaryScreen() {
             ) : null}
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>MEETING POINT</Text>
+              <Text style={styles.sectionTitle}>Meeting point</Text>
               <View style={styles.routeCard}>
                 <View style={styles.routeDot} />
                 <View style={styles.routeLine} />
@@ -422,7 +422,7 @@ export default function EventSummaryScreen() {
           </ScrollView>
           <View style={styles.footer}>
             <NoxaButton
-              title={sharing ? "SHARING…" : "SHARE RECAP"}
+              title={sharing ? "Sharing…" : "Share recap"}
               fullWidth
               disabled={sharing}
               onPress={() => void shareRecap()}
@@ -436,7 +436,7 @@ export default function EventSummaryScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 112 },
-  hero: { height: 220, overflow: "hidden", backgroundColor: colors.surface },
+  hero: { height: 176, overflow: "hidden", backgroundColor: colors.surface },
   heroImage: { width: "100%", height: "100%" },
   heroPlaceholder: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceSoft },
   heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.52)" },
@@ -459,43 +459,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xxs,
-    paddingVertical: 4,
-    paddingHorizontal: spacing.xs,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: "rgba(48,209,88,0.3)",
-    backgroundColor: colors.successMuted,
   },
   completeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.success },
-  completeText: { color: colors.success, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+  completeText: { color: colors.success, fontSize: 12, lineHeight: 16, fontWeight: "600" },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 27,
-    fontWeight: "900",
-    lineHeight: 30,
-    textTransform: "uppercase",
+    ...typography.v2.section,
+    fontWeight: "800",
   },
   heroMeta: { color: "rgba(255,255,255,0.58)", fontSize: 11, fontWeight: "700" },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: spacing.xs,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   statCard: {
-    width: "48.7%",
-    minHeight: 100,
+    width: "50%",
+    minHeight: 78,
     justifyContent: "center",
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
   },
-  statValue: { color: colors.text, fontSize: 25, fontWeight: "900", lineHeight: 29 },
-  statLabel: { marginTop: 3, color: colors.textMuted, fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  statValue: { color: colors.text, fontSize: 22, lineHeight: 27, fontWeight: "700" },
+  statLabel: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   statSub: { marginTop: 2, color: colors.textSubtle, fontSize: 10, fontWeight: "700" },
   organizerCard: {
     flexDirection: "row",
@@ -503,11 +492,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   organizerAvatar: { width: 40, height: 40, borderRadius: radius.pill },
   avatarFallback: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
@@ -516,9 +503,9 @@ const styles = StyleSheet.create({
   organizerMessage: { color: colors.text, fontSize: 13, lineHeight: 19, fontWeight: "600" },
   section: { marginTop: spacing.sm, paddingHorizontal: spacing.md, gap: spacing.sm },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  sectionTitle: { color: colors.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
-  sectionMeta: { color: colors.textMuted, fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
-  sectionCount: { color: colors.textSubtle, fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
+  sectionTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  sectionMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
+  sectionCount: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   horizontalShelf: { gap: spacing.xs, paddingRight: spacing.md },
   highlightCard: {
     width: 160,
@@ -531,18 +518,16 @@ const styles = StyleSheet.create({
   highlightImage: { width: "100%", height: 96, backgroundColor: colors.surfaceSoft },
   highlightCaption: { minHeight: 46, padding: spacing.xs, color: colors.textMuted, fontSize: 11, lineHeight: 15 },
   listCard: {
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   attendeeRow: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   attendeeAvatar: { width: 38, height: 38, borderRadius: radius.pill },
   attendeeInitials: { color: colors.text, fontSize: 10, fontWeight: "900" },
   attendeeCopy: { flex: 1 },
-  attendeeName: { color: colors.text, fontSize: 13, fontWeight: "800" },
+  attendeeName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
   attendeeCity: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: "600" },
   listEmpty: { padding: spacing.md, color: colors.textMuted, fontSize: 12, textAlign: "center" },
   vehicleCard: {
@@ -559,19 +544,18 @@ const styles = StyleSheet.create({
   vehicleBrand: { color: colors.text, fontSize: 11, fontWeight: "900" },
   vehicleModel: { marginTop: 2, color: colors.textMuted, fontSize: 10 },
   routeCard: {
-    minHeight: 82,
+    minHeight: 76,
     flexDirection: "row",
     alignItems: "flex-start",
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   routeDot: { width: 12, height: 12, marginTop: 3, borderRadius: 6, borderWidth: 3, borderColor: colors.text, backgroundColor: colors.primary },
   routeLine: { width: 2, height: 40, marginHorizontal: spacing.sm, backgroundColor: colors.borderStrong },
   routeCopy: { flex: 1 },
-  routeName: { color: colors.text, fontSize: 13, fontWeight: "900" },
+  routeName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
   routeTime: { marginTop: 4, color: colors.textMuted, fontSize: 11, fontWeight: "700" },
   routeEnd: { marginTop: 3, color: colors.textSubtle, fontSize: 10, fontWeight: "700" },
   footer: {
@@ -582,14 +566,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
     backgroundColor: colors.glass,
   },
   inlineError: { margin: spacing.md, color: colors.primaryHover, fontSize: 11, fontWeight: "700" },
   state: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
-  stateIcon: { width: 66, height: 66, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.primaryMuted },
-  stateTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900", textAlign: "center" },
+  stateIcon: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  stateTitle: { color: colors.text, ...typography.v2.section, fontWeight: "800", textAlign: "center" },
   stateText: { color: colors.textMuted, fontSize: 13, lineHeight: 20, fontWeight: "600", textAlign: "center" },
   pressed: { opacity: 0.86, transform: [{ translateY: 1 }, { scale: 0.985 }] },
 });
