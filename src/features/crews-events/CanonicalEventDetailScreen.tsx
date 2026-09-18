@@ -138,8 +138,6 @@ function EventHeader({ onMore }: { onMore?: () => void }) {
 
 function Hero({
   event,
-  attendees,
-  goingCount,
   compact,
 }: {
   event: EventExperienceRow;
@@ -149,42 +147,33 @@ function Hero({
 }) {
   return (
     <View>
-      <CanonicalArtwork
-        uri={event.cover_image_url}
-        style={[styles.hero, compact && styles.heroCompact]}
-        imageStyle={styles.heroImage}
-        icon="flag-outline"
-      />
+      {event.cover_image_url ? (
+        <CanonicalArtwork
+          uri={event.cover_image_url}
+          style={[styles.hero, compact && styles.heroCompact]}
+          imageStyle={styles.heroImage}
+          icon="flag-outline"
+        />
+      ) : null}
       <View style={styles.heroCopy}>
-        <View style={styles.heroPills}>
-        <CanonicalPill label={categoryLabel(event)} />
-        <CanonicalPill label={lifecycleUrgency(event)} tone="accent" />
+        <View style={styles.heroMetaRow}>
+          <Text style={styles.heroCategory}>{categoryLabel(event)}</Text>
+          <Text accessible={false} style={styles.heroMetaDot}>·</Text>
+          <Text
+            style={[
+              styles.heroLifecycle,
+              getEventLifecycle(event) === "live" && styles.heroLifecycleLive,
+            ]}
+          >
+            {lifecycleUrgency(event)}
+          </Text>
         </View>
         <Text
           numberOfLines={3}
           style={[styles.heroTitle, compact && styles.heroTitleCompact]}
         >
-          {event.title.toUpperCase()}
+          {event.title}
         </Text>
-        <Text style={styles.heroUrgency}>
-          {formatEventTimeLine(event)} · {goingCount} GOING
-        </Text>
-        <Text numberOfLines={1} style={styles.heroLocation}>
-          {event.location_name}
-        </Text>
-        <View style={styles.heroSocial}>
-          <CanonicalAvatarStack
-            profiles={attendees}
-            total={goingCount}
-            max={3}
-            size={30}
-          />
-          <Text numberOfLines={1} style={styles.heroSocialText}>
-            {goingCount
-              ? `${Math.min(goingCount, 3)} familiar ${pluralize(Math.min(goingCount, 3), "driver")} and the community`
-              : "Be the first driver to confirm"}
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -742,38 +731,32 @@ export default function CanonicalEventDetailScreen() {
         </View>
 
         <View style={styles.section}>
-          <View style={styles.mapCard}>
-            {validCoordinates(event) ? (
+          <View style={styles.sectionHeadingRow}>
+            <Text style={styles.sectionHeading}>Location</Text>
+            <NoxaButton
+              disabled={!validCoordinates(event)}
+              leadingIcon={<Ionicons name="navigate-outline" size={16} color={colors.text} />}
+              size="sm"
+              title="Navigate"
+              variant="secondary"
+              onPress={navigate}
+            />
+          </View>
+          {validCoordinates(event) ? (
+            <View style={styles.mapCard}>
               <MapboxEventPreviewCompat
                 coordinate={{ latitude: event.latitude, longitude: event.longitude }}
               />
-            ) : (
-              <CanonicalArtwork style={StyleSheet.absoluteFill} icon="map-outline" />
-            )}
-            <View style={styles.mapOverlayTop}>
-              <Text style={styles.mapMeta}>
-                {validCoordinates(event) ? "NOXA MAP PREVIEW" : "LOCATION PREVIEW"}
-              </Text>
-              <NoxaButton
-                disabled={!validCoordinates(event)}
-                leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
-                size="sm"
-                title="Navigate"
-                variant="overlay"
-                onPress={navigate}
-              />
             </View>
-            <View style={styles.mapRouteLine}>
-              <View style={styles.mapRouteStart} />
-              <View style={styles.mapRouteTrack} />
-              <View style={styles.mapRouteEnd} />
-            </View>
-            <Text style={styles.mapBrand}>NOXA NAVIGATION</Text>
-          </View>
+          ) : (
+            <Text style={styles.locationUnavailable}>
+              Exact map location is not available for this event.
+            </Text>
+          )}
         </View>
 
         <View style={styles.sectionDivided}>
-          <CanonicalSectionHeader title="WHO'S GOING" action={`${goingCount}`} />
+          <CanonicalSectionHeader title="Going" action={`${goingCount}`} />
           <View style={styles.goingCard}>
             <CanonicalAvatarStack profiles={attendees} total={goingCount} max={4} size={38} />
             <View style={styles.goingCopy}>
@@ -792,7 +775,7 @@ export default function CanonicalEventDetailScreen() {
         </View>
 
         <View style={styles.sectionDivided}>
-          <CanonicalSectionHeader title="ORGANIZER" />
+          <CanonicalSectionHeader title="Organizer" />
           <Pressable
             accessibilityRole="button"
             onPress={() => {
@@ -828,7 +811,7 @@ export default function CanonicalEventDetailScreen() {
 
         {galleryPreview.length ? (
           <View style={styles.sectionDivided}>
-            <CanonicalSectionHeader title="PAST ATMOSPHERE" action={`${gallery.length} PHOTOS`} />
+            <CanonicalSectionHeader title="Photos" action={`${gallery.length}`} />
             <View style={styles.galleryRow}>
               {galleryPreview.map((item) => (
                 <Image key={item.id} source={{ uri: item.signedUrl }} style={styles.galleryImage} />
@@ -838,7 +821,7 @@ export default function CanonicalEventDetailScreen() {
         ) : null}
 
         <View style={styles.detailsSection}>
-          <Text style={styles.detailsEyebrow}>DETAILS</Text>
+          <Text style={styles.detailsEyebrow}>About</Text>
           <Text style={styles.detailsText}>
             {event.description ||
               "The organizer has not added a full description yet. Check the location and time before driving."}
@@ -893,59 +876,245 @@ export default function CanonicalEventDetailScreen() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 150 },
   contentHost: { paddingBottom: 80 },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
+  pressed: { opacity: 0.72 },
   header: { paddingHorizontal: spacing.md },
-  hero: { height: 188, marginHorizontal: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
-  heroCompact: { height: 158 },
+  hero: {
+    height: 148,
+    marginHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  heroCompact: { height: 124 },
   heroImage: { borderRadius: radius.lg },
-  heroPills: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.xs },
-  heroCopy: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xl },
-  heroTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, lineHeight: 35, fontWeight: "900", letterSpacing: -0.7 },
+  heroCopy: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
+  heroMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  heroCategory: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  heroMetaDot: {
+    color: colors.textSubtle,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  heroLifecycle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  heroLifecycleLive: { color: colors.primaryHover },
+  heroTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    ...typography.v2.value,
+    fontWeight: "900",
+  },
   heroTitleCompact: { fontSize: 27, lineHeight: 30 },
-  heroUrgency: { color: colors.primaryHover, fontSize: 11, lineHeight: 15, fontWeight: "900", letterSpacing: 0.2 },
-  heroLocation: { color: colors.text, fontSize: 15, lineHeight: 21 },
-  heroSocial: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
-  heroSocialText: { flex: 1, color: colors.textMuted, fontSize: 11, lineHeight: 15 },
-  errorBanner: { minHeight: 48, marginHorizontal: spacing.md, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
+  errorBanner: {
+    minHeight: 48,
+    marginHorizontal: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderAccent,
+  },
   errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
-  section: { paddingHorizontal: spacing.md, marginTop: spacing.xl },
-  sectionFirst: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  sectionDivided: { paddingHorizontal: spacing.md, paddingVertical: spacing.xl, gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  section: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xs,
+    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  sectionFirst: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  sectionDivided: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  sectionHeadingRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  sectionHeading: {
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: "700",
+  },
   infoList: { overflow: "hidden" },
-  infoRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  infoIcon: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
+  infoRow: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  infoIcon: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   infoCopy: { flex: 1 },
-  infoLabel: { color: colors.textMuted, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
-  infoValue: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "700" },
-  mapCard: { height: 176, overflow: "hidden", borderRadius: radius.lg, backgroundColor: "#0B1218" },
-  mapOverlayTop: { position: "absolute", left: spacing.sm, right: spacing.sm, top: spacing.sm, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  mapMeta: { color: colors.text, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
-  mapRouteLine: { position: "absolute", left: 62, right: 62, bottom: 50, flexDirection: "row", alignItems: "center" },
-  mapRouteStart: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.text },
-  mapRouteTrack: { flex: 1, height: 3, backgroundColor: colors.primary },
-  mapRouteEnd: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, borderColor: colors.text, backgroundColor: colors.primary },
-  mapBrand: { position: "absolute", left: spacing.sm, bottom: spacing.sm, color: colors.text, fontSize: 8, lineHeight: 10, fontWeight: "900", letterSpacing: 0.5 },
-  goingCard: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.md },
+  infoLabel: {
+    color: colors.textMuted,
+    ...typography.v2.label,
+    fontWeight: "700",
+  },
+  infoValue: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  mapCard: {
+    height: 156,
+    overflow: "hidden",
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceBase,
+  },
+  locationUnavailable: {
+    color: colors.textMuted,
+    ...typography.v2.body,
+  },
+  goingCard: {
+    minHeight: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
   goingCopy: { flex: 1 },
-  goingTitle: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800" },
-  goingMeta: { color: colors.textMuted, fontSize: 10, lineHeight: 14 },
-  organizerCard: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  organizerLogo: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceRaised },
+  goingTitle: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "600",
+  },
+  goingMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  organizerCard: {
+    minHeight: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  organizerLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceRaised,
+  },
   organizerCopy: { flex: 1 },
-  organizerEyebrow: { color: colors.textMuted, fontSize: 8, lineHeight: 11, fontWeight: "900", letterSpacing: 0.4 },
-  organizerTitle: { color: colors.text, fontSize: 13, lineHeight: 17, fontWeight: "800" },
-  organizerHistory: { color: colors.textMuted, fontSize: 9, lineHeight: 12 },
-  galleryRow: { height: 112, flexDirection: "row", gap: spacing.sm },
-  galleryImage: { flex: 1, height: "100%", borderRadius: radius.md, backgroundColor: colors.surface },
-  detailsSection: { marginTop: spacing.xl, gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  detailsEyebrow: { color: colors.textMuted, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
-  detailsText: { color: colors.text, fontSize: 14, lineHeight: 21 },
-  detailsDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  organizerEyebrow: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
+  },
+  organizerTitle: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  organizerHistory: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  galleryRow: { height: 104, flexDirection: "row", gap: spacing.sm },
+  galleryImage: {
+    flex: 1,
+    height: "100%",
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  detailsSection: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  detailsEyebrow: {
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: "700",
+  },
+  detailsText: { color: colors.text, ...typography.v2.body },
+  detailsDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.divider,
+  },
   rulesText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   chatButtonWrap: { marginHorizontal: spacing.md, marginTop: spacing.sm },
-  stickyFooter: { position: "absolute", left: 0, right: 0, bottom: 0, gap: spacing.xxs, paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.background },
-  manageHint: { color: colors.textMuted, fontSize: 9, lineHeight: 12, textAlign: "center" },
-  state: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
-  stateTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.h2, lineHeight: typography.lineHeight.h2, fontWeight: "900", textAlign: "center" },
-  stateText: { color: colors.textMuted, fontSize: typography.body, lineHeight: typography.lineHeight.body, textAlign: "center" },
+  stickyFooter: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+    backgroundColor: colors.background,
+  },
+  manageHint: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    textAlign: "center",
+  },
+  state: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    padding: spacing.xl,
+  },
+  stateTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    ...typography.v2.section,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  stateText: {
+    color: colors.textMuted,
+    ...typography.v2.body,
+    textAlign: "center",
+  },
 });
