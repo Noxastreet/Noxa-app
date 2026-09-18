@@ -334,13 +334,6 @@ export default function CrewGalleryScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.latestBar}>
-            <Text style={styles.latestActive}>Latest</Text>
-            <Text style={styles.latestHint}>
-              {canUpload ? "Crew member uploads" : "Join the crew to view and add photos"}
-            </Text>
-          </View>
-
           {pendingAsset ? (
             <View style={styles.uploadCard}>
               <Image source={{ uri: pendingAsset.uri }} style={styles.uploadPreview} />
@@ -401,19 +394,14 @@ export default function CrewGalleryScreen() {
             </View>
           ) : (
             <View style={styles.grid}>
-              {items.map((item, index) => {
-                const wide = index % 5 === 0;
+              {items.map((item) => {
                 return (
                   <Pressable
                     accessibilityLabel={item.caption || "Open crew photo"}
                     accessibilityRole="imagebutton"
                     key={item.id}
                     onPress={() => setSelectedItem(item)}
-                    style={({ pressed }) => [
-                      styles.tile,
-                      wide && styles.tileWide,
-                      pressed && styles.pressed,
-                    ]}
+                    style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
                   >
                     <Image source={{ uri: item.signedUrl }} style={styles.tileImage} />
                     <View style={styles.tileShade} />
@@ -548,15 +536,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   content: { padding: spacing.sm, paddingBottom: spacing.xxl },
-  latestBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.xxs,
-  },
-  latestActive: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  latestHint: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   uploadCard: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -579,15 +558,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   uploadActions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.xs },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 6 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 3 },
   tile: {
-    width: "49%",
+    width: "32.7%",
     aspectRatio: 1,
     overflow: "hidden",
-    borderRadius: radius.lg,
+    borderRadius: radius.xs,
     backgroundColor: colors.surfaceSoft,
   },
-  tileWide: { width: "100%", aspectRatio: 16 / 7 },
   tileImage: { width: "100%", height: "100%" },
   tileShade: {
     position: "absolute",
@@ -611,7 +589,7 @@ const styles = StyleSheet.create({
   ownerName: { maxWidth: "70%", color: "rgba(255,255,255,0.82)", fontSize: 10, fontWeight: "700" },
   state: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   stateText: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
-  empty: { minHeight: 300, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingVertical: spacing.xxl },
+  empty: { minHeight: 220, alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingVertical: spacing.xl },
   emptyIcon: {
     width: 48,
     height: 48,
@@ -620,11 +598,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: colors.text,
-    ...typography.v2.section,
-    fontWeight: "800",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
     textAlign: "center",
   },
-  emptyText: { color: colors.textMuted, fontSize: 13, lineHeight: 20, textAlign: "center" },
+  emptyText: { maxWidth: 280, color: colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: "center" },
   errorCard: {
     marginBottom: spacing.sm,
     padding: spacing.sm,
@@ -651,7 +630,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.sm,
-    padding: spacing.lg,
+    padding: spacing.md,
     paddingBottom: spacing.xxl,
   },
   detailAvatar: { width: 38, height: 38, borderRadius: radius.pill },
