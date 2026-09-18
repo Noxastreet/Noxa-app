@@ -213,10 +213,7 @@ export default function EventHistoryScreen() {
                     {event.title}
                   </Text>
                   <Text numberOfLines={1} style={styles.meta}>
-                    {formatEventDate(event.starts_at)} · {formatEventTime(event.starts_at)}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.location}>
-                    {event.location_name}
+                    {formatEventDate(event.starts_at)} · {formatEventTime(event.starts_at)} · {event.location_name}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
@@ -237,25 +234,24 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.md, paddingBottom: 120 },
   list: { gap: 0 },
   eventRow: {
-    minHeight: 92,
+    minHeight: 78,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  eventCopy: { flex: 1, minWidth: 0, gap: 3 },
-  eventContext: { color: colors.textSubtle, fontSize: 11, lineHeight: 15, fontWeight: '500' },
+  eventCopy: { flex: 1, minWidth: 0, gap: 2 },
+  eventContext: { color: colors.textSubtle, fontSize: 11, lineHeight: 14, fontWeight: '500' },
   eventTitle: {
     color: colors.text,
     ...typography.v2.row,
     fontWeight: '700',
   },
   meta: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
-  location: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   stateCard: {
-    minHeight: 260,
+    minHeight: 220,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
