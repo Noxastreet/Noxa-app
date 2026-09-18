@@ -5,13 +5,11 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ImageBackground,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  type ImageStyle,
 } from "react-native";
 
 import { ReportModal } from "@/src/components/moderation/ReportModal";
@@ -21,7 +19,7 @@ import { VehicleTypeIcon } from "@/src/features/garage/vehicle-picker/components
 import { formatProfileLocation } from "@/src/features/profile/formatProfileLocation";
 import { blockUser } from "@/src/lib/moderation";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -167,7 +165,7 @@ function IdentityBlock({
             <ActivityIndicator color={colors.text} size="small" />
           ) : (
             <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-              {isFollowing ? "FOLLOWING" : "FOLLOW"}
+              {isFollowing ? "Following" : "Follow"}
             </Text>
           )}
         </Pressable>
@@ -218,77 +216,80 @@ function FeaturedVehicle({ vehicle }: { vehicle: PublicVehicle }) {
     vehicle.year ? String(vehicle.year) : null,
     vehicle.horsepower === null ? null : `${vehicle.horsepower} HP`,
     vehicle.color,
-  ].filter(Boolean).join(" · ");
-
-  const content = (
-    <>
-      <View style={styles.vehicleShade} />
-      <View style={styles.vehicleBadge}>
-        <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={14} color={colors.primaryHover} />
-        <Text style={styles.vehicleBadgeText}>{vehicle.vehicle_type === "motorcycle" ? "MOTORCYCLE" : "CAR"}</Text>
-      </View>
-      <View style={styles.vehicleCopy}>
-        <Text numberOfLines={1} style={styles.vehicleTitle}>{vehicleName(vehicle)}</Text>
-        {meta ? <Text numberOfLines={1} style={styles.vehicleMeta}>{meta}</Text> : null}
-      </View>
-      <Ionicons name="chevron-forward" size={19} color={colors.text} style={styles.vehicleChevron} />
-    </>
-  );
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <Pressable
       accessibilityLabel={`Open ${vehicleName(vehicle)}`}
       accessibilityRole="button"
-      onPress={() => router.push({ pathname: "/vehicle-details", params: { id: vehicle.id } })}
-      style={({ pressed }) => [styles.featuredVehicle, pressed && styles.pressed]}>
+      onPress={() =>
+        router.push({ pathname: "/vehicle-details", params: { id: vehicle.id } })
+      }
+      style={({ pressed }) => [styles.featuredVehicle, pressed && styles.pressed]}
+    >
       {vehicle.cover_image_url ? (
-        <ImageBackground
-          source={{ uri: vehicle.cover_image_url }}
-          resizeMode="cover"
-          style={styles.vehicleArtwork}
-          imageStyle={styles.vehicleArtworkRadius as ImageStyle}>
-          {content}
-        </ImageBackground>
+        <Image source={{ uri: vehicle.cover_image_url }} style={styles.featuredVehicleImage} />
       ) : (
-        <View style={[styles.vehicleArtwork, styles.vehicleFallback]}>
-          <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={64} color={colors.primaryMuted} />
-          {content}
+        <View style={[styles.featuredVehicleImage, styles.vehicleFallback]}>
+          <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={28} color={colors.textMuted} />
         </View>
       )}
+      <View style={styles.vehicleRowCopy}>
+        <Text numberOfLines={1} style={styles.vehicleTitle}>{vehicleName(vehicle)}</Text>
+        {meta ? <Text numberOfLines={1} style={styles.vehicleMeta}>{meta}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
     </Pressable>
   );
 }
 
-function VehicleCollection({ vehicles, featuredId }: { vehicles: PublicVehicle[]; featuredId: string | null }) {
+function VehicleCollection({
+  vehicles,
+  featuredId,
+}: {
+  vehicles: PublicVehicle[];
+  featuredId: string | null;
+}) {
   const rest = vehicles.filter((vehicle) => vehicle.id !== featuredId);
   if (!rest.length) return null;
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionEyebrow}>PUBLIC GARAGE</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.vehicleList}>
-        {rest.map((vehicle) => (
+      <Text style={styles.sectionEyebrow}>More vehicles</Text>
+      <View style={styles.vehicleList}>
+        {rest.map((vehicle, index) => (
           <Pressable
             key={vehicle.id}
             accessibilityLabel={`Open ${vehicleName(vehicle)}`}
             accessibilityRole="button"
-            onPress={() => router.push({ pathname: "/vehicle-details", params: { id: vehicle.id } })}
-            style={({ pressed }) => [styles.smallVehicle, pressed && styles.pressed]}>
+            onPress={() =>
+              router.push({ pathname: "/vehicle-details", params: { id: vehicle.id } })
+            }
+            style={({ pressed }) => [
+              styles.smallVehicle,
+              index < rest.length - 1 && styles.smallVehicleDivider,
+              pressed && styles.pressed,
+            ]}
+          >
             {vehicle.cover_image_url ? (
               <Image source={{ uri: vehicle.cover_image_url }} style={styles.smallVehicleImage} />
             ) : (
               <View style={styles.smallVehicleFallback}>
-                <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={42} color={colors.textMuted} />
+                <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={24} color={colors.textMuted} />
               </View>
             )}
-            <View style={styles.smallVehicleShade} />
-            <View style={styles.smallVehicleCopy}>
+            <View style={styles.vehicleRowCopy}>
               <Text numberOfLines={1} style={styles.smallVehicleName}>{vehicleName(vehicle)}</Text>
-              <Text style={styles.smallVehicleMeta}>{vehicle.year || (vehicle.vehicle_type === "motorcycle" ? "Motorcycle" : "Car")}</Text>
+              <Text style={styles.smallVehicleMeta}>
+                {vehicle.year || (vehicle.vehicle_type === "motorcycle" ? "Motorcycle" : "Car")}
+              </Text>
             </View>
+            <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -299,7 +300,7 @@ function Moments({ posts }: { posts: PublicPost[] }) {
   return (
     <View style={styles.section}>
       <View>
-        <Text style={styles.sectionEyebrow}>MOMENTS</Text>
+        <Text style={styles.sectionEyebrow}>Moments</Text>
         <Text style={styles.sectionCaption}>{posts.length === 1 ? "1 shared moment" : `${posts.length} shared moments`}</Text>
       </View>
       <View style={styles.postGrid}>
@@ -527,7 +528,7 @@ export default function PublicDriverProfileScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <HeaderAction icon="chevron-back" label="Go back" onPress={() => router.back()} />
-          <Text style={styles.headerTitle}>DRIVER</Text>
+          <Text style={styles.headerTitle}>Driver</Text>
           {canFollow ? (
             <HeaderAction
               icon={isBlocking ? "hourglass-outline" : "ellipsis-horizontal"}
@@ -579,7 +580,7 @@ export default function PublicDriverProfileScreen() {
 
             {featuredVehicle ? (
               <View style={styles.section}>
-                <Text style={styles.sectionEyebrow}>VEHICLE</Text>
+                <Text style={styles.sectionEyebrow}>Vehicle</Text>
                 <FeaturedVehicle vehicle={featuredVehicle} />
               </View>
             ) : (
@@ -630,21 +631,19 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.textMuted,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.5,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   headerAction: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
   },
-  headerSpacer: { width: 40, height: 40 },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
+  headerSpacer: { width: 44, height: 44 },
+  pressed: { opacity: 0.72 },
   disabled: { opacity: 0.55 },
   loadingCard: { minHeight: 220, alignItems: "center", justifyContent: "center", gap: spacing.md },
   stateCard: { gap: spacing.md, paddingVertical: spacing.xl, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
@@ -652,19 +651,19 @@ const styles = StyleSheet.create({
   stateMessage: { color: colors.textMuted, fontSize: typography.body, fontWeight: "700", lineHeight: 22 },
   identityBlock: { gap: spacing.md },
   identityTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  avatar: { width: 86, height: 86, borderRadius: radius.pill },
-  avatarFallback: { width: 86, height: 86, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.borderStrong },
+  avatar: { width: 72, height: 72, borderRadius: radius.pill },
+  avatarFallback: { width: 72, height: 72, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   avatarInitials: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.h2, fontWeight: "900" },
   identityCopy: { flex: 1, minWidth: 0 },
-  name: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.h2, fontWeight: "900", lineHeight: typography.lineHeight.h2 },
+  name: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: "900" },
   username: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
   locationRow: { marginTop: spacing.xs, flexDirection: "row", alignItems: "center", gap: spacing.xxs },
   locationFlag: { fontSize: 14, lineHeight: 16 },
   location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
   bio: { color: colors.text, fontSize: 13, fontWeight: "600", lineHeight: 20 },
-  followButton: { minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.button, backgroundColor: colors.primary },
-  followingButton: { backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.borderStrong },
-  followButtonText: { color: colors.text, fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
+  followButton: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: radius.button, backgroundColor: colors.primary },
+  followingButton: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.borderStrong },
+  followButtonText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "700" },
   followingButtonText: { color: colors.textMuted },
   communityRow: { minHeight: 64, flexDirection: "row", alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   communityMetric: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
@@ -675,9 +674,11 @@ const styles = StyleSheet.create({
   warningText: { flex: 1, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   warningAction: { color: colors.text, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   section: { gap: spacing.sm },
-  sectionEyebrow: { color: colors.textMuted, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
+  sectionEyebrow: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
   sectionCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: "700" },
   featuredVehicle: { height: 210, overflow: "hidden", borderRadius: radius.hero, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.card },
+  featuredVehicleImage: { width: 82, height: 62, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
+  vehicleRowCopy: { flex: 1, minWidth: 0, gap: 3 },
   vehicleArtwork: { flex: 1, justifyContent: "flex-end" },
   vehicleArtworkRadius: { borderRadius: radius.hero },
   vehicleFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceSoft },
@@ -685,19 +686,20 @@ const styles = StyleSheet.create({
   vehicleBadge: { position: "absolute", top: spacing.md, left: spacing.md, minHeight: 30, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: "rgba(6,6,10,0.72)" },
   vehicleBadgeText: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
   vehicleCopy: { position: "absolute", left: spacing.md, right: 48, bottom: spacing.md },
-  vehicleTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900" },
-  vehicleMeta: { marginTop: spacing.xs, color: "rgba(240,240,244,0.72)", fontSize: typography.caption, fontWeight: "700" },
+  vehicleTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
+  vehicleMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   vehicleChevron: { position: "absolute", right: spacing.md, bottom: spacing.md },
   emptyVehicle: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   emptyVehicleText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
-  vehicleList: { gap: spacing.sm, paddingRight: spacing.lg },
-  smallVehicle: { width: 210, height: 142, overflow: "hidden", borderRadius: radius.lg, backgroundColor: colors.surface },
-  smallVehicleImage: { width: "100%", height: "100%" },
-  smallVehicleFallback: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceSoft },
+  vehicleList: { gap: 0 },
+  smallVehicle: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
+  smallVehicleImage: { width: 64, height: 48, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
+  smallVehicleFallback: { width: 64, height: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
   smallVehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(6,6,10,0.30)" },
   smallVehicleCopy: { position: "absolute", left: spacing.sm, right: spacing.sm, bottom: spacing.sm },
-  smallVehicleName: { color: colors.text, fontSize: 14, fontWeight: "900" },
-  smallVehicleMeta: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
+  smallVehicleDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  smallVehicleName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
+  smallVehicleMeta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   postGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   postTile: { width: "31.6%", aspectRatio: 1, overflow: "hidden", borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
   postImage: { width: "100%", height: "100%" },
