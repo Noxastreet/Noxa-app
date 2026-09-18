@@ -101,35 +101,34 @@ async function requestMapbox(
       return { route: null, status: response.status || 502 };
     }
 
-    const candidates = (data.routes ?? [])
-      .map((candidate) => {
-        const normalized = normalizeGeometry(candidate.geometry?.coordinates);
-        const distance = candidate.distance;
-        const duration = candidate.duration;
-        if (
-          candidate.geometry?.type !== 'LineString' ||
-          !normalized ||
-          typeof distance !== 'number' ||
-          !Number.isFinite(distance) ||
-          typeof duration !== 'number' ||
-          !Number.isFinite(duration)
-        ) {
-          return null;
-        }
-        return {
-          geometry: { type: 'LineString' as const, coordinates: normalized.geometryCoordinates },
-          coordinates: normalized.routePoints,
-          distanceMeters: distance,
-          durationSeconds: duration,
-          provider: 'mapbox-driving-traffic' as const,
-        };
-      })
-      .filter((candidate): candidate is DriveRouteResult => Boolean(candidate))
-      .sort(
-        (a, b) =>
-          a.durationSeconds - b.durationSeconds ||
-          a.distanceMeters - b.distanceMeters,
-      );
+    const candidates: DriveRouteResult[] = [];
+    for (const candidate of data.routes ?? []) {
+      const normalized = normalizeGeometry(candidate.geometry?.coordinates);
+      const distance = candidate.distance;
+      const duration = candidate.duration;
+      if (
+        candidate.geometry?.type !== 'LineString' ||
+        !normalized ||
+        typeof distance !== 'number' ||
+        !Number.isFinite(distance) ||
+        typeof duration !== 'number' ||
+        !Number.isFinite(duration)
+      ) {
+        continue;
+      }
+      candidates.push({
+        geometry: { type: 'LineString', coordinates: normalized.geometryCoordinates },
+        coordinates: normalized.routePoints,
+        distanceMeters: distance,
+        durationSeconds: duration,
+        provider: 'mapbox-driving-traffic',
+      });
+    }
+    candidates.sort(
+      (a, b) =>
+        a.durationSeconds - b.durationSeconds ||
+        a.distanceMeters - b.distanceMeters,
+    );
 
     return { route: candidates[0] ?? null, status: candidates.length ? 200 : 404 };
   } catch (error) {
