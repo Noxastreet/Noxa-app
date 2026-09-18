@@ -650,12 +650,16 @@ export default function LiveMapScreen() {
         edgePadding: {
           top: insets.top + 96,
           right: spacing.xl,
-          bottom: insets.bottom + TAB_BAR_HEIGHT + 190,
+          bottom:
+            insets.bottom +
+            TAB_BAR_HEIGHT +
+            FLOATING_GAP +
+            Math.max(190, contextSheetHeight + spacing.sm),
           left: spacing.xl,
         },
       });
     },
-    [insets.bottom, insets.top],
+    [contextSheetHeight, insets.bottom, insets.top],
   );
 
   const invalidateDriverLocation = useCallback(
