@@ -177,7 +177,7 @@ export default function DeleteAccountScreen() {
                 <Ionicons name="chevron-back" size={22} color={colors.text} />
               </Pressable>
             }
-            title="DELETE ACCOUNT"
+            title="Delete Account"
             subtitle="Permanent account and data removal"
           />
 
@@ -189,7 +189,7 @@ export default function DeleteAccountScreen() {
               <View style={styles.dangerIcon}>
                 <Ionicons name="warning" size={27} color={colors.primaryHover} />
               </View>
-              <Text style={styles.heroEyebrow}>PERMANENT ACTION</Text>
+              <Text style={styles.heroEyebrow}>Permanent action</Text>
               <Text style={styles.heroTitle}>There is no undo.</Text>
               <Text style={styles.heroText}>
                 NOXA will permanently delete the account and associated data from active systems.
@@ -197,7 +197,7 @@ export default function DeleteAccountScreen() {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>WHAT WILL HAPPEN</Text>
+              <Text style={styles.cardTitle}>What will happen</Text>
               {consequences.map((item) => (
                 <View key={item} style={styles.consequenceRow}>
                   <Ionicons name="remove-circle-outline" size={17} color={colors.primaryHover} />
@@ -207,7 +207,7 @@ export default function DeleteAccountScreen() {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>VERIFY YOUR IDENTITY</Text>
+              <Text style={styles.cardTitle}>Verify your identity</Text>
               {loadingAccount ? (
                 <ActivityIndicator color={colors.primary} />
               ) : email ? (
@@ -335,62 +335,50 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
   content: { gap: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xxxl },
   dangerHero: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.xl,
-    borderWidth: 1,
+    paddingVertical: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
   },
   dangerIcon: {
-    width: 58,
-    height: 58,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
   },
   heroEyebrow: {
     color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.5,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    fontWeight: '900',
-    lineHeight: typography.lineHeight.h2,
+    ...typography.v2.section,
+    fontWeight: '800',
   },
   heroText: {
     color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 19,
-    textAlign: 'center',
+    ...typography.v2.body,
   },
   card: {
     gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  cardTitle: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
+  cardTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   consequenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   consequenceText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   emailRow: {
@@ -398,9 +386,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceSoft,
   },
   emailText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '700' },
   socialVerification: {
@@ -429,7 +414,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   confirmationGroup: { gap: spacing.xs },
-  confirmationLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  confirmationLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   confirmationWord: { color: colors.primaryHover },
   confirmationInput: {
     minHeight: 52,
@@ -463,7 +448,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  deleteText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
+  deleteText: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.76, transform: [{ scale: 0.99 }] },
   footerText: {
