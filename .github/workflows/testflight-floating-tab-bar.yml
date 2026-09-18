@@ -1,0 +1,75 @@
+name: TestFlight NOXA Floating Tab Bar
+
+on:
+  push:
+    branches:
+      - feat/floating-bottom-bar-20260918
+    paths:
+      - .github/workflows/testflight-floating-tab-bar.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: testflight-floating-tab-bar
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit:
+    name: Build floating tab bar and submit iOS
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      CI: "1"
+
+    steps:
+      - name: Check out exact tab-bar head
+        uses: actions/checkout@v4
+
+      - name: Verify Expo token is configured
+        shell: bash
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN organization secret is missing for Noxa-app."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Wait for exact-head Quality gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for attempt in $(seq 1 90); do
+            status="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow Quality --commit "$GITHUB_SHA" --limit 1 --json status --jq '.[0].status // ""')"
+            conclusion="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow Quality --commit "$GITHUB_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // ""')"
+            echo "Quality gate attempt $attempt: status=${status:-not-found} conclusion=${conclusion:-pending}"
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" = "success" ]; then
+                exit 0
+              fi
+              echo "Exact-head Quality gate did not pass."
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for exact-head Quality gate."
+          exit 1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Print build checkpoint
+        run: |
+          echo "NOXA floating tab bar Git SHA: $GITHUB_SHA"
+          node -e "const e=require('./eas.json'); console.log('EAS production environment:', e.build.production.environment); console.log('Auto increment:', e.build.production.autoIncrement); console.log('ASC app id:', e.submit.production.ios.ascAppId)"
+
+      - name: Build floating tab bar iOS and submit to TestFlight
+        run: npx eas-cli@latest build --platform ios --profile production --auto-submit --non-interactive
