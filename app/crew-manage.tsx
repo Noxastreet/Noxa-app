@@ -274,7 +274,20 @@ export default function CrewManageScreen() {
 
             <View style={styles.quickList}>
               <NoxaButton fullWidth title="Create Crew Event" onPress={() => router.push({ pathname: '/event-editor', params: { crewId } })} />
-              <NoxaButton fullWidth title="New Group Drive" variant="secondary" onPress={() => router.push({ pathname: '/group-drives/details', params: { crewId } })} />
+              <NoxaButton
+                fullWidth
+                title="New Group Drive"
+                variant="secondary"
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)',
+                    params: {
+                      groupDriveMode: 'create',
+                      groupDriveCrewId: crewId,
+                    },
+                  })
+                }
+              />
             </View>
 
             <View style={styles.section}>
