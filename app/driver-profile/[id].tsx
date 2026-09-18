@@ -109,6 +109,8 @@ function IdentityBlock({
   isFollowing,
   isFollowLoading,
   onFollow,
+  followersCount,
+  followingCount,
 }: {
   profile: DriverProfile;
   displayName: string;
@@ -117,6 +119,8 @@ function IdentityBlock({
   isFollowing: boolean;
   isFollowLoading: boolean;
   onFollow: () => void;
+  followersCount: number;
+  followingCount: number;
 }) {
   const location = formatProfileLocation(profile.country_code, profile.city);
 
@@ -148,6 +152,23 @@ function IdentityBlock({
         </View>
       </View>
 
+      <View style={styles.identitySocialRow}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: "/social-list", params: { userId: profile.id, mode: "followers" } })}
+          style={({ pressed }) => [styles.identitySocialMetric, pressed && styles.pressed]}>
+          <Text style={styles.identitySocialValue}>{followersCount}</Text>
+          <Text style={styles.identitySocialLabel}>followers</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: "/social-list", params: { userId: profile.id, mode: "following" } })}
+          style={({ pressed }) => [styles.identitySocialMetric, pressed && styles.pressed]}>
+          <Text style={styles.identitySocialValue}>{followingCount}</Text>
+          <Text style={styles.identitySocialLabel}>following</Text>
+        </Pressable>
+      </View>
+
       {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
       {canFollow ? (
@@ -170,43 +191,6 @@ function IdentityBlock({
           )}
         </Pressable>
       ) : null}
-    </View>
-  );
-}
-
-function CommunityRow({
-  profileId,
-  followersCount,
-  followingCount,
-  vehiclesCount,
-}: {
-  profileId: string;
-  followersCount: number;
-  followingCount: number;
-  vehiclesCount: number;
-}) {
-  return (
-    <View style={styles.communityRow}>
-      <View style={styles.communityMetric}>
-        <Text style={styles.communityValue}>{vehiclesCount}</Text>
-        <Text style={styles.communityLabel}>Vehicles</Text>
-      </View>
-      <View style={styles.communityDivider} />
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.push({ pathname: "/social-list", params: { userId: profileId, mode: "followers" } })}
-        style={({ pressed }) => [styles.communityMetric, pressed && styles.pressed]}>
-        <Text style={styles.communityValue}>{followersCount}</Text>
-        <Text style={styles.communityLabel}>Followers</Text>
-      </Pressable>
-      <View style={styles.communityDivider} />
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.push({ pathname: "/social-list", params: { userId: profileId, mode: "following" } })}
-        style={({ pressed }) => [styles.communityMetric, pressed && styles.pressed]}>
-        <Text style={styles.communityValue}>{followingCount}</Text>
-        <Text style={styles.communityLabel}>Following</Text>
-      </Pressable>
     </View>
   );
 }
@@ -257,7 +241,7 @@ function VehicleCollection({
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionEyebrow}>More vehicles</Text>
+      <Text style={styles.sectionTitle}>More vehicles</Text>
       <View style={styles.vehicleList}>
         {rest.map((vehicle, index) => (
           <Pressable
@@ -300,7 +284,7 @@ function Moments({ posts }: { posts: PublicPost[] }) {
   return (
     <View style={styles.section}>
       <View>
-        <Text style={styles.sectionEyebrow}>Moments</Text>
+        <Text style={styles.sectionTitle}>Moments</Text>
         <Text style={styles.sectionCaption}>{posts.length === 1 ? "1 shared moment" : `${posts.length} shared moments`}</Text>
       </View>
       <View style={styles.postGrid}>
@@ -559,13 +543,8 @@ export default function PublicDriverProfileScreen() {
               isFollowing={isFollowing}
               isFollowLoading={isFollowLoading}
               onFollow={toggleFollow}
-            />
-
-            <CommunityRow
-              profileId={profile.id}
               followersCount={followersCount}
               followingCount={followingCount}
-              vehiclesCount={vehicles.length}
             />
 
             {errorMessage ? (
@@ -580,12 +559,15 @@ export default function PublicDriverProfileScreen() {
 
             {featuredVehicle ? (
               <View style={styles.section}>
-                <Text style={styles.sectionEyebrow}>Vehicle</Text>
+                <View style={styles.sectionHeadingRow}>
+                  <Text style={styles.sectionTitle}>Garage</Text>
+                  <Text style={styles.sectionCaption}>{vehicles.length === 1 ? "1 vehicle" : `${vehicles.length} vehicles`}</Text>
+                </View>
                 <FeaturedVehicle vehicle={featuredVehicle} />
               </View>
             ) : (
               <View style={styles.section}>
-                <Text style={styles.sectionEyebrow}>Vehicle</Text>
+                <Text style={styles.sectionTitle}>Garage</Text>
                 <View style={styles.emptyVehicle}>
                   <VehicleTypeIcon vehicleType="car" size={28} color={colors.textMuted} />
                   <Text style={styles.emptyVehicleText}>No public vehicle shared yet.</Text>
@@ -618,10 +600,10 @@ export default function PublicDriverProfileScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: 132,
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   header: {
     minHeight: 44,
@@ -655,27 +637,27 @@ const styles = StyleSheet.create({
   avatarFallback: { width: 72, height: 72, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   avatarInitials: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.h2, fontWeight: "900" },
   identityCopy: { flex: 1, minWidth: 0 },
-  name: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: "900" },
-  username: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
+  name: { color: colors.text, fontFamily: typography.fontFamily.body, fontSize: 22, lineHeight: 27, letterSpacing: -0.3, fontWeight: "700" },
+  username: { marginTop: 2, color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: "500" },
   locationRow: { marginTop: spacing.xs, flexDirection: "row", alignItems: "center", gap: spacing.xxs },
   locationFlag: { fontSize: 14, lineHeight: 16 },
-  location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: "700" },
-  bio: { color: colors.text, fontSize: 13, fontWeight: "600", lineHeight: 20 },
+  location: { flexShrink: 1, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
+  identitySocialRow: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: spacing.lg },
+  identitySocialMetric: { minHeight: 36, flexDirection: "row", alignItems: "baseline", gap: spacing.xxs },
+  identitySocialValue: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "700" },
+  identitySocialLabel: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: "500" },
+  bio: { color: colors.text, ...typography.v2.body },
   followButton: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: radius.button, backgroundColor: colors.primary },
   followingButton: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.borderStrong },
   followButtonText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "700" },
   followingButtonText: { color: colors.textMuted },
-  communityRow: { minHeight: 64, flexDirection: "row", alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  communityMetric: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
-  communityDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.divider },
-  communityValue: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.subtitle, fontWeight: "900" },
-  communityLabel: { color: colors.textMuted, fontSize: 9, fontWeight: "700" },
   warningRow: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   warningText: { flex: 1, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   warningAction: { color: colors.text, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   section: { gap: spacing.sm },
-  sectionEyebrow: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
-  sectionCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: "700" },
+  sectionHeadingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
+  sectionTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
+  sectionCaption: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   featuredVehicle: {
     minHeight: 86,
     flexDirection: "row",
