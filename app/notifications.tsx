@@ -502,7 +502,7 @@ export default function NotificationsScreen() {
               <Ionicons name="refresh" size={18} color={colors.textMuted} />
             </Pressable>
           }
-          title="NOTIFICATIONS"
+          title="Notifications"
           subtitle="Real activity from your NOXA world"
         />
 
@@ -533,7 +533,7 @@ export default function NotificationsScreen() {
                   accessibilityRole="button"
                   onPress={() => router.push('/sign-in')}
                   style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
-                  <Text style={styles.primaryActionText}>SIGN IN</Text>
+                  <Text style={styles.primaryActionText}>Sign in</Text>
                 </Pressable>
               </View>
             ) : errorMessage ? (
@@ -543,7 +543,7 @@ export default function NotificationsScreen() {
                   accessibilityRole="button"
                   onPress={() => void loadActivities()}
                   style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
-                  <Text style={styles.primaryActionText}>TRY AGAIN</Text>
+                  <Text style={styles.primaryActionText}>Try again</Text>
                 </Pressable>
               </View>
             ) : activities.length === 0 ? (
@@ -555,7 +555,7 @@ export default function NotificationsScreen() {
             ) : (
               <>
                 <InboxSection
-                  eyebrow="ACTION REQUIRED"
+                  eyebrow="Action required"
                   title="Needs attention"
                   items={needsAttention}
                   busyInvitationId={busyInvitationId}
@@ -563,7 +563,7 @@ export default function NotificationsScreen() {
                   onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
                 />
                 <InboxSection
-                  eyebrow="YOU’RE GOING"
+                  eyebrow="You’re going"
                   title="Upcoming"
                   items={upcoming}
                   busyInvitationId={busyInvitationId}
@@ -571,7 +571,7 @@ export default function NotificationsScreen() {
                   onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
                 />
                 <InboxSection
-                  eyebrow="SOCIAL"
+                  eyebrow="Social"
                   title="Community"
                   items={community}
                   busyInvitationId={busyInvitationId}
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  primaryActionText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
+  primaryActionText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   section: { gap: spacing.sm },
   sectionHeading: {
     flexDirection: 'row',
@@ -661,23 +661,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   sectionEyebrow: {
-    color: colors.primaryHover,
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1.1,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   sectionTitle: {
     marginTop: 2,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '900',
+    ...typography.v2.row,
+    fontWeight: '700',
   },
   sectionCount: {
-    color: colors.textSubtle,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   activityList: {
     borderTopWidth: StyleSheet.hairlineWidth,
