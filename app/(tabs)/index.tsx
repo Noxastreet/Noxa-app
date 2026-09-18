@@ -8,6 +8,7 @@ import {
   AppState,
   Modal,
   PanResponder,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -1907,6 +1908,22 @@ export default function LiveMapScreen() {
     selectedEvent,
   ]);
 
+  const resumeRouteFollow = useCallback(() => {
+    const point = driverLocationRef.current;
+    if (
+      routeStatus !== "ready" ||
+      !route ||
+      !point ||
+      !hasValidLatLng(point.latitude, point.longitude)
+    ) {
+      return;
+    }
+    setIsCameraAwayFromUser(false);
+    mapRef.current?.animateToRegion(pointRegion(point), 250);
+    setIsRouteFollowing(true);
+  }, [route, routeStatus]);
+
+
   const showRouteOverview = useCallback(() => {
     const point = driverLocationRef.current;
     if (
@@ -2238,7 +2255,7 @@ export default function LiveMapScreen() {
               disabled={locationLoading || routeStatus !== "ready"}
               icon={isRouteFollowing ? "navigate" : "locate"}
               loading={locationLoading}
-              onPress={toggleRouteFollow}
+              onPress={resumeRouteFollow}
               variant="surface"
             />
             <NoxaIconButton
@@ -3048,7 +3065,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
-    backgroundColor: colors.danger,
+    backgroundColor: colors.primary,
   },
   routeExitText: {
     color: colors.text,
