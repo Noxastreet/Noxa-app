@@ -730,6 +730,18 @@ export default function CanonicalEventDetailScreen() {
           <EssentialInfo event={event} />
         </View>
 
+        <View style={styles.detailsSection}>
+          <Text style={styles.detailsEyebrow}>About</Text>
+          <Text style={styles.detailsText}>
+            {event.description ||
+              "The organizer has not added a full description yet. Check the location and time before driving."}
+          </Text>
+          <View style={styles.detailsDivider} />
+          <Text style={styles.rulesText}>
+            Respect the location, local traffic rules and other drivers.
+          </Text>
+        </View>
+
         <View style={styles.section}>
           <View style={styles.sectionHeadingRow}>
             <Text style={styles.sectionHeading}>Location</Text>
@@ -820,18 +832,6 @@ export default function CanonicalEventDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.detailsSection}>
-          <Text style={styles.detailsEyebrow}>About</Text>
-          <Text style={styles.detailsText}>
-            {event.description ||
-              "The organizer has not added a full description yet. Check the location and time before driving."}
-          </Text>
-          <View style={styles.detailsDivider} />
-          <Text style={styles.rulesText}>
-            Respect the location, local traffic rules and other drivers.
-          </Text>
-        </View>
-
         {canChat ? (
           <View style={styles.chatButtonWrap}>
             <NoxaButton
@@ -879,12 +879,12 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72 },
   header: { paddingHorizontal: spacing.md },
   hero: {
-    height: 148,
+    height: 120,
     marginHorizontal: spacing.md,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
-  heroCompact: { height: 124 },
+  heroCompact: { height: 104 },
   heroImage: { borderRadius: radius.lg },
   heroCopy: {
     gap: spacing.sm,
