@@ -19,7 +19,7 @@ import {
 } from "react-native";
 
 import { ReportModal } from "@/src/components/moderation/ReportModal";
-import { NoxaButton, NoxaScreen } from "@/src/components/ui";
+import { NoxaButton, NoxaIconButton, NoxaScreen, NoxaTopBar } from "@/src/components/ui";
 import { blockUser, type ReportTargetType } from "@/src/lib/moderation";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
@@ -604,22 +604,35 @@ export default function PostDetailsScreen() {
         keyboardVerticalOffset={8}
         style={styles.flex}>
         <View style={styles.header}>
-          <HeaderButton icon="chevron-back" label="Go back" onPress={() => router.back()} />
-          <Text style={styles.headerTitle}>POST</Text>
-          <View style={styles.headerActions}>
-            <HeaderButton
-              icon={sharing ? "checkmark" : "share-social-outline"}
-              label="Share post"
-              onPress={() => void sharePost()}
-            />
-            {post ? (
-              <HeaderButton
-                icon={blockingUserId ? "hourglass-outline" : "ellipsis-horizontal"}
-                label="Post actions"
-                onPress={openPostActions}
+          <NoxaTopBar
+            left={
+              <NoxaIconButton
+                accessibilityLabel="Go back"
+                icon="chevron-back"
+                onPress={() => router.back()}
+                variant="ghost"
               />
-            ) : null}
-          </View>
+            }
+            right={
+              <View style={styles.headerActions}>
+                <NoxaIconButton
+                  accessibilityLabel="Share post"
+                  icon={sharing ? "checkmark" : "share-social-outline"}
+                  onPress={() => void sharePost()}
+                  variant="ghost"
+                />
+                {post ? (
+                  <NoxaIconButton
+                    accessibilityLabel="Post actions"
+                    icon={blockingUserId ? "hourglass-outline" : "ellipsis-horizontal"}
+                    onPress={openPostActions}
+                    variant="ghost"
+                  />
+                ) : null}
+              </View>
+            }
+            title="Post"
+          />
         </View>
 
         <ScrollView
@@ -694,12 +707,12 @@ export default function PostDetailsScreen() {
                     {post.caption}
                   </Text>
                 ) : null}
-                <Text style={styles.postDate}>{formatDate(post.created_at).toUpperCase()}</Text>
+                <Text style={styles.postDate}>{formatDate(post.created_at)}</Text>
               </View>
 
               <View style={styles.commentsSection}>
                 <View style={styles.commentsHeading}>
-                  <Text style={styles.sectionTitle}>COMMENTS</Text>
+                  <Text style={styles.sectionTitle}>Comments</Text>
                   <Text style={styles.sectionCount}>{comments.length}</Text>
                 </View>
                 {comments.length ? (
@@ -738,7 +751,7 @@ export default function PostDetailsScreen() {
             <View style={styles.errorCard}>
               <Text style={styles.errorText}>{error}</Text>
               <Pressable onPress={() => void loadPost(false)} style={styles.retryButton}>
-                <Text style={styles.retryText}>RETRY</Text>
+                <Text style={styles.retryText}>Retry</Text>
               </Pressable>
             </View>
           ) : null}
@@ -794,26 +807,6 @@ export default function PostDetailsScreen() {
         visible={Boolean(reportTarget)}
       />
     </NoxaScreen>
-  );
-}
-
-function HeaderButton({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-      <Ionicons name={icon} size={21} color={colors.text} />
-    </Pressable>
   );
 }
 
@@ -933,46 +926,23 @@ function StateCard({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  headerButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  headerTitle: {
-    flex: 1,
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.sectionTitle,
-    fontWeight: "900",
-    letterSpacing: 1,
-    textAlign: "center",
-  },
+
   headerActions: { minWidth: 88, flexDirection: "row", justifyContent: "flex-end", gap: spacing.xs },
   content: { paddingBottom: 132 },
   authorRow: {
-    minHeight: 70,
+    minHeight: 64,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   authorCopy: { flex: 1 },
-  authorName: { color: colors.text, fontSize: 14, fontWeight: "900" },
-  authorMeta: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
+  authorName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
+  authorMeta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   avatarFallback: {
     alignItems: "center",
     justifyContent: "center",
@@ -991,24 +961,23 @@ const styles = StyleSheet.create({
   },
   actionLeft: { flexDirection: "row" },
   actionButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  postCopy: { gap: spacing.xs, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-  metrics: { color: colors.text, fontSize: 13, fontWeight: "900" },
+  postCopy: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  metrics: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
   caption: { color: colors.text, fontSize: 13, fontWeight: "600", lineHeight: 20 },
-  captionAuthor: { fontWeight: "900" },
-  postDate: { color: colors.textSubtle, fontSize: 9, fontWeight: "800", letterSpacing: 0.7 },
-  commentsSection: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  captionAuthor: { fontWeight: "700" },
+  postDate: { color: colors.textSubtle, fontSize: 11, lineHeight: 15, fontWeight: "500" },
+  commentsSection: { paddingHorizontal: spacing.md, gap: spacing.sm },
   commentsHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  sectionTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 17, fontWeight: "900", letterSpacing: 0.8 },
-  sectionCount: { color: colors.textMuted, fontSize: 11, fontWeight: "900" },
+  sectionTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
+  sectionCount: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   commentList: {
     overflow: "hidden",
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
-  commentRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, padding: spacing.md },
-  commentBorder: { borderTopWidth: 1, borderTopColor: colors.divider },
+  commentRow: { minHeight: 60, flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingVertical: spacing.sm },
+  commentBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
   commentMain: { flex: 1, minWidth: 0 },
   commentBody: { color: colors.text, fontSize: 12, fontWeight: "600", lineHeight: 18 },
   commentAuthor: { fontWeight: "900" },
@@ -1022,10 +991,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   emptyTitle: { color: colors.text, fontSize: 13, fontWeight: "900" },
   emptyText: { color: colors.textMuted, fontSize: 11, fontWeight: "700" },
@@ -1035,10 +1003,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.glass,
     ...shadows.control,
@@ -1070,7 +1038,7 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.42 },
   errorCard: {
-    margin: spacing.lg,
+    margin: spacing.md,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -1083,8 +1051,8 @@ const styles = StyleSheet.create({
   errorText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: "700", lineHeight: 17 },
   retryButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   retryText: { color: colors.text, fontSize: 9, fontWeight: "900" },
-  stateCard: { minHeight: 300, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
-  stateTitle: { color: colors.text, fontSize: typography.title, fontWeight: "900", textAlign: "center" },
-  stateText: { color: colors.textMuted, fontSize: 13, fontWeight: "700", lineHeight: 20, textAlign: "center" },
+  stateCard: { minHeight: 220, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.lg },
+  stateTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700", textAlign: "center" },
+  stateText: { color: colors.textMuted, fontSize: 12, fontWeight: "500", lineHeight: 18, textAlign: "center" },
   pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.99 }] },
 });

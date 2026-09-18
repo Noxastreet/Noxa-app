@@ -177,27 +177,25 @@ export default function DeleteAccountScreen() {
                 <Ionicons name="chevron-back" size={22} color={colors.text} />
               </Pressable>
             }
-            title="DELETE ACCOUNT"
-            subtitle="Permanent account and data removal"
+            title="Delete Account"
           />
 
           <ScrollView
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-            <View style={styles.dangerHero}>
-              <View style={styles.dangerIcon}>
-                <Ionicons name="warning" size={27} color={colors.primaryHover} />
+            <View style={styles.warningSection}>
+              <Ionicons name="warning-outline" size={20} color={colors.primaryHover} />
+              <View style={styles.warningCopy}>
+                <Text style={styles.warningTitle}>This can’t be undone</Text>
+                <Text style={styles.warningText}>
+                  Your NOXA account and associated data will be permanently removed from active systems.
+                </Text>
               </View>
-              <Text style={styles.heroEyebrow}>PERMANENT ACTION</Text>
-              <Text style={styles.heroTitle}>There is no undo.</Text>
-              <Text style={styles.heroText}>
-                NOXA will permanently delete the account and associated data from active systems.
-              </Text>
             </View>
 
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>WHAT WILL HAPPEN</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>What will happen</Text>
               {consequences.map((item) => (
                 <View key={item} style={styles.consequenceRow}>
                   <Ionicons name="remove-circle-outline" size={17} color={colors.primaryHover} />
@@ -206,8 +204,8 @@ export default function DeleteAccountScreen() {
               ))}
             </View>
 
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>VERIFY YOUR IDENTITY</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Verify your identity</Text>
               {loadingAccount ? (
                 <ActivityIndicator color={colors.primary} />
               ) : email ? (
@@ -272,7 +270,7 @@ export default function DeleteAccountScreen() {
 
               <View style={styles.confirmationGroup}>
                 <Text style={styles.confirmationLabel}>
-                  TYPE <Text style={styles.confirmationWord}>DELETE</Text> TO CONFIRM
+                  Type <Text style={styles.confirmationWord}>DELETE</Text> to confirm
                 </Text>
                 <TextInput
                   autoCapitalize="characters"
@@ -309,7 +307,7 @@ export default function DeleteAccountScreen() {
                 ) : (
                   <>
                     <Ionicons name="trash-outline" size={19} color={colors.text} />
-                    <Text style={styles.deleteText}>DELETE ACCOUNT PERMANENTLY</Text>
+                    <Text style={styles.deleteText}>Delete Account Permanently</Text>
                   </>
                 )}
               </Pressable>
@@ -330,67 +328,36 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   shell: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     backgroundColor: colors.background,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
-  content: { gap: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xxxl },
-  dangerHero: {
-    alignItems: 'center',
+  content: { gap: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxxl },
+  warningSection: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.xl,
-    borderWidth: 1,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
   },
-  dangerIcon: {
-    width: 58,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
-  },
-  heroEyebrow: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  heroTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    fontWeight: '900',
-    lineHeight: typography.lineHeight.h2,
-  },
-  heroText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  card: {
+  warningCopy: { flex: 1, gap: 2 },
+  warningTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
+  warningText: { color: colors.textMuted, fontSize: 12, lineHeight: 18, fontWeight: '500' },
+  section: {
     gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingTop: spacing.sm,
   },
-  cardTitle: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
+  sectionTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   consequenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   consequenceText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   emailRow: {
@@ -398,9 +365,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceSoft,
   },
   emailText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '700' },
   socialVerification: {
@@ -409,7 +373,7 @@ const styles = StyleSheet.create({
   verificationText: {
     color: colors.textMuted,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     lineHeight: 18,
   },
   verifiedRow: {
@@ -429,7 +393,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   confirmationGroup: { gap: spacing.xs },
-  confirmationLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  confirmationLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   confirmationWord: { color: colors.primaryHover },
   confirmationInput: {
     minHeight: 52,
@@ -455,7 +419,7 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: '700', lineHeight: 17 },
   deleteButton: {
-    minHeight: 54,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -463,14 +427,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  deleteText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.7 },
+  deleteText: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.76, transform: [{ scale: 0.99 }] },
   footerText: {
     paddingHorizontal: spacing.sm,
     color: colors.textSubtle,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '500',
     lineHeight: 16,
     textAlign: 'center',
   },

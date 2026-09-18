@@ -218,7 +218,7 @@ export default function OnboardingScreen() {
       <View style={styles.screen}>
         <View style={styles.header}>
           <NoxaCompactLogo size="sm" />
-          {isReplay ? <Text style={styles.replayLabel}>REPLAY</Text> : null}
+          {isReplay ? <Text style={styles.replayLabel}>Replay</Text> : null}
         </View>
 
         <FlatList
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  replayLabel: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  replayLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '600' },
   skipButton: {
     minWidth: 44,
     minHeight: 44,
@@ -320,19 +320,15 @@ const styles = StyleSheet.create({
   page: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.xxl,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
   },
   copy: { maxWidth: 520, gap: spacing.lg },
   iconFrame: {
-    width: 88,
-    height: 88,
+    width: 64,
+    height: 64,
     justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.primarySubtle,
-    backgroundColor: colors.surface,
+    padding: spacing.sm,
   },
   step: {
     color: colors.textSubtle,
@@ -344,10 +340,8 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h1,
+    ...typography.v2.value,
     fontWeight: '900',
-    lineHeight: typography.lineHeight.h1,
-    letterSpacing: typography.letterSpacing.tight,
   },
   body: {
     maxWidth: 440,

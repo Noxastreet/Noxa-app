@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 import type { SupportedVehicleType } from '@/src/data/vehicleCatalogRegistry';
 import { pickerMotion } from '../motion';
 import { VehicleTypeIcon } from './VehicleTypeIcon';
@@ -32,7 +32,7 @@ export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUr
             exiting={pickerMotion.contentExit}
             style={styles.placeholder}>
             <VehicleTypeIcon vehicleType={vehicleType} size={46} color={colors.primaryHover} />
-            <Text style={styles.placeholderTitle}>YOUR VEHICLE</Text>
+            <Text style={styles.placeholderTitle}>Your vehicle</Text>
             <Text style={styles.placeholderCopy}>A cover photo is optional.</Text>
           </Animated.View>
         )}
@@ -40,7 +40,7 @@ export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUr
         {photoUri ? (
           <Animated.View entering={pickerMotion.contentEnter} style={styles.photoBadge}>
             <Ionicons name="checkmark" size={13} color={colors.text} />
-            <Text style={styles.photoBadgeText}>COVER READY</Text>
+            <Text style={styles.photoBadgeText}>Cover ready</Text>
           </Animated.View>
         ) : null}
       </View>
@@ -52,7 +52,7 @@ export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUr
           onPress={onChoose}
           style={({ pressed }) => [styles.action, pressed && styles.pressed, disabled && styles.disabled]}>
           <Ionicons name="images-outline" size={17} color={colors.text} />
-          <Text style={styles.actionText}>{photoUri ? 'CHANGE PHOTO' : 'CHOOSE PHOTO'}</Text>
+          <Text style={styles.actionText}>{photoUri ? 'Change photo' : 'Choose photo'}</Text>
         </Pressable>
         {photoUri ? (
           <Animated.View entering={pickerMotion.contentEnter} exiting={pickerMotion.contentExit}>
@@ -76,13 +76,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   preview: {
-    aspectRatio: 16 / 9,
+    height: 156,
     overflow: 'hidden',
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
   },
   image: {
     width: '100%',
@@ -97,9 +94,9 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     marginTop: spacing.xs,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
   },
   placeholderCopy: {
     color: colors.textMuted,
@@ -126,9 +123,9 @@ const styles = StyleSheet.create({
   },
   photoBadgeText: {
     color: colors.text,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
@@ -148,9 +145,9 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: colors.text,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.7,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   removeAction: {
     width: 48,

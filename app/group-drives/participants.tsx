@@ -156,7 +156,7 @@ export default function GroupDriveParticipantsScreen() {
 
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title={editMode ? 'EDIT PEOPLE' : 'ADD PEOPLE'} subtitle="Each person chooses for themselves" />
+      <GroupDriveHeader title={editMode ? 'Edit people' : 'Add people'} subtitle="Each person chooses for themselves" />
       {!editMode ? <GroupDriveStep current={3} label="Participants" /> : null}
       <View style={styles.intro}>
         <Text style={styles.title}>{editMode ? 'Invite more people.' : 'Choose who gets an invitation.'}</Text>
@@ -223,8 +223,8 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
   body: { color: colors.textMuted, ...typography.v2.body },
   section: { gap: spacing.xs },
-  sectionLabel: { marginBottom: spacing.xs, color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
-  optionRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  sectionLabel: { marginBottom: spacing.xs, color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  optionRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   optionCopy: { flex: 1, minWidth: 0 },
   optionTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
   optionCaption: { marginTop: 3, color: colors.textMuted, fontSize: 11, lineHeight: 16 },

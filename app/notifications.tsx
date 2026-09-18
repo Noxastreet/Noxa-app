@@ -172,6 +172,7 @@ function ActivityRow({
   const meta = item.kind === 'event' && item.startsAt
     ? formatEventDate(item.startsAt)
     : formatRelativeTime(item.timestamp);
+  const subtitle = meta ? `${item.subtitle} · ${meta}` : item.subtitle;
 
   return (
     <Pressable
@@ -182,8 +183,7 @@ function ActivityRow({
       <ActivityArtwork item={item} />
       <View style={styles.activityCopy}>
         <Text numberOfLines={1} style={styles.activityTitle}>{item.title}</Text>
-        <Text numberOfLines={2} style={styles.activitySubtitle}>{item.subtitle}</Text>
-        {meta ? <Text style={styles.activityMeta}>{meta}</Text> : null}
+        <Text numberOfLines={2} style={styles.activitySubtitle}>{subtitle}</Text>
 
         {item.kind === 'crew' ? (
           <View style={styles.invitationActions}>
@@ -210,21 +210,19 @@ function ActivityRow({
           </View>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+      {item.kind === 'crew' ? null : <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />}
     </Pressable>
   );
 }
 
 function InboxSection({
   title,
-  eyebrow,
   items,
   busyInvitationId,
   onOpen,
   onRespond,
 }: {
   title: string;
-  eyebrow: string;
   items: ActivityItem[];
   busyInvitationId: string | null;
   onOpen: (item: ActivityItem) => void;
@@ -235,10 +233,7 @@ function InboxSection({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeading}>
-        <View>
-          <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
-          <Text style={styles.sectionTitle}>{title}</Text>
-        </View>
+        <Text style={styles.sectionTitle}>{title}</Text>
         <Text style={styles.sectionCount}>{items.length}</Text>
       </View>
       <View style={styles.activityList}>
@@ -493,17 +488,7 @@ export default function NotificationsScreen() {
       <View style={styles.shell}>
         <NoxaHeader
           left={<BackButton />}
-          right={
-            <Pressable
-              accessibilityLabel="Refresh activity"
-              accessibilityRole="button"
-              onPress={() => void loadActivities(true)}
-              style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}>
-              <Ionicons name="refresh" size={18} color={colors.textMuted} />
-            </Pressable>
-          }
-          title="NOTIFICATIONS"
-          subtitle="Real activity from your NOXA world"
+          title="Notifications"
         />
 
         {isLoading ? (
@@ -533,7 +518,7 @@ export default function NotificationsScreen() {
                   accessibilityRole="button"
                   onPress={() => router.push('/sign-in')}
                   style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
-                  <Text style={styles.primaryActionText}>SIGN IN</Text>
+                  <Text style={styles.primaryActionText}>Sign in</Text>
                 </Pressable>
               </View>
             ) : errorMessage ? (
@@ -543,7 +528,7 @@ export default function NotificationsScreen() {
                   accessibilityRole="button"
                   onPress={() => void loadActivities()}
                   style={({ pressed }) => [styles.primaryAction, pressed && styles.pressed]}>
-                  <Text style={styles.primaryActionText}>TRY AGAIN</Text>
+                  <Text style={styles.primaryActionText}>Try again</Text>
                 </Pressable>
               </View>
             ) : activities.length === 0 ? (
@@ -555,7 +540,6 @@ export default function NotificationsScreen() {
             ) : (
               <>
                 <InboxSection
-                  eyebrow="ACTION REQUIRED"
                   title="Needs attention"
                   items={needsAttention}
                   busyInvitationId={busyInvitationId}
@@ -563,7 +547,6 @@ export default function NotificationsScreen() {
                   onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
                 />
                 <InboxSection
-                  eyebrow="YOU’RE GOING"
                   title="Upcoming"
                   items={upcoming}
                   busyInvitationId={busyInvitationId}
@@ -571,7 +554,6 @@ export default function NotificationsScreen() {
                   onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
                 />
                 <InboxSection
-                  eyebrow="SOCIAL"
                   title="Community"
                   items={community}
                   busyInvitationId={busyInvitationId}
@@ -590,13 +572,13 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     backgroundColor: colors.background,
   },
   headerAction: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -606,32 +588,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   disabled: { opacity: 0.48 },
-  filterRow: {
-    minHeight: 46,
-    flexDirection: 'row',
-    marginTop: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  filterTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingTop: spacing.sm,
-  },
-  filterText: {
-    paddingBottom: spacing.sm,
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  filterTextActive: { color: colors.text },
-  filterIndicator: {
-    width: '100%',
-    height: 2,
-    backgroundColor: 'transparent',
-  },
-  filterIndicatorActive: { backgroundColor: colors.primary },
   centerState: {
     flex: 1,
     alignItems: 'center',
@@ -640,9 +596,9 @@ const styles = StyleSheet.create({
   },
   stateText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   scrollContent: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xxxl,
-    gap: spacing.xxl,
+    gap: spacing.md,
   },
   emptyStack: { gap: spacing.md },
   primaryAction: {
@@ -652,32 +608,25 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  primaryActionText: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 },
-  section: { gap: spacing.sm },
+  primaryActionText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  section: { gap: spacing.xs },
   sectionHeading: {
+    minHeight: 30,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  sectionEyebrow: {
-    color: colors.primaryHover,
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-  },
   sectionTitle: {
-    marginTop: 2,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '900',
+    ...typography.v2.row,
+    fontWeight: '700',
   },
   sectionCount: {
-    color: colors.textSubtle,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   activityList: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -685,19 +634,19 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   activityRow: {
-    minHeight: 82,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   rowPressed: { opacity: 0.78 },
-  rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 64, backgroundColor: colors.divider },
-  artworkShell: { width: 48, height: 48 },
-  artworkImage: { width: 44, height: 44, borderRadius: radius.pill },
+  rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 56, backgroundColor: colors.divider },
+  artworkShell: { width: 44, height: 44 },
+  artworkImage: { width: 40, height: 40, borderRadius: radius.pill },
   artworkFallback: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -707,8 +656,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     bottom: 0,
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -716,24 +665,17 @@ const styles = StyleSheet.create({
     borderColor: colors.background,
   },
   activityCopy: { flex: 1, minWidth: 0 },
-  activityTitle: { color: colors.text, fontSize: 13, fontWeight: '900', lineHeight: 18 },
+  activityTitle: { color: colors.text, fontSize: 14, fontWeight: '600', lineHeight: 19 },
   activitySubtitle: {
     marginTop: 2,
     color: colors.textMuted,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     lineHeight: 17,
   },
-  activityMeta: {
-    marginTop: spacing.xxs,
-    color: colors.textSubtle,
-    fontSize: 9,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
+  invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
   acceptButton: {
-    minHeight: 32,
+    minHeight: 30,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
@@ -749,6 +691,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
-  acceptText: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  declineText: { color: colors.textMuted, fontSize: 10, fontWeight: '900' },
+  acceptText: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  declineText: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '600' },
 });

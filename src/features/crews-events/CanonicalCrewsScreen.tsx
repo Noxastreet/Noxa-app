@@ -16,15 +16,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { NoxaScreen } from "@/src/components/ui";
+import { NoxaIconButton, NoxaScreen } from "@/src/components/ui";
 import {
-  CanonicalArtwork,
-  CanonicalAvatarStack,
-  CanonicalPill,
   CanonicalPrimaryButton,
-  CanonicalSectionHeader,
   initials,
-  type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
@@ -86,7 +81,7 @@ function getOwnerName(row: CrewRow) {
 }
 
 function formatDrive(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
@@ -115,31 +110,18 @@ function CrewLogo({ crew, size = 42 }: { crew: Crew; size?: number }) {
   );
 }
 
-function actionLabel(crew: Crew) {
-  if (crew.currentUserRole === "owner") return "OWNER";
-  if (crew.isCurrentUserMember) return "JOINED";
-  if (crew.pendingJoinRequestId) return "REQUESTED";
-  if (!crew.is_public || crew.join_policy === "invite_only") return "INVITE ONLY";
-  if (crew.join_policy === "approval") return "REQUEST";
-  return "JOIN";
-}
-
 function CrewFilterControl({
   value,
-  myCount,
-  discoverCount,
   onChange,
 }: {
   value: CrewFilter;
-  myCount: number;
-  discoverCount: number;
   onChange: (value: CrewFilter) => void;
 }) {
   return (
     <View style={styles.filterControl}>
       {[
-        { value: "mine" as const, label: "YOUR CREWS", count: myCount },
-        { value: "discover" as const, label: "DISCOVER", count: discoverCount },
+        { value: "mine" as const, label: "Your crews" },
+        { value: "discover" as const, label: "Discover" },
       ].map((item) => {
         const active = item.value === value;
         return (
@@ -157,16 +139,6 @@ function CrewFilterControl({
             <Text style={[styles.filterText, active && styles.filterTextActive]}>
               {item.label}
             </Text>
-            <View style={[styles.filterCount, active && styles.filterCountActive]}>
-              <Text
-                style={[
-                  styles.filterCountText,
-                  active && styles.filterCountTextActive,
-                ]}
-              >
-                {item.count}
-              </Text>
-            </View>
           </Pressable>
         );
       })}
@@ -174,139 +146,63 @@ function CrewFilterControl({
   );
 }
 
-function HeroCrew({
+function CrewListRow({
   crew,
   event,
-  busy,
-  onAction,
 }: {
   crew: Crew;
-  event: CrewEvent | null;
-  busy: boolean;
-  onAction: (crew: Crew) => void;
+  event?: CrewEvent;
 }) {
-  const label = actionLabel(crew);
-  const canAction = !["OWNER", "INVITE ONLY"].includes(label);
-  const artworkUri = crew.cover_image_url || event?.cover_image_url || null;
+  const membership =
+    crew.currentUserRole === "owner"
+      ? "Owner"
+      : crew.isCurrentUserMember
+        ? "Joined"
+        : crew.pendingJoinRequestId
+          ? "Requested"
+          : null;
 
   return (
     <Pressable
       accessibilityLabel={`Open ${crew.name}`}
       accessibilityRole="button"
+      accessibilityHint="Opens crew details"
       onPress={() =>
         router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
       }
-      style={({ pressed }) => [styles.heroCard, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.crewRow, pressed && styles.pressed]}
     >
-      <CanonicalArtwork
-        uri={artworkUri}
-        style={styles.heroArtwork}
-        imageStyle={styles.heroArtworkImage}
-        icon="people-outline"
-      >
-        <View style={styles.heroShadeTop} />
-        <View style={styles.heroShadeBottom} />
-
-        <View style={styles.heroTopRow}>
-          <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOUR CREW" : "NEARBY"}
-            tone={event ? "accent" : "neutral"}
-          />
-          <View style={styles.heroMenuButton}>
-            <Ionicons name="ellipsis-horizontal" size={18} color={colors.text} />
-          </View>
-        </View>
-
-        <View style={styles.heroCopy}>
-          <View style={styles.heroIdentity}>
-            <CrewLogo crew={crew} size={46} />
-            <View style={styles.heroNameBlock}>
-              <Text numberOfLines={1} style={styles.heroTitle}>
-                {crew.name.toUpperCase()}
-              </Text>
-              <Text numberOfLines={1} style={styles.heroMeta}>
-                {(crew.city || "NOXA").toUpperCase()} · {crew.memberCount} MEMBERS
-              </Text>
-            </View>
-          </View>
-
-          {event ? (
-            <Text numberOfLines={1} style={styles.heroSignal}>
-              NEXT: {event.title.toUpperCase()} · {formatDrive(event.starts_at)}
-            </Text>
+      <CrewLogo crew={crew} size={44} />
+      <View style={styles.crewRowCopy}>
+        <View style={styles.crewTitleLine}>
+          <Text numberOfLines={1} style={styles.crewRowTitle}>
+            {crew.name}
+          </Text>
+          {membership ? (
+            <Text style={styles.membershipText}>{membership}</Text>
           ) : null}
-
-          <View style={styles.heroFooter}>
-            <View style={styles.organizerBlock}>
-              <Text style={styles.organizerEyebrow}>ORGANIZER</Text>
-              <Text numberOfLines={1} style={styles.organizerName}>
-                {crew.ownerName}
-              </Text>
-            </View>
-            <View style={styles.heroActionArea}>
-              <CanonicalAvatarStack total={crew.memberCount} max={3} size={27} />
-              <CanonicalPrimaryButton
-                compact
-                disabled={!canAction || busy}
-                loading={busy}
-                label={label}
-                variant={crew.isCurrentUserMember ? "surface" : "accent"}
-                onPress={() => onAction(crew)}
-              />
-            </View>
-          </View>
         </View>
-      </CanonicalArtwork>
-    </Pressable>
-  );
-}
-
-function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
-  return (
-    <Pressable
-      accessibilityLabel={`Open ${crew.name}`}
-      accessibilityRole="button"
-      onPress={() =>
-        router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
-      }
-      style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}
-    >
-      <CanonicalArtwork
-        uri={crew.cover_image_url || event?.cover_image_url}
-        style={styles.compactArtwork}
-        imageStyle={styles.compactArtworkImage}
-        icon="car-sport-outline"
-      >
-        <View style={styles.compactShade} />
-        <View style={styles.compactTop}>
-          <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOURS" : "NEARBY"}
-          />
-          <Text style={styles.compactMemberCount}>{crew.memberCount}</Text>
-        </View>
-        <View style={styles.compactBottom}>
-          <CrewLogo crew={crew} size={34} />
-          <View style={styles.compactCopy}>
-            <Text numberOfLines={1} style={styles.compactTitle}>
-              {crew.name.toUpperCase()}
-            </Text>
-            <Text numberOfLines={1} style={styles.compactMeta}>
-              {crew.city || "NOXA"} · {crew.ownerName}
-            </Text>
-          </View>
-        </View>
-      </CanonicalArtwork>
+        <Text numberOfLines={1} style={styles.crewRowMeta}>
+          {crew.city || "Location not set"} · {crew.memberCount} {crew.memberCount === 1 ? "member" : "members"}
+        </Text>
+        {event ? (
+          <Text numberOfLines={1} style={styles.crewNextDrive}>
+            Next: {event.title} · {formatDrive(event.starts_at)}
+          </Text>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
     </Pressable>
   );
 }
 
 function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
   const date = new Date(event.starts_at);
-  const day = new Intl.DateTimeFormat(undefined, { day: "2-digit" }).format(date);
-  const month = new Intl.DateTimeFormat(undefined, { month: "short" })
+  const day = new Intl.DateTimeFormat('en-GB', { day: "2-digit" }).format(date);
+  const month = new Intl.DateTimeFormat('en-GB', { month: "short" })
     .format(date)
     .replace(".", "")
-    .toUpperCase();
+    .replace(".", "");
 
   return (
     <Pressable
@@ -322,9 +218,9 @@ function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
         <Text style={styles.dateMonth}>{month}</Text>
       </View>
       <View style={styles.driveCopy}>
-        <Text style={styles.driveEyebrow}>UPCOMING FROM YOUR CREW</Text>
+        <Text style={styles.driveEyebrow}>Upcoming</Text>
         <Text numberOfLines={1} style={styles.driveTitle}>
-          {event.title.toUpperCase()}
+          {event.title}
         </Text>
         <Text numberOfLines={1} style={styles.driveMeta}>
           {formatDrive(event.starts_at)} · {event.location_name}
@@ -394,7 +290,7 @@ function CreateCrewModal({
           >
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>
-          <Text style={styles.modalTitle}>CREATE CREW</Text>
+          <Text style={styles.modalTitle}>Create Crew</Text>
           <View style={styles.iconButton} />
         </View>
 
@@ -402,27 +298,8 @@ function CreateCrewModal({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.modalContent}
         >
-          <CanonicalArtwork style={styles.previewCard} icon="people-outline">
-            <View style={styles.previewShade} />
-            <View style={styles.previewCopy}>
-              <View style={styles.previewLogo}>
-                <Text style={styles.previewLogoText}>
-                  {initials(name || "NOXA")}
-                </Text>
-              </View>
-              <View>
-                <Text numberOfLines={1} style={styles.previewTitle}>
-                  {(name || "YOUR CREW").toUpperCase()}
-                </Text>
-                <Text style={styles.previewMeta}>
-                  {(city || "YOUR CITY").toUpperCase()}
-                </Text>
-              </View>
-            </View>
-          </CanonicalArtwork>
-
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>CREW NAME</Text>
+            <Text style={styles.fieldLabel}>Crew name</Text>
             <TextInput
               autoCapitalize="words"
               maxLength={60}
@@ -436,7 +313,7 @@ function CreateCrewModal({
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>CITY</Text>
+            <Text style={styles.fieldLabel}>City</Text>
             <TextInput
               autoCapitalize="words"
               maxLength={80}
@@ -450,7 +327,7 @@ function CreateCrewModal({
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>DESCRIPTION</Text>
+            <Text style={styles.fieldLabel}>Description</Text>
             <TextInput
               maxLength={500}
               multiline
@@ -464,11 +341,11 @@ function CreateCrewModal({
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>ACCESS</Text>
+            <Text style={styles.fieldLabel}>Access</Text>
             <View style={styles.optionRow}>
               {[
-                { label: "PUBLIC", value: true },
-                { label: "PRIVATE", value: false },
+                { label: "Public", value: true },
+                { label: "Private", value: false },
               ].map((option) => (
                 <Pressable
                   key={option.label}
@@ -496,12 +373,12 @@ function CreateCrewModal({
 
           {isPublic ? (
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>JOIN POLICY</Text>
+              <Text style={styles.fieldLabel}>Join policy</Text>
               <View style={styles.optionRow}>
                 {[
-                  { label: "OPEN", value: "open" as JoinPolicy },
-                  { label: "APPROVAL", value: "approval" as JoinPolicy },
-                  { label: "INVITE", value: "invite_only" as JoinPolicy },
+                  { label: "Open", value: "open" as JoinPolicy },
+                  { label: "Approval", value: "approval" as JoinPolicy },
+                  { label: "Invite", value: "invite_only" as JoinPolicy },
                 ].map((option) => (
                   <Pressable
                     key={option.value}
@@ -538,7 +415,7 @@ function CreateCrewModal({
           <CanonicalPrimaryButton
             disabled={name.trim().length < 2 || creating}
             loading={creating}
-            label="CREATE CREW"
+            label="Create crew"
             onPress={() =>
               onSubmit({
                 name,
@@ -558,13 +435,11 @@ function CreateCrewModal({
 export default function CanonicalCrewsScreen() {
   const [crews, setCrews] = useState<Crew[]>([]);
   const [events, setEvents] = useState<CrewEvent[]>([]);
-  const [profiles, setProfiles] = useState<CanonicalProfile[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CrewFilter>("mine");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyCrewId, setBusyCrewId] = useState<string | null>(null);
   const [createVisible, setCreateVisible] = useState(false);
   const [creating, setCreating] = useState(false);
   const hasLoadedRef = useRef(false);
@@ -603,7 +478,6 @@ export default function CanonicalCrewsScreen() {
 
     setCrews(baseModels);
     setEvents([]);
-    setProfiles([]);
     setFilter("discover");
     setLoading(false);
     setRefreshing(false);
@@ -629,12 +503,8 @@ export default function CanonicalCrewsScreen() {
         .eq("status", "scheduled")
         .gte("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true })
-        .limit(8),
-      supabase
-        .from("profiles")
-        .select("id,display_name,username,avatar_url")
-        .limit(8),
-    ]).then(([membersResult, requestsResult, eventsResult, profilesResult]) => {
+        .limit(12),
+    ]).then(([membersResult, requestsResult, eventsResult]) => {
       const memberRows = membersResult.error
         ? []
         : ((membersResult.data ?? []) as CrewMemberRow[]);
@@ -668,9 +538,6 @@ export default function CanonicalCrewsScreen() {
 
       setCrews(models);
       if (!eventsResult.error) setEvents((eventsResult.data ?? []) as CrewEvent[]);
-      if (!profilesResult.error) {
-        setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
-      }
       setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
     });
   }, []);
@@ -684,8 +551,6 @@ export default function CanonicalCrewsScreen() {
   const myCrews = crews.filter((crew) => crew.isCurrentUserMember);
   const discovery = crews.filter((crew) => !crew.isCurrentUserMember);
   const visibleCrews = filter === "mine" ? myCrews : discovery;
-  const hero = visibleCrews[0] ?? null;
-  const secondaryCrews = visibleCrews.slice(1, 5);
   const nextEvent =
     filter === "mine"
       ? events.find((event) => myCrews.some((crew) => crew.id === event.crew_id)) ?? null
@@ -697,60 +562,6 @@ export default function CanonicalCrewsScreen() {
   const eventForCrew = useCallback(
     (crewId: string) => events.find((event) => event.crew_id === crewId),
     [events],
-  );
-
-  const handleAction = useCallback(
-    async (crew: Crew) => {
-      if (!userId || busyCrewId) return;
-      const label = actionLabel(crew);
-
-      if (label === "JOINED") {
-        Alert.alert("Leave crew?", `Leave ${crew.name}?`, [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Leave",
-            style: "destructive",
-            onPress: async () => {
-              setBusyCrewId(crew.id);
-              const { error: leaveError } = await supabase
-                .from("crew_members")
-                .delete()
-                .eq("crew_id", crew.id)
-                .eq("user_id", userId);
-              if (leaveError) setError(leaveError.message);
-              else await load(false);
-              setBusyCrewId(null);
-            },
-          },
-        ]);
-        return;
-      }
-
-      setBusyCrewId(crew.id);
-      setError(null);
-
-      if (label === "REQUESTED" && crew.pendingJoinRequestId) {
-        const { error: cancelError } = await supabase
-          .from("crew_join_requests")
-          .delete()
-          .eq("id", crew.pendingJoinRequestId);
-        if (cancelError) setError(cancelError.message);
-      } else if (crew.join_policy === "approval") {
-        const { error: requestError } = await supabase
-          .from("crew_join_requests")
-          .insert({ crew_id: crew.id, user_id: userId, status: "pending" });
-        if (requestError) setError(requestError.message);
-      } else if (crew.join_policy === "open" && crew.is_public) {
-        const { error: joinError } = await supabase
-          .from("crew_members")
-          .insert({ crew_id: crew.id, user_id: userId, role: "member" });
-        if (joinError) setError(joinError.message);
-      }
-
-      await load(false);
-      setBusyCrewId(null);
-    },
-    [busyCrewId, load, userId],
   );
 
   const createCrew = useCallback(
@@ -784,8 +595,6 @@ export default function CanonicalCrewsScreen() {
         return;
       }
 
-      // Production Supabase creates the owner membership atomically in the
-      // noxa_insert_crew_owner_membership_trigger attached to public.crews.
       setCreateVisible(false);
       setFilter("mine");
       await load(false);
@@ -805,97 +614,56 @@ export default function CanonicalCrewsScreen() {
       );
     }
 
-    if (!hero) {
+    if (!visibleCrews.length) {
       return (
         <View style={styles.stateCard}>
-          <Ionicons name="people-outline" size={36} color={colors.primary} />
+          <Ionicons name="people-outline" size={30} color={colors.textMuted} />
           <Text style={styles.stateTitle}>
-            {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
+            {filter === "mine" ? "No crews yet" : "No crews to discover"}
           </Text>
           <Text style={styles.stateText}>
             {filter === "mine"
-              ? "Create a crew or discover a community that matches your road."
-              : "New public crews will appear here when drivers create them."}
+              ? "Create a crew or discover a public one."
+              : "Public crews will appear here when they are available."}
           </Text>
-          <CanonicalPrimaryButton
-            label={filter === "mine" ? "CREATE CREW" : "REFRESH"}
-            variant={filter === "mine" ? "accent" : "surface"}
-            onPress={() =>
-              filter === "mine" ? setCreateVisible(true) : void load(false)
-            }
-          />
+          {filter === "mine" ? (
+            <CanonicalPrimaryButton
+              label="Create crew"
+              variant="accent"
+              onPress={() => setCreateVisible(true)}
+            />
+          ) : null}
         </View>
       );
     }
 
     return (
-      <>
-        <HeroCrew
-          busy={busyCrewId === hero.id}
-          crew={hero}
-          event={eventForCrew(hero.id) ?? null}
-          onAction={handleAction}
-        />
-
-        {secondaryCrews.length ? (
-          <>
-            <CanonicalSectionHeader
-              title={filter === "mine" ? "MORE OF YOUR CREWS" : "ACTIVE NEAR YOU"}
-            />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-            >
-              {secondaryCrews.map((crew) => (
-                <CompactCrewCard
-                  key={crew.id}
-                  crew={crew}
-                  event={eventForCrew(crew.id)}
-                />
-              ))}
-            </ScrollView>
-          </>
-        ) : null}
+      <View>
+        <View style={styles.crewList}>
+          {visibleCrews.map((crew, index) => (
+            <View key={crew.id}>
+              <CrewListRow crew={crew} event={eventForCrew(crew.id)} />
+              {index < visibleCrews.length - 1 ? <View style={styles.divider} /> : null}
+            </View>
+          ))}
+        </View>
 
         {nextEvent ? (
-          <UpcomingDrive event={nextEvent} crew={nextEventCrew} />
-        ) : null}
-
-        <View style={styles.peopleStrip}>
-          <View style={styles.peopleCopy}>
-            <Text style={styles.peopleEyebrow}>
-              {filter === "mine" ? "YOUR COMMUNITY" : "PEOPLE NEARBY"}
-            </Text>
-            <Text style={styles.peopleText}>
-              {filter === "mine"
-                ? `${myCrews.length} crew${myCrews.length === 1 ? "" : "s"} connected to your garage`
-                : `${discovery.length} public crew${discovery.length === 1 ? "" : "s"} to discover`}
-            </Text>
+          <View style={styles.nextDriveSection}>
+            <Text style={styles.sectionTitle}>Next from your crews</Text>
+            <UpcomingDrive event={nextEvent} crew={nextEventCrew} />
           </View>
-          <CanonicalAvatarStack
-            profiles={profiles}
-            total={profiles.length}
-            max={4}
-            size={30}
-          />
-        </View>
-      </>
+        ) : null}
+      </View>
     );
   }, [
-    busyCrewId,
-    discovery.length,
     eventForCrew,
     filter,
-    handleAction,
-    hero,
     load,
     loading,
-    myCrews.length,
     nextEvent,
     nextEventCrew,
-    profiles,
-    secondaryCrews,
+    visibleCrews,
   ]);
 
   return (
@@ -915,27 +683,17 @@ export default function CanonicalCrewsScreen() {
         }
       >
         <View style={styles.topBar}>
-          <View style={styles.heading}>
-            <Text style={styles.pageTitle}>CREWS</Text>
-            <Text style={styles.pageSubtitle}>Find your people. Drive together.</Text>
-          </View>
-          <Pressable
+          <Text style={styles.pageTitle}>Crews</Text>
+          <NoxaIconButton
             accessibilityLabel="Create crew"
-            accessibilityRole="button"
+            accessibilityHint="Opens crew creation"
+            icon="add"
+            variant="ghost"
             onPress={() => setCreateVisible(true)}
-            style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="add" size={17} color={colors.text} />
-            <Text style={styles.createText}>CREATE</Text>
-          </Pressable>
+          />
         </View>
 
         <CrewFilterControl
-          discoverCount={discovery.length}
-          myCount={myCrews.length}
           onChange={setFilter}
           value={filter}
         />
@@ -948,7 +706,7 @@ export default function CanonicalCrewsScreen() {
               color={colors.primaryHover}
             />
             <Text numberOfLines={2} style={styles.errorText}>
-              {error}
+              Could not refresh crews. Tap to dismiss.
             </Text>
           </Pressable>
         ) : null}
@@ -969,341 +727,176 @@ export default function CanonicalCrewsScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: 136,
-    gap: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 112,
+    gap: spacing.xs,
   },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
+  pressed: { opacity: 0.72 },
   topBar: {
-    minHeight: 72,
+    minHeight: 50,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
   },
-  heading: { flex: 1 },
   pageTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h1,
-    lineHeight: typography.lineHeight.h1,
-    fontWeight: "900",
-    letterSpacing: typography.letterSpacing.tight,
-  },
-  pageSubtitle: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    lineHeight: typography.lineHeight.caption,
-  },
-  createButton: {
-    minHeight: 36,
-    marginTop: spacing.xxs,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xxs,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.button,
-    backgroundColor: colors.surface,
-  },
-  createText: {
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.6,
+    ...typography.v2.section,
+    fontWeight: "700",
   },
   filterControl: {
     flexDirection: "row",
-    gap: spacing.xs,
-    padding: spacing.xxs,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    minHeight: 40,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   filterButton: {
-    minHeight: 42,
     flex: 1,
+    minHeight: 40,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    borderRadius: radius.button,
   },
-  filterButtonActive: { backgroundColor: colors.surfaceRaised },
+  filterButtonActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
+  },
   filterText: {
     color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.45,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
-  filterTextActive: { color: colors.text },
-  filterCount: {
-    minWidth: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xxs,
-    borderRadius: 11,
-    backgroundColor: colors.surfacePressed,
-  },
-  filterCountActive: { backgroundColor: colors.primaryMuted },
-  filterCountText: { color: colors.textSubtle, fontSize: 9, fontWeight: "900" },
-  filterCountTextActive: { color: colors.text },
+  filterTextActive: { color: colors.text, fontWeight: "700" },
   errorBanner: {
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
+  errorText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   stateCard: {
-    minHeight: 260,
+    minHeight: 220,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,
-    padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
   },
   stateTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: "900",
+    ...typography.v2.section,
+    fontWeight: "700",
     textAlign: "center",
   },
   stateText: {
+    maxWidth: 290,
     color: colors.textMuted,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body,
+    ...typography.v2.body,
     textAlign: "center",
   },
-  heroCard: {
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.hero,
-    backgroundColor: colors.background,
-  },
-  heroArtwork: {
-    minHeight: 278,
-    justifyContent: "flex-end",
-    padding: spacing.md,
-    paddingTop: 80,
-  },
-  heroArtworkImage: { borderRadius: radius.hero - 1 },
-  heroShadeTop: {
-    ...StyleSheet.absoluteFillObject,
-    bottom: "48%",
-    backgroundColor: "rgba(0,0,0,0.12)",
-  },
-  heroShadeBottom: {
-    ...StyleSheet.absoluteFillObject,
-    top: "34%",
-    backgroundColor: "rgba(0,0,0,0.78)",
-  },
-  heroTopRow: {
-    position: "absolute",
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  heroMenuButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 18,
-    backgroundColor: "rgba(6,6,10,0.62)",
-  },
-  heroCopy: { gap: spacing.sm },
-  heroIdentity: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  heroNameBlock: { flex: 1 },
-  heroTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 27,
-    lineHeight: 31,
-    fontWeight: "900",
-    letterSpacing: -0.4,
-  },
-  heroMeta: {
-    color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
-  heroSignal: {
-    color: colors.primaryHover,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-  },
-  heroFooter: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  organizerBlock: { flex: 1, minWidth: 0 },
-  organizerEyebrow: {
-    color: colors.textSubtle,
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: "900",
-    letterSpacing: 0.45,
-  },
-  organizerName: {
-    marginTop: 2,
-    color: colors.text,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-  heroActionArea: { alignItems: "flex-end", gap: spacing.xs },
   logoFallback: {
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceRaised,
-  },
-  logoFallbackText: { color: colors.text, fontSize: 11, fontWeight: "900" },
-  horizontalList: { gap: spacing.md, paddingRight: spacing.md },
-  compactCard: {
-    width: 190,
-    height: 158,
-    overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  compactArtwork: {
-    flex: 1,
-    justifyContent: "space-between",
-    padding: spacing.sm,
-  },
-  compactArtworkImage: { borderRadius: radius.lg - 1 },
-  compactShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  compactTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.xs,
-  },
-  compactMemberCount: {
-    color: colors.text,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "900",
-  },
-  compactBottom: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  compactCopy: { flex: 1, minWidth: 0 },
-  compactTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 16,
-    lineHeight: 19,
-    fontWeight: "900",
-  },
-  compactMeta: { color: colors.textMuted, fontSize: 9, lineHeight: 12 },
-  driveCard: {
-    minHeight: 126,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceSoft,
   },
+  logoFallbackText: { color: colors.text, fontSize: 12, fontWeight: "800" },
+  crewList: { marginTop: 0 },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 56,
+    backgroundColor: colors.divider,
+  },
+  crewRow: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  crewRowCopy: { flex: 1, minWidth: 0, gap: 3 },
+  crewTitleLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  crewRowTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: "700",
+  },
+  membershipText: {
+    color: colors.primaryHover,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "700",
+  },
+  crewRowMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 17 },
+  crewNextDrive: {
+    color: colors.textTertiary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  nextDriveSection: {
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
+  },
+  sectionTitle: {
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: "700",
+  },
+  driveCard: {
+    minHeight: 84,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   dateTile: {
-    width: 50,
-    height: 62,
+    width: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceRaised,
   },
   dateDay: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 23,
-    lineHeight: 26,
+    fontSize: 22,
+    lineHeight: 24,
     fontWeight: "900",
   },
   dateMonth: {
-    color: colors.primaryHover,
-    fontSize: 8,
-    lineHeight: 11,
-    fontWeight: "900",
-    letterSpacing: 0.35,
+    color: colors.textMuted,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "700",
   },
-  driveCopy: { flex: 1, gap: spacing.xxs },
+  driveCopy: { flex: 1, gap: 2 },
   driveEyebrow: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "900",
-    letterSpacing: 0.5,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
   },
   driveTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
-  driveMeta: { color: colors.textMuted, fontSize: 11, lineHeight: 15 },
-  driveSignal: { color: colors.textSubtle, fontSize: 10, lineHeight: 14 },
-  peopleStrip: {
-    minHeight: 78,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  peopleCopy: { flex: 1 },
-  peopleEyebrow: {
-    color: colors.textMuted,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-  },
-  peopleText: {
-    marginTop: spacing.xxs,
-    maxWidth: 230,
-    color: colors.text,
-    fontSize: 12,
-    lineHeight: 16,
-  },
+  driveMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 16 },
+  driveSignal: { color: colors.textSubtle, fontSize: 11, lineHeight: 15 },
   modalScreen: { flex: 1, backgroundColor: colors.background },
   modalHeader: {
     height: 58,
@@ -1324,59 +917,16 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: "900",
-    letterSpacing: 0.4,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   modalContent: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
-  previewCard: {
-    minHeight: 176,
-    justifyContent: "flex-end",
-    padding: spacing.md,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  previewShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.52)",
-  },
-  previewCopy: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  previewLogo: {
-    width: 54,
-    height: 54,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 27,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryMuted,
-  },
-  previewLogoText: { color: colors.text, fontSize: 15, fontWeight: "900" },
-  previewTitle: {
-    maxWidth: 230,
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "900",
-  },
-  previewMeta: {
-    color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
   field: { gap: spacing.xs },
   fieldLabel: {
     color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "900",
-    letterSpacing: 0.8,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
   input: {
     minHeight: 50,
@@ -1411,9 +961,9 @@ const styles = StyleSheet.create({
   },
   optionText: {
     color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
   },
   optionTextActive: { color: colors.text },
   modalFooter: {

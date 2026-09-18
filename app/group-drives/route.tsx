@@ -15,7 +15,7 @@ import {
 import { MapboxEventLocationPickerCompat } from '@/src/features/mapbox/MapboxEventLocationPickerCompat';
 import { NOXA_FALLBACK_COORDINATE } from '@/src/features/mapbox/config';
 import type { LatLng } from '@/src/features/mapbox/types';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 type RoutePoint = LatLng & { label: string };
 type PickerTarget = 'start' | 'end';
@@ -191,12 +191,12 @@ export default function GroupDriveRouteScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title={editMode ? 'EDIT ROUTE' : 'BUILD ROUTE'} subtitle="Start and destination only" />
+      <GroupDriveHeader title={editMode ? 'Edit route' : 'Route'} subtitle="Start · Destination" />
       {!editMode ? <GroupDriveStep current={2} label="Route" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>{editMode ? 'Update the route.' : 'Choose two real points.'}</Text>
+        <Text style={styles.title}>{editMode ? 'Edit route' : 'Choose route points'}</Text>
         <Text style={styles.body}>
-          The route stays private. Invited drivers receive only an approximate destination before joining.
+          Choose the start and destination. Exact route details remain private until a driver joins.
         </Text>
       </View>
       <View style={styles.routeSurface}>
@@ -206,7 +206,7 @@ export default function GroupDriveRouteScreen() {
       </View>
       <View style={styles.note}>
         <Ionicons name="map-outline" size={19} color={colors.textMuted} />
-        <Text style={styles.noteText}>{editMode ? 'Saving recalculates the route and returns to the Lobby.' : 'The calculated line, distance and duration appear on the next review steps.'}</Text>
+        <Text style={styles.noteText}>{editMode ? 'Saving recalculates the route and returns to the Lobby.' : 'Distance and duration are calculated after both points are set.'}</Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <NoxaButton
@@ -233,19 +233,19 @@ export default function GroupDriveRouteScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  intro: { gap: spacing.sm, paddingTop: spacing.sm },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
-  body: { color: colors.textMuted, ...typography.v2.body },
-  routeSurface: { borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  pointRow: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
-  pointIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  intro: { gap: spacing.xs },
+  title: { color: colors.text, fontSize: 18, lineHeight: 22, fontWeight: '700' },
+  body: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  routeSurface: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
+  pointRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
+  pointIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   pointCopy: { flex: 1, minWidth: 0 },
-  pointLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase' },
+  pointLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   pointValue: { marginTop: spacing.xxs, color: colors.text, fontSize: 14, fontWeight: '700', lineHeight: 20 },
   pointPlaceholder: { color: colors.textMuted, fontWeight: '600' },
   connector: { height: 18, width: 1, marginLeft: spacing.md + 20, backgroundColor: colors.borderStrong },
-  pressed: { backgroundColor: colors.surfacePressed },
+  pressed: { opacity: 0.72 },
   note: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   noteText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },

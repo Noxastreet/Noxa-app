@@ -84,13 +84,13 @@ export default function GroupDriveDetailsEditorScreen() {
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
-        title={editMode ? 'EDIT DETAILS' : driveSessionId ? 'EDIT DRIVE' : 'NEW GROUP DRIVE'}
-        subtitle={crewId ? 'Crew context · invite-only' : 'Invite-only by design'}
+        title={editMode ? 'Edit details' : driveSessionId ? 'Edit Drive' : 'New Group Drive'}
+        subtitle={crewId ? 'Crew · private' : 'Private · invite only'}
       />
       {!editMode ? <GroupDriveStep current={1} label="Drive details" /> : null}
       <View style={styles.intro}>
-        <Text style={styles.title}>{editMode ? 'Update this drive.' : 'Name the shared intention.'}</Text>
-        <Text style={styles.body}>Keep it clear. The people you invite should know what this drive is for.</Text>
+        <Text style={styles.title}>{editMode ? 'Edit drive details' : 'Drive details'}</Text>
+        <Text style={styles.body}>Give invited drivers a clear name and an optional note.</Text>
       </View>
       <View style={styles.form}>
         <NoxaInput
@@ -140,21 +140,22 @@ export default function GroupDriveDetailsEditorScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  intro: { gap: spacing.sm, paddingTop: spacing.sm },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
-  body: { color: colors.textMuted, ...typography.v2.body },
-  form: { gap: spacing.lg },
-  descriptionInput: { minHeight: 126, paddingTop: spacing.md },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  intro: { gap: spacing.xs },
+  title: { color: colors.text, fontSize: 18, lineHeight: 22, fontWeight: '700' },
+  body: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  form: { gap: spacing.md },
+  descriptionInput: { minHeight: 100, paddingTop: spacing.md },
   privacyNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primarySubtle,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
-  privacyText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  privacyText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
-  footer: { marginTop: 'auto', paddingTop: spacing.lg },
+  footer: { paddingTop: spacing.sm },
 });

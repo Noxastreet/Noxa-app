@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { colors, radius, spacing } from '@/src/theme';
+import { colors, spacing } from '@/src/theme';
 
 import { pickerMotion } from '../motion';
 
@@ -78,23 +78,20 @@ export function PickerCardFrame({
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+    backgroundColor: colors.background,
   },
   regular: {
-    minHeight: 92,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+    minHeight: 72,
+    paddingVertical: spacing.sm,
   },
   compact: {
     minHeight: 54,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   selected: {
-    borderColor: colors.borderAccent,
+    borderBottomColor: colors.borderStrong,
     backgroundColor: colors.primarySubtle,
   },
   pressed: {

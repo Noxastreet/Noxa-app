@@ -27,7 +27,7 @@ import { MapboxEventLocationPickerCompat } from "@/src/features/mapbox/MapboxEve
 import { NOXA_FALLBACK_COORDINATE } from "@/src/features/mapbox/config";
 import type { LatLng } from "@/src/features/mapbox/types";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type EventForm = {
   title: string;
@@ -565,54 +565,6 @@ export default function EventEditorScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.previewCard}>
-            <View style={styles.previewGlow} />
-            <View style={styles.previewTopline}>
-              <View style={styles.previewBadge}>
-                <Ionicons name="flag" size={14} color={colors.primaryHover} />
-                <Text style={styles.previewBadgeText}>{form.category.toUpperCase()}</Text>
-              </View>
-              <Text style={styles.previewStatus}>
-                {form.isPublic ? "PUBLIC" : "PRIVATE"}
-              </Text>
-            </View>
-            <Text numberOfLines={2} style={styles.previewTitle}>
-              {form.title.trim() || "YOUR NEXT NOXA EVENT"}
-            </Text>
-            <View style={styles.previewMeta}>
-              <View style={styles.previewMetaItem}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={15}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.previewMetaText}>
-                  {dateFormatter.format(form.startAt)}
-                </Text>
-              </View>
-              <View style={styles.previewMetaItem}>
-                <Ionicons
-                  name="time-outline"
-                  size={15}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.previewMetaText}>
-                  {timeFormatter.format(form.startAt)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.previewLocation}>
-              <Ionicons
-                name="location-outline"
-                size={15}
-                color={colors.primaryHover}
-              />
-              <Text numberOfLines={1} style={styles.previewLocationText}>
-                {form.locationName || "Choose an exact location"}
-              </Text>
-            </View>
-          </View>
-
           {loading ? (
             <View style={styles.stateCard}>
               <ActivityIndicator color={colors.primary} />
@@ -627,8 +579,7 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>01 / DETAILS</Text>
-              <Text style={styles.sectionTitle}>Make it unmistakable</Text>
+              <Text style={styles.sectionTitle}>Event details</Text>
             </View>
             <NoxaInput
               label="Title"
@@ -688,8 +639,7 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>02 / LOCATION</Text>
-              <Text style={styles.sectionTitle}>Pin the meeting point</Text>
+              <Text style={styles.sectionTitle}>Meeting point</Text>
             </View>
             <View style={styles.readOnlyLocation}>
               <View style={styles.locationIcon}>
@@ -700,7 +650,7 @@ export default function EventEditorScreen() {
                 />
               </View>
               <View style={styles.locationCopy}>
-                <Text style={styles.pickerLabel}>LOCATION</Text>
+                <Text style={styles.pickerLabel}>Location</Text>
                 <Text numberOfLines={2} style={styles.locationValue}>
                   {form.locationName || "No exact location selected"}
                 </Text>
@@ -717,7 +667,7 @@ export default function EventEditorScreen() {
                 ]}
               >
                 <Ionicons name="map-outline" size={17} color={colors.text} />
-                <Text style={styles.locationActionText}>CHOOSE ON MAP</Text>
+                <Text style={styles.locationActionText}>Choose on map</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -735,7 +685,7 @@ export default function EventEditorScreen() {
                   color={colors.text}
                 />
                 <Text style={styles.locationActionText}>
-                  {isLocating ? "LOCATING…" : "USE CURRENT"}
+                  {isLocating ? "Locating…" : "Use current"}
                 </Text>
               </Pressable>
             </View>
@@ -753,10 +703,9 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>03 / SCHEDULE</Text>
-              <Text style={styles.sectionTitle}>Set the timeline</Text>
+              <Text style={styles.sectionTitle}>Date and time</Text>
             </View>
-            <Text style={styles.scheduleLabel}>STARTS</Text>
+            <Text style={styles.scheduleLabel}>Starts</Text>
             <View style={styles.row}>
               <PickerRow
                 label="Start Date"
@@ -771,8 +720,8 @@ export default function EventEditorScreen() {
             </View>
             <View style={styles.scheduleDivider} />
             <View style={styles.optionalRow}>
-              <Text style={styles.scheduleLabel}>ENDS</Text>
-              <Text style={styles.optionalText}>OPTIONAL</Text>
+              <Text style={styles.scheduleLabel}>Ends</Text>
+              <Text style={styles.optionalText}>Optional</Text>
             </View>
             <View style={styles.row}>
               <PickerRow
@@ -803,15 +752,14 @@ export default function EventEditorScreen() {
                   size={16}
                   color={colors.textMuted}
                 />
-                <Text style={styles.clearEndText}>CLEAR END TIME</Text>
+                <Text style={styles.clearEndText}>Clear end time</Text>
               </Pressable>
             ) : null}
           </View>
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>04 / HOST</Text>
-              <Text style={styles.sectionTitle}>Choose the organizer</Text>
+              <Text style={styles.sectionTitle}>Hosted by</Text>
             </View>
             <View style={styles.hostOptions}>
               <HostOption
@@ -838,7 +786,6 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>05 / VISIBILITY</Text>
               <Text style={styles.sectionTitle}>Choose the audience</Text>
             </View>
             <View style={styles.visibilityOptions}>
@@ -1007,8 +954,10 @@ function VisibilityOption({
           color={active ? colors.primaryHover : colors.textMuted}
         />
       </View>
-      <Text style={styles.visibilityTitle}>{label}</Text>
-      <Text style={styles.visibilityText}>{description}</Text>
+      <View style={styles.visibilityCopy}>
+        <Text style={styles.visibilityTitle}>{label}</Text>
+        <Text style={styles.visibilityText}>{description}</Text>
+      </View>
       <View style={[styles.radio, active && styles.radioActive]}>
         {active ? <View style={styles.radioDot} /> : null}
       </View>
@@ -1023,55 +972,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
-    backgroundColor: colors.surfaceBase,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   headerTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: "900",
-    letterSpacing: 1.2,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "700",
   },
-  headerSpacer: { width: 40, height: 40 },
+  headerSpacer: { width: 44, height: 44 },
   content: {
-    padding: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: 124,
     gap: spacing.lg,
   },
   previewCard: {
-    minHeight: 214,
+    minHeight: 124,
     justifyContent: "flex-end",
     gap: spacing.sm,
-    overflow: "hidden",
-    padding: spacing.lg,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  previewGlow: {
-    position: "absolute",
-    top: -82,
-    right: -54,
-    width: 220,
-    height: 220,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   previewTopline: {
     position: "absolute",
@@ -1086,12 +1019,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
   },
   previewBadgeText: {
     color: colors.primaryHover,
@@ -1106,13 +1033,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   previewTitle: {
-    maxWidth: "88%",
+    maxWidth: "92%",
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: "900",
-    letterSpacing: -0.3,
+    ...typography.v2.section,
+    fontWeight: "800",
   },
   previewMeta: {
     flexDirection: "row",
@@ -1142,26 +1067,22 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
   },
   sectionHeading: { gap: spacing.xxs, marginBottom: spacing.xxs },
   eyebrow: {
-    color: colors.primaryHover,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.5,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
   },
   sectionTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
-    letterSpacing: -0.2,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   row: { flexDirection: "row", gap: spacing.sm },
   textArea: {
@@ -1173,8 +1094,9 @@ const styles = StyleSheet.create({
     marginTop: -spacing.xs,
     textAlign: "right",
     color: colors.textSubtle,
-    fontSize: typography.caption,
-    fontWeight: "700",
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "500",
   },
   categoryGrid: {
     flexDirection: "row",
@@ -1349,43 +1271,42 @@ const styles = StyleSheet.create({
   hostHelper: { color: colors.textMuted, fontSize: 11, fontWeight: "700", lineHeight: 17 },
   hostError: { color: colors.primaryHover, fontSize: 11, fontWeight: "700" },
   visibilityOptions: {
-    flexDirection: "row",
-    gap: spacing.sm,
+    gap: 0,
   },
   visibilityOption: {
-    minHeight: 154,
-    flex: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   visibilityOptionActive: {
-    borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
   visibilityIcon: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.xxs,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
   },
   visibilityIconActive: { backgroundColor: colors.primaryMuted },
+  visibilityCopy: { flex: 1, minWidth: 0 },
   visibilityTitle: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "900",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "600",
   },
   visibilityText: {
-    flex: 1,
+    marginTop: 2,
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "700",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "500",
   },
   radio: {
     width: 20,
@@ -1408,21 +1329,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: colors.glass,
+    backgroundColor: colors.background,
   },
   stateCard: {
+    minHeight: 120,
     gap: spacing.sm,
     alignItems: "center",
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    justifyContent: "center",
+    padding: spacing.md,
   },
   stateText: {
     color: colors.textMuted,

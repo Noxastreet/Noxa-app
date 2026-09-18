@@ -17,9 +17,10 @@ import {
   stopGroupDriveLocationSession,
   stopGroupDriveLocationSharing,
   subscribeToActiveDriveAccess,
+  GroupDriveHeader,
 } from '@/src/features/group-drive';
 import { getCurrentSessionUser } from '@/src/lib/supabase';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveLocationSharingScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -210,11 +211,11 @@ export default function GroupDriveLocationSharingScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <View style={styles.headerIcon}>
-        <Ionicons name="navigate" size={26} color={colors.accent} />
-      </View>
-      <Text style={styles.eyebrow}>ACTIVE DRIVE</Text>
-      <Text style={styles.title}>Group Drive location sharing</Text>
+      <GroupDriveHeader
+        title="Location sharing"
+        subtitle="Active Group Drive"
+      />
+      <Text style={styles.title}>Share only when you choose</Text>
       <Text style={styles.body}>
         NOXA shares your precise location only with participants of this active Group Drive.
         Join and Ready never enable sharing. You can stop Group Drive sharing at any time and stay in the drive.
@@ -305,29 +306,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.md,
   },
-  headerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: typography.caption,
-    fontWeight: '700',
-    letterSpacing: typography.letterSpacing.label,
-  },
+
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h1,
-    fontWeight: '700',
-    lineHeight: typography.lineHeight.h1,
-    letterSpacing: typography.letterSpacing.tight,
+    ...typography.v2.section,
+    fontWeight: '800',
   },
   body: {
     color: colors.textMuted,
@@ -335,12 +319,11 @@ const styles = StyleSheet.create({
     lineHeight: typography.lineHeight.body,
   },
   card: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
+    paddingVertical: spacing.md,
     gap: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   row: {
     flexDirection: 'row',
@@ -357,11 +340,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   statusCopy: {
     flex: 1,

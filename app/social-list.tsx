@@ -13,9 +13,9 @@ import {
   View,
 } from "react-native";
 
-import { NoxaScreen } from "@/src/components/ui";
+import { NoxaIconButton, NoxaScreen, NoxaTopBar } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type SocialTab = "followers" | "following";
 
@@ -52,21 +52,17 @@ function getInitials(displayName: string) {
 
 function Header() {
   return (
-    <View style={styles.header}>
-      <Pressable
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-      >
-        <Ionicons name="chevron-back" size={22} color={colors.text} />
-      </Pressable>
-      <View style={styles.headerCopy}>
-        <Text style={styles.headerTitle}>SOCIAL</Text>
-        <Text style={styles.headerSubtitle}>Followers &amp; Following</Text>
-      </View>
-      <View style={styles.headerSpacer} />
-    </View>
+    <NoxaTopBar
+      left={
+        <NoxaIconButton
+          accessibilityLabel="Go back"
+          icon="chevron-back"
+          onPress={() => router.back()}
+          variant="ghost"
+        />
+      }
+      title="Social"
+    />
   );
 }
 
@@ -82,7 +78,7 @@ function SocialTabs({
   onChange: (tab: SocialTab) => void;
 }) {
   return (
-    <View style={styles.tabsCard}>
+    <View style={styles.tabs}>
       {(["followers", "following"] as const).map((tab) => {
         const isActive = activeTab === tab;
         return (
@@ -141,6 +137,7 @@ function StateCard({
 function SocialRow({ profile }: { profile: SocialProfile }) {
   const displayName = profile.display_name?.trim() || "NOXA Driver";
   const username = profile.username ? `@${profile.username}` : "@noxa.driver";
+  const meta = profile.city ? `${username} · ${profile.city}` : username;
 
   return (
     <Pressable
@@ -168,12 +165,9 @@ function SocialRow({ profile }: { profile: SocialProfile }) {
         <Text style={styles.userName} numberOfLines={1}>
           {displayName}
         </Text>
-        <Text style={styles.username}>{username}</Text>
-        <Text style={styles.city}>{profile.city || "NOXA community"}</Text>
+        <Text numberOfLines={1} style={styles.username}>{meta}</Text>
       </View>
-      <View style={styles.viewPill}>
-        <Text style={styles.viewPillText}>VIEW</Text>
-      </View>
+      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
   );
 }
@@ -422,7 +416,7 @@ export default function SocialListScreen() {
             <View style={styles.loadingCard}>
               <ActivityIndicator color={colors.primary} />
               <Text style={styles.stateMessage}>
-                Loading real social graph…
+                Loading…
               </Text>
             </View>
           ) : errorMessage ? (
@@ -442,48 +436,19 @@ export default function SocialListScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: 132,
     gap: 0,
   },
   listHeader: {
-    gap: spacing.md,
+    gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
-  },
-  headerCopy: { alignItems: "center", gap: spacing.xxs },
-  headerTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-  },
-  headerSubtitle: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  headerSpacer: { width: 44 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
-  tabsCard: {
+  tabs: {
     flexDirection: "row",
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   tabButton: {
@@ -499,10 +464,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "900",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
-  activeTabText: { color: colors.text },
+  activeTabText: { color: colors.text, fontWeight: "700" },
   searchShell: {
     minHeight: 46,
     flexDirection: "row",
@@ -523,60 +489,55 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   loadingCard: {
+    minHeight: 220,
     alignItems: "center",
+    justifyContent: "center",
     gap: spacing.md,
     marginTop: spacing.md,
-    padding: spacing.xl,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
   },
   stateCard: {
-    gap: spacing.md,
+    gap: spacing.sm,
     marginTop: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   stateTitle: {
     color: colors.text,
-    fontSize: typography.h2,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   stateMessage: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    fontWeight: "700",
-    lineHeight: 22,
+    ...typography.v2.body,
   },
   retryButton: {
     alignSelf: "flex-start",
+    minHeight: 40,
+    justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
+    borderRadius: radius.button,
     backgroundColor: colors.primary,
-    ...shadows.redGlow,
   },
   retryText: {
     color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "900",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   userRow: {
-    minHeight: 76,
+    minHeight: 68,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   avatar: {
-    width: 50,
-    height: 50,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -584,27 +545,25 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.14)",
     backgroundColor: colors.primaryMuted,
   },
-  avatarImage: { width: 50, height: 50, borderRadius: 25 },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   avatarText: {
     color: colors.text,
     fontSize: typography.body,
     fontWeight: "900",
   },
-  userCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
+  userCopy: { flex: 1, minWidth: 0 },
   userName: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "800",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "600",
   },
   username: {
+    marginTop: 2,
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  city: {
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: "700",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
   viewPill: {
     paddingHorizontal: spacing.sm,

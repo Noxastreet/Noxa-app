@@ -117,70 +117,44 @@ export default function GroupDrivesScreen() {
         ListHeaderComponent={
           <View style={styles.headerBlock}>
             <GroupDriveHeader
-              title="GROUP DRIVES"
-              subtitle="Private drives with invited people"
+              title="Group Drives"
               right={
                 <NoxaIconButton
-                  accessibilityLabel="Refresh Group Drives"
-                  icon="refresh"
-                  onPress={() => void load(true)}
+                  accessibilityLabel="Create Group Drive"
+                  accessibilityHint="Starts Group Drive setup"
+                  icon="add"
+                  onPress={() => router.push('/group-drives/details')}
                   variant="ghost"
                 />
               }
             />
-            <View style={styles.hero}>
-              <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
-              <Text style={styles.heroTitle}>A route shared with the people you choose.</Text>
-              <Text style={styles.heroBody}>
-                Invite-only by default. Exact route details appear only after a driver joins.
-              </Text>
-              <NoxaButton
-                fullWidth
-                leadingIcon={<Ionicons name="add" size={20} color={colors.text} />}
-                onPress={() => router.push('/group-drives/details')}
-                title="Create Group Drive"
-              />
-            </View>
             {activeDrive ? (
-              <View style={styles.notice}>
-                <View style={styles.noticeCopy}>
-                  <View style={styles.noticeTitleRow}>
-                    <Ionicons name="navigate" size={18} color={colors.primaryHover} />
-                    <Text style={styles.noticeTitle}>ACTIVE DRIVE</Text>
-                  </View>
-                  <Text style={styles.noticeText}>
-                    {activeDrive.title} is active. Resume the map without changing your participation or location-sharing choice.
-                  </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Resume ${activeDrive.title}`}
+                onPress={() => router.push({
+                  pathname: '/group-drives/[id]/active',
+                  params: { id: activeDrive.driveSessionId },
+                })}
+                style={({ pressed }) => [styles.activeDriveRow, pressed && styles.rowPressed]}
+              >
+                <View style={styles.activeDriveIcon}>
+                  <Ionicons name="navigate" size={19} color={colors.primaryHover} />
                 </View>
-                <NoxaButton
-                  fullWidth
-                  title="Resume Active Drive"
-                  onPress={() => router.push({
-                    pathname: '/group-drives/[id]/active',
-                    params: { id: activeDrive.driveSessionId },
-                  })}
-                />
-                <NoxaButton
-                  fullWidth
-                  variant="secondary"
-                  title="Group Drive location"
-                  onPress={() => router.push({
-                    pathname: '/group-drives/[id]/location-sharing',
-                    params: { id: activeDrive.driveSessionId },
-                  })}
-                />
-                <NoxaButton
-                  fullWidth
-                  variant="ghost"
-                  title="Drive controls"
-                  onPress={() => router.push({
-                    pathname: '/group-drives/[id]/controls',
-                    params: { id: activeDrive.driveSessionId },
-                  })}
-                />
-              </View>
+                <View style={styles.noticeCopy}>
+                  <Text style={styles.noticeTitle}>Active Drive</Text>
+                  <Text numberOfLines={1} style={styles.noticeText}>{activeDrive.title}</Text>
+                </View>
+                <Text style={styles.resumeText}>Resume</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </Pressable>
             ) : null}
-            <Text style={styles.sectionTitle}>YOUR DRIVES</Text>
+            <View style={styles.listHeading}>
+              <Text style={styles.sectionTitle}>Your drives</Text>
+              <Text style={styles.sectionMeta}>
+                {drives.length === 1 ? '1 drive' : `${drives.length} drives`}
+              </Text>
+            </View>
           </View>
         }
         ListEmptyComponent={
@@ -195,7 +169,7 @@ export default function GroupDrivesScreen() {
             <NoxaEmptyState
               icon="navigate-outline"
               title="No Group Drives yet"
-              body="Create a real route and invite friends or Crew members. Nothing is invented here."
+              body="Create a route and invite friends or Crew members."
             />
           )
         }
@@ -207,57 +181,102 @@ export default function GroupDrivesScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  headerBlock: { gap: spacing.lg, marginBottom: spacing.lg },
-  hero: { gap: spacing.md, paddingVertical: spacing.lg },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: '900',
-    letterSpacing: 2.2,
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xxl,
   },
-  heroTitle: {
+  headerBlock: { gap: spacing.md, marginBottom: spacing.sm },
+  activeDriveRow: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  activeDriveIcon: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
+  noticeCopy: { flex: 1, minWidth: 0 },
+  noticeTitle: {
+    color: colors.primaryHover,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  noticeText: {
+    marginTop: 2,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.section,
-    fontWeight: '900',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
   },
-  heroBody: { color: colors.textMuted, ...typography.v2.body },
-  sectionTitle: {
-    color: colors.textSubtle,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.6,
+  resumeText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
-  notice: {
+  listHeading: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
   },
-  noticeCopy: { gap: spacing.xs },
-  noticeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  noticeTitle: { color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  noticeText: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  sectionTitle: {
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  sectionMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
   row: {
-    minHeight: 148,
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    minHeight: 100,
+    paddingVertical: spacing.md,
+    paddingRight: spacing.xl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  rowPressed: { backgroundColor: colors.surfacePressed },
-  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  invited: { color: colors.primaryHover, fontSize: 11, fontWeight: '800' },
-  activeLabel: { color: colors.success, fontSize: 11, fontWeight: '800' },
-  terminalLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800' },
-  rowTitle: { marginTop: spacing.md, marginBottom: spacing.sm, color: colors.text, fontSize: 20, fontWeight: '900' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xxs },
-  meta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  chevron: { position: 'absolute', right: spacing.md, bottom: spacing.md },
-  separator: { height: spacing.sm },
+  rowPressed: { opacity: 0.72 },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  invited: { color: colors.primaryHover, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  activeLabel: { color: colors.success, fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  terminalLabel: { color: colors.textMuted, fontSize: 11, lineHeight: 14, fontWeight: '600' },
+  rowTitle: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  meta: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  chevron: {
+    position: 'absolute',
+    right: 0,
+    top: '50%',
+  },
+  separator: { height: 0 },
   emptyWrap: { gap: spacing.md },
 });

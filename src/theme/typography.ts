@@ -2,10 +2,15 @@ import { Platform } from 'react-native';
 
 export const typography = {
   fontFamily: {
-    display: Platform.select({
+    brandDisplay: Platform.select({
       ios: 'HelveticaNeue-CondensedBold',
       android: 'sans-serif-condensed',
       default: 'Arial Narrow',
+    }),
+    display: Platform.select({
+      ios: 'System',
+      android: 'sans-serif',
+      default: 'system-ui',
     }),
     body: Platform.select({
       ios: 'System',

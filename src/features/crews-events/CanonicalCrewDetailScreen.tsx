@@ -21,8 +21,6 @@ import {
 import {
   CanonicalArtwork,
   CanonicalAvatar,
-  CanonicalAvatarStack,
-  CanonicalPill,
   CanonicalPrimaryButton,
   initials,
   profileName,
@@ -95,7 +93,7 @@ const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function formatDrive(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
@@ -103,12 +101,11 @@ function formatDrive(value: string) {
 }
 
 function formatEstablished(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     month: "short",
     year: "numeric",
   })
-    .format(new Date(value))
-    .toUpperCase();
+    .format(new Date(value));
 }
 
 function vehicleName(vehicle: Vehicle) {
@@ -119,9 +116,9 @@ function vehicleName(vehicle: Vehicle) {
 }
 
 function joinPolicyLabel(policy: JoinPolicy) {
-  if (policy === "open") return "OPEN JOIN";
-  if (policy === "approval") return "APPROVAL";
-  return "INVITE ONLY";
+  if (policy === "open") return "Open";
+  if (policy === "approval") return "Approval";
+  return "Invite only";
 }
 
 function CrewLogo({ crew, size = 58 }: { crew: Crew; size?: number }) {
@@ -194,7 +191,7 @@ function MembershipButton({
         compact
         disabled
         icon="shield-checkmark-outline"
-        label="OWNER"
+        label="Owner"
         variant="surface"
         onPress={() => undefined}
       />
@@ -206,7 +203,7 @@ function MembershipButton({
       <CanonicalPrimaryButton
         compact
         icon="checkmark"
-        label="JOINED"
+        label="Joined"
         loading={busy}
         variant="surface"
         onPress={onLeave}
@@ -218,7 +215,7 @@ function MembershipButton({
     return (
       <CanonicalPrimaryButton
         compact
-        label="REQUESTED"
+        label="Requested"
         loading={busy}
         variant="surface"
         onPress={onCancelRequest}
@@ -232,7 +229,7 @@ function MembershipButton({
         compact
         disabled
         icon="lock-closed-outline"
-        label="INVITE ONLY"
+        label="Invite only"
         variant="surface"
         onPress={() => undefined}
       />
@@ -242,7 +239,7 @@ function MembershipButton({
   return (
     <CanonicalPrimaryButton
       compact
-      label={crew.join_policy === "approval" ? "REQUEST" : "JOIN"}
+      label={crew.join_policy === "approval" ? "Request" : "Join"}
       loading={busy}
       onPress={onJoin}
     />
@@ -253,78 +250,38 @@ function CrewHero({
   crew,
   owner,
   members,
-  artworkUri,
   membershipButton,
 }: {
   crew: Crew;
   owner: CanonicalProfile | null;
   members: Member[];
-  artworkUri: string | null;
   membershipButton: ReactNode;
 }) {
-  const profiles = members
-    .map((member) => member.profile)
-    .filter((profile): profile is CanonicalProfile => Boolean(profile));
-
   return (
-    <CanonicalArtwork
-      uri={artworkUri}
-      style={styles.hero}
-      imageStyle={styles.heroImage}
-      icon="people-outline"
-    >
-      <View style={styles.heroShadeTop} />
-      <View style={styles.heroShadeBottom} />
-
-      <View style={styles.heroTopRow}>
-        <View style={styles.heroPills}>
-          <CanonicalPill label={crew.is_public ? "PUBLIC" : "PRIVATE"} />
-          <CanonicalPill
-            label={members.length ? "ACTIVE" : "NEW"}
-            tone="accent"
-          />
-        </View>
-        <CanonicalAvatarStack
-          profiles={profiles}
-          total={members.length}
-          max={3}
-          size={27}
-        />
+    <View style={styles.heroIdentityBlock}>
+      <CrewLogo crew={crew} size={56} />
+      <View style={styles.heroNameBlock}>
+        <Text numberOfLines={2} style={styles.heroTitle}>
+          {crew.name}
+        </Text>
+        <Text numberOfLines={1} style={styles.heroMeta}>
+          {crew.city || "Location not set"} · {members.length} {members.length === 1 ? "member" : "members"}
+        </Text>
+        <Text numberOfLines={1} style={styles.founderName}>
+          Founded by {profileName(owner)}
+        </Text>
       </View>
-
-      <View style={styles.heroCopy}>
-        <View style={styles.heroIdentity}>
-          <CrewLogo crew={crew} />
-          <View style={styles.heroNameBlock}>
-            <Text numberOfLines={2} style={styles.heroTitle}>
-              {crew.name.toUpperCase()}
-            </Text>
-            <Text numberOfLines={1} style={styles.heroMeta}>
-              {(crew.city || "NOXA").toUpperCase()} · {members.length} MEMBERS
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.heroFooter}>
-          <View style={styles.founderBlock}>
-            <Text style={styles.founderEyebrow}>FOUNDED BY</Text>
-            <Text numberOfLines={1} style={styles.founderName}>
-              {profileName(owner)}
-            </Text>
-          </View>
-          <View style={styles.membershipButton}>{membershipButton}</View>
-        </View>
-      </View>
-    </CanonicalArtwork>
+      <View style={styles.membershipButton}>{membershipButton}</View>
+    </View>
   );
 }
 
 function TabBar({ value, onChange }: { value: CrewTab; onChange: (tab: CrewTab) => void }) {
   const tabs: { value: CrewTab; label: string }[] = [
-    { value: "activity", label: "ACTIVITY" },
-    { value: "events", label: "EVENTS" },
-    { value: "members", label: "MEMBERS" },
-    { value: "about", label: "ABOUT" },
+    { value: "activity", label: "Activity" },
+    { value: "events", label: "Events" },
+    { value: "members", label: "Members" },
+    { value: "about", label: "About" },
   ];
 
   return (
@@ -384,9 +341,9 @@ function EventRow({ event }: { event: CrewEvent }) {
         <View style={styles.eventShade} />
       </CanonicalArtwork>
       <View style={styles.eventCopy}>
-        <Text style={styles.eventEyebrow}>UPCOMING DRIVE</Text>
+        <Text style={styles.eventEyebrow}>Upcoming</Text>
         <Text numberOfLines={1} style={styles.eventTitle}>
-          {event.title.toUpperCase()}
+          {event.title}
         </Text>
         <Text numberOfLines={1} style={styles.eventMeta}>
           {formatDrive(event.starts_at)} · {event.location_name}
@@ -412,12 +369,12 @@ function ActivityTab({
     <View style={styles.tabContent}>
       {events[0] ? (
         <>
-          <SectionTitle title="NEXT FROM THE CREW" />
+          <SectionTitle title="Next drive" />
           <EventRow event={events[0]} />
         </>
       ) : null}
 
-      <SectionTitle title="RECENT ACTIVITY" />
+      <SectionTitle title="Recent activity" />
       <View style={styles.activityCard}>
         {events[0] ? (
           <View style={styles.activityLine}>
@@ -450,53 +407,24 @@ function ActivityTab({
         ) : null}
       </View>
 
-      <SectionTitle title="CREW GARAGE" meta={`${vehicles.length} CARS`} />
+      <SectionTitle
+        title="Garage"
+        meta={vehicles.length === 1 ? "1 vehicle" : `${vehicles.length} vehicles`}
+      />
       <Pressable
         accessibilityLabel="Open crew garage"
         accessibilityRole="button"
-        onPress={() =>
-          router.push({ pathname: "/crew-garage", params: { id: crew.id } })
-        }
-        style={({ pressed }) => [styles.garageCard, pressed && styles.pressed]}
+        onPress={() => router.push({ pathname: "/crew-garage", params: { id: crew.id } })}
+        style={({ pressed }) => [styles.garageRow, pressed && styles.pressed]}
       >
-        <CanonicalArtwork
-          uri={vehicles[0]?.cover_image_url}
-          style={styles.garageArtwork}
-          imageStyle={styles.garageArtworkImage}
-          icon="car-sport-outline"
-        >
-          <View style={styles.garageShade} />
-          <View style={styles.garageCopy}>
-            <Text style={styles.garageEyebrow}>MEMBER CARS</Text>
-            <Text style={styles.garageTitle}>GARAGE</Text>
-          </View>
-          <View style={styles.garageArrow}>
-            <Ionicons name="arrow-forward" size={18} color={colors.text} />
-          </View>
-        </CanonicalArtwork>
+        <CanonicalArtwork uri={vehicles[0]?.cover_image_url} style={styles.garageThumb} imageStyle={styles.garageThumbImage} icon="car-sport-outline" />
+        <View style={styles.garageRowCopy}>
+          <Text style={styles.garageTitle}>Garage</Text>
+          <Text numberOfLines={1} style={styles.garageMeta}>{vehicles[0] ? vehicleName(vehicles[0]) : "No public vehicles yet"}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
       </Pressable>
-
-      {vehicles.length ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.vehicleList}
-        >
-          {vehicles.slice(0, 8).map((vehicle) => (
-            <View key={vehicle.id} style={styles.vehicleCard}>
-              <CanonicalArtwork
-                uri={vehicle.cover_image_url}
-                style={styles.vehicleArtwork}
-                imageStyle={styles.vehicleArtworkImage}
-                icon="car-sport-outline"
-              />
-              <Text numberOfLines={1} style={styles.vehicleTitle}>
-                {vehicleName(vehicle)}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      ) : null}
+    
     </View>
   );
 }
@@ -504,7 +432,7 @@ function ActivityTab({
 function EventsTab({ events }: { events: CrewEvent[] }) {
   return (
     <View style={styles.tabContent}>
-      <SectionTitle title="CREW EVENTS" meta={`${events.length} UPCOMING`} />
+      <SectionTitle title="Events" meta={`${events.length} upcoming`} />
       {events.length ? (
         <View style={styles.listGap}>
           {events.map((event) => (
@@ -525,7 +453,7 @@ function EventsTab({ events }: { events: CrewEvent[] }) {
 function MembersTab({ members, ownerId }: { members: Member[]; ownerId: string }) {
   return (
     <View style={styles.tabContent}>
-      <SectionTitle title="MEMBERS" meta={`${members.length} TOTAL`} />
+      <SectionTitle title="Members" meta={`${members.length} total`} />
       {members.length ? (
         <View style={styles.memberList}>
           {members.map((member) => (
@@ -535,7 +463,7 @@ function MembersTab({ members, ownerId }: { members: Member[]; ownerId: string }
                 <Text numberOfLines={1} style={styles.memberName}>
                   {profileName(member.profile)}
                 </Text>
-                <Text style={styles.memberRole}>{member.role.toUpperCase()}</Text>
+                <Text style={styles.memberRole}>{member.role}</Text>
               </View>
               {member.user_id === ownerId ? (
                 <Ionicons
@@ -561,22 +489,21 @@ function MembersTab({ members, ownerId }: { members: Member[]; ownerId: string }
 function AboutTab({ crew, owner }: { crew: Crew; owner: CanonicalProfile | null }) {
   return (
     <View style={styles.tabContent}>
-      <SectionTitle title="ABOUT THE CREW" />
+      <SectionTitle title="About" />
       <View style={styles.aboutCard}>
         <Text style={styles.aboutText}>
-          {crew.description ||
-            "This crew has not added its story yet. Respect the road, the people and the location."}
+          {crew.description || "No description provided."}
         </Text>
       </View>
 
-      <SectionTitle title="CREW DETAILS" />
+      <SectionTitle title="Details" />
       <View style={styles.factsCard}>
         {[
-          ["FOUNDER", profileName(owner)],
-          ["CITY", crew.city || "Not specified"],
-          ["VISIBILITY", crew.is_public ? "Public" : "Private"],
-          ["MEMBERSHIP", joinPolicyLabel(crew.join_policy)],
-          ["ESTABLISHED", formatEstablished(crew.created_at)],
+          ["Founder", profileName(owner)],
+          ["City", crew.city || "Not specified"],
+          ["Visibility", crew.is_public ? "Public" : "Private"],
+          ["Membership", joinPolicyLabel(crew.join_policy)],
+          ["Established", formatEstablished(crew.created_at)],
         ].map(([label, value]) => (
           <View key={label} style={styles.factRow}>
             <Text style={styles.factLabel}>{label}</Text>
@@ -906,15 +833,6 @@ export default function CanonicalCrewDetailScreen() {
     shareCrew,
   ]);
 
-  const artworkUri = useMemo(
-    () =>
-      crew?.cover_image_url ||
-      events.find((event) => event.cover_image_url)?.cover_image_url ||
-      vehicles.find((vehicle) => vehicle.cover_image_url)?.cover_image_url ||
-      null,
-    [crew?.cover_image_url, events, vehicles],
-  );
-
   if (loading) {
     return (
       <NoxaScreen>
@@ -937,7 +855,7 @@ export default function CanonicalCrewDetailScreen() {
             {error || "This crew no longer exists."}
           </Text>
           <CanonicalPrimaryButton
-            label="GO BACK"
+            label="Go back"
             variant="surface"
             onPress={() => router.back()}
           />
@@ -968,7 +886,6 @@ export default function CanonicalCrewDetailScreen() {
         <CrewHeader onMore={() => setActionsOpen(true)} />
 
         <CrewHero
-          artworkUri={artworkUri}
           crew={crew}
           members={members}
           membershipButton={membershipButton}
@@ -1021,8 +938,8 @@ export default function CanonicalCrewDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 104, gap: spacing.md },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
+  content: { paddingBottom: 104, gap: spacing.sm },
+  pressed: { opacity: 0.72 },
   header: {
     height: 60,
     flexDirection: "row",
@@ -1031,137 +948,89 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   headerButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
   },
-  hero: {
-    minHeight: 302,
-    justifyContent: "flex-end",
-    marginHorizontal: spacing.md,
-    padding: spacing.md,
-    paddingTop: 78,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  heroImage: { borderRadius: radius.hero - 1 },
-  heroShadeTop: {
-    ...StyleSheet.absoluteFillObject,
-    bottom: "48%",
-    backgroundColor: "rgba(0,0,0,0.12)",
-  },
-  heroShadeBottom: {
-    ...StyleSheet.absoluteFillObject,
-    top: "30%",
-    backgroundColor: "rgba(0,0,0,0.78)",
-  },
-  heroTopRow: {
-    position: "absolute",
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
+  heroIdentityBlock: {
+    minHeight: 92,
     flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
+    alignItems: "center",
     gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
-  heroPills: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  heroCopy: { gap: spacing.md },
-  heroIdentity: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   heroNameBlock: { flex: 1, minWidth: 0 },
   heroTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 29,
-    lineHeight: 33,
-    fontWeight: "900",
-    letterSpacing: -0.45,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.3,
+    fontWeight: "700",
   },
   heroMeta: {
+    marginTop: 3,
     color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "700",
-    letterSpacing: 0.25,
-  },
-  heroFooter: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  founderBlock: { flex: 1, minWidth: 0 },
-  founderEyebrow: {
-    color: colors.textSubtle,
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
   },
   founderName: {
     marginTop: 2,
-    color: colors.text,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
+    color: colors.textTertiary,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
-  membershipButton: { alignSelf: "flex-end", minWidth: 106 },
+  membershipButton: { alignSelf: "center", minWidth: 96 },
   logoFallback: {
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: colors.surfaceSoft,
   },
-  logoFallbackText: { color: colors.text, fontSize: 15, fontWeight: "900" },
+  logoFallbackText: { color: colors.text, fontSize: 15, fontWeight: "800" },
   errorBanner: {
-    minHeight: 48,
+    minHeight: 44,
     marginHorizontal: spacing.md,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
-  errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
+  errorText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   tabs: {
     flexDirection: "row",
-    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xxs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   tab: {
     flex: 1,
     minWidth: 0,
-    minHeight: 40,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.xs,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.xxs,
   },
   tabActive: {
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceRaised,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
   },
   tabText: {
-    color: colors.textSubtle,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "900",
-    letterSpacing: 0.25,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
     textAlign: "center",
   },
-  tabTextActive: { color: colors.text },
+  tabTextActive: { color: colors.text, fontWeight: "700" },
   tabContent: { paddingHorizontal: spacing.md, gap: spacing.md },
   sectionTitleRow: {
     minHeight: 24,
@@ -1172,206 +1041,135 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: "900",
-    letterSpacing: 0.25,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   sectionMeta: {
-    color: colors.textSubtle,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "800",
-    letterSpacing: 0.35,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
-  listGap: { gap: spacing.sm },
+  listGap: { gap: 0 },
   eventRow: {
-    minHeight: 92,
+    minHeight: 84,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  eventArtwork: { width: 76, height: 68, borderRadius: radius.md },
-  eventArtworkImage: { borderRadius: radius.md },
+  eventArtwork: { width: 64, height: 56, borderRadius: radius.sm },
+  eventArtworkImage: { borderRadius: radius.sm },
   eventShade: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.18)",
+    backgroundColor: "rgba(0,0,0,0.12)",
   },
   eventCopy: { flex: 1, minWidth: 0, gap: 2 },
   eventEyebrow: {
-    color: colors.primaryHover,
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: "900",
-    letterSpacing: 0.45,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
   },
   eventTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 17,
-    lineHeight: 20,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
-  eventMeta: { color: colors.textMuted, fontSize: 10, lineHeight: 14 },
-  activityCard: {
+  eventMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 16 },
+  activityCard: { gap: spacing.sm },
+  activityLine: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
-  activityLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   activityIcon: {
     width: 36,
     height: 36,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 18,
-    backgroundColor: colors.primaryMuted,
   },
   activityCopy: { flex: 1, minWidth: 0 },
-  activityTitle: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800" },
-  activityMeta: { color: colors.textMuted, fontSize: 10, lineHeight: 14 },
-  garageCard: {
-    height: 154,
-    overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  garageArtwork: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    padding: spacing.md,
-  },
-  garageArtworkImage: { borderRadius: radius.lg - 1 },
-  garageShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  garageCopy: { gap: 1 },
-  garageEyebrow: {
-    color: colors.textMuted,
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: "900",
-    letterSpacing: 0.45,
-  },
-  garageTitle: {
+  activityTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 24,
-    lineHeight: 28,
-    fontWeight: "900",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "600",
   },
-  garageArrow: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 19,
-    backgroundColor: "rgba(20,20,26,0.78)",
+  activityMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 16 },
+  garageRow: {
+    minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider,
   },
-  vehicleList: { gap: spacing.sm, paddingRight: spacing.md },
-  vehicleCard: { width: 148, gap: spacing.xs },
-  vehicleArtwork: { height: 94, borderRadius: radius.md },
-  vehicleArtworkImage: { borderRadius: radius.md },
-  vehicleTitle: { color: colors.text, fontSize: 10, lineHeight: 14, fontWeight: "700" },
-  memberList: {
-    overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
+  garageThumb: { width: 72, height: 52, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
+  garageThumbImage: { borderRadius: radius.sm },
+  garageRowCopy: { flex: 1, minWidth: 0 },
+  garageTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
+  garageMeta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
+  memberList: { overflow: "hidden" },
   memberRow: {
-    minHeight: 66,
+    minHeight: 64,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderColor: colors.divider,
   },
   memberCopy: { flex: 1, minWidth: 0 },
-  memberName: { color: colors.text, fontSize: 13, lineHeight: 17, fontWeight: "800" },
+  memberName: { color: colors.text, ...typography.v2.row, fontWeight: "600" },
   memberRole: {
-    color: colors.textSubtle,
-    fontSize: 8,
-    lineHeight: 11,
-    fontWeight: "900",
-    letterSpacing: 0.4,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
+    textTransform: "capitalize",
   },
-  aboutCard: {
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  aboutText: { color: colors.text, fontSize: 14, lineHeight: 21 },
-  factsCard: {
-    overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
+  aboutCard: { paddingVertical: spacing.xs },
+  aboutText: { color: colors.text, ...typography.v2.body },
+  factsCard: { overflow: "hidden" },
   factRow: {
     minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderColor: colors.divider,
   },
   factLabel: {
-    color: colors.textSubtle,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "900",
-    letterSpacing: 0.45,
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
   },
   factValue: {
     flex: 1,
     color: colors.text,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
     textAlign: "right",
   },
   emptyCard: {
-    minHeight: 190,
+    minHeight: 132,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xl,
   },
   emptyTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   emptyText: {
     color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: "center",
   },
   state: {
@@ -1384,15 +1182,13 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
+    ...typography.v2.section,
     fontWeight: "900",
     textAlign: "center",
   },
   stateText: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body,
+    ...typography.v2.body,
     textAlign: "center",
   },
 });

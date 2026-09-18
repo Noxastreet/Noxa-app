@@ -52,7 +52,7 @@ if (!failures.length) {
     ['pending server action storage is missing', pendingAction, /GROUP_DRIVE_PENDING_SERVER_ACTION_KEY/],
     ['terminal list items do not route to summary', list, /terminal[\s\S]*\/group-drives\/\[id\]\/summary/],
     ['active list items do not resume the Active Drive map', list, /if \(active\)[\s\S]*\/group-drives\/\[id\]\/active/],
-    ['active drive context does not expose lifecycle controls', list, /Resume Active Drive[\s\S]*Drive controls[\s\S]*\/group-drives\/\[id\]\/controls/],
+    ['active drive context does not expose lifecycle controls', active, /Drive controls[\s\S]*\/group-drives\/\[id\]\/controls/],
     ['host End Drive control missing', controls, /End Group Drive/],
     ['participant Leave Drive control missing', controls, /Leave Group Drive/],
     ['active participant stack does not open the full list', active, /onOpenParticipants[\s\S]*\/group-drives\/\[id\]\/participants/],
@@ -61,7 +61,7 @@ if (!failures.length) {
     ['host participant removal client is not wired', participantManagement, /noxa_remove_drive_participant/],
     ['active participant list does not expose host removal', participants, /isHost[\s\S]*Remove/],
     ['active participant list does not protect the host from removal', participants, /participant\.userId === drive\.hostId/],
-    ['summary does not label route values as planned', summary, /PLANNED ROUTE[\s\S]*PLANNED TIME/],
+    ['summary does not label route values as planned', summary, /Planned route[\s\S]*Planned time/i],
   ];
   for (const [label, text, pattern] of requiredClient) {
     if (!pattern.test(text)) failures.push(label);

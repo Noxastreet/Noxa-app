@@ -15,9 +15,9 @@ import {
   View,
 } from "react-native";
 
-import { NoxaButton, NoxaInput, NoxaScreen } from "@/src/components/ui";
+import { NoxaButton, NoxaIconButton, NoxaInput, NoxaScreen, NoxaTopBar } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing } from "@/src/theme";
 
 const postImagesBucket = "post-images";
 const maxPostImageBytes = 10 * 1024 * 1024;
@@ -192,23 +192,18 @@ export default function PostEditorScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}>
         <View style={styles.header}>
-          <Pressable
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-            disabled={publishing}
-            onPress={() => router.back()}
-            style={({ pressed }) => [
-              styles.headerButton,
-              publishing && styles.disabled,
-              pressed && !publishing && styles.pressed,
-            ]}>
-            <Ionicons name="chevron-back" size={22} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerTitle}>NEW POST</Text>
-            <Text style={styles.headerSubtitle}>Share your NOXA moment</Text>
-          </View>
-          <View style={styles.headerSpacer} />
+          <NoxaTopBar
+            left={
+              <NoxaIconButton
+                accessibilityLabel="Go back"
+                disabled={publishing}
+                icon="chevron-back"
+                onPress={() => router.back()}
+                variant="ghost"
+              />
+            }
+            title="New Post"
+          />
         </View>
 
         <ScrollView
@@ -228,20 +223,19 @@ export default function PostEditorScreen() {
                 <View style={styles.imageIcon}>
                   <Ionicons name="images-outline" size={31} color={colors.primaryHover} />
                 </View>
-                <Text style={styles.imageTitle}>CHOOSE A PHOTO</Text>
+                <Text style={styles.imageTitle}>Choose a photo</Text>
                 <Text style={styles.imageCaption}>Square crop · up to 10 MB</Text>
               </View>
             )}
             {imageAsset ? (
               <View style={styles.changeBadge}>
                 <Ionicons name="camera-outline" size={15} color={colors.text} />
-                <Text style={styles.changeText}>CHANGE</Text>
+                <Text style={styles.changeText}>Change</Text>
               </View>
             ) : null}
           </Pressable>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.eyebrow}>POST DETAILS</Text>
+          <View style={styles.fields}>
             <NoxaInput
               label="Caption"
               maxLength={2200}
@@ -275,7 +269,7 @@ export default function PostEditorScreen() {
             fullWidth
             loading={publishing}
             onPress={() => void publishPost()}
-            title="PUBLISH POST"
+            title="Publish post"
           />
         </View>
       </KeyboardAvoidingView>
@@ -286,67 +280,29 @@ export default function PostEditorScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: {
-    minHeight: 74,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  headerButton: {
-    width: 42,
-    height: 42,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  headerCopy: { flex: 1 },
-  headerSpacer: { width: 42 },
-  headerTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.sectionTitle,
-    fontWeight: "900",
-    textAlign: "center",
-    letterSpacing: 0.8,
-  },
-  headerSubtitle: {
-    marginTop: 1,
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  content: { padding: spacing.lg, paddingBottom: 118, gap: spacing.lg },
+  content: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: 118, gap: spacing.md },
   imageCard: {
     position: "relative",
     width: "100%",
     aspectRatio: 1,
     overflow: "hidden",
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSoft,
   },
   imagePreview: { width: "100%", height: "100%" },
-  imageEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  imageEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.xs },
   imageIcon: {
-    width: 68,
-    height: 68,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySubtle,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
   },
-  imageTitle: { color: colors.text, fontSize: 13, fontWeight: "900", letterSpacing: 1 },
-  imageCaption: { color: colors.textMuted, fontSize: 11, fontWeight: "700" },
+  imageTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
+  imageCaption: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   changeBadge: {
     position: "absolute",
     right: spacing.sm,
@@ -359,20 +315,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.glass,
+    backgroundColor: colors.background,
   },
-  changeText: { color: colors.text, fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
-  sectionCard: {
+  changeText: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "600" },
+  fields: {
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingTop: spacing.xs,
   },
-  eyebrow: { color: colors.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.6 },
   captionInput: { minHeight: 118, paddingTop: spacing.md, textAlignVertical: "top" },
-  counter: { marginTop: -spacing.sm, color: colors.textSubtle, fontSize: 9, fontWeight: "800", textAlign: "right" },
+  counter: { marginTop: -spacing.sm, color: colors.textSubtle, fontSize: 10, lineHeight: 14, fontWeight: "500", textAlign: "right" },
   errorCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -389,10 +340,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.glass,
   },

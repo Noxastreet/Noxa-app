@@ -142,20 +142,13 @@ export default function VisibilitySetupScreen() {
       <View style={styles.screen}>
         <View style={styles.header}>
           <NoxaCompactLogo size="sm" />
-          <Text style={styles.headerLabel}>VISIBILITY SETUP</Text>
+          <Text style={styles.headerLabel}>Visibility</Text>
         </View>
 
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-          <View style={styles.heroIcon}>
-            <Ionicons name="navigate" size={34} color={colors.text} />
-          </View>
-
           <View style={styles.copy}>
-            <Text maxFontSizeMultiplier={1.4} style={styles.kicker}>
-              LIVE MAP
-            </Text>
             <Text maxFontSizeMultiplier={1.5} style={styles.title}>
               Be part of the live map
             </Text>
@@ -242,114 +235,90 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    minHeight: 64,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
   },
   headerLabel: {
-    color: colors.textSubtle,
+    color: colors.textMuted,
     fontFamily: typography.fontFamily.body,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: typography.letterSpacing.label,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   content: {
     flexGrow: 1,
     justifyContent: 'center',
     gap: spacing.xl,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  heroIcon: {
-    width: 76,
-    height: 76,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    paddingVertical: spacing.xl,
   },
   copy: {
     maxWidth: 520,
     gap: spacing.sm,
   },
-  kicker: {
-    color: colors.primaryHover,
-    fontFamily: typography.fontFamily.body,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: typography.letterSpacing.label,
-  },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h1,
+    ...typography.v2.value,
     fontWeight: '900',
-    lineHeight: typography.lineHeight.h1,
-    letterSpacing: typography.letterSpacing.tight,
   },
   body: {
     maxWidth: 520,
     color: colors.textMuted,
     fontFamily: typography.fontFamily.body,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body,
+    ...typography.v2.body,
   },
   detailsCard: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   detailRow: {
+    minHeight: 64,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: spacing.sm,
   },
   detailIcon: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.primaryMuted,
   },
   detailCopy: {
     flex: 1,
-    gap: 3,
+    gap: 2,
   },
   detailTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.body,
     fontSize: 14,
-    fontWeight: '700',
+    lineHeight: 19,
+    fontWeight: '600',
   },
   detailBody: {
     color: colors.textMuted,
     fontFamily: typography.fontFamily.body,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 18,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
+    marginLeft: 44,
+    backgroundColor: colors.divider,
   },
   errorNotice: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderAccent,
   },
   errorText: {
     flex: 1,

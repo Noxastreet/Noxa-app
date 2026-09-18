@@ -82,7 +82,7 @@ function ManualEntryAction({ onPress }: { onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.manualAction, pressed && styles.pressed]}>
       <Ionicons name="create-outline" size={17} color={colors.textMuted} />
-      <Text style={styles.manualText}>CAN’T FIND IT? ADD MANUALLY</Text>
+      <Text style={styles.manualText}>Can’t find it? Add manually</Text>
     </Pressable>
   );
 }
@@ -229,7 +229,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
         showsVerticalScrollIndicator={false}>
         {step === 'type' ? (
           <VehiclePickerStage
-            eyebrow="NOXA GARAGE"
+            eyebrow="Garage"
             onBack={goBack}
             subtitle="Start with the machine that represents you."
             title="What do you drive?">
@@ -240,7 +240,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
             </View>
             {onSkip ? (
               <Pressable accessibilityRole="button" onPress={onSkip} style={({ pressed }) => [styles.skipAction, pressed && styles.pressed]}>
-                <Text style={styles.skipText}>SKIP FOR NOW</Text>
+                <Text style={styles.skipText}>Skip for now</Text>
               </Pressable>
             ) : null}
           </VehiclePickerStage>
@@ -248,7 +248,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
 
         {step === 'make' && selection.vehicleType ? (
           <VehiclePickerStage
-            eyebrow={selection.vehicleType === 'car' ? 'CAR' : 'MOTORCYCLE'}
+            eyebrow={selection.vehicleType === 'car' ? 'Car' : 'Motorcycle'}
             onBack={goBack}
             subtitle="Search or pick a familiar manufacturer."
             title="Choose make">
@@ -256,7 +256,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
 
             {hasMakeQuery ? (
               <View style={styles.sectionBlock}>
-                <Text style={styles.sectionLabel}>SEARCH RESULTS</Text>
+                <Text style={styles.sectionLabel}>Search results</Text>
                 <View style={styles.stack}>
                   {filteredMakes.map((item) => (
                     <MakeCard key={item.motionKey} item={item} onPress={() => selectMake(item.makeId)} />
@@ -266,7 +266,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
             ) : (
               <>
                 <View style={styles.sectionBlock}>
-                  <Text style={styles.sectionLabel}>POPULAR</Text>
+                  <Text style={styles.sectionLabel}>Popular</Text>
                   <View style={styles.popularGrid}>
                     {popularMakes.map((item) => (
                       <View key={`${item.motionKey}:popular-cell`} style={styles.popularCell}>
@@ -278,7 +278,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
 
                 {otherMakes.length > 0 ? (
                   <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionLabel}>MORE MAKES</Text>
+                    <Text style={styles.sectionLabel}>More makes</Text>
                     <View style={styles.stack}>
                       {otherMakes.map((item) => (
                         <MakeCard key={item.motionKey} item={item} onPress={() => selectMake(item.makeId)} />
@@ -296,7 +296,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
 
         {step === 'model' && selection.vehicleType && selection.makeId ? (
           <VehiclePickerStage
-            eyebrow={make?.name ?? 'MODEL'}
+            eyebrow={make?.name ?? 'Model'}
             onBack={goBack}
             subtitle="Choose the exact model."
             title="Choose model">
@@ -314,7 +314,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
 
         {step === 'generation' && selection.vehicleType && selection.makeId && selection.modelId ? (
           <VehiclePickerStage
-            eyebrow={model?.name ?? 'GENERATION'}
+            eyebrow={model?.name ?? 'Generation'}
             onBack={goBack}
             subtitle="Pick the generation that matches your vehicle."
             title="Choose generation">
@@ -329,7 +329,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
 
         {step === 'year' && selection.vehicleType && selection.makeId && selection.modelId ? (
           <VehiclePickerStage
-            eyebrow={generation?.label ?? model?.name ?? 'YEAR'}
+            eyebrow={generation?.label ?? model?.name ?? 'Year'}
             onBack={goBack}
             subtitle="Choose the production year."
             title="Choose year">
@@ -351,7 +351,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
 
         {step === 'confirm' && selection.vehicleType && selection.makeId && selection.modelId && selection.year ? (
           <VehiclePickerStage
-            eyebrow="YOUR VEHICLE"
+            eyebrow="Your vehicle"
             onBack={goBack}
             subtitle="Confirm the identity before adding details."
             title="Looks right?">
@@ -360,7 +360,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
                 <View style={styles.confirmIcon}>
                   <VehicleTypeIcon vehicleType={selection.vehicleType} size={24} color={colors.primaryHover} />
                 </View>
-                <Text style={styles.confirmEyebrow}>{selection.vehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
+                <Text style={styles.confirmEyebrow}>{selection.vehicleType === 'motorcycle' ? 'Motorcycle' : 'Car'}</Text>
               </View>
               <Text style={styles.confirmTitle}>{[make?.name, model?.name].filter(Boolean).join(' ')}</Text>
               <Text style={styles.confirmMeta}>{[generation?.label, selection.year].filter(Boolean).join(' · ')}</Text>
@@ -368,7 +368,7 @@ export function VehiclePicker({ onCancel, onComplete, onManualEntry, onSkip }: V
                 accessibilityRole="button"
                 onPress={() => onComplete(selection)}
                 style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-                <Text style={styles.primaryButtonText}>USE THIS VEHICLE</Text>
+                <Text style={styles.primaryButtonText}>Use this vehicle</Text>
                 <Ionicons name="arrow-forward" size={17} color={colors.text} />
               </Pressable>
             </View>
@@ -404,10 +404,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sectionLabel: {
-    color: colors.textSubtle,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.2,
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
   },
   popularGrid: {
     flexDirection: 'row',
@@ -452,9 +452,9 @@ const styles = StyleSheet.create({
   },
   manualText: {
     color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.75,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   skipAction: {
     minHeight: 48,
@@ -464,9 +464,9 @@ const styles = StyleSheet.create({
   },
   skipText: {
     color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   yearGrid: {
     flexDirection: 'row',
@@ -477,11 +477,10 @@ const styles = StyleSheet.create({
     width: '30.8%',
   },
   confirmCard: {
-    padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   confirmTopline: {
     flexDirection: 'row',
@@ -493,23 +492,18 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySubtle,
   },
   confirmEyebrow: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   confirmTitle: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 34,
-    textTransform: 'uppercase',
+    ...typography.v2.section,
+    fontWeight: '800',
   },
   confirmMeta: {
     marginTop: spacing.xs,
@@ -529,9 +523,9 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.text,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.84,

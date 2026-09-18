@@ -81,7 +81,7 @@ export default function WelcomeScreen() {
         />
 
         <View style={styles.bottomContent}>
-          <Text style={styles.eyebrow}>Premium Automotive Community</Text>
+          <Text style={styles.eyebrow}>Automotive community</Text>
           <Text
             style={[
               styles.headline,
@@ -90,8 +90,8 @@ export default function WelcomeScreen() {
                 lineHeight: headlineSize * 0.96,
               },
             ]}>
-            YOUR WORLD.{'\n'}
-            <Text style={styles.headlineAccent}>ON THE ROAD.</Text>
+            Your world.{'\n'}
+            <Text style={styles.headlineAccent}>On the road.</Text>
           </Text>
           <Text
             style={[
@@ -130,27 +130,25 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   eyebrow: {
-    marginBottom: 8,
-    color: colors.primaryHover,
+    marginBottom: spacing.xs,
+    color: colors.textMuted,
     fontFamily: typography.fontFamily.body,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.5,
-    lineHeight: 14,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 16,
   },
   headline: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontWeight: '900',
-    letterSpacing: 0.4,
+    fontFamily: typography.fontFamily.brandDisplay,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   headlineAccent: {
     color: colors.primary,
   },
   description: {
     marginTop: spacing.md,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
     color: 'rgba(240,240,244,0.62)',
     fontFamily: typography.fontFamily.body,
     fontSize: 14,
