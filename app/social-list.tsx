@@ -137,6 +137,7 @@ function StateCard({
 function SocialRow({ profile }: { profile: SocialProfile }) {
   const displayName = profile.display_name?.trim() || "NOXA Driver";
   const username = profile.username ? `@${profile.username}` : "@noxa.driver";
+  const meta = profile.city ? `${username} · ${profile.city}` : username;
 
   return (
     <Pressable
@@ -164,8 +165,7 @@ function SocialRow({ profile }: { profile: SocialProfile }) {
         <Text style={styles.userName} numberOfLines={1}>
           {displayName}
         </Text>
-        <Text style={styles.username}>{username}</Text>
-        <Text style={styles.city}>{profile.city || "NOXA community"}</Text>
+        <Text numberOfLines={1} style={styles.username}>{meta}</Text>
       </View>
       <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   userRow: {
-    minHeight: 76,
+    minHeight: 68,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -536,8 +536,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   avatar: {
-    width: 50,
-    height: 50,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -545,13 +545,13 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.14)",
     backgroundColor: colors.primaryMuted,
   },
-  avatarImage: { width: 50, height: 50, borderRadius: 25 },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   avatarText: {
     color: colors.text,
     fontSize: typography.body,
     fontWeight: "900",
   },
-  userCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
+  userCopy: { flex: 1, minWidth: 0 },
   userName: {
     color: colors.text,
     fontSize: 14,
@@ -559,15 +559,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   username: {
+    marginTop: 2,
     color: colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: "500",
-  },
-  city: {
-    color: colors.textSubtle,
-    fontSize: 11,
-    lineHeight: 15,
     fontWeight: "500",
   },
   viewPill: {
