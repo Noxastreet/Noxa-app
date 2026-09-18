@@ -106,34 +106,33 @@ async function requestMapbox(
       return { route: null, status: response.status || 502 };
     }
 
-    const candidates = (data.routes ?? [])
-      .map((candidate) => {
-        const routePoints = normalizeCoordinates(candidate.geometry?.coordinates);
-        const distance = candidate.distance;
-        const duration = candidate.duration;
-        if (
-          candidate.geometry?.type !== "LineString" ||
-          !routePoints ||
-          typeof distance !== "number" ||
-          !Number.isFinite(distance) ||
-          typeof duration !== "number" ||
-          !Number.isFinite(duration)
-        ) {
-          return null;
-        }
-        return {
-          coordinates: routePoints,
-          distanceMeters: distance,
-          durationSeconds: duration,
-          provider: "mapbox-driving-traffic" as const,
-        };
-      })
-      .filter((candidate): candidate is RouteResult => Boolean(candidate))
-      .sort(
-        (a, b) =>
-          a.durationSeconds - b.durationSeconds ||
-          a.distanceMeters - b.distanceMeters,
-      );
+    const candidates: RouteResult[] = [];
+    for (const candidate of data.routes ?? []) {
+      const routePoints = normalizeCoordinates(candidate.geometry?.coordinates);
+      const distance = candidate.distance;
+      const duration = candidate.duration;
+      if (
+        candidate.geometry?.type !== "LineString" ||
+        !routePoints ||
+        typeof distance !== "number" ||
+        !Number.isFinite(distance) ||
+        typeof duration !== "number" ||
+        !Number.isFinite(duration)
+      ) {
+        continue;
+      }
+      candidates.push({
+        coordinates: routePoints,
+        distanceMeters: distance,
+        durationSeconds: duration,
+        provider: "mapbox-driving-traffic",
+      });
+    }
+    candidates.sort(
+      (a, b) =>
+        a.durationSeconds - b.durationSeconds ||
+        a.distanceMeters - b.distanceMeters,
+    );
 
     return { route: candidates[0] ?? null, status: candidates.length ? 200 : 404 };
   } catch (error) {
