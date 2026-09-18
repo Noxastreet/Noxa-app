@@ -124,7 +124,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       mapFilter,
       isRouteMode,
       followUserLocation,
+      bottomContentInset,
       onFollowUserLocationChange,
+      onMapCenterChange,
       onUserPan,
       onDriverPress,
       onEventPress,
@@ -174,6 +176,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       [events, selectedEventId],
     );
     const shouldClusterDrivers = activeDrivers.length >= DRIVER_CLUSTER_LIMIT;
+    const mapFooterInset = Math.max(84, (bottomContentInset ?? 0) + 8);
 
     useEffect(() => {
       if (!routeShape || !routeRenderKey) return;
@@ -198,7 +201,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: "easeTo",
         });
       },
-      [followUserLocation, isRouteMode, onFollowUserLocationChange],
+      [bottomContentInset, followUserLocation, isRouteMode, onFollowUserLocationChange],
     );
 
     const fitToCoordinates: LiveMapHandle["fitToCoordinates"] = useCallback(
@@ -227,7 +230,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           padding: {
             paddingTop: options?.edgePadding?.top ?? 96,
             paddingRight: options?.edgePadding?.right ?? spacing.xl,
-            paddingBottom: options?.edgePadding?.bottom ?? 210,
+            paddingBottom: options?.edgePadding?.bottom ?? bottomContentInset ?? 210,
             paddingLeft: options?.edgePadding?.left ?? spacing.xl,
           },
           pitch: isRouteMode ? 50 : 26,
@@ -283,10 +286,10 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       <View style={StyleSheet.absoluteFillObject}>
         <MapView
           attributionEnabled
-          attributionPosition={{ bottom: 84, left: 8 }}
+          attributionPosition={{ bottom: mapFooterInset, left: 8 }}
           compassEnabled={false}
           logoEnabled
-          logoPosition={{ bottom: 84, right: 8 }}
+          logoPosition={{ bottom: mapFooterInset, right: 8 }}
           onDidFinishLoadingMap={() => {
             setHasError(false);
             setIsLoaded(true);
@@ -306,6 +309,22 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               }
             }
           }}
+          onMapIdle={(state) => {
+            const center = state.properties?.center;
+            const longitude = Number(center?.[0]);
+            const latitude = Number(center?.[1]);
+            if (
+              onMapCenterChange &&
+              Number.isFinite(latitude) &&
+              latitude >= -90 &&
+              latitude <= 90 &&
+              Number.isFinite(longitude) &&
+              longitude >= -180 &&
+              longitude <= 180
+            ) {
+              onMapCenterChange({ latitude, longitude });
+            }
+          }
           pitchEnabled
           projection="mercator"
           rotateEnabled
@@ -348,7 +367,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             followPadding={{
               paddingTop: 110,
               paddingRight: spacing.xl,
-              paddingBottom: 260,
+              paddingBottom: bottomContentInset ?? 260,
               paddingLeft: spacing.xl,
             }}
             followPitch={54}
