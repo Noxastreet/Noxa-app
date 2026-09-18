@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -12,12 +11,9 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaIconButton, NoxaScreen } from '@/src/components/ui';
-import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
-import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
-import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
@@ -98,7 +94,7 @@ function Identity({
 }) {
   const displayName = profile?.display_name ?? 'NOXA driver';
   const username = formatUsername(profile?.username ?? null);
-  const bio = profile?.bio?.trim() || 'Tell the community about yourself.';
+  const bio = profile?.bio?.trim() || null;
   const location = formatProfileLocation(profile?.country_code, profile?.city);
 
   return (
@@ -148,7 +144,7 @@ function Identity({
         </Pressable>
       </View>
 
-      <Text style={styles.bio}>{bio}</Text>
+      {bio ? <Text style={styles.bio}>{bio}</Text> : null}
 
       <Pressable
         accessibilityLabel="Edit Profile"
@@ -301,31 +297,7 @@ function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: b
   );
 }
 
-function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; onSignOut: () => void }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Account</Text>
-      <View style={styles.contextList}>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/notifications')} style={({ pressed }) => [styles.contextRow, styles.rowDivider, pressed && styles.pressed]}>
-          <View style={styles.contextIcon}><Ionicons name="notifications-outline" size={20} color={colors.text} /></View>
-          <Text style={[styles.contextLabel, styles.flexLabel]}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={isSigningOut}
-          onPress={onSignOut}
-          style={({ pressed }) => [styles.contextRow, pressed && !isSigningOut && styles.pressed, isSigningOut && styles.disabled]}>
-          <View style={[styles.contextIcon, styles.logoutIcon]}><Ionicons name="log-out-outline" size={20} color={colors.primaryHover} /></View>
-          <Text style={styles.logoutText}>{isSigningOut ? 'Logging out…' : 'Log Out'}</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 export default function ProfileScreen() {
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [profileData, setProfileData] = useState<CurrentUserProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -409,41 +381,6 @@ export default function ProfileScreen() {
     }, [loadProfile]),
   );
 
-  const signOut = async () => {
-    if (isSigningOut) return;
-
-    setIsSigningOut(true);
-    await stopLiveDriveSession(true).catch(() => undefined);
-    try {
-      await clearGroupDriveLocationBeforeSignOut();
-    } catch {
-      setIsSigningOut(false);
-      Alert.alert(
-        'Logout paused',
-        'NOXA could not clear your current Group Drive location. Check your connection and try again.',
-      );
-      return;
-    }
-
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    setIsSigningOut(false);
-
-    if (error) {
-      Alert.alert('Logout failed', "We couldn't log you out. Please try again.");
-      return;
-    }
-
-    resetToSignedOutHome();
-  };
-
-  const confirmSignOut = () => {
-    if (isSigningOut) return;
-
-    Alert.alert('Log out of NOXA?', 'You will need to sign in again on this device.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: signOut },
-    ]);
-  };
 
   return (
     <NoxaScreen padded={false}>
@@ -460,7 +397,6 @@ export default function ProfileScreen() {
         />
         <GarageFeature vehicle={featuredVehicle} vehiclesCount={vehiclesCount} />
         <ProfilePosts posts={posts} isLoading={isProfileLoading} />
-        <AccountActions isSigningOut={isSigningOut} onSignOut={confirmSignOut} />
       </ScrollView>
     </NoxaScreen>
   );
@@ -468,15 +404,15 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 144,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    paddingBottom: 112,
+    gap: spacing.md,
   },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.45 },
   topBar: {
-    minHeight: 60,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -487,20 +423,20 @@ const styles = StyleSheet.create({
     ...typography.v2.section,
     fontWeight: '700',
   },
-  identity: { gap: spacing.md },
+  identity: { gap: spacing.sm },
   identityTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
   avatarRing: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
   },
-  avatarImage: { width: 72, height: 72, borderRadius: radius.pill },
+  avatarImage: { width: 64, height: 64, borderRadius: radius.pill },
   identityNames: { flex: 1, minWidth: 0 },
   name: {
     color: colors.text,
@@ -533,7 +469,7 @@ const styles = StyleSheet.create({
     minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   identitySocialMetric: {
     minHeight: 36,
@@ -590,7 +526,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: '700',
   },
-  section: { gap: spacing.sm },
+  section: { gap: spacing.xs },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -609,14 +545,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sectionCaption: {
-    marginTop: 2,
     color: colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '500',
   },
   vehicleRow: {
-    minHeight: 88,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -626,8 +561,8 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   vehicleThumb: {
-    width: 82,
-    height: 62,
+    width: 72,
+    height: 54,
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceSoft,
   },
@@ -684,42 +619,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: '500',
   },
-  contextList: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.divider,
-  },
-  contextRow: {
-    minHeight: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  rowDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  contextIcon: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contextCopy: { flex: 1, minWidth: 0 },
-  contextLabel: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
-  },
-  contextCaption: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-  flexLabel: { flex: 1 },
   socialRow: {
     minHeight: 64,
     flexDirection: 'row',
@@ -762,7 +661,7 @@ const styles = StyleSheet.create({
   },
   postImage: { width: '100%', height: '100%' },
   momentEmpty: {
-    minHeight: 58,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -776,13 +675,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     fontWeight: '500',
-  },
-  logoutIcon: { backgroundColor: 'transparent' },
-  logoutText: {
-    flex: 1,
-    color: colors.primaryHover,
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
   },
 });
