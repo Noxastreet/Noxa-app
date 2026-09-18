@@ -61,7 +61,7 @@ if (!failures.length) {
     ['host participant removal client is not wired', participantManagement, /noxa_remove_drive_participant/],
     ['active participant list does not expose host removal', participants, /isHost[\s\S]*Remove/],
     ['active participant list does not protect the host from removal', participants, /participant\.userId === drive\.hostId/],
-    ['summary does not label route values as planned', summary, /PLANNED ROUTE[\s\S]*PLANNED TIME/],
+    ['summary does not label route values as planned', summary, /Planned route[\s\S]*Planned time/i],
   ];
   for (const [label, text, pattern] of requiredClient) {
     if (!pattern.test(text)) failures.push(label);
