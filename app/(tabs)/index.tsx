@@ -2041,6 +2041,7 @@ export default function LiveMapScreen() {
       <MapboxLiveMapCompat
         ref={mapRef}
         activeDrivers={mapboxDrivers}
+        bottomInset={controlBottom}
         driverLocation={driverLocation}
         events={mapboxEvents}
         initialRegion={initialRegion}
