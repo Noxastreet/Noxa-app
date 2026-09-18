@@ -357,6 +357,7 @@ export function MapGroupDriveFlow({
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(() => new Set());
   const [selectedCrews, setSelectedCrews] = useState<Set<string>>(() => new Set());
   const [peopleLoading, setPeopleLoading] = useState(false);
+  const [peopleLoaded, setPeopleLoaded] = useState(false);
   const [departureMode, setDepartureMode] = useState<DepartureMode>("now");
   const [scheduledAt, setScheduledAt] = useState(nextStart);
   const [pickerMode, setPickerMode] = useState<PickerMode | null>(null);
@@ -384,6 +385,7 @@ export function MapGroupDriveFlow({
       setInviteCrews([]);
       setSelectedFriends(new Set());
       setSelectedCrews(new Set());
+      setPeopleLoaded(false);
       setDepartureMode("now");
       setScheduledAt(nextStart());
       setCreatedDriveId(null);
@@ -446,9 +448,8 @@ export function MapGroupDriveFlow({
   }, [onMapSelectionChange, pickingDestination, state, visible]);
 
   useEffect(() => {
-    if (!visible || state !== "people" || inviteFriends.length || inviteCrews.length) {
-      return;
-    }
+    if (!visible || state !== "people" || peopleLoaded) return;
+    setPeopleLoaded(true);
     setPeopleLoading(true);
     setError(null);
     void loadDriveInviteCandidates()
@@ -464,17 +465,14 @@ export function MapGroupDriveFlow({
         );
       })
       .finally(() => setPeopleLoading(false));
-  }, [inviteCrews.length, inviteFriends.length, state, visible]);
+  }, [peopleLoaded, state, visible]);
 
-  if (!visible) return null;
-
-  const closeFlow = () => {
-    onPreviewRoute(null, null);
+  const closeFlow = useCallback(() => {
     onMapSelectionChange(false);
     resetPlanner(null);
     setState("hub");
     onClose();
-  };
+  }, [onClose, onMapSelectionChange, resetPlanner]);
 
   const openExistingDrive = (item: GroupDriveListItem) => {
     closeFlow();
@@ -544,7 +542,7 @@ export function MapGroupDriveFlow({
     setState("people");
   };
 
-  const backFromPlanner = () => {
+  const backFromPlanner = useCallback(() => {
     setError(null);
     if (state === "destination") {
       onPreviewRoute(null, null);
@@ -567,7 +565,7 @@ export function MapGroupDriveFlow({
     if (state === "review") {
       setState("departure");
     }
-  };
+  }, [onPreviewRoute, state]);
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -582,7 +580,9 @@ export function MapGroupDriveFlow({
       return true;
     });
     return () => subscription.remove();
-  }, [pickerMode, saving, state, visible]);
+  }, [backFromPlanner, closeFlow, pickerMode, saving, state, visible]);
+
+  if (!visible) return null;
 
   const openPicker = (mode: PickerMode) => {
     setDraftDate(scheduledAt);
