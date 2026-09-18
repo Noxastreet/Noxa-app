@@ -156,10 +156,9 @@ function FieldError({ children, message }: { children: ReactNode; message?: stri
   );
 }
 
-function Section({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
+function Section({ title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionLabel}>{eyebrow}</Text>
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.sectionContent}>{children}</View>
     </View>
