@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { colors, radius, shadows, spacing } from "@/src/theme";
+import { colors, radius, shadows } from "@/src/theme";
 
 type Props = {
   children: ReactNode;
