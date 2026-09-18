@@ -3,7 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { NoxaButton, NoxaScreen } from '@/src/components/ui';
+import { NoxaButton, NoxaIconButton, NoxaScreen, NoxaTopBar } from '@/src/components/ui';
 import { CanonicalAvatar, CanonicalPill, type CanonicalProfile } from '@/src/features/crews-events/CanonicalPrimitives';
 import { publicErrorMessage } from '@/src/lib/publicError';
 import { supabase } from '@/src/lib/supabase';
@@ -250,14 +250,18 @@ export default function CrewManageScreen() {
   return (
     <NoxaScreen padded={false}>
       <View style={styles.header}>
-        <Pressable accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>CREW MANAGEMENT</Text>
-          <Text numberOfLines={1} style={styles.subtitle}>{crew?.name ?? 'Crew'}</Text>
-        </View>
-        <View style={styles.iconButton} />
+        <NoxaTopBar
+          left={
+            <NoxaIconButton
+              accessibilityLabel="Go back"
+              icon="chevron-back"
+              onPress={() => router.back()}
+              variant="ghost"
+            />
+          }
+          subtitle={crew?.name ?? 'Crew'}
+          title="Crew Management"
+        />
       </View>
 
       <ScrollView
@@ -278,21 +282,21 @@ export default function CrewManageScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>JOIN REQUESTS · {requests.length}</Text>
+              <Text style={styles.sectionTitle}>Join requests · {requests.length}</Text>
               {requests.length ? requests.map((request) => (
                 <View key={request.id} style={styles.row}>
                   <CanonicalAvatar profile={request.profile} size={42} />
                   <View style={styles.copy}><Text numberOfLines={1} style={styles.name}>{nameOf(request.profile)}</Text><Text style={styles.meta}>{handleOf(request.profile) ?? 'Pending request'}</Text></View>
-                  <MiniAction title="NO" disabled={busy === request.id} onPress={() => void review(request, false)} />
-                  <MiniAction title="YES" disabled={busy === request.id} onPress={() => void review(request, true)} />
+                  <MiniAction title="No" disabled={busy === request.id} onPress={() => void review(request, false)} />
+                  <MiniAction title="Yes" disabled={busy === request.id} onPress={() => void review(request, true)} />
                 </View>
               )) : <Text style={styles.muted}>No pending requests.</Text>}
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>INVITE FRIENDS · {friendCandidates.length}</Text>
+              <Text style={styles.sectionTitle}>Invite friends · {friendCandidates.length}</Text>
               {friendCandidates.length ? friendCandidates.slice(0, 12).map((candidate) => {
-                const title = candidate.state === 'member' ? 'MEMBER' : candidate.state === 'pending' ? 'PENDING' : 'INVITE';
+                const title = candidate.state === 'member' ? 'Member' : candidate.state === 'pending' ? 'Pending' : 'Invite';
                 return (
                   <View key={candidate.profile.id} style={styles.row}>
                     <CanonicalAvatar profile={candidate.profile} size={42} />
@@ -304,15 +308,15 @@ export default function CrewManageScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>SEARCH BY USERNAME</Text>
+              <Text style={styles.sectionTitle}>Search by username</Text>
               <View style={styles.inviteRow}>
                 <TextInput autoCapitalize="none" autoCorrect={false} onChangeText={setInviteUsername} onSubmitEditing={() => void invite()} placeholder="@username" placeholderTextColor={colors.textSubtle} returnKeyType="send" selectionColor={colors.primary} style={styles.input} value={inviteUsername} />
-                <MiniAction title="INVITE" disabled={busy === 'invite' || inviteUsername.trim().length < 2} onPress={() => void invite()} />
+                <MiniAction title="Invite" disabled={busy === 'invite' || inviteUsername.trim().length < 2} onPress={() => void invite()} />
               </View>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>MEMBERS · {members.length}</Text>
+              <Text style={styles.sectionTitle}>Members · {members.length}</Text>
               {members.map((member) => {
                 const canRole = role === 'owner' && member.role !== 'owner' && member.user_id !== userId;
                 const canRemove = member.role !== 'owner' && member.user_id !== userId && (role === 'owner' || member.role === 'member');
@@ -321,11 +325,11 @@ export default function CrewManageScreen() {
                     <View style={styles.rowNoBorder}>
                       <CanonicalAvatar profile={member.profile} size={44} />
                       <View style={styles.copy}><Text numberOfLines={1} style={styles.name}>{nameOf(member.profile)}</Text><Text style={styles.meta}>{handleOf(member.profile) ?? member.role}</Text></View>
-                      <CanonicalPill label={member.role.toUpperCase()} tone={member.role === 'owner' ? 'accent' : member.role === 'admin' ? 'success' : 'neutral'} />
+                      <CanonicalPill label={member.role === 'owner' ? 'Owner' : member.role === 'admin' ? 'Admin' : 'Member'} tone={member.role === 'owner' ? 'accent' : member.role === 'admin' ? 'success' : 'neutral'} />
                     </View>
                     {canRole || canRemove ? <View style={styles.memberActions}>
-                      {canRole ? <MiniAction title={member.role === 'admin' ? 'MAKE MEMBER' : 'MAKE ADMIN'} disabled={busy === member.user_id} onPress={() => void changeRole(member)} /> : null}
-                      {canRemove ? <MiniAction danger title="REMOVE" disabled={busy === member.user_id} onPress={() => confirmRemove(member)} /> : null}
+                      {canRole ? <MiniAction title={member.role === 'admin' ? 'Make member' : 'Make admin'} disabled={busy === member.user_id} onPress={() => void changeRole(member)} /> : null}
+                      {canRemove ? <MiniAction danger title="Remove" disabled={busy === member.user_id} onPress={() => confirmRemove(member)} /> : null}
                     </View> : null}
                   </View>
                 );
@@ -334,7 +338,7 @@ export default function CrewManageScreen() {
 
             {role === 'owner' ? (
               <View style={styles.dangerZone}>
-                <Text style={styles.sectionTitle}>DANGER ZONE</Text>
+                <Text style={styles.sectionTitle}>Danger zone</Text>
                 <Text style={styles.dangerCopy}>Deleting this Crew removes membership and access permanently.</Text>
                 <NoxaButton fullWidth disabled={Boolean(busy)} loading={busy === 'delete'} onPress={confirmDeleteCrew} title="Delete Crew" variant="danger" />
               </View>
@@ -347,34 +351,30 @@ export default function CrewManageScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  iconButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  headerCopy: { flex: 1, minWidth: 0 },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.h2, fontWeight: '900' },
-  subtitle: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   content: { padding: spacing.lg, paddingBottom: 120, gap: spacing.xl },
-  state: { minHeight: 300, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl, borderRadius: radius.hero, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  stateTitle: { color: colors.text, fontSize: typography.h2, fontWeight: '900' },
+  state: { minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
+  stateTitle: { color: colors.text, ...typography.v2.section, fontWeight: '800' },
   error: { padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
   errorText: { color: colors.text, fontSize: 11, lineHeight: 16 },
   quickList: { gap: spacing.sm },
   section: { gap: spacing.sm },
-  sectionTitle: { color: colors.text, fontSize: 11, fontWeight: '900', letterSpacing: 0.6 },
+  sectionTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   row: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   rowNoBorder: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   copy: { flex: 1, minWidth: 0 },
-  name: { color: colors.text, fontSize: 13, fontWeight: '800' },
-  meta: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '700' },
+  name: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  meta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   muted: { color: colors.textMuted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
   miniAction: { minHeight: 34, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceRaised },
   miniDanger: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
-  miniText: { color: colors.text, fontSize: 8, fontWeight: '900', letterSpacing: 0.35 },
+  miniText: { color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '600' },
   miniDangerText: { color: colors.primaryHover },
   inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   input: { flex: 1, minHeight: 42, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, color: colors.text, fontSize: 13 },
   memberBlock: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   memberActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xs, paddingBottom: spacing.sm },
-  dangerZone: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
+  dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderAccent },
   dangerCopy: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
