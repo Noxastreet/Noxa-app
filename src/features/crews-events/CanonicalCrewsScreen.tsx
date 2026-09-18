@@ -18,7 +18,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaIconButton, NoxaScreen } from "@/src/components/ui";
 import {
-  CanonicalArtwork,
   CanonicalPrimaryButton,
   initials,
 } from "@/src/features/crews-events/CanonicalPrimitives";
