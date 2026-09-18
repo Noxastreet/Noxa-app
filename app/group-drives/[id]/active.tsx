@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -85,6 +85,7 @@ export default function ActiveDriveScreen() {
 
   const [details, setDetails] = useState<GroupDriveDetails | null>(null);
   const [snapshot, setSnapshot] = useState<ActiveDriveRealtimeSnapshot | null>(null);
+  const [tripSheetExpanded, setTripSheetExpanded] = useState(false);
   const [progress, setProgress] = useState<GroupDriveProgressState>(
     emptyGroupDriveProgressState(driveSessionId),
   );
@@ -275,6 +276,18 @@ export default function ActiveDriveScreen() {
   const ownRouteProgress = details ? progress.byUserId[details.currentUserId] ?? null : null;
   const remainingDistance =
     ownRouteProgress?.remainingMeters ?? details?.routeDistanceMeters ?? null;
+  const tripSheetPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dy) > 10 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dy < -24) setTripSheetExpanded(true);
+          else if (gesture.dy > 24) setTripSheetExpanded(false);
+        },
+      }),
+    [],
+  );
 
   const activeDrivers = useMemo<MapboxDriver[]>(
     () => locations
@@ -422,7 +435,12 @@ export default function ActiveDriveScreen() {
           style={[styles.participantStack, { top: insets.top + 118 }]}
         />
 
-        <View style={[styles.bottomControls, { bottom: insets.bottom + 178 }]}>
+        <View
+          style={[
+            styles.bottomControls,
+            { bottom: insets.bottom + (tripSheetExpanded ? 316 : 166) },
+          ]}
+        >
           <Pressable
             accessibilityLabel="Recenter on me"
             accessibilityRole="button"
@@ -437,49 +455,156 @@ export default function ActiveDriveScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.tripSheet, { paddingBottom: insets.bottom + spacing.md }]}>
-          <View style={styles.tripHandle} />
+        <View
+          style={[
+            styles.tripSheet,
+            tripSheetExpanded && styles.tripSheetExpanded,
+            { paddingBottom: insets.bottom + spacing.md },
+          ]}
+        >
+          <Pressable
+            accessibilityLabel={tripSheetExpanded ? 'Collapse trip controls' : 'Expand trip controls'}
+            accessibilityRole="button"
+            onPress={() => setTripSheetExpanded((current) => !current)}
+            style={styles.tripHandleHitArea}
+            {...tripSheetPanResponder.panHandlers}
+          >
+            <View style={styles.tripHandle} />
+          </Pressable>
+
           <View style={styles.tripSummary}>
             <View style={styles.tripPrimary}>
               <Text style={styles.tripValue}>{formatDriveDistance(remainingDistance)}</Text>
-              <Text style={styles.tripLabel}>
-                {ownRouteProgress?.status === 'arrived' ? 'ARRIVED' : 'REMAINING'}
+              <Text style={styles.tripSecondaryLine}>
+                {ownRouteProgress?.status === 'arrived'
+                  ? 'Arrived'
+                  : `${formatDriveDuration(details.routeDurationSeconds)} planned · ${identities.length} active`}
               </Text>
             </View>
-            <View style={styles.tripFact}>
-              <Text style={styles.tripFactValue}>{formatDriveDuration(details.routeDurationSeconds)}</Text>
-              <Text style={styles.tripFactLabel}>PLANNED TIME</Text>
-            </View>
-            <View style={styles.tripFact}>
-              <Text style={styles.tripFactValue}>{identities.length}</Text>
-              <Text style={styles.tripFactLabel}>ACTIVE</Text>
-            </View>
-          </View>
-          <View style={styles.tripActions}>
             <Pressable
               accessibilityLabel="View participants"
               accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/group-drives/[id]/participants', params: { id: driveSessionId } })}
-              style={({ pressed }) => [styles.tripSecondaryButton, pressed && styles.pressedButton]}
+              onPress={() =>
+                router.push({
+                  pathname: '/group-drives/[id]/participants',
+                  params: { id: driveSessionId },
+                })
+              }
+              style={({ pressed }) => [
+                styles.tripRoundAction,
+                pressed && styles.pressedButton,
+              ]}
             >
-              <Ionicons name="people-outline" size={18} color={colors.text} />
-              <Text style={styles.tripSecondaryText}>People</Text>
+              <Ionicons name="people-outline" size={21} color={colors.text} />
             </Pressable>
             <Pressable
               accessibilityLabel="Drive controls"
               accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/group-drives/[id]/controls', params: { id: driveSessionId } })}
-              style={({ pressed }) => [styles.tripPrimaryButton, pressed && styles.pressedButton]}
+              onPress={() =>
+                router.push({
+                  pathname: '/group-drives/[id]/controls',
+                  params: { id: driveSessionId },
+                })
+              }
+              style={({ pressed }) => [
+                styles.tripPrimaryButton,
+                pressed && styles.pressedButton,
+              ]}
             >
               <Ionicons name="options-outline" size={18} color={colors.text} />
-              <Text style={styles.tripPrimaryText}>Drive controls</Text>
+              <Text style={styles.tripPrimaryText}>Controls</Text>
             </Pressable>
           </View>
+
+          {tripSheetExpanded ? (
+            <View style={styles.tripExpandedContent}>
+              <View style={styles.tripDivider} />
+
+              <Pressable
+                accessibilityLabel="View Group Drive participants"
+                accessibilityRole="button"
+                onPress={() =>
+                  router.push({
+                    pathname: '/group-drives/[id]/participants',
+                    params: { id: driveSessionId },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.tripExpandedRow,
+                  pressed && styles.pressedButton,
+                ]}
+              >
+                <View style={styles.tripExpandedIcon}>
+                  <Ionicons name="people-outline" size={20} color={colors.text} />
+                </View>
+                <View style={styles.tripExpandedCopy}>
+                  <Text style={styles.tripExpandedTitle}>People</Text>
+                  <Text style={styles.tripExpandedMeta}>
+                    {identities.length} active participant{identities.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </Pressable>
+
+              <Pressable
+                accessibilityLabel="Open Drive controls"
+                accessibilityRole="button"
+                onPress={() =>
+                  router.push({
+                    pathname: '/group-drives/[id]/controls',
+                    params: { id: driveSessionId },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.tripExpandedRow,
+                  pressed && styles.pressedButton,
+                ]}
+              >
+                <View style={styles.tripExpandedIcon}>
+                  <Ionicons name="options-outline" size={20} color={colors.text} />
+                </View>
+                <View style={styles.tripExpandedCopy}>
+                  <Text style={styles.tripExpandedTitle}>Drive controls</Text>
+                  <Text style={styles.tripExpandedMeta}>Lifecycle and host actions</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </Pressable>
+
+              <Pressable
+                accessibilityLabel="Open Group Drive location sharing"
+                accessibilityRole="button"
+                onPress={() =>
+                  router.push({
+                    pathname: '/group-drives/[id]/location-sharing',
+                    params: { id: driveSessionId },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.tripExpandedRow,
+                  pressed && styles.pressedButton,
+                ]}
+              >
+                <View style={styles.tripExpandedIcon}>
+                  <Ionicons name="location-outline" size={20} color={colors.text} />
+                </View>
+                <View style={styles.tripExpandedCopy}>
+                  <Text style={styles.tripExpandedTitle}>Location sharing</Text>
+                  <Text style={styles.tripExpandedMeta}>Review or stop Group Drive sharing</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       </View>
 
       {error ? (
-        <View style={[styles.errorBanner, { bottom: insets.bottom + 248 }]}>
+        <View
+          style={[
+            styles.errorBanner,
+            { bottom: insets.bottom + (tripSheetExpanded ? 386 : 238) },
+          ]}
+        >
           <Text numberOfLines={2} style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
@@ -602,85 +727,112 @@ const styles = StyleSheet.create({
   },
   tripSheet: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderStrong,
-    backgroundColor: 'rgba(12,12,16,0.98)',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: 0,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: 'rgba(10,10,14,0.98)',
+  },
+  tripSheetExpanded: {
+    paddingBottom: spacing.lg,
+  },
+  tripHandleHitArea: {
+    minHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tripHandle: {
-    alignSelf: 'center',
     width: 38,
     height: 4,
-    marginBottom: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
   },
   tripSummary: {
-    minHeight: 58,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.sm,
   },
-  tripPrimary: { flex: 1 },
+  tripPrimary: { flex: 1, minWidth: 0 },
   tripValue: {
-    color: colors.text,
+    color: colors.success,
     fontFamily: typography.fontFamily.display,
     fontSize: 25,
     lineHeight: 29,
     fontWeight: '900',
     letterSpacing: -0.6,
   },
-  tripLabel: {
-    marginTop: 2,
-    color: colors.textSubtle,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+  tripSecondaryLine: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
-  tripFact: { minWidth: 62, alignItems: 'flex-end' },
-  tripFactValue: { color: colors.text, fontSize: 13, lineHeight: 17, fontWeight: '800' },
-  tripFactLabel: {
-    marginTop: 2,
-    color: colors.textSubtle,
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  tripActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  tripSecondaryButton: {
-    minWidth: 104,
-    minHeight: 48,
-    flexDirection: 'row',
+  tripRoundAction: {
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.borderStrong,
     backgroundColor: colors.surfaceSoft,
   },
   tripPrimaryButton: {
-    flex: 1,
+    minWidth: 112,
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
+    borderRadius: radius.pill,
     backgroundColor: colors.primary,
   },
-  tripSecondaryText: { color: colors.text, fontSize: 12, fontWeight: '800' },
   tripPrimaryText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  tripExpandedContent: {
+    marginTop: spacing.xs,
+  },
+  tripDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginBottom: spacing.xs,
+    backgroundColor: colors.divider,
+  },
+  tripExpandedRow: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+  },
+  tripExpandedIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  tripExpandedCopy: { flex: 1, minWidth: 0 },
+  tripExpandedTitle: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '800',
+  },
+  tripExpandedMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+  },
   participantStack: {
     position: 'absolute',
     left: spacing.sm,
