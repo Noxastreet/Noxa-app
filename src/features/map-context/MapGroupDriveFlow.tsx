@@ -434,12 +434,7 @@ export function MapGroupDriveFlow({
       setDestination(initialDestination);
       setPickingDestination(false);
     }
-  }, [
-    initialDestination?.label,
-    initialDestination?.latitude,
-    initialDestination?.longitude,
-    visible,
-  ]);
+  }, [initialDestination, visible]);
 
   useEffect(() => {
     onMapSelectionChange(
@@ -501,7 +496,7 @@ export function MapGroupDriveFlow({
     setState("destination");
   };
 
-  const useMapCenter = async () => {
+  const confirmMapCenter = async () => {
     setError(null);
     const label = await resolveDestinationLabel(mapCenter);
     setDestination({ ...mapCenter, label });
