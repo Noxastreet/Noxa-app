@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -25,16 +25,20 @@ type TabDestination =
   | '/visibility-setup'
   | null;
 
-function TabIcon({ name, color, emphasized = false }: { name: IconName; color: string; emphasized?: boolean }) {
+function TabIcon({
+  name,
+  color,
+  emphasized = false,
+}: {
+  name: IconName;
+  color: string;
+  emphasized?: boolean;
+}) {
   return (
     <View style={styles.iconWrap}>
-      <Ionicons name={name} size={emphasized ? 24 : 22} color={color} />
+      <Ionicons name={name} size={emphasized ? 27 : 25} color={color} />
     </View>
   );
-}
-
-function TabLabel({ label, focused }: { label: string; focused: boolean }) {
-  return <Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>;
 }
 
 export default function TabLayout() {
@@ -127,13 +131,13 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.accent,
-          tabBarInactiveTintColor: colors.textSubtle,
+          tabBarShowLabel: false,
+          tabBarActiveTintColor: colors.text,
+          tabBarInactiveTintColor: colors.textTertiary,
           tabBarStyle: [
             styles.tabBar,
             {
-              height: 64 + insets.bottom,
-              paddingBottom: Math.max(insets.bottom, spacing.sm),
+              bottom: insets.bottom,
             },
           ],
           tabBarItemStyle: styles.tabItem,
@@ -144,40 +148,66 @@ export default function TabLayout() {
           name="crews"
           options={{
             title: 'Crews',
-            tabBarLabel: ({ focused }) => <TabLabel label="Crews" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} />,
+            tabBarAccessibilityLabel: 'Crews',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'people' : 'people-outline'}
+                color={color}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="events"
           options={{
             title: 'Events',
-            tabBarLabel: ({ focused }) => <TabLabel label="Events" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} />,
+            tabBarAccessibilityLabel: 'Events',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'calendar' : 'calendar-outline'}
+                color={color}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="index"
           options={{
             title: 'Map',
-            tabBarLabel: ({ focused }) => <TabLabel label="Map" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'map' : 'map-outline'} color={color} emphasized />,
+            tabBarAccessibilityLabel: 'Map',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'map' : 'map-outline'}
+                color={focused ? colors.accent : color}
+                emphasized
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="garage"
           options={{
             title: 'Garage',
-            tabBarLabel: ({ focused }) => <TabLabel label="Garage" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} />,
+            tabBarAccessibilityLabel: 'Garage',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'car-sport' : 'car-sport-outline'}
+                color={color}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
             title: 'Profile',
-            tabBarLabel: ({ focused }) => <TabLabel label="Profile" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} />,
+            tabBarAccessibilityLabel: 'Profile',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon
+                name={focused ? 'person' : 'person-outline'}
+                color={color}
+              />
+            ),
           }}
         />
       </Tabs>
@@ -194,32 +224,29 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: 10,
+    left: spacing.sm,
+    right: spacing.sm,
+    height: 64,
+    paddingTop: 0,
+    paddingBottom: 0,
     backgroundColor: colors.glass,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    elevation: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    borderRadius: 22,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    elevation: 10,
   },
   tabItem: {
+    height: 64,
     paddingVertical: 0,
   },
-  label: {
-    marginTop: 2,
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  labelActive: {
-    color: colors.text,
-    fontWeight: '600',
-  },
   iconWrap: {
-    width: 40,
-    height: 28,
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
