@@ -15,7 +15,7 @@ import {
   loadGroupDriveDetails,
   type GroupDriveDetails,
 } from '@/src/features/group-drive';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveReviewScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -46,7 +46,7 @@ export default function GroupDriveReviewScreen() {
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="REVIEW" />
+        <GroupDriveHeader title="Review" />
         <NoxaLoadingState label="Preparing review…" />
       </Screen>
     );
@@ -55,7 +55,7 @@ export default function GroupDriveReviewScreen() {
   if (!drive || error) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="REVIEW" />
+        <GroupDriveHeader title="Review" />
         <NoxaEmptyState icon="alert-circle-outline" title="Review unavailable" body={error ?? 'This Group Drive is unavailable.'} />
         <NoxaButton fullWidth onPress={() => void load()} title="Retry" variant="secondary" />
       </Screen>
@@ -69,7 +69,7 @@ export default function GroupDriveReviewScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="REVIEW" subtitle="Nothing starts without the host" />
+      <GroupDriveHeader title="Review" subtitle="Nothing starts without the host" />
       <GroupDriveStep current={5} label="Confirm" />
       <View style={styles.intro}>
         <Text style={styles.title}>{drive.title}</Text>
@@ -118,15 +118,15 @@ export default function GroupDriveReviewScreen() {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
   intro: { gap: spacing.sm, paddingTop: spacing.sm },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.value, fontWeight: '900' },
+  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '800' },
   body: { color: colors.textMuted, ...typography.v2.body },
-  routeHero: { minHeight: 112, flexDirection: 'row', alignItems: 'center', gap: spacing.lg, padding: spacing.lg, borderRadius: radius.hero, backgroundColor: colors.surface },
-  routeIcon: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primary },
+  routeHero: { minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
+  routeIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   routeCopy: { flex: 1 },
-  routeValue: { color: colors.text, ...typography.v2.value, fontWeight: '900' },
+  routeValue: { color: colors.text, ...typography.v2.row, fontWeight: '700' },
   routeMeta: { marginTop: spacing.xxs, color: colors.textMuted, fontSize: 14, fontWeight: '700' },
-  facts: { borderTopWidth: 1, borderTopColor: colors.divider },
-  privacyNote: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
+  facts: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+  privacyNote: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   privacyText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   actions: { gap: spacing.xs },
 });
