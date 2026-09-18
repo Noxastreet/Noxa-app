@@ -79,7 +79,7 @@ assert(
 );
 assert(
   eventRowIndex >= 0 && eventReadyIndex > eventRowIndex && eventSecondaryIndex > eventReadyIndex,
-  'Event detail must render the base event before optional organizer, RSVP, history and gallery reads.',
+  'Event detail must render the base event before optional organizer, RSVP, saved-state and gallery reads.',
 );
 
 const readyIndex = tabs.indexOf("setDestination('ready');");
