@@ -95,6 +95,7 @@ type RouteResult = {
   distanceMeters: number;
   durationSeconds: number;
 };
+type MapDestination = LatLng & { label: string };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
 type MapDataRequestState = "loading" | "ready" | "error";
 type MapLens = "all" | "mine";
@@ -558,6 +559,16 @@ export default function LiveMapScreen() {
   const [selectedEvent, setSelectedEvent] = useState<EventMarkerRow | null>(
     null,
   );
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [groupDriveVisible, setGroupDriveVisible] = useState(false);
+  const [groupDriveStartInPlanner, setGroupDriveStartInPlanner] = useState(false);
+  const [groupDriveDestination, setGroupDriveDestination] =
+    useState<MapDestination | null>(null);
+  const [groupDriveRoute, setGroupDriveRoute] =
+    useState<DriveRouteResult | null>(null);
+  const [groupDriveMapSelection, setGroupDriveMapSelection] = useState(false);
+  const [mapCenter, setMapCenter] = useState<LatLng>(THESSALONIKI);
+  const [contextSheetHeight, setContextSheetHeight] = useState(0);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeStatus, setRouteStatus] = useState<RouteStatus>("idle");
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
