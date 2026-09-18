@@ -566,18 +566,17 @@ export default function EventEditorScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.previewCard}>
-            <View style={styles.previewGlow} />
-            <View style={styles.previewTopline}>
+                        <View style={styles.previewTopline}>
               <View style={styles.previewBadge}>
                 <Ionicons name="flag" size={14} color={colors.primaryHover} />
-                <Text style={styles.previewBadgeText}>{form.category.toUpperCase()}</Text>
+                <Text style={styles.previewBadgeText}>{form.category}</Text>
               </View>
               <Text style={styles.previewStatus}>
-                {form.isPublic ? "PUBLIC" : "PRIVATE"}
+                {form.isPublic ? "Public" : "Private"}
               </Text>
             </View>
             <Text numberOfLines={2} style={styles.previewTitle}>
-              {form.title.trim() || "YOUR NEXT NOXA EVENT"}
+              {form.title.trim() || "Your event"}
             </Text>
             <View style={styles.previewMeta}>
               <View style={styles.previewMetaItem}>
@@ -627,8 +626,8 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>01 / DETAILS</Text>
-              <Text style={styles.sectionTitle}>Make it unmistakable</Text>
+              <Text style={styles.eyebrow}>Details</Text>
+              <Text style={styles.sectionTitle}>Event details</Text>
             </View>
             <NoxaInput
               label="Title"
@@ -688,8 +687,8 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>02 / LOCATION</Text>
-              <Text style={styles.sectionTitle}>Pin the meeting point</Text>
+              <Text style={styles.eyebrow}>Location</Text>
+              <Text style={styles.sectionTitle}>Meeting point</Text>
             </View>
             <View style={styles.readOnlyLocation}>
               <View style={styles.locationIcon}>
@@ -700,7 +699,7 @@ export default function EventEditorScreen() {
                 />
               </View>
               <View style={styles.locationCopy}>
-                <Text style={styles.pickerLabel}>LOCATION</Text>
+                <Text style={styles.pickerLabel}>Location</Text>
                 <Text numberOfLines={2} style={styles.locationValue}>
                   {form.locationName || "No exact location selected"}
                 </Text>
@@ -717,7 +716,7 @@ export default function EventEditorScreen() {
                 ]}
               >
                 <Ionicons name="map-outline" size={17} color={colors.text} />
-                <Text style={styles.locationActionText}>CHOOSE ON MAP</Text>
+                <Text style={styles.locationActionText}>Choose on map</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -735,7 +734,7 @@ export default function EventEditorScreen() {
                   color={colors.text}
                 />
                 <Text style={styles.locationActionText}>
-                  {isLocating ? "LOCATING…" : "USE CURRENT"}
+                  {isLocating ? "Locating…" : "Use current"}
                 </Text>
               </Pressable>
             </View>
@@ -753,10 +752,10 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>03 / SCHEDULE</Text>
-              <Text style={styles.sectionTitle}>Set the timeline</Text>
+              <Text style={styles.eyebrow}>Schedule</Text>
+              <Text style={styles.sectionTitle}>Date and time</Text>
             </View>
-            <Text style={styles.scheduleLabel}>STARTS</Text>
+            <Text style={styles.scheduleLabel}>Starts</Text>
             <View style={styles.row}>
               <PickerRow
                 label="Start Date"
@@ -771,8 +770,8 @@ export default function EventEditorScreen() {
             </View>
             <View style={styles.scheduleDivider} />
             <View style={styles.optionalRow}>
-              <Text style={styles.scheduleLabel}>ENDS</Text>
-              <Text style={styles.optionalText}>OPTIONAL</Text>
+              <Text style={styles.scheduleLabel}>Ends</Text>
+              <Text style={styles.optionalText}>Optional</Text>
             </View>
             <View style={styles.row}>
               <PickerRow
@@ -803,15 +802,15 @@ export default function EventEditorScreen() {
                   size={16}
                   color={colors.textMuted}
                 />
-                <Text style={styles.clearEndText}>CLEAR END TIME</Text>
+                <Text style={styles.clearEndText}>Clear end time</Text>
               </Pressable>
             ) : null}
           </View>
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>04 / HOST</Text>
-              <Text style={styles.sectionTitle}>Choose the organizer</Text>
+              <Text style={styles.eyebrow}>Organizer</Text>
+              <Text style={styles.sectionTitle}>Hosted by</Text>
             </View>
             <View style={styles.hostOptions}>
               <HostOption
@@ -838,7 +837,7 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>05 / VISIBILITY</Text>
+              <Text style={styles.eyebrow}>Visibility</Text>
               <Text style={styles.sectionTitle}>Choose the audience</Text>
             </View>
             <View style={styles.visibilityOptions}>
@@ -1024,28 +1023,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
-    backgroundColor: colors.surfaceBase,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   headerTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: "900",
-    letterSpacing: 1.2,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
-  headerSpacer: { width: 40, height: 40 },
+  headerSpacer: { width: 44, height: 44 },
   content: {
     padding: spacing.lg,
     paddingTop: spacing.lg,
@@ -1053,25 +1047,13 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   previewCard: {
-    minHeight: 214,
+    minHeight: 124,
     justifyContent: "flex-end",
     gap: spacing.sm,
-    overflow: "hidden",
-    padding: spacing.lg,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  previewGlow: {
-    position: "absolute",
-    top: -82,
-    right: -54,
-    width: 220,
-    height: 220,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   previewTopline: {
     position: "absolute",
@@ -1086,12 +1068,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
   },
   previewBadgeText: {
     color: colors.primaryHover,
@@ -1106,13 +1082,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   previewTitle: {
-    maxWidth: "88%",
+    maxWidth: "92%",
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: "900",
-    letterSpacing: -0.3,
+    ...typography.v2.section,
+    fontWeight: "800",
   },
   previewMeta: {
     flexDirection: "row",
@@ -1142,26 +1116,22 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
   },
   sectionHeading: { gap: spacing.xxs, marginBottom: spacing.xxs },
   eyebrow: {
-    color: colors.primaryHover,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.5,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
   },
   sectionTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
-    letterSpacing: -0.2,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   row: { flexDirection: "row", gap: spacing.sm },
   textArea: {
