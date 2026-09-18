@@ -26,12 +26,15 @@ requireMatch('Map root must compose the contextual Group Drive flow', mapRoot, /
 requireMatch('Map camera must receive measured sheet inset', mapRoot, /bottomContentInset=\{mapBottomContentInset\}/);
 requireMatch('Map root must expose camera center for destination selection', mapRoot, /onMapCenterChange=\{setMapCenter\}/);
 requireMatch('Event preview must use the Drive there CTA', mapRoot, /title="Drive there"/);
+requireMatch('Event route must preserve provider identity for Group Drive reuse', mapRoot, /provider: route\.provider/);
+requireMatch('Event route must pass the existing route into Group Drive', mapRoot, /initialRoute=\{groupDriveRoute\}/);
 requireMatch('Route planning must expose one Start CTA', mapRoot, /title="Start"/);
 requireMatch('Driver markers must open contextual preview first', mapRoot, /onDriverPress=\{openDriverPreview\}/);
 requireMatch('Group Drive route must reuse the canonical map route prop', mapRoot, /route=\{groupDriveRoute \?\? route\}/);
 
 requireMatch('Planner must have the five compact decision states', planner, /"destination".*"route".*"people".*"departure".*"review"/s);
 requireMatch('Planner must show segmented progress', planner, /progressSegment/);
+requireMatch('Known Event route must skip repeated Where and Route decisions', planner, /setState\(initialRoute \? "people" : "destination"\)/);
 requireMatch('Planner must defer creation until review action', planner, /const createDrive = async \(\)/);
 requireMatch('Planner must reuse existing route calculation', planner, /calculateDriveRoute/);
 requireMatch('Planner must reuse pre-creation invite candidates', planner, /loadDriveInviteCandidates/);
