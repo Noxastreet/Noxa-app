@@ -217,14 +217,12 @@ function ActivityRow({
 
 function InboxSection({
   title,
-  eyebrow,
   items,
   busyInvitationId,
   onOpen,
   onRespond,
 }: {
   title: string;
-  eyebrow: string;
   items: ActivityItem[];
   busyInvitationId: string | null;
   onOpen: (item: ActivityItem) => void;
@@ -235,10 +233,7 @@ function InboxSection({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeading}>
-        <View>
-          <Text style={styles.sectionEyebrow}>{eyebrow}</Text>
-          <Text style={styles.sectionTitle}>{title}</Text>
-        </View>
+        <Text style={styles.sectionTitle}>{title}</Text>
         <Text style={styles.sectionCount}>{items.length}</Text>
       </View>
       <View style={styles.activityList}>
@@ -503,7 +498,6 @@ export default function NotificationsScreen() {
             </Pressable>
           }
           title="Notifications"
-          subtitle="Real activity from your NOXA world"
         />
 
         {isLoading ? (
@@ -555,7 +549,6 @@ export default function NotificationsScreen() {
             ) : (
               <>
                 <InboxSection
-                  eyebrow="Action required"
                   title="Needs attention"
                   items={needsAttention}
                   busyInvitationId={busyInvitationId}
@@ -563,7 +556,6 @@ export default function NotificationsScreen() {
                   onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
                 />
                 <InboxSection
-                  eyebrow="You’re going"
                   title="Upcoming"
                   items={upcoming}
                   busyInvitationId={busyInvitationId}
@@ -571,7 +563,6 @@ export default function NotificationsScreen() {
                   onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
                 />
                 <InboxSection
-                  eyebrow="Social"
                   title="Community"
                   items={community}
                   busyInvitationId={busyInvitationId}
@@ -590,8 +581,8 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     backgroundColor: colors.background,
   },
   headerAction: {
@@ -640,9 +631,9 @@ const styles = StyleSheet.create({
   },
   stateText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   scrollContent: {
-    paddingTop: spacing.xl,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxxl,
-    gap: spacing.xxl,
+    gap: spacing.lg,
   },
   emptyStack: { gap: spacing.md },
   primaryAction: {
@@ -655,19 +646,13 @@ const styles = StyleSheet.create({
   primaryActionText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   section: { gap: spacing.sm },
   sectionHeading: {
+    minHeight: 32,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  sectionEyebrow: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
   sectionTitle: {
-    marginTop: 2,
     color: colors.text,
     ...typography.v2.row,
     fontWeight: '700',
@@ -715,7 +700,7 @@ const styles = StyleSheet.create({
     borderColor: colors.background,
   },
   activityCopy: { flex: 1, minWidth: 0 },
-  activityTitle: { color: colors.text, fontSize: 13, fontWeight: '900', lineHeight: 18 },
+  activityTitle: { color: colors.text, fontSize: 15, fontWeight: '600', lineHeight: 20 },
   activitySubtitle: {
     marginTop: 2,
     color: colors.textMuted,
@@ -726,9 +711,9 @@ const styles = StyleSheet.create({
   activityMeta: {
     marginTop: spacing.xxs,
     color: colors.textSubtle,
-    fontSize: 9,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '500',
   },
   invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   acceptButton: {
@@ -748,6 +733,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
-  acceptText: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  declineText: { color: colors.textMuted, fontSize: 10, fontWeight: '900' },
+  acceptText: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: '600' },
+  declineText: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '600' },
 });
