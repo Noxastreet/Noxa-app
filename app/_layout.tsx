@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
@@ -69,8 +70,9 @@ function AuthDeepLinkBridge() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider value={noxaTheme}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider value={noxaTheme}>
         <SupabaseAuthLifecycle />
         <AuthDeepLinkBridge />
         <Stack screenOptions={{ headerShown: false }}>
@@ -103,8 +105,9 @@ export default function RootLayout() {
           <Stack.Screen name="post-editor" />
           <Stack.Screen name="post-details" />
         </Stack>
-        <StatusBar style="light" />
-      </ThemeProvider>
-    </SafeAreaProvider>
+          <StatusBar style="light" />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
