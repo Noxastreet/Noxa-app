@@ -38,7 +38,7 @@ export function LegalDocumentScreen({ document }: LegalDocumentScreenProps) {
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </Pressable>
           }
-          title={document.title.toUpperCase()}
+          title={document.title}
           subtitle={`Effective ${LEGAL_EFFECTIVE_DATE}`}
         />
 
@@ -51,7 +51,7 @@ export function LegalDocumentScreen({ document }: LegalDocumentScreenProps) {
             <Text style={styles.summary}>{document.summary}</Text>
             <View style={styles.datePill}>
               <Ionicons name="calendar-outline" size={14} color={colors.primaryHover} />
-              <Text style={styles.dateText}>EFFECTIVE {LEGAL_EFFECTIVE_DATE.toUpperCase()}</Text>
+              <Text style={styles.dateText}>Effective {LEGAL_EFFECTIVE_DATE}</Text>
             </View>
           </View>
 
@@ -91,7 +91,7 @@ export function LegalDocumentScreen({ document }: LegalDocumentScreenProps) {
             </Pressable>
           </View>
 
-          <Text style={styles.footer}>NOXA · OPERATED BY {NOXA_OPERATOR} · GREECE</Text>
+          <Text style={styles.footer}>NOXA · Operated by {NOXA_OPERATOR} · Greece</Text>
         </ScrollView>
       </View>
     </NoxaScreen>
@@ -106,14 +106,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
   pressed: { opacity: 0.74, transform: [{ scale: 0.985 }] },
   content: {
@@ -122,26 +119,21 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
   },
   hero: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   eyebrow: {
-    color: colors.primaryHover,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: typography.letterSpacing.label,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   summary: {
     color: colors.text,
     fontFamily: typography.fontFamily.body,
-    fontSize: typography.body,
-    fontWeight: '700',
-    lineHeight: typography.lineHeight.body,
+    ...typography.v2.body,
   },
   datePill: {
     alignSelf: 'flex-start',
@@ -149,30 +141,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     minHeight: 30,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
   },
   dateText: {
     color: colors.textMuted,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
   section: {
     gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   sectionTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
-    lineHeight: typography.lineHeight.subtitle,
+    ...typography.v2.row,
+    fontWeight: '700',
   },
   paragraph: {
     color: colors.textMuted,
@@ -204,30 +189,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   contactIcon: {
     width: 42,
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySubtle,
   },
   contactCopy: { flex: 1, minWidth: 0 },
   contactTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
   contactEmail: { marginTop: 3, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   contactButton: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
   },
   footer: {
     paddingVertical: spacing.md,
