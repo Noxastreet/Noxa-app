@@ -402,7 +402,7 @@ export default function EditProfileScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardAvoiding}>
         <View style={styles.shell}>
           <NoxaHeader
-            title="EDIT PROFILE"
+            title="Edit Profile"
             subtitle="Identity only · privacy stays in Settings"
             left={
               <Pressable
@@ -426,7 +426,7 @@ export default function EditProfileScreen() {
               </View>
             ) : null}
 
-            <Section eyebrow="01 / PHOTO" title="Profile photo">
+            <Section eyebrow="Photo" title="Profile photo">
               <View style={styles.photoRow}>
                 <View style={styles.avatarPreview}>
                   {previewUri ? (
@@ -467,7 +467,7 @@ export default function EditProfileScreen() {
               {errors.avatar ? <Text style={styles.errorText}>{errors.avatar}</Text> : null}
             </Section>
 
-            <Section eyebrow="02 / IDENTITY" title="How drivers know you">
+            <Section eyebrow="Identity" title="How drivers know you">
               <FieldError message={errors.displayName}>
                 <NoxaInput autoCapitalize="words" editable={!isLoading && !isSubmitting} label="Display name" maxLength={40} onChangeText={(value) => setField("displayName", value)} placeholder="Your display name" value={form.displayName} />
                 <Text style={styles.counter}>{form.displayName.length}/40</Text>
@@ -478,7 +478,7 @@ export default function EditProfileScreen() {
                   <Ionicons name="lock-closed-outline" size={17} color={colors.textMuted} />
                 </View>
                 <View style={styles.lockedUsernameCopy}>
-                  <Text style={styles.lockedUsernameLabel}>USERNAME</Text>
+                  <Text style={styles.lockedUsernameLabel}>Username</Text>
                   <Text numberOfLines={1} style={styles.lockedUsernameValue}>
                     {form.username ? `@${normalizeUsername(form.username)}` : 'Set during onboarding'}
                   </Text>
@@ -502,7 +502,7 @@ export default function EditProfileScreen() {
               </FieldError>
             </Section>
 
-            <Section eyebrow="03 / ABOUT" title="Short introduction">
+            <Section eyebrow="About" title="Short introduction">
               <FieldError message={errors.bio}>
                 <NoxaInput
                   editable={!isLoading && !isSubmitting}
@@ -519,7 +519,7 @@ export default function EditProfileScreen() {
               </FieldError>
             </Section>
 
-            <Section eyebrow="PRIVACY" title="Visibility & account settings">
+            <Section eyebrow="Privacy" title="Visibility & account settings">
               <Pressable
                 accessibilityRole="button"
                 disabled={isSubmitting}
@@ -549,15 +549,15 @@ const styles = StyleSheet.create({
   shell: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, backgroundColor: colors.background },
   content: { paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
   iconButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
-  pressed: { opacity: 0.78, transform: [{ translateY: 1 }, { scale: 0.985 }] },
+  pressed: { opacity: 0.72 },
   fieldWrap: { gap: spacing.xs },
   section: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
-  sectionLabel: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
-  sectionTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900" },
+  sectionLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "600" },
+  sectionTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
   sectionContent: { marginTop: spacing.xs, gap: spacing.md },
   loadingRow: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
   photoRow: { minHeight: 88, flexDirection: "row", alignItems: "center", gap: spacing.md },
-  avatarPreview: { width: 76, height: 76, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
+  avatarPreview: { width: 72, height: 72, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   avatarImage: { width: "100%", height: "100%" },
   avatarInitials: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 27, fontWeight: "900" },
   photoCopy: { flex: 1, minWidth: 0 },
@@ -565,8 +565,8 @@ const styles = StyleSheet.create({
   previewMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: "700" },
   photoHint: { marginTop: spacing.sm, color: colors.textSubtle, fontSize: 9, fontWeight: "700" },
   avatarActions: { flexDirection: "row", gap: spacing.sm },
-  avatarActionButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
-  avatarActionText: { color: colors.text, fontSize: 10, fontWeight: "900" },
+  avatarActionButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong },
+  avatarActionText: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "600" },
   removeButton: { backgroundColor: colors.primarySubtle, borderColor: colors.borderAccent },
   removeText: { color: colors.primaryHover, fontSize: 10, fontWeight: "900" },
   disabledAction: { opacity: 0.5 },
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   lockedUsernameRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   lockedUsernameIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
   lockedUsernameCopy: { flex: 1, minWidth: 0 },
-  lockedUsernameLabel: { color: colors.textSubtle, fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
+  lockedUsernameLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   lockedUsernameValue: { marginTop: 2, color: colors.text, fontSize: 14, fontWeight: "800" },
   lockedUsernameHint: { marginTop: 2, color: colors.textMuted, fontSize: 10, lineHeight: 15 },
   errorText: { color: colors.primary, fontSize: typography.caption, fontWeight: "800" },
