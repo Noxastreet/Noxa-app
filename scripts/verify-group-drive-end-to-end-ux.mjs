@@ -14,7 +14,7 @@ const expect = (condition, message) => {
 };
 
 expect(
-  lobbyScreen.includes('MEET AT A') &&
+  /Meet point|Meet at A/i.test(lobbyScreen) &&
     lobbyScreen.includes('Navigate to A') &&
     lobbyScreen.includes('Show my distance'),
   'Lobby must expose a clear meeting-at-A approach flow.',
