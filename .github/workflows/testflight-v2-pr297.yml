@@ -1,7 +1,7 @@
-# Acceptance build checkpoint: 2026-09-18 stable V2 head 641cc1e
+# Acceptance build checkpoint: 2026-09-19 final V2 secondary-screen consistency pass
 name: TestFlight NOXA V2 PR 297
 
-# V2 visual acceptance checkpoint: bottom nav + Event Detail + Crew Detail + Group Drive
+# V2 visual acceptance checkpoint: native navigation + Events/Crews + profiles/posts + editors + utility screens + Group Drive
 
 on:
   workflow_dispatch:
