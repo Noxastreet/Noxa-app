@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Modal,
   Platform,
   Pressable,
@@ -567,6 +568,21 @@ export function MapGroupDriveFlow({
       setState("departure");
     }
   };
+
+  useEffect(() => {
+    if (!visible) return undefined;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (pickerMode) {
+        setPickerMode(null);
+        return true;
+      }
+      if (saving) return true;
+      if (state === "hub") closeFlow();
+      else backFromPlanner();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [pickerMode, saving, state, visible]);
 
   const openPicker = (mode: PickerMode) => {
     setDraftDate(scheduledAt);
