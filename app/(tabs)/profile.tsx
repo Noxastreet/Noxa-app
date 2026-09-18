@@ -84,11 +84,17 @@ function Identity({
   isLoading,
   errorMessage,
   onRetry,
+  profileId,
+  followersCount,
+  followingCount,
 }: {
   profile: CurrentUserProfile | null;
   isLoading: boolean;
   errorMessage: string | null;
   onRetry: () => void;
+  profileId: string | null;
+  followersCount: number;
+  followingCount: number;
 }) {
   const displayName = profile?.display_name ?? 'NOXA driver';
   const username = formatUsername(profile?.username ?? null);
@@ -121,6 +127,25 @@ function Identity({
             </View>
           ) : null}
         </View>
+      </View>
+
+      <View style={styles.identitySocialRow}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!profileId}
+          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'followers' } }) : undefined}
+          style={({ pressed }) => [styles.identitySocialMetric, pressed && styles.pressed]}>
+          <Text style={styles.identitySocialValue}>{followersCount}</Text>
+          <Text style={styles.identitySocialLabel}>followers</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!profileId}
+          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'following' } }) : undefined}
+          style={({ pressed }) => [styles.identitySocialMetric, pressed && styles.pressed]}>
+          <Text style={styles.identitySocialValue}>{followingCount}</Text>
+          <Text style={styles.identitySocialLabel}>following</Text>
+        </Pressable>
       </View>
 
       <Text style={styles.bio}>{bio}</Text>
@@ -233,41 +258,6 @@ function GarageFeature({
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
       </Pressable>
-    </View>
-  );
-}
-
-function SocialContext({
-  profileId,
-  followersCount,
-  followingCount,
-}: {
-  profileId: string | null;
-  followersCount: number;
-  followingCount: number;
-}) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Community</Text>
-      <View style={styles.socialRow}>
-        <Pressable
-          accessibilityRole="button"
-          disabled={!profileId}
-          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'followers' } }) : undefined}
-          style={({ pressed }) => [styles.socialMetric, pressed && styles.pressed]}>
-          <Text style={styles.socialValue}>{followersCount}</Text>
-          <Text style={styles.socialLabel}>Followers</Text>
-        </Pressable>
-        <View style={styles.socialDivider} />
-        <Pressable
-          accessibilityRole="button"
-          disabled={!profileId}
-          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'following' } }) : undefined}
-          style={({ pressed }) => [styles.socialMetric, pressed && styles.pressed]}>
-          <Text style={styles.socialValue}>{followingCount}</Text>
-          <Text style={styles.socialLabel}>Following</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -459,9 +449,16 @@ export default function ProfileScreen() {
     <NoxaScreen padded={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <TopBar />
-        <Identity profile={profileData} isLoading={isProfileLoading} errorMessage={profileError} onRetry={loadProfile} />
+        <Identity
+          profile={profileData}
+          isLoading={isProfileLoading}
+          errorMessage={profileError}
+          onRetry={loadProfile}
+          profileId={profileData?.id ?? null}
+          followersCount={followersCount}
+          followingCount={followingCount}
+        />
         <GarageFeature vehicle={featuredVehicle} vehiclesCount={vehiclesCount} />
-        <SocialContext profileId={profileData?.id ?? null} followersCount={followersCount} followingCount={followingCount} />
         <ProfilePosts posts={posts} isLoading={isProfileLoading} />
         <AccountActions isSigningOut={isSigningOut} onSignOut={confirmSignOut} />
       </ScrollView>
@@ -474,7 +471,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: 144,
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.45 },
@@ -530,6 +527,30 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
+    fontWeight: '500',
+  },
+  identitySocialRow: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  identitySocialMetric: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.xxs,
+  },
+  identitySocialValue: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  identitySocialLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '500',
   },
   bio: { color: colors.text, ...typography.v2.body },
