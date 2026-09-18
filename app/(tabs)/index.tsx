@@ -287,16 +287,20 @@ function EventCard({
   event,
   bottomOffset,
   onClose,
+  onHeightChange,
   onRoute,
 }: {
   event: EventMarkerRow;
   bottomOffset: number;
   onClose: () => void;
+  onHeightChange: (height: number) => void;
   onRoute: () => void;
 }) {
   const canRoute = hasValidCoordinates(event);
   return (
-    <View style={[styles.eventCard, { bottom: bottomOffset }]}>
+    <View
+      onLayout={(event) => onHeightChange(event.nativeEvent.layout.height)}
+      style={[styles.eventCard, { bottom: bottomOffset }]}>
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
           <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
@@ -344,7 +348,7 @@ function EventCard({
           onPress={onRoute}
           size="md"
           style={styles.eventPrimaryButton}
-          title="Route"
+          title="Drive there"
         />
       </View>
     </View>
@@ -361,6 +365,7 @@ function RouteCard({
   canFollow,
   onClose,
   onFollowToggle,
+  onHeightChange,
   onRetry,
 }: {
   event: EventMarkerRow;
@@ -372,11 +377,55 @@ function RouteCard({
   canFollow: boolean;
   onClose: () => void;
   onFollowToggle: () => void;
+  onHeightChange: (height: number) => void;
   onRetry: () => void;
 }) {
   const loading = status === "loading";
+
+  if (following && route) {
+    return (
+      <View
+        onLayout={(event) => onHeightChange(event.nativeEvent.layout.height)}
+        style={[styles.routeCard, styles.routeCardDriving, { bottom: bottomOffset }]}
+      >
+        <View style={styles.routeDrivingContent}>
+          <View style={styles.routeDrivingIcon}>
+            <Ionicons name="navigate" size={18} color={colors.text} />
+          </View>
+          <View style={styles.routeDrivingCopy}>
+            <Text style={styles.cardKicker}>DRIVING TO</Text>
+            <Text numberOfLines={1} style={styles.routeDrivingTitle}>
+              {event.title}
+            </Text>
+            <Text style={styles.routeDrivingMeta}>
+              {formatDistance(route.distanceMeters)} · ~{formatDuration(route.durationSeconds)}
+            </Text>
+          </View>
+          <NoxaIconButton
+            accessibilityLabel="Show route overview"
+            icon="map-outline"
+            iconSize={18}
+            onPress={onFollowToggle}
+            size={40}
+            variant="ghost"
+          />
+          <NoxaIconButton
+            accessibilityLabel="Exit route mode"
+            icon="close"
+            iconSize={18}
+            onPress={onClose}
+            size={40}
+            variant="ghost"
+          />
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.routeCard, { bottom: bottomOffset }]}>
+    <View
+      onLayout={(event) => onHeightChange(event.nativeEvent.layout.height)}
+      style={[styles.routeCard, { bottom: bottomOffset }]}>
       <View style={styles.routeHeader}>
         <View style={styles.routeTitleWrap}>
           <Text style={styles.cardKicker}>NOXA route</Text>
@@ -2784,6 +2833,37 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.divider,
     backgroundColor: colors.surface,
+  },
+  routeCardDriving: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  routeDrivingContent: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  routeDrivingIcon: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  routeDrivingCopy: { flex: 1, minWidth: 0 },
+  routeDrivingTitle: {
+    marginTop: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  routeDrivingMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "600",
   },
   routeHeader: {
     flexDirection: "row",
