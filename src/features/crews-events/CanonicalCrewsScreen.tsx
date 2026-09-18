@@ -305,7 +305,7 @@ function CreateCrewModal({
           >
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>
-          <Text style={styles.modalTitle}>CREATE CREW</Text>
+          <Text style={styles.modalTitle}>Create Crew</Text>
           <View style={styles.iconButton} />
         </View>
 
@@ -313,27 +313,8 @@ function CreateCrewModal({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.modalContent}
         >
-          <CanonicalArtwork style={styles.previewCard} icon="people-outline">
-            <View style={styles.previewShade} />
-            <View style={styles.previewCopy}>
-              <View style={styles.previewLogo}>
-                <Text style={styles.previewLogoText}>
-                  {initials(name || "NOXA")}
-                </Text>
-              </View>
-              <View>
-                <Text numberOfLines={1} style={styles.previewTitle}>
-                  {(name || "YOUR CREW").toUpperCase()}
-                </Text>
-                <Text style={styles.previewMeta}>
-                  {(city || "YOUR CITY").toUpperCase()}
-                </Text>
-              </View>
-            </View>
-          </CanonicalArtwork>
-
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>CREW NAME</Text>
+            <Text style={styles.fieldLabel}>Crew name</Text>
             <TextInput
               autoCapitalize="words"
               maxLength={60}
@@ -347,7 +328,7 @@ function CreateCrewModal({
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>CITY</Text>
+            <Text style={styles.fieldLabel}>City</Text>
             <TextInput
               autoCapitalize="words"
               maxLength={80}
@@ -361,7 +342,7 @@ function CreateCrewModal({
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>DESCRIPTION</Text>
+            <Text style={styles.fieldLabel}>Description</Text>
             <TextInput
               maxLength={500}
               multiline
@@ -375,11 +356,11 @@ function CreateCrewModal({
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>ACCESS</Text>
+            <Text style={styles.fieldLabel}>Access</Text>
             <View style={styles.optionRow}>
               {[
-                { label: "PUBLIC", value: true },
-                { label: "PRIVATE", value: false },
+                { label: "Public", value: true },
+                { label: "Private", value: false },
               ].map((option) => (
                 <Pressable
                   key={option.label}
@@ -407,12 +388,12 @@ function CreateCrewModal({
 
           {isPublic ? (
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>JOIN POLICY</Text>
+              <Text style={styles.fieldLabel}>Join policy</Text>
               <View style={styles.optionRow}>
                 {[
-                  { label: "OPEN", value: "open" as JoinPolicy },
-                  { label: "APPROVAL", value: "approval" as JoinPolicy },
-                  { label: "INVITE", value: "invite_only" as JoinPolicy },
+                  { label: "Open", value: "open" as JoinPolicy },
+                  { label: "Approval", value: "approval" as JoinPolicy },
+                  { label: "Invite", value: "invite_only" as JoinPolicy },
                 ].map((option) => (
                   <Pressable
                     key={option.value}
@@ -449,7 +430,7 @@ function CreateCrewModal({
           <CanonicalPrimaryButton
             disabled={name.trim().length < 2 || creating}
             loading={creating}
-            label="CREATE CREW"
+            label="Create crew"
             onPress={() =>
               onSubmit({
                 name,
@@ -964,59 +945,16 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: "900",
-    letterSpacing: 0.4,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   modalContent: { padding: spacing.lg, paddingBottom: 120, gap: spacing.lg },
-  previewCard: {
-    minHeight: 176,
-    justifyContent: "flex-end",
-    padding: spacing.md,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  previewShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.52)",
-  },
-  previewCopy: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  previewLogo: {
-    width: 54,
-    height: 54,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 27,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryMuted,
-  },
-  previewLogoText: { color: colors.text, fontSize: 15, fontWeight: "900" },
-  previewTitle: {
-    maxWidth: 230,
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "900",
-  },
-  previewMeta: {
-    color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
   field: { gap: spacing.xs },
   fieldLabel: {
     color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "900",
-    letterSpacing: 0.8,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
   input: {
     minHeight: 50,
@@ -1051,9 +989,9 @@ const styles = StyleSheet.create({
   },
   optionText: {
     color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.5,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
   },
   optionTextActive: { color: colors.text },
   modalFooter: {
