@@ -1,4 +1,4 @@
-# Acceptance build checkpoint: 2026-09-18 final V2 acceptance trigger
+# Acceptance build checkpoint: 2026-09-18 stable-head TestFlight trigger
 name: TestFlight NOXA V2 PR 297
 
 # V2 visual acceptance checkpoint: bottom nav + Event Detail + Crew Detail + Group Drive
