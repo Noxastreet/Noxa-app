@@ -94,6 +94,7 @@ type RouteResult = {
   coordinates: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  provider: string;
 };
 type MapDestination = LatLng & { label: string };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
@@ -1656,7 +1657,9 @@ export default function LiveMapScreen() {
           hasValidLatLng(point.latitude, point.longitude),
         ) &&
         Number.isFinite(data.distanceMeters) &&
-        Number.isFinite(data.durationSeconds)
+        Number.isFinite(data.durationSeconds) &&
+        typeof data.provider === "string" &&
+        data.provider.length > 0
       ) {
         nextRoute = data;
       } else {
@@ -1936,16 +1939,28 @@ export default function LiveMapScreen() {
   }, []);
 
   const openEventGroupDrive = useCallback(() => {
-    if (!selectedEvent || !hasValidCoordinates(selectedEvent)) return;
+    if (!selectedEvent || !hasValidCoordinates(selectedEvent) || !route) return;
     setGroupDriveStartInPlanner(true);
     setGroupDriveDestination({
       latitude: selectedEvent.latitude,
       longitude: selectedEvent.longitude,
       label: selectedEvent.location_name?.trim() || selectedEvent.title,
     });
-    setGroupDriveRoute(null);
+    setGroupDriveRoute({
+      geometry: {
+        type: "LineString",
+        coordinates: route.coordinates.map((point) => [
+          point.longitude,
+          point.latitude,
+        ]),
+      },
+      coordinates: route.coordinates,
+      distanceMeters: route.distanceMeters,
+      durationSeconds: route.durationSeconds,
+      provider: route.provider,
+    });
     setGroupDriveVisible(true);
-  }, [selectedEvent]);
+  }, [route, selectedEvent]);
 
   const previewGroupDriveRoute = useCallback(
     (nextRoute: DriveRouteResult | null, destination: MapDestination | null) => {
@@ -2305,6 +2320,7 @@ export default function LiveMapScreen() {
           startInPlanner={groupDriveStartInPlanner}
           mapCenter={mapCenter}
           initialDestination={groupDriveDestination}
+          initialRoute={groupDriveRoute}
           onClose={() => {
             setGroupDriveVisible(false);
             setGroupDriveStartInPlanner(false);
