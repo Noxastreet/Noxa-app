@@ -35,7 +35,7 @@ assert(
   'Successful publish must explicitly unlock navigation before replacing the editor.',
 );
 assert(
-  Boolean(errorBlock) && /loadPost\(false\)/.test(errorBlock) && /RETRY/.test(errorBlock),
+  Boolean(errorBlock) && /loadPost\(false\)/.test(errorBlock) && /retry/i.test(errorBlock),
   'Post load errors must always expose Retry, including the initial load before post data exists.',
 );
 assert(
