@@ -29,6 +29,15 @@ function isEmailNotConfirmedError(error?: SignInAuthError | null) {
   return error?.code === 'email_not_confirmed' || error?.message === 'Email not confirmed';
 }
 
+function isNetworkAuthError(error?: SignInAuthError | null) {
+  const message = error?.message?.toLowerCase() ?? '';
+  return (
+    message.includes('network request failed') ||
+    message.includes('timed out') ||
+    message.includes('aborted')
+  );
+}
+
 function getSignInErrorMessage(error?: SignInAuthError | null) {
   if (error?.code === 'invalid_credentials' || error?.message === 'Invalid login credentials') {
     return 'Incorrect email or password.';
@@ -38,7 +47,7 @@ function getSignInErrorMessage(error?: SignInAuthError | null) {
     return 'Confirm your email before signing in.';
   }
 
-  if (error?.message === 'Network request failed') {
+  if (isNetworkAuthError(error)) {
     return 'Unable to connect. Check your internet connection.';
   }
 
@@ -103,8 +112,6 @@ function SignInForm() {
 
     if (!password) {
       nextErrors.password = 'Password is required.';
-    } else if (password.length < 8) {
-      nextErrors.password = 'Password must be at least 8 characters.';
     }
 
     setErrors(nextErrors);
@@ -133,9 +140,12 @@ function SignInForm() {
         return;
       }
 
-      if (data.session) {
-        resetToAuthenticatedApp(data.session.user.id);
+      if (!data.session) {
+        setErrors({ form: 'Unable to establish a sign-in session. Please try again.' });
+        return;
       }
+
+      resetToAuthenticatedApp(data.session.user.id);
     } catch (error) {
       setErrors({
         form: getSignInErrorMessage(
