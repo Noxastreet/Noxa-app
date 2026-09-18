@@ -257,6 +257,69 @@ export async function cancelDriveInvitation(invitationId: string) {
   });
 }
 
+export async function loadDriveInviteCandidates(): Promise<DriveInviteOptions> {
+  const userId = await currentUserId();
+  const [outgoingResult, incomingResult, membershipsResult] = await Promise.all([
+    supabase.from('follows').select('following_id').eq('follower_id', userId),
+    supabase.from('follows').select('follower_id').eq('following_id', userId),
+    supabase.from('crew_members').select('crew_id').eq('user_id', userId),
+  ]);
+  const error = outgoingResult.error ?? incomingResult.error ?? membershipsResult.error;
+  if (error) throw new Error(publicGroupDriveError(error));
+
+  const outgoing = new Set((outgoingResult.data ?? []).map((row) => String(row.following_id)));
+  const mutualIds = (incomingResult.data ?? [])
+    .map((row) => String(row.follower_id))
+    .filter((id) => outgoing.has(id));
+
+  const profilesResult = mutualIds.length
+    ? await supabase
+        .from('profiles')
+        .select('id,display_name,username,avatar_url')
+        .in('id', mutualIds)
+        .order('display_name', { ascending: true })
+    : { data: [], error: null };
+  if (profilesResult.error) throw new Error('Friends could not be loaded.');
+
+  const crewIds = Array.from(
+    new Set((membershipsResult.data ?? []).map((row) => String(row.crew_id))),
+  );
+  const [crewsResult, crewMembersResult] = await Promise.all([
+    crewIds.length
+      ? supabase.from('crews').select('id,name').in('id', crewIds).order('name')
+      : Promise.resolve({ data: [], error: null }),
+    crewIds.length
+      ? supabase.from('crew_members').select('crew_id,user_id').in('crew_id', crewIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (crewsResult.error || crewMembersResult.error) {
+    throw new Error('Crews could not be loaded.');
+  }
+
+  const eligibleCrewMembers = new Map<string, string[]>();
+  for (const row of crewMembersResult.data ?? []) {
+    const crewId = String(row.crew_id);
+    const memberId = String(row.user_id);
+    if (memberId === userId) continue;
+    const members = eligibleCrewMembers.get(crewId) ?? [];
+    members.push(memberId);
+    eligibleCrewMembers.set(crewId, members);
+  }
+
+  return {
+    friends: (profilesResult.data ?? []).map((profile) => ({
+      ...mapProfile(profile),
+      unavailable: false,
+    })),
+    crews: (crewsResult.data ?? []).map((crew) => ({
+      id: String(crew.id),
+      name: String(crew.name),
+      memberCount: eligibleCrewMembers.get(String(crew.id))?.length ?? 0,
+      eligibleUserIds: eligibleCrewMembers.get(String(crew.id)) ?? [],
+    })),
+  };
+}
+
 export async function loadDriveInviteOptions(driveSessionId: string): Promise<DriveInviteOptions> {
   const userId = await currentUserId();
   const [outgoingResult, incomingResult, membershipsResult, participantsResult, invitationsResult] =
