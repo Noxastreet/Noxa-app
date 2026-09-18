@@ -68,16 +68,22 @@ export function MapContextSheet({
   };
 
   return (
-    <GestureDetector gesture={pan}>
-      <Animated.View
-        accessibilityViewIsModal={false}
-        onLayout={handleLayout}
-        style={[styles.sheet, animatedStyle, style]}
-      >
-        <View accessible={false} style={styles.handle} />
-        {children}
-      </Animated.View>
-    </GestureDetector>
+    <Animated.View
+      accessibilityViewIsModal={false}
+      onLayout={handleLayout}
+      style={[styles.sheet, animatedStyle, style]}
+    >
+      <GestureDetector gesture={pan}>
+        <Animated.View
+          accessibilityLabel={dismissible ? "Drag sheet down to go back" : undefined}
+          accessible={dismissible}
+          style={styles.handleTouch}
+        >
+          <View accessible={false} style={styles.handle} />
+        </Animated.View>
+      </GestureDetector>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -92,12 +98,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(10,12,16,0.97)",
     ...shadows.card,
   },
+  handleTouch: {
+    minHeight: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   handle: {
     width: 38,
     height: 4,
-    alignSelf: "center",
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
     borderRadius: radius.pill,
     backgroundColor: colors.borderStrong,
   },
