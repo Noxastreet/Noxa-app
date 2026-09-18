@@ -250,41 +250,28 @@ function CrewHero({
   crew,
   owner,
   members,
-  artworkUri,
   membershipButton,
 }: {
   crew: Crew;
   owner: CanonicalProfile | null;
   members: Member[];
-  artworkUri: string | null;
   membershipButton: ReactNode;
 }) {
   return (
-    <View>
-      {artworkUri ? (
-        <CanonicalArtwork
-          uri={artworkUri}
-          style={styles.heroMedia}
-          imageStyle={styles.heroImage}
-          icon="people-outline"
-        />
-      ) : null}
-
-      <View style={styles.heroIdentityBlock}>
-        <CrewLogo crew={crew} size={56} />
-        <View style={styles.heroNameBlock}>
-          <Text numberOfLines={2} style={styles.heroTitle}>
-            {crew.name}
-          </Text>
-          <Text numberOfLines={1} style={styles.heroMeta}>
-            {crew.city || "Location not set"} · {members.length} {members.length === 1 ? "member" : "members"}
-          </Text>
-          <Text numberOfLines={1} style={styles.founderName}>
-            Founded by {profileName(owner)}
-          </Text>
-        </View>
-        <View style={styles.membershipButton}>{membershipButton}</View>
+    <View style={styles.heroIdentityBlock}>
+      <CrewLogo crew={crew} size={56} />
+      <View style={styles.heroNameBlock}>
+        <Text numberOfLines={2} style={styles.heroTitle}>
+          {crew.name}
+        </Text>
+        <Text numberOfLines={1} style={styles.heroMeta}>
+          {crew.city || "Location not set"} · {members.length} {members.length === 1 ? "member" : "members"}
+        </Text>
+        <Text numberOfLines={1} style={styles.founderName}>
+          Founded by {profileName(owner)}
+        </Text>
       </View>
+      <View style={styles.membershipButton}>{membershipButton}</View>
     </View>
   );
 }
@@ -505,8 +492,7 @@ function AboutTab({ crew, owner }: { crew: Crew; owner: CanonicalProfile | null 
       <SectionTitle title="About" />
       <View style={styles.aboutCard}>
         <Text style={styles.aboutText}>
-          {crew.description ||
-            "This crew has not added its story yet. Respect the road, the people and the location."}
+          {crew.description || "No description provided."}
         </Text>
       </View>
 
@@ -847,15 +833,6 @@ export default function CanonicalCrewDetailScreen() {
     shareCrew,
   ]);
 
-  const artworkUri = useMemo(
-    () =>
-      crew?.cover_image_url ||
-      events.find((event) => event.cover_image_url)?.cover_image_url ||
-      vehicles.find((vehicle) => vehicle.cover_image_url)?.cover_image_url ||
-      null,
-    [crew?.cover_image_url, events, vehicles],
-  );
-
   if (loading) {
     return (
       <NoxaScreen>
@@ -909,7 +886,6 @@ export default function CanonicalCrewDetailScreen() {
         <CrewHeader onMore={() => setActionsOpen(true)} />
 
         <CrewHero
-          artworkUri={activeTab === "activity" ? artworkUri : null}
           crew={crew}
           members={members}
           membershipButton={membershipButton}
@@ -978,14 +954,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radius.pill,
   },
-  heroMedia: {
-    height: 104,
-    marginHorizontal: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-  },
-  heroImage: { borderRadius: radius.lg },
   heroIdentityBlock: {
+    minHeight: 92,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -995,8 +965,10 @@ const styles = StyleSheet.create({
   heroNameBlock: { flex: 1, minWidth: 0 },
   heroTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.section,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.3,
     fontWeight: "700",
   },
   heroMeta: {
@@ -1059,7 +1031,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   tabTextActive: { color: colors.text, fontWeight: "700" },
-  tabContent: { paddingHorizontal: spacing.md, gap: spacing.lg },
+  tabContent: { paddingHorizontal: spacing.md, gap: spacing.md },
   sectionTitleRow: {
     minHeight: 24,
     flexDirection: "row",
