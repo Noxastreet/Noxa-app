@@ -42,7 +42,9 @@ export type MapboxLiveMapProps = {
   mapFilter: MapboxMapFilter;
   isRouteMode: boolean;
   followUserLocation: boolean;
+  bottomContentInset?: number;
   onFollowUserLocationChange: (following: boolean) => void;
+  onMapCenterChange?: (point: LatLng) => void;
   onUserPan: () => void;
   onDriverPress: (driverId: string) => void;
   onEventPress: (event: MapboxEvent) => void;
