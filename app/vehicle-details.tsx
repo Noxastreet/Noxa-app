@@ -1,9 +1,9 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
+import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { NoxaAvatar, NoxaBadge, NoxaScreen } from '@/src/components/ui';
+import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
 import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -118,39 +118,39 @@ function Header({ onMenu, showMenu }: { onMenu: () => void; showMenu: boolean })
 
 function VehicleFallback({ vehicleType }: { vehicleType: VehicleDetails['vehicle_type'] }) {
   if (vehicleType === 'motorcycle') {
-    return <FontAwesome5 name="motorcycle" size={78} color={colors.primaryMuted} />;
+    return <FontAwesome5 name="motorcycle" size={44} color={colors.textMuted} />;
   }
 
-  return <Ionicons name="car-sport" size={96} color={colors.primaryMuted} />;
+  return <Ionicons name="car-sport-outline" size={52} color={colors.textMuted} />;
 }
 
 function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
-  const content = (
-    <>
-      <View style={styles.heroContent}>
-        {typeof vehicle.is_public === 'boolean' ? <NoxaBadge label={vehicle.is_public ? 'PUBLIC' : 'PRIVATE'} variant="primary" /> : <View />}
-        <View>
-          <Text numberOfLines={1} style={styles.heroTitle}>{vehicle.brand || 'VEHICLE'}</Text>
-          <Text numberOfLines={1} style={styles.heroSubtitle}>
-            {[vehicle.model, vehicle.year].filter(isPresent).join(' · ') || 'NOXA garage'}
-          </Text>
-        </View>
-      </View>
-    </>
-  );
+  const title = [vehicle.brand, vehicle.model].filter(isPresent).join(' ') || 'Vehicle';
+  const meta = [
+    vehicle.year,
+    vehicle.vehicle_type === 'motorcycle' ? 'Motorcycle' : 'Car',
+    typeof vehicle.is_public === 'boolean' ? (vehicle.is_public ? 'Public' : 'Private') : null,
+  ].filter(isPresent).join(' · ');
 
   return (
-    <View style={styles.heroCard}>
+    <View style={styles.heroBlock}>
       {vehicle.cover_image_url ? (
-        <ImageBackground source={{ uri: vehicle.cover_image_url }} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius as ImageStyle}>
-          {content}
-        </ImageBackground>
+        <ImageBackground
+          source={{ uri: vehicle.cover_image_url }}
+          resizeMode="cover"
+          style={styles.heroImage}
+          imageStyle={styles.heroImageRadius}
+        />
       ) : (
-        <View style={[styles.heroImage, styles.vehiclePlaceholder]}>
+        <View style={[styles.heroFallback, styles.vehiclePlaceholder]}>
           <VehicleFallback vehicleType={vehicle.vehicle_type} />
-          {content}
         </View>
       )}
+
+      <View style={styles.heroIdentity}>
+        <Text numberOfLines={2} style={styles.heroTitle}>{title}</Text>
+        {meta ? <Text numberOfLines={1} style={styles.heroMeta}>{meta}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -176,7 +176,7 @@ function OwnerCard({ owner }: { owner: VehicleOwner }) {
         <NoxaAvatar initials={formatOwnerInitials(owner)} size={48} />
       )}
       <View style={styles.ownerCopy}>
-        <Text style={styles.eyebrow}>OWNER</Text>
+        <Text style={styles.eyebrow}>Owner</Text>
         {ownerName ? <Text style={styles.ownerName}>{ownerName}</Text> : null}
         {ownerMeta ? <Text style={styles.ownerMeta}>{ownerMeta}</Text> : null}
       </View>
@@ -192,7 +192,7 @@ function Information({ rows }: { rows: VehicleInfoRow[] }) {
 
   return (
     <View style={styles.sectionBlock}>
-      <Text style={styles.sectionEyebrow}>DETAILS</Text>
+      <Text style={styles.sectionEyebrow}>Details</Text>
       <View style={styles.infoList}>
         {rows.map((row, index) => (
           <View key={row.label} style={[styles.infoRow, index < rows.length - 1 && styles.infoRowBorder]}>
@@ -212,7 +212,7 @@ function About({ description }: { description: string | null }) {
 
   return (
     <View style={styles.sectionBlock}>
-      <Text style={styles.sectionEyebrow}>ABOUT THIS BUILD</Text>
+      <Text style={styles.sectionEyebrow}>About</Text>
       <Text style={styles.bodyText}>{description}</Text>
     </View>
   );
@@ -423,94 +423,161 @@ export default function VehicleDetailsScreen() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 72, gap: spacing.lg },
   header: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    zIndex: 10,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(6,6,10,0.72)',
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
   },
-  headerSpacer: { width: 40, height: 40 },
-  pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.98 }] },
-  heroCard: { height: 330, overflow: 'hidden', backgroundColor: colors.surface },
-  heroImage: { flex: 1 },
-  heroImageRadius: { borderBottomLeftRadius: radius.hero, borderBottomRightRadius: radius.hero },
-  vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft },
-  heroContent: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: 68, paddingBottom: spacing.lg },
+  headerSpacer: { width: 44, height: 44 },
+  pressed: { opacity: 0.72 },
+  heroBlock: { gap: spacing.md },
+  heroImage: {
+    height: 168,
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  heroFallback: {
+    height: 112,
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceSoft,
+  },
+  heroImageRadius: { borderRadius: radius.lg },
+  vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  heroIdentity: {
+    gap: 3,
+    paddingHorizontal: spacing.lg,
+  },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 46,
+    ...typography.v2.value,
     fontWeight: '900',
-    letterSpacing: 0.4,
-    lineHeight: 48,
-    textTransform: 'uppercase',
-    textShadowColor: 'rgba(0,0,0,0.88)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
   },
-  heroSubtitle: {
-    marginTop: spacing.xxs,
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '700',
-    textShadowColor: 'rgba(0,0,0,0.9)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+  heroMeta: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
   },
   ownerCard: {
     marginHorizontal: spacing.lg,
-    minHeight: 72,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  ownerAvatar: { width: 44, height: 44, borderRadius: radius.pill },
+  ownerCopy: { flex: 1 },
+  eyebrow: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+  },
+  ownerName: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  ownerMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  sectionBlock: {
+    marginHorizontal: spacing.lg,
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  sectionEyebrow: {
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  infoList: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  infoRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  infoRowBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  ownerAvatar: { width: 48, height: 48, borderRadius: radius.pill },
-  ownerCopy: { flex: 1 },
-  eyebrow: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
-  ownerName: { marginTop: spacing.xxs, color: colors.text, fontSize: typography.body, fontWeight: '900' },
-  ownerMeta: { marginTop: spacing.xxs, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  sectionBlock: { marginHorizontal: spacing.lg, gap: spacing.sm },
-  sectionEyebrow: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: typography.letterSpacing.label },
-  infoList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  infoRow: { minHeight: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.lg },
-  infoRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
-  infoLabel: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  infoValue: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800', textAlign: 'right' },
-  bodyText: { color: colors.text, fontSize: 14, fontWeight: '600', lineHeight: 23 },
+  infoLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  infoValue: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  bodyText: { color: colors.text, ...typography.v2.body },
   stateCard: {
-    minHeight: 320,
+    minHeight: 280,
     marginHorizontal: spacing.lg,
-    marginTop: 82,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
-    padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
   },
-  stateIcon: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
-  stateTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: '900', textAlign: 'center', textTransform: 'uppercase' },
-  stateText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700', textAlign: 'center' },
-  retryButton: { marginTop: spacing.xs, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.button, backgroundColor: colors.primary },
-  retryText: { color: colors.text, fontSize: typography.caption, fontWeight: '900' },
+  stateIcon: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
+  stateTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    ...typography.v2.section,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  stateText: {
+    color: colors.textMuted,
+    ...typography.v2.body,
+    textAlign: 'center',
+  },
+  retryButton: {
+    minHeight: 44,
+    marginTop: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.button,
+    backgroundColor: colors.primary,
+  },
+  retryText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '700' },
 });
