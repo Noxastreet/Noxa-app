@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { NoxaScreen } from '@/src/components/ui';
+import { NoxaIconButton, NoxaScreen, NoxaTopBar } from '@/src/components/ui';
 import { CanonicalPill } from '@/src/features/crews-events/CanonicalPrimitives';
 import {
   eventLifecycle,
@@ -34,10 +34,10 @@ type HistoryEvent = EventExperienceRow & {
 };
 
 function eventType(event: EventExperienceRow) {
-  if (event.category === 'meet') return 'CAR MEET';
-  if (event.category === 'drive') return 'DRIVE';
-  if (event.category === 'track') return 'TRACK';
-  return 'EVENT';
+  if (event.category === 'meet') return 'Car meet';
+  if (event.category === 'drive') return 'Drive';
+  if (event.category === 'track') return 'Track';
+  return 'Event';
 }
 
 function lifecycleTone(event: EventExperienceRow) {
@@ -45,7 +45,7 @@ function lifecycleTone(event: EventExperienceRow) {
 }
 
 function lifecycleCopy(event: EventExperienceRow) {
-  return eventLifecycle(event) === 'cancelled' ? 'CANCELLED' : 'COMPLETED';
+  return eventLifecycle(event) === 'cancelled' ? 'Cancelled' : 'Completed';
 }
 
 export default function EventHistoryScreen() {
@@ -151,19 +151,18 @@ export default function EventHistoryScreen() {
   return (
     <NoxaScreen padded={false}>
       <View style={styles.header}>
-        <Pressable
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-        >
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.title}>EVENT HISTORY</Text>
-          <Text style={styles.subtitle}>{loading ? 'Loading…' : summary}</Text>
-        </View>
-        <View style={styles.headerSpacer} />
+        <NoxaTopBar
+          left={
+            <NoxaIconButton
+              accessibilityLabel="Go back"
+              icon="chevron-back"
+              onPress={() => router.back()}
+              variant="ghost"
+            />
+          }
+          subtitle={loading ? "Loading…" : summary}
+          title="Event History"
+        />
       </View>
 
       <ScrollView
@@ -195,7 +194,7 @@ export default function EventHistoryScreen() {
               onPress={() => void load()}
               style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
             >
-              <Text style={styles.retryText}>TRY AGAIN</Text>
+              <Text style={styles.retryText}>Try again</Text>
             </Pressable>
           </View>
         ) : events.length === 0 ? (
@@ -224,11 +223,11 @@ export default function EventHistoryScreen() {
                     <CanonicalPill label={eventType(event)} />
                   </View>
                   <Text style={styles.relation}>
-                    {event.relation === 'hosted' ? 'HOSTED' : 'ATTENDED'}
+                    {event.relation === 'hosted' ? 'Hosted' : 'Attended'}
                   </Text>
                 </View>
                 <Text numberOfLines={2} style={styles.eventTitle}>
-                  {event.title.toUpperCase()}
+                  {event.title}
                 </Text>
                 <Text numberOfLines={1} style={styles.meta}>
                   {formatEventDate(event.starts_at)} · {formatEventTime(event.starts_at)}
@@ -250,73 +249,39 @@ export default function EventHistoryScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  backButton: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  headerCopy: { flex: 1, minWidth: 0 },
-  headerSpacer: { width: 42, height: 42 },
-  title: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: '900',
-  },
-  subtitle: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  content: { padding: spacing.lg, paddingBottom: 120 },
-  list: { gap: spacing.md },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: 120 },
+  list: { gap: 0 },
   card: {
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   pills: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  relation: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  relation: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   eventTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 20,
-    lineHeight: 24,
-    fontWeight: '900',
+    ...typography.v2.row,
+    fontWeight: '700',
   },
-  meta: { color: colors.primaryHover, fontSize: 11, fontWeight: '800' },
+  meta: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   location: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   stateCard: {
-    minHeight: 300,
+    minHeight: 260,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
-    padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
   },
   stateTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: '900',
+    ...typography.v2.section,
+    fontWeight: '800',
     textAlign: 'center',
   },
   stateText: { maxWidth: 290, color: colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: 'center' },
@@ -328,6 +293,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  retryText: { color: colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
+  retryText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
 });
