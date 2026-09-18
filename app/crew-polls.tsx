@@ -239,10 +239,7 @@ function PollComposer({
   return (
     <View style={styles.composer}>
       <View style={styles.composerHeading}>
-        <View>
-          <Text style={styles.composerEyebrow}>MANAGER TOOL</Text>
-          <Text style={styles.composerTitle}>NEW CREW POLL</Text>
-        </View>
+        <Text style={styles.composerTitle}>New poll</Text>
         <Pressable
           accessibilityLabel="Close poll composer"
           accessibilityRole="button"
@@ -253,7 +250,7 @@ function PollComposer({
         </Pressable>
       </View>
 
-      <Text style={styles.fieldLabel}>QUESTION</Text>
+      <Text style={styles.fieldLabel}>Question</Text>
       <TextInput
         maxLength={180}
         multiline
@@ -266,7 +263,7 @@ function PollComposer({
       />
       <Text style={styles.counter}>{question.trim().length} / 180</Text>
 
-      <Text style={styles.fieldLabel}>OPTIONS</Text>
+      <Text style={styles.fieldLabel}>Options</Text>
       <View style={styles.optionFields}>
         {options.map((option, index) => (
           <View key={index} style={styles.optionFieldRow}>
@@ -308,11 +305,11 @@ function PollComposer({
           style={({ pressed }) => [styles.addOption, pressed && styles.pressed]}
         >
           <Ionicons name="add" size={16} color={colors.primaryHover} />
-          <Text style={styles.addOptionText}>ADD OPTION</Text>
+          <Text style={styles.addOptionText}>Add option</Text>
         </Pressable>
       ) : null}
 
-      <Text style={styles.fieldLabel}>VOTING WINDOW</Text>
+      <Text style={styles.fieldLabel}>Voting window</Text>
       <View style={styles.durationRow}>
         {durationOptions.map((item) => {
           const active = duration === item.hours;
@@ -680,11 +677,6 @@ export default function CrewPollsScreen() {
               </View>
             ) : null}
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryTitle}>Private crew decisions</Text>
-              <Text style={styles.summaryCount}>{polls.length} polls</Text>
-            </View>
-
             <View style={styles.filters}>
               {(["all", "open", "closed"] as PollFilter[]).map((item) => {
                 const active = filter === item;
@@ -753,19 +745,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   headerActions: { flexDirection: "row", gap: spacing.xs },
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.huge,
     gap: spacing.md,
   },
-  summaryRow: {
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  summaryTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  summaryCount: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   filters: {
     minHeight: 44,
     flexDirection: "row",
@@ -874,28 +858,27 @@ const styles = StyleSheet.create({
   voteCount: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   voteHint: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
   composer: {
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderAccent,
   },
-  composerHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.lg },
-  composerEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
+  composerHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
   composerTitle: {
-    marginTop: 2,
     color: colors.text,
-    ...typography.v2.row,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: "700",
   },
   dismissButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceSoft,
   },
-  fieldLabel: { marginTop: spacing.md, marginBottom: spacing.xs, color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  fieldLabel: { marginTop: spacing.md, marginBottom: spacing.xs, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "600" },
   field: {
     minHeight: 48,
     paddingHorizontal: spacing.md,
@@ -908,7 +891,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   questionField: { minHeight: 92, paddingTop: spacing.md, textAlignVertical: "top" },
-  counter: { marginTop: 4, color: colors.textSubtle, fontSize: 8, fontWeight: "700", textAlign: "right" },
+  counter: { marginTop: 4, color: colors.textSubtle, fontSize: 10, lineHeight: 14, fontWeight: "500", textAlign: "right" },
   optionFields: { gap: spacing.xs },
   optionFieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   optionNumber: { width: 26, height: 26, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
@@ -916,7 +899,7 @@ const styles = StyleSheet.create({
   optionField: { flex: 1 },
   removeOption: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   addOption: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: spacing.sm, paddingVertical: spacing.xs },
-  addOptionText: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+  addOptionText: { color: colors.primaryHover, fontSize: 12, lineHeight: 16, fontWeight: "600" },
   durationRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   durationButton: { minHeight: 34, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
   durationButtonActive: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
@@ -937,7 +920,7 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, color: colors.warning, fontSize: 11, fontWeight: "700", lineHeight: 16 },
   emptyCard: {
-    minHeight: 230,
+    minHeight: 190,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
@@ -945,6 +928,6 @@ const styles = StyleSheet.create({
   },
   emptyIcon: { width: 46, height: 46, alignItems: "center", justifyContent: "center" },
   emptyTitle: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "600" },
-  emptyText: { maxWidth: 270, color: colors.textMuted, fontSize: 12, fontWeight: "700", lineHeight: 18, textAlign: "center" },
+  emptyText: { maxWidth: 270, color: colors.textMuted, fontSize: 12, fontWeight: "500", lineHeight: 18, textAlign: "center" },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
 });
