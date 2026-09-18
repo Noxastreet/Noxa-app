@@ -90,10 +90,6 @@ function lifecycleUrgency(event: EventExperienceRow) {
   return date.toDateString() === today.toDateString() ? "Today" : "Upcoming";
 }
 
-function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return count === 1 ? singular : plural;
-}
-
 function validCoordinates(
   event: EventExperienceRow | null,
 ): event is EventExperienceRow & { latitude: number; longitude: number } {
@@ -234,7 +230,6 @@ export default function CanonicalEventDetailScreen() {
   const [isSaved, setIsSaved] = useState(false);
   const [canManageCover, setCanManageCover] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const [organizerEventCount, setOrganizerEventCount] = useState(0);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [rsvpBusy, setRsvpBusy] = useState(false);
@@ -268,7 +263,7 @@ export default function CanonicalEventDetailScreen() {
     const nextEvent = eventData as EventExperienceRow;
     setEvent(nextEvent);
     // The event row is the critical render path. Optional organizer, RSVP,
-    // history and gallery data must never keep the whole screen behind
+    // saved-state and gallery data must never keep the whole screen behind
     // “Opening event...” on a slow mobile connection.
     setLoading(false);
 
@@ -281,7 +276,6 @@ export default function CanonicalEventDetailScreen() {
       managerResult,
       attendanceResult,
       savedResult,
-      historyResult,
       galleryResult,
     ] = await Promise.all([
       supabase
@@ -318,11 +312,6 @@ export default function CanonicalEventDetailScreen() {
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
       supabase
-        .from("events")
-        .select("id", { count: "exact", head: true })
-        .eq("creator_id", nextEvent.creator_id)
-        .lt("starts_at", nextEvent.starts_at),
-      supabase
         .from("event_gallery_items")
         .select("id,object_path")
         .eq("event_id", nextEvent.id)
@@ -333,8 +322,7 @@ export default function CanonicalEventDetailScreen() {
     const detailError =
       creatorResult.error ||
       crewResult.error ||
-      attendanceResult.error ||
-      historyResult.error;
+      attendanceResult.error;
 
     if (detailError) setError(detailError.message);
 
@@ -350,7 +338,6 @@ export default function CanonicalEventDetailScreen() {
     setCreator((creatorResult.data as CanonicalProfile | null) ?? null);
     setCrew((crewResult.data as EventCrew | null) ?? null);
     setIsSaved(savedResult.error ? false : Boolean(savedResult.data));
-    setOrganizerEventCount(historyResult.count ?? 0);
 
     const attendanceRows = (attendanceResult.data ?? []) as AttendanceRow[];
     const goingRows = attendanceRows.filter((row) => row.response === "going");
@@ -794,11 +781,6 @@ export default function CanonicalEventDetailScreen() {
                 {organizerName}
               </Text>
             </View>
-            <Text style={styles.organizerHistory}>
-              {organizerEventCount
-                ? `${organizerEventCount} past ${pluralize(organizerEventCount, "event")}`
-                : "First event"}
-            </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
           </Pressable>
         </View>
@@ -1033,11 +1015,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     fontWeight: "700",
-  },
-  organizerHistory: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
   },
   galleryRow: { height: 104, flexDirection: "row", gap: spacing.sm },
   galleryImage: {
