@@ -546,7 +546,7 @@ export default function GroupDriveViewScreen() {
               />
             ) : null}
           </View>
-          <Text style={styles.meetingPrivacy}>Distance check stays private. Ready does not start live sharing.</Text>
+          <Text style={styles.meetingPrivacy}>Your position is not shared with Group Drive participants. Ready does not start live sharing.</Text>
         </View>
       ) : null}
 
