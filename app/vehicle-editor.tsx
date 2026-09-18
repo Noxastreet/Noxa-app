@@ -8,7 +8,7 @@ import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressa
 import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 const colorsAvailable = [
   { name: 'Graphite', value: '#2E3038' },
@@ -302,17 +302,12 @@ function ColorSelector({ disabled, error, onSelect, selectedColor }: { disabled:
 }
 
 function VehicleCoverEditor({
-  brand,
   disabled,
-  horsepower,
   isBusy,
-  isPublic,
-  model,
   onChoose,
   onRemove,
   previewUri,
   vehicleType,
-  year,
 }: {
   brand: string;
   disabled: boolean;
