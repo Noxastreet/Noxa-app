@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, Tabs, type Href } from 'expo-router';
+import { Redirect, Tabs, useGlobalSearchParams, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -78,6 +78,9 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const params = useGlobalSearchParams<{ mapMode?: string | string[] }>();
+  const rawMapMode = Array.isArray(params.mapMode) ? params.mapMode[0] : params.mapMode;
+  const navigationMode = rawMapMode === 'route';
   const [destination, setDestination] = useState<TabDestination>(null);
 
   useEffect(() => {
@@ -168,13 +171,15 @@ export default function TabLayout() {
           headerShown: false,
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.textSubtle,
-          tabBarStyle: [
-            styles.tabBar,
-            {
-              height: 64 + insets.bottom,
-              paddingBottom: Math.max(insets.bottom, spacing.sm),
-            },
-          ],
+          tabBarStyle: navigationMode
+            ? { display: 'none' }
+            : [
+                styles.tabBar,
+                {
+                  height: 64 + insets.bottom,
+                  paddingBottom: Math.max(insets.bottom, spacing.sm),
+                },
+              ],
           tabBarItemStyle: styles.tabItem,
           tabBarButton: HapticTab,
           tabBarHideOnKeyboard: true,

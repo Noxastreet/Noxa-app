@@ -105,6 +105,8 @@ export type GroupDriveDetails = {
 
 export type DriveInviteFriend = DriveProfile & {
   unavailable: boolean;
+  sourceCrewId: string | null;
+  relationship: 'mutual_friend' | 'crew_member' | 'mutual_friend_and_crew';
 };
 
 export type DriveInviteCrew = {

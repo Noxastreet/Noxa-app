@@ -215,12 +215,16 @@ export async function respondToDriveInvitation(invitationId: string, accept: boo
   });
 }
 
-export async function inviteUsersToDrive(driveSessionId: string, userIds: string[]) {
+export async function inviteUsersToDrive(
+  driveSessionId: string,
+  userIds: string[],
+  sourceCrewByUserId: Record<string, string | null> = {},
+) {
   for (const userId of userIds) {
     await rpc<string>('noxa_invite_user_to_drive', {
       target_drive_session_id: driveSessionId,
       target_user_id: userId,
-      invitation_source_crew_id: null,
+      invitation_source_crew_id: sourceCrewByUserId[userId] ?? null,
     });
   }
 }
@@ -248,22 +252,28 @@ export async function cancelDriveInvitation(invitationId: string) {
   });
 }
 
-export async function loadDriveInviteOptions(driveSessionId: string): Promise<DriveInviteOptions> {
+export async function loadDriveInviteOptions(
+  driveSessionId: string | null = null,
+): Promise<DriveInviteOptions> {
   const userId = await currentUserId();
   const [outgoingResult, incomingResult, membershipsResult, participantsResult, invitationsResult] =
     await Promise.all([
       supabase.from('follows').select('following_id').eq('follower_id', userId),
       supabase.from('follows').select('follower_id').eq('following_id', userId),
       supabase.from('crew_members').select('crew_id').eq('user_id', userId),
-      supabase
-        .from('drive_participants')
-        .select('user_id')
-        .eq('drive_session_id', driveSessionId),
-      supabase
-        .from('drive_invitations')
-        .select('invited_user_id,status')
-        .eq('drive_session_id', driveSessionId)
-        .eq('status', 'invited'),
+      driveSessionId
+        ? supabase
+            .from('drive_participants')
+            .select('user_id')
+            .eq('drive_session_id', driveSessionId)
+        : Promise.resolve({ data: [], error: null }),
+      driveSessionId
+        ? supabase
+            .from('drive_invitations')
+            .select('invited_user_id,status')
+            .eq('drive_session_id', driveSessionId)
+            .eq('status', 'invited')
+        : Promise.resolve({ data: [], error: null }),
     ]);
   const error =
     outgoingResult.error ??
@@ -277,18 +287,11 @@ export async function loadDriveInviteOptions(driveSessionId: string): Promise<Dr
   const mutualIds = (incomingResult.data ?? [])
     .map((row) => String(row.follower_id))
     .filter((id) => outgoing.has(id));
+  const mutualSet = new Set(mutualIds);
   const unavailableIds = new Set([
     ...(participantsResult.data ?? []).map((row) => String(row.user_id)),
     ...(invitationsResult.data ?? []).map((row) => String(row.invited_user_id)),
   ]);
-  const profilesResult = mutualIds.length
-    ? await supabase
-        .from('profiles')
-        .select('id,display_name,username,avatar_url')
-        .in('id', mutualIds)
-        .order('display_name', { ascending: true })
-    : { data: [], error: null };
-  if (profilesResult.error) throw new Error('Friends could not be loaded.');
 
   const crewIds = Array.from(
     new Set((membershipsResult.data ?? []).map((row) => String(row.crew_id))),
@@ -304,20 +307,52 @@ export async function loadDriveInviteOptions(driveSessionId: string): Promise<Dr
   if (crewsResult.error || crewMembersResult.error) {
     throw new Error('Crews could not be loaded.');
   }
+
   const eligibleCrewMembers = new Map<string, string[]>();
+  const crewSourceByUserId = new Map<string, string>();
   for (const row of crewMembersResult.data ?? []) {
-    const crewId = String(row.crew_id);
+    const sourceCrewId = String(row.crew_id);
     const memberId = String(row.user_id);
-    if (memberId === userId || unavailableIds.has(memberId)) continue;
-    const members = eligibleCrewMembers.get(crewId) ?? [];
+    if (memberId === userId) continue;
+
+    if (!crewSourceByUserId.has(memberId)) {
+      crewSourceByUserId.set(memberId, sourceCrewId);
+    }
+    if (unavailableIds.has(memberId)) continue;
+
+    const members = eligibleCrewMembers.get(sourceCrewId) ?? [];
     members.push(memberId);
-    eligibleCrewMembers.set(crewId, members);
+    eligibleCrewMembers.set(sourceCrewId, members);
   }
+
+  const personIds = Array.from(
+    new Set([...mutualIds, ...crewSourceByUserId.keys()]),
+  );
+  const profilesResult = personIds.length
+    ? await supabase
+        .from('profiles')
+        .select('id,display_name,username,avatar_url')
+        .in('id', personIds)
+        .order('display_name', { ascending: true })
+    : { data: [], error: null };
+  if (profilesResult.error) throw new Error('People could not be loaded.');
+
   return {
-    friends: (profilesResult.data ?? []).map((profile) => ({
-      ...mapProfile(profile),
-      unavailable: unavailableIds.has(profile.id),
-    })),
+    friends: (profilesResult.data ?? []).map((profile) => {
+      const sharedCrewId = crewSourceByUserId.get(profile.id) ?? null;
+      const isMutual = mutualSet.has(profile.id);
+      return {
+        ...mapProfile(profile),
+        unavailable: unavailableIds.has(profile.id),
+        sourceCrewId: isMutual ? null : sharedCrewId,
+        relationship:
+          isMutual && sharedCrewId
+            ? 'mutual_friend_and_crew'
+            : isMutual
+              ? 'mutual_friend'
+              : 'crew_member',
+      };
+    }),
     crews: (crewsResult.data ?? []).map((crew) => ({
       id: String(crew.id),
       name: String(crew.name),

@@ -13,7 +13,10 @@ export type MapboxDriver = {
   longitude: number;
   label: string;
   avatar_url: string | null;
+  username?: string | null;
   vehicle_label?: string | null;
+  distance_meters?: number | null;
+  can_invite_directly?: boolean;
   is_relevant?: boolean;
   is_dimmed?: boolean;
 };
@@ -44,7 +47,11 @@ export type MapboxLiveMapProps = {
   followUserLocation: boolean;
   onFollowUserLocationChange: (following: boolean) => void;
   onUserPan: () => void;
+  onMapPress?: () => void;
+  selectedDriverId?: string | null;
   onDriverPress: (driverId: string) => void;
+  onDriverProfilePress?: (driverId: string) => void;
+  onDriverInvitePress?: (driverId: string) => void;
   onEventPress: (event: MapboxEvent) => void;
 };
 

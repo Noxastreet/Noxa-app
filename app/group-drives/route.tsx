@@ -80,8 +80,9 @@ function PointRow({
 }
 
 export default function GroupDriveRouteScreen() {
-  const params = useLocalSearchParams<{ id?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ id?: string; inviteUserId?: string; mode?: string }>();
   const driveSessionId = typeof params.id === 'string' ? params.id : '';
+  const inviteUserId = typeof params.inviteUserId === 'string' ? params.inviteUserId : null;
   const editMode = params.mode === 'edit';
   const [start, setStart] = useState<RoutePoint | null>(null);
   const [end, setEnd] = useState<RoutePoint | null>(null);
@@ -186,7 +187,12 @@ export default function GroupDriveRouteScreen() {
       if (editMode) {
         router.replace({ pathname: '/group-drives/[id]', params: { id: driveSessionId } });
       } else {
-        router.replace({ pathname: '/group-drives/participants', params: { id: driveSessionId } });
+        router.replace({
+          pathname: '/group-drives/participants',
+          params: inviteUserId
+            ? { id: driveSessionId, inviteUserId }
+            : { id: driveSessionId },
+        });
       }
     } catch (routeError) {
       setError(routeError instanceof Error ? routeError.message : 'Route could not be calculated.');

@@ -176,8 +176,6 @@ function MembershipButton({
   request,
   busy,
   onJoin,
-  onLeave,
-  onCancelRequest,
 }: {
   crew: Crew;
   isMember: boolean;
@@ -185,8 +183,6 @@ function MembershipButton({
   request: JoinRequest | null;
   busy: boolean;
   onJoin: () => void;
-  onLeave: () => void;
-  onCancelRequest: () => void;
 }) {
   if (isOwner) {
     return (
@@ -205,11 +201,11 @@ function MembershipButton({
     return (
       <CanonicalPrimaryButton
         compact
-        icon="checkmark"
-        label="JOINED"
-        loading={busy}
+        disabled
+        icon="checkmark-circle"
+        label="MEMBER"
         variant="surface"
-        onPress={onLeave}
+        onPress={() => undefined}
       />
     );
   }
@@ -218,10 +214,11 @@ function MembershipButton({
     return (
       <CanonicalPrimaryButton
         compact
-        label="REQUESTED"
-        loading={busy}
+        disabled
+        icon="time-outline"
+        label="PENDING"
         variant="surface"
-        onPress={onCancelRequest}
+        onPress={() => undefined}
       />
     );
   }
@@ -280,8 +277,8 @@ function CrewHero({
         <View style={styles.heroPills}>
           <CanonicalPill label={crew.is_public ? "PUBLIC" : "PRIVATE"} />
           <CanonicalPill
-            label={members.length ? "ACTIVE" : "NEW"}
-            tone="accent"
+            label={joinPolicyLabel(crew.join_policy)}
+            tone={crew.join_policy === "open" ? "accent" : "neutral"}
           />
         </View>
         <CanonicalAvatarStack
@@ -417,7 +414,7 @@ function ActivityTab({
         </>
       ) : null}
 
-      <SectionTitle title="RECENT ACTIVITY" />
+      <SectionTitle title="CREW SNAPSHOT" />
       <View style={styles.activityCard}>
         {events[0] ? (
           <View style={styles.activityLine}>
@@ -437,7 +434,7 @@ function ActivityTab({
           <View style={styles.activityLine}>
             <CanonicalAvatar profile={members[0].profile} size={36} />
             <View style={styles.activityCopy}>
-              <Text style={styles.activityTitle}>Member in the crew</Text>
+              <Text style={styles.activityTitle}>Crew member</Text>
               <Text numberOfLines={1} style={styles.activityMeta}>
                 {profileName(members[0].profile)} · {members[0].role}
               </Text>
@@ -882,6 +879,16 @@ export default function CanonicalCrewDetailScreen() {
       onPress: () => void shareCrew(),
     });
 
+    if (joinRequest) {
+      actions.push({
+        key: "cancel-request",
+        label: "Cancel join request",
+        icon: "close-circle-outline",
+        disabled: busy,
+        onPress: () => void cancelRequest(),
+      });
+    }
+
     if (isMember && !isOwner) {
       actions.push({
         key: "leave",
@@ -901,6 +908,8 @@ export default function CanonicalCrewDetailScreen() {
     crew,
     isMember,
     isOwner,
+    joinRequest,
+    cancelRequest,
     leave,
     removeCover,
     shareCrew,
@@ -936,6 +945,12 @@ export default function CanonicalCrewDetailScreen() {
           <Text style={styles.stateText}>
             {error || "This crew no longer exists."}
           </Text>
+          {uuidPattern.test(crewId) ? (
+            <CanonicalPrimaryButton
+              label="RETRY"
+              onPress={() => void load()}
+            />
+          ) : null}
           <CanonicalPrimaryButton
             label="GO BACK"
             variant="surface"
@@ -952,9 +967,7 @@ export default function CanonicalCrewDetailScreen() {
       crew={crew}
       isMember={isMember}
       isOwner={isOwner}
-      onCancelRequest={cancelRequest}
       onJoin={join}
-      onLeave={leave}
       request={joinRequest}
     />
   );
@@ -1031,8 +1044,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   headerButton: {
-    width: 42,
-    height: 42,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -1083,8 +1096,8 @@ const styles = StyleSheet.create({
   },
   heroMeta: {
     color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "700",
     letterSpacing: 0.25,
   },
@@ -1097,8 +1110,8 @@ const styles = StyleSheet.create({
   founderBlock: { flex: 1, minWidth: 0 },
   founderEyebrow: {
     color: colors.textSubtle,
-    fontSize: 8,
-    lineHeight: 10,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
@@ -1140,7 +1153,7 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     minWidth: 0,
-    minHeight: 40,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.xs,
@@ -1155,10 +1168,10 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: colors.textSubtle,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: "900",
-    letterSpacing: 0.25,
+    letterSpacing: 0.2,
     textAlign: "center",
   },
   tabTextActive: { color: colors.text },

@@ -25,6 +25,7 @@ import {
   listMyGroupDrives,
   type GroupDriveListItem,
 } from '@/src/features/group-drive';
+import { publicErrorMessage } from '@/src/lib/publicError';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 function DriveRow({ item }: { item: GroupDriveListItem }) {
@@ -47,28 +48,46 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
     router.push({ pathname: '/group-drives/[id]', params: { id: item.driveSessionId } });
   };
   const dateValue = terminal ? item.completedAt : item.scheduledStartAt;
+  const stateLabel = invited ? 'INVITATION' : active ? 'RESUME' : terminal ? 'SUMMARY' : 'OPEN';
+
   return (
     <Pressable
-      accessibilityLabel={`${item.title}, ${item.sessionStatus}`}
+      accessibilityLabel={`${item.title}, ${item.sessionStatus}, ${stateLabel.toLowerCase()}`}
       accessibilityRole="button"
+      accessibilityHint="Opens this Group Drive"
       onPress={open}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
       <View style={styles.rowTop}>
         <DriveStatus status={item.sessionStatus} />
-        {invited ? <Text style={styles.invited}>Invitation</Text> : null}
-        {active ? <Text style={styles.activeLabel}>Resume</Text> : null}
-        {terminal ? <Text style={styles.terminalLabel}>View summary</Text> : null}
+        <View style={[
+          styles.rowIntent,
+          invited && styles.rowIntentAccent,
+          active && styles.rowIntentActive,
+        ]}>
+          <Text style={[
+            styles.rowIntentText,
+            invited && styles.rowIntentAccentText,
+            active && styles.rowIntentActiveText,
+          ]}>
+            {stateLabel}
+          </Text>
+          <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+        </View>
       </View>
-      <Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text>
-      <View style={styles.metaRow}>
-        <Ionicons name={terminal ? 'checkmark-circle-outline' : 'time-outline'} size={15} color={colors.textMuted} />
-        <Text numberOfLines={1} style={styles.meta}>{formatDriveDate(dateValue)}</Text>
+
+      <Text numberOfLines={2} style={styles.rowTitle}>{item.title}</Text>
+
+      <View style={styles.rowFacts}>
+        <View style={styles.metaRow}>
+          <Ionicons name={terminal ? 'checkmark-circle-outline' : 'time-outline'} size={16} color={colors.textMuted} />
+          <Text numberOfLines={1} style={styles.meta}>{formatDriveDate(dateValue)}</Text>
+        </View>
+        <View style={styles.metaRow}>
+          <Ionicons name="navigate-outline" size={16} color={colors.textMuted} />
+          <Text style={styles.meta}>{formatDriveDistance(item.routeDistanceMeters)}</Text>
+        </View>
       </View>
-      <View style={styles.metaRow}>
-        <Ionicons name="navigate-outline" size={15} color={colors.textMuted} />
-        <Text style={styles.meta}>{formatDriveDistance(item.routeDistanceMeters)}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} style={styles.chevron} />
     </Pressable>
   );
 }
@@ -86,7 +105,7 @@ export default function GroupDrivesScreen() {
     try {
       setDrives(await listMyGroupDrives());
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Group Drives could not be loaded.');
+      setError(publicErrorMessage(loadError, 'Group Drives could not be loaded. Retry.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -128,17 +147,6 @@ export default function GroupDrivesScreen() {
                 />
               }
             />
-            <View style={styles.hero}>
-              <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
-              <Text style={styles.heroTitle}>Plan a route with people you choose.</Text>
-              <Text style={styles.heroBody}>Invite-only. Exact route details stay private until a driver joins.</Text>
-              <NoxaButton
-                fullWidth
-                leadingIcon={<Ionicons name="add" size={20} color={colors.text} />}
-                onPress={() => router.push('/group-drives/details')}
-                title="Create Group Drive"
-              />
-            </View>
             {activeDrive ? (
               <View style={styles.notice}>
                 <View style={styles.noticeCopy}>
@@ -176,6 +184,22 @@ export default function GroupDrivesScreen() {
                 />
               </View>
             ) : null}
+            <View style={styles.hero}>
+              <View style={styles.heroIcon}>
+                <Ionicons name="navigate-outline" size={22} color={colors.primaryHover} />
+              </View>
+              <View style={styles.heroCopy}>
+                <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
+                <Text style={styles.heroTitle}>Create a private drive.</Text>
+                <Text style={styles.heroBody}>Choose the route, people and time. Location sharing starts only with each participant’s consent.</Text>
+              </View>
+              <NoxaButton
+                fullWidth
+                leadingIcon={<Ionicons name="add" size={20} color={colors.text} />}
+                onPress={() => router.push('/group-drives/details')}
+                title="Create Group Drive"
+              />
+            </View>
             <Text style={styles.sectionTitle}>YOUR DRIVES</Text>
           </View>
         }
@@ -205,7 +229,23 @@ export default function GroupDrivesScreen() {
 const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   headerBlock: { gap: spacing.lg, marginBottom: spacing.lg },
-  hero: { gap: spacing.md, paddingVertical: spacing.lg },
+  hero: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+  },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryMuted,
+  },
+  heroCopy: { gap: spacing.xs },
   eyebrow: {
     color: colors.primary,
     fontSize: 11,
@@ -238,7 +278,7 @@ const styles = StyleSheet.create({
   noticeTitle: { color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   noticeText: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '700' },
   row: {
-    minHeight: 148,
+    minHeight: 156,
     padding: spacing.lg,
     borderRadius: radius.card,
     borderWidth: 1,
@@ -246,14 +286,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   rowPressed: { backgroundColor: colors.surfacePressed },
-  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  invited: { color: colors.primaryHover, fontSize: 11, fontWeight: '800' },
-  activeLabel: { color: colors.success, fontSize: 11, fontWeight: '800' },
-  terminalLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800' },
+  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  rowIntent: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+  },
+  rowIntentAccent: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
+  rowIntentActive: { borderColor: colors.success, backgroundColor: colors.successMuted },
+  rowIntentText: { color: colors.textMuted, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  rowIntentAccentText: { color: colors.primaryHover },
+  rowIntentActiveText: { color: colors.success },
   rowTitle: { marginTop: spacing.md, marginBottom: spacing.sm, color: colors.text, fontSize: 20, fontWeight: '900' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xxs },
+  rowFacts: { gap: spacing.xs },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   meta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  chevron: { position: 'absolute', right: spacing.md, bottom: spacing.md },
   separator: { height: spacing.sm },
   emptyWrap: { gap: spacing.md },
 });
