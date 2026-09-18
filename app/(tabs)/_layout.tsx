@@ -137,7 +137,7 @@ export default function TabLayout() {
           tabBarStyle: [
             styles.tabBar,
             {
-              bottom: insets.bottom,
+              bottom: Math.max(spacing.xs, insets.bottom - spacing.md),
             },
           ],
           tabBarItemStyle: styles.tabItem,
@@ -178,8 +178,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <TabIcon
                 name={focused ? 'map' : 'map-outline'}
-                color={focused ? colors.accent : color}
-                emphasized
+                color={color}
               />
             ),
           }}
@@ -226,27 +225,27 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
-    height: 64,
+    height: 54,
     paddingTop: 0,
     paddingBottom: 0,
     backgroundColor: colors.glass,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderStrong,
-    borderRadius: 22,
+    borderRadius: 18,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 10,
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 8,
   },
   tabItem: {
-    height: 64,
+    height: 54,
     paddingVertical: 0,
   },
   iconWrap: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
