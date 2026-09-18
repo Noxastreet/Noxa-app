@@ -395,7 +395,7 @@ export default function GroupDriveViewScreen() {
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="GROUP DRIVE" />
+        <GroupDriveHeader title="Group Drive" />
         <NoxaLoadingState label="Loading Group Drive…" />
       </Screen>
     );
@@ -404,7 +404,7 @@ export default function GroupDriveViewScreen() {
   if (!drive) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="GROUP DRIVE" />
+        <GroupDriveHeader title="Group Drive" />
         <NoxaEmptyState icon="alert-circle-outline" title="Drive unavailable" body={error ?? 'You no longer have access to this Group Drive.'} />
         <NoxaButton fullWidth onPress={() => router.replace('/group-drives')} title="Back to Group Drives" variant="secondary" />
       </Screen>
@@ -476,7 +476,7 @@ export default function GroupDriveViewScreen() {
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
-        title={preActive ? 'GROUP DRIVE LOBBY' : 'GROUP DRIVE'}
+        title={preActive ? 'Drive Lobby' : 'Group Drive'}
         subtitle={isHost ? 'You are the host' : 'Private participant view'}
       />
       <View style={styles.hero}>
@@ -489,7 +489,7 @@ export default function GroupDriveViewScreen() {
       {preActive ? (
         <View style={styles.lobbyLine}>
           <View>
-            <Text style={styles.lobbyLabel}>LOBBY</Text>
+            <Text style={styles.lobbyLabel}>Lobby</Text>
             <Text style={styles.lobbyValue}>
               {acceptedParticipants.length === 0
                 ? 'Waiting for drivers'
@@ -507,7 +507,7 @@ export default function GroupDriveViewScreen() {
               <Ionicons name="location" size={18} color={colors.primaryHover} />
             </View>
             <View style={styles.meetingCopy}>
-              <Text style={styles.meetingEyebrow}>MEET AT A</Text>
+              <Text style={styles.meetingEyebrow}>Meet point</Text>
               <Text numberOfLines={1} style={styles.meetingTitle}>
                 {stopLabel(start, 'Start point')}
               </Text>
@@ -535,13 +535,14 @@ export default function GroupDriveViewScreen() {
               fullWidth
               onPress={() => void openNavigationToMeeting()}
               title="Navigate to A"
+              variant="secondary"
             />
             {(approach.status === 'unavailable' || approach.status === 'error' || approach.status === 'idle') ? (
               <NoxaButton
                 fullWidth
                 onPress={() => void refreshApproachToMeeting(true)}
                 title="Show my distance"
-                variant="secondary"
+                variant="ghost"
               />
             ) : null}
           </View>
@@ -553,7 +554,7 @@ export default function GroupDriveViewScreen() {
         <View style={styles.phaseNotice}>
           <Ionicons name="navigate-outline" size={20} color={colors.primaryHover} />
           <View style={styles.activeNoticeCopy}>
-            <Text style={styles.activeNoticeTitle}>ACTIVE DRIVE</Text>
+            <Text style={styles.activeNoticeTitle}>Active Drive</Text>
             <Text style={styles.phaseNoticeText}>
               Open the live route. If this drive still needs location consent on this device, NOXA asks once over the map instead of sending you to another screen.
             </Text>
@@ -574,11 +575,11 @@ export default function GroupDriveViewScreen() {
       <View style={styles.routeSummary}>
         <View>
           <Text style={styles.metric}>{formatDriveDistance(drive.routeDistanceMeters)}</Text>
-          <Text style={styles.metricLabel}>DISTANCE</Text>
+          <Text style={styles.metricLabel}>Distance</Text>
         </View>
         <View>
           <Text style={styles.metric}>{formatDriveDuration(drive.routeDurationSeconds)}</Text>
-          <Text style={styles.metricLabel}>ESTIMATED</Text>
+          <Text style={styles.metricLabel}>ETA</Text>
         </View>
       </View>
       <View style={styles.facts}>
@@ -589,7 +590,7 @@ export default function GroupDriveViewScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>PARTICIPANTS</Text>
+          <Text style={styles.sectionTitle}>Participants</Text>
           <Text style={styles.sectionCount}>{drive.participants.length}</Text>
         </View>
         {drive.participants.map((participant) => (
@@ -600,7 +601,7 @@ export default function GroupDriveViewScreen() {
       {isHost && pendingInvitations.length ? (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>PENDING INVITATIONS</Text>
+            <Text style={styles.sectionTitle}>Pending invitations</Text>
             <Text style={styles.sectionCount}>{pendingInvitations.length}</Text>
           </View>
           {pendingInvitations.map((invitation) => (
@@ -666,7 +667,7 @@ export default function GroupDriveViewScreen() {
       ) : null}
       {canEdit ? (
         <View style={styles.dangerZone}>
-          <Text style={styles.dangerLabel}>HOST CONTROL</Text>
+          <Text style={styles.dangerLabel}>Host control</Text>
           <NoxaButton fullWidth loading={working} onPress={confirmCancel} title="Cancel Group Drive" variant="danger" />
         </View>
       ) : null}
@@ -675,54 +676,196 @@ export default function GroupDriveViewScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  hero: { gap: spacing.sm, paddingTop: spacing.lg },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.value, fontWeight: '900' },
-  caption: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
-  description: { marginTop: spacing.sm, color: colors.textMuted, ...typography.v2.body },
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
+  hero: { gap: spacing.sm, paddingTop: spacing.sm },
+  title: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    ...typography.v2.value,
+    fontWeight: '900',
+  },
+  caption: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  description: { color: colors.textMuted, ...typography.v2.body },
   lobbyLine: {
-    minHeight: 64,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.divider,
   },
-  lobbyLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  lobbyValue: { marginTop: 4, color: colors.text, fontSize: 15, fontWeight: '800' },
-  meetingCard: { gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceBase },
-  meetingHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  meetingIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
+  lobbyLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  lobbyValue: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  meetingCard: {
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+  },
+  meetingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  meetingIcon: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
   meetingCopy: { flex: 1, minWidth: 0 },
-  meetingEyebrow: { color: colors.primaryHover, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  meetingTitle: { marginTop: 2, color: colors.text, fontSize: 15, fontWeight: '800' },
+  meetingEyebrow: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  meetingTitle: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
   meetingStatus: { minHeight: 20 },
   meetingMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  meetingReady: { color: colors.success, fontSize: 12, fontWeight: '800' },
+  meetingReady: { color: colors.success, fontSize: 12, lineHeight: 18, fontWeight: '700' },
   meetingActions: { gap: spacing.xs },
-  meetingPrivacy: { color: colors.textSubtle, fontSize: 10, lineHeight: 15, textAlign: 'center' },
-  phaseNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
+  meetingPrivacy: {
+    color: colors.textSubtle,
+    fontSize: 10,
+    lineHeight: 15,
+  },
+  phaseNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
   activeNoticeCopy: { flex: 1, gap: spacing.xxs },
-  activeNoticeTitle: { color: colors.primaryHover, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  phaseNoticeText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
-  routeSummary: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.lg, paddingVertical: spacing.lg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.divider },
-  metric: { color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.6 },
-  metricLabel: { marginTop: spacing.xxs, color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  facts: { borderTopWidth: 1, borderTopColor: colors.divider },
+  activeNoticeTitle: {
+    color: colors.primaryHover,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  phaseNoticeText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  routeSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  metric: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  metricLabel: {
+    marginTop: spacing.xxs,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  facts: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
   section: { gap: spacing.xs },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs },
-  sectionTitle: { color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
-  sectionCount: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
-  personRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  sectionHeader: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  sectionCount: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  personRow: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+  },
   personCopy: { flex: 1, minWidth: 0 },
-  personName: { color: colors.text, fontSize: 14, fontWeight: '800' },
-  personMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, textTransform: 'capitalize' },
-  cancelInvite: { color: colors.primaryHover, fontSize: 12, fontWeight: '800', paddingVertical: spacing.sm },
+  personName: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '600' },
+  personMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    textTransform: 'capitalize',
+  },
+  cancelInvite: {
+    color: colors.primaryHover,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+    paddingVertical: spacing.sm,
+  },
   actions: { gap: spacing.xs },
-  actionHint: { color: colors.textSubtle, fontSize: 11, lineHeight: 16, textAlign: 'center' },
-  dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider },
-  dangerLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
+  actionHint: {
+    color: colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  dangerZone: {
+    gap: spacing.sm,
+    paddingTop: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.divider,
+  },
+  dangerLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  error: { color: colors.primaryHover, fontSize: 13, lineHeight: 18, fontWeight: '600' },
 });
