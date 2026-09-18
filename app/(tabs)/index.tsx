@@ -15,6 +15,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
+import type { DriveRouteResult } from "@/src/features/group-drive";
+import { MapContextSheet } from "@/src/features/map-context/MapContextSheet";
+import { MapGroupDriveFlow } from "@/src/features/map-context/MapGroupDriveFlow";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -283,42 +286,43 @@ function EventCard({
   event,
   bottomOffset,
   onClose,
+  onHeightChange,
   onRoute,
 }: {
   event: EventMarkerRow;
   bottomOffset: number;
   onClose: () => void;
+  onHeightChange: (height: number) => void;
   onRoute: () => void;
 }) {
   const canRoute = hasValidCoordinates(event);
   return (
-    <View style={[styles.eventCard, { bottom: bottomOffset }]}>
+    <MapContextSheet
+      onDismiss={onClose}
+      onHeightChange={onHeightChange}
+      style={[styles.eventCard, { bottom: bottomOffset }]}
+    >
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
-          <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
+          <Text style={styles.cardKicker}>
+            {getEventLifecycle(event) === "live" ? "LIVE EVENT" : "UPCOMING EVENT"}
+          </Text>
           <Text style={styles.cardTitle} numberOfLines={2}>
             {event.title}
           </Text>
-          <Text style={styles.cardSubtitle}>
-            {formatEventTime(event.starts_at)}
-          </Text>
+          <Text style={styles.cardSubtitle}>{formatEventTime(event.starts_at)}</Text>
           <Text style={styles.cardLocation} numberOfLines={1}>
             {event.location_name ?? "Exact location selected"}
           </Text>
         </View>
-        <View style={styles.eventCardHeaderActions}>
-          <View style={styles.eventCardIcon}>
-            <Ionicons name="calendar-outline" size={18} color={colors.text} />
-          </View>
-          <NoxaIconButton
-            accessibilityLabel="Close event preview"
-            icon="close"
-            iconSize={18}
-            onPress={onClose}
-            size={40}
-            variant="ghost"
-          />
-        </View>
+        <NoxaIconButton
+          accessibilityLabel="Close event preview"
+          icon="close"
+          iconSize={18}
+          onPress={onClose}
+          size={40}
+          variant="ghost"
+        />
       </View>
       <View style={styles.eventActions}>
         <NoxaButton
@@ -330,20 +334,20 @@ function EventCard({
           }
           size="md"
           style={styles.eventDetailsButton}
-          title="View details"
+          title="Details"
           variant="ghost"
         />
         <NoxaButton
-          accessibilityLabel="Route to event"
+          accessibilityLabel="Drive to event"
           disabled={!canRoute}
           leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
           onPress={onRoute}
           size="md"
           style={styles.eventPrimaryButton}
-          title="Route"
+          title="Drive there"
         />
       </View>
-    </View>
+    </MapContextSheet>
   );
 }
 
@@ -357,6 +361,8 @@ function RouteCard({
   canFollow,
   onClose,
   onFollowToggle,
+  onGroupDrive,
+  onHeightChange,
   onRetry,
 }: {
   event: EventMarkerRow;
@@ -368,14 +374,55 @@ function RouteCard({
   canFollow: boolean;
   onClose: () => void;
   onFollowToggle: () => void;
+  onGroupDrive: () => void;
+  onHeightChange: (height: number) => void;
   onRetry: () => void;
 }) {
   const loading = status === "loading";
+
+  if (following && route) {
+    return (
+      <MapContextSheet
+        dismissible={false}
+        onHeightChange={onHeightChange}
+        style={[styles.routeCard, styles.routeCardDriving, { bottom: bottomOffset }]}
+      >
+        <View style={styles.drivingRow}>
+          <View style={styles.drivingIcon}>
+            <Ionicons name="navigate" size={18} color={colors.text} />
+          </View>
+          <View style={styles.routeTitleWrap}>
+            <Text style={styles.cardKicker}>DRIVING</Text>
+            <Text style={styles.routeTitle} numberOfLines={1}>
+              {event.title}
+            </Text>
+            <Text style={styles.routeStatusText}>
+              {formatDuration(route.durationSeconds)} · {formatDistance(route.distanceMeters)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            accessibilityLabel="Exit navigation"
+            accessibilityRole="button"
+            activeOpacity={0.82}
+            onPress={onClose}
+            style={styles.routeEndButton}
+          >
+            <Text style={styles.routeEndText}>End</Text>
+          </TouchableOpacity>
+        </View>
+      </MapContextSheet>
+    );
+  }
+
   return (
-    <View style={[styles.routeCard, { bottom: bottomOffset }]}>
+    <MapContextSheet
+      onDismiss={onClose}
+      onHeightChange={onHeightChange}
+      style={[styles.routeCard, { bottom: bottomOffset }]}
+    >
       <View style={styles.routeHeader}>
         <View style={styles.routeTitleWrap}>
-          <Text style={styles.cardKicker}>NOXA route</Text>
+          <Text style={styles.cardKicker}>ROUTE</Text>
           <Text style={styles.routeTitle} numberOfLines={1}>
             {event.title}
           </Text>
@@ -392,47 +439,26 @@ function RouteCard({
       {loading ? (
         <View style={styles.routeStatusRow}>
           <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={styles.routeStatusText}>Building road route…</Text>
+          <Text style={styles.routeStatusText}>Building traffic-aware route…</Text>
         </View>
       ) : route ? (
-        <View style={styles.routeMetrics}>
-          <Text style={styles.routeMetric}>
-            {formatDistance(route.distanceMeters)}
-          </Text>
-          <Text style={styles.routeMetricMuted}>•</Text>
-          <Text style={styles.routeMetric}>
-            ~{formatDuration(route.durationSeconds)}
-          </Text>
+        <View style={styles.routeOptionCompact}>
+          <View>
+            <Text style={styles.routeOptionTitle}>Fastest</Text>
+            <Text style={styles.routeStatusText}>Traffic-aware route</Text>
+          </View>
+          <View style={styles.routeMetricsCompact}>
+            <Text style={styles.routeMetric}>{formatDuration(route.durationSeconds)}</Text>
+            <Text style={styles.routeMetricMuted}>·</Text>
+            <Text style={styles.routeMetric}>{formatDistance(route.distanceMeters)}</Text>
+            <Ionicons name="checkmark-circle" size={18} color={colors.primaryHover} />
+          </View>
         </View>
       ) : (
         <Text style={styles.routeStatusText}>
           {message ?? "Route unavailable. Keep exploring the NOXA map."}
         </Text>
       )}
-      {route && canFollow ? (
-        <TouchableOpacity
-          accessibilityLabel={
-            following ? "Stop following current location" : "Follow route"
-          }
-          accessibilityRole="button"
-          accessibilityState={{ selected: following }}
-          activeOpacity={0.82}
-          onPress={onFollowToggle}
-          style={[
-            styles.routeFollowButton,
-            following && styles.routeFollowButtonActive,
-          ]}
-        >
-          <Ionicons
-            name={following ? "navigate" : "navigate-outline"}
-            size={16}
-            color={following ? colors.text : colors.primaryHover}
-          />
-          <Text style={styles.routeFollowText}>
-            {following ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
-      ) : null}
       {status === "error" ? (
         <TouchableOpacity
           activeOpacity={0.82}
@@ -442,7 +468,76 @@ function RouteCard({
           <Text style={styles.routeRetryText}>Retry route</Text>
         </TouchableOpacity>
       ) : null}
-    </View>
+      {route && canFollow ? (
+        <View style={styles.routeActions}>
+          <NoxaButton
+            onPress={onGroupDrive}
+            size="md"
+            style={styles.eventDetailsButton}
+            title="Group Drive"
+            variant="ghost"
+          />
+          <NoxaButton
+            accessibilityLabel="Start navigation"
+            leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
+            onPress={onFollowToggle}
+            size="md"
+            style={styles.eventPrimaryButton}
+            title="Start"
+          />
+        </View>
+      ) : null}
+    </MapContextSheet>
+  );
+}
+
+function DriverCard({
+  bottomOffset,
+  driver,
+  onClose,
+  onHeightChange,
+}: {
+  bottomOffset: number;
+  driver: ActiveDriver;
+  onClose: () => void;
+  onHeightChange: (height: number) => void;
+}) {
+  return (
+    <MapContextSheet
+      onDismiss={onClose}
+      onHeightChange={onHeightChange}
+      style={[styles.driverCard, { bottom: bottomOffset }]}
+    >
+      <View style={styles.driverCardRow}>
+        <View style={styles.driverCardIcon}>
+          <Ionicons name="car-sport" size={18} color={colors.text} />
+        </View>
+        <View style={styles.driverCardCopy}>
+          <Text style={styles.cardKicker}>DRIVER</Text>
+          <Text numberOfLines={1} style={styles.driverCardTitle}>
+            {driverLabel(driver)}
+          </Text>
+        </View>
+        <NoxaIconButton
+          accessibilityLabel="Close driver preview"
+          icon="close"
+          iconSize={18}
+          onPress={onClose}
+          size={40}
+          variant="ghost"
+        />
+      </View>
+      <NoxaButton
+        fullWidth
+        onPress={() =>
+          router.push({
+            pathname: "/driver-profile/[id]",
+            params: { id: driver.user_id },
+          })
+        }
+        title="View profile"
+      />
+    </MapContextSheet>
   );
 }
 
