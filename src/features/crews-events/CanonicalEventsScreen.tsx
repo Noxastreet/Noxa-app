@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   headerActions: {
     flexDirection: 'row',
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.display,
     fontSize: 24,
     lineHeight: 26,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: -0.4,
   },
   dateMonth: {
