@@ -762,7 +762,7 @@ export default function VehicleEditorScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoiding}>
         <View style={styles.editorHeader}>
           <BackButton disabled={isSubmitting} />
-          <Text style={styles.headerTitle}>{isEditMode ? 'EDIT VEHICLE' : 'ADD VEHICLE'}</Text>
+          <Text style={styles.headerTitle}>{isEditMode ? 'Edit Vehicle' : 'Add Vehicle'}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -1028,18 +1028,16 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
   },
   eyebrow: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.4,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   sectionTitle: {
-    marginTop: spacing.xxs,
+    marginTop: 2,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '900',
-    letterSpacing: -0.2,
+    ...typography.v2.row,
+    fontWeight: '700',
   },
   sectionContent: {
     marginTop: spacing.md,
@@ -1069,10 +1067,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
   },
   colorChipSelected: {
     borderColor: colors.borderAccent,
