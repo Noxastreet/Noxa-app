@@ -112,20 +112,16 @@ function CrewLogo({ crew, size = 42 }: { crew: Crew; size?: number }) {
 
 function CrewFilterControl({
   value,
-  myCount,
-  discoverCount,
   onChange,
 }: {
   value: CrewFilter;
-  myCount: number;
-  discoverCount: number;
   onChange: (value: CrewFilter) => void;
 }) {
   return (
     <View style={styles.filterControl}>
       {[
-        { value: "mine" as const, label: "Your crews", count: myCount },
-        { value: "discover" as const, label: "Discover", count: discoverCount },
+        { value: "mine" as const, label: "Your crews" },
+        { value: "discover" as const, label: "Discover" },
       ].map((item) => {
         const active = item.value === value;
         return (
@@ -143,18 +139,6 @@ function CrewFilterControl({
             <Text style={[styles.filterText, active && styles.filterTextActive]}>
               {item.label}
             </Text>
-            {item.count > 0 ? (
-              <View style={[styles.filterCount, active && styles.filterCountActive]}>
-                <Text
-                  style={[
-                    styles.filterCountText,
-                    active && styles.filterCountTextActive,
-                  ]}
-                >
-                  {item.count}
-                </Text>
-              </View>
-            ) : null}
           </Pressable>
         );
       })}
@@ -188,7 +172,7 @@ function CrewListRow({
       }
       style={({ pressed }) => [styles.crewRow, pressed && styles.pressed]}
     >
-      <CrewLogo crew={crew} size={48} />
+      <CrewLogo crew={crew} size={44} />
       <View style={styles.crewRowCopy}>
         <View style={styles.crewTitleLine}>
           <Text numberOfLines={1} style={styles.crewRowTitle}>
@@ -710,8 +694,6 @@ export default function CanonicalCrewsScreen() {
         </View>
 
         <CrewFilterControl
-          discoverCount={discovery.length}
-          myCount={myCrews.length}
           onChange={setFilter}
           value={filter}
         />
@@ -746,12 +728,12 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: 136,
-    gap: spacing.sm,
+    paddingBottom: 112,
+    gap: spacing.xs,
   },
   pressed: { opacity: 0.72 },
   topBar: {
-    minHeight: 60,
+    minHeight: 50,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -765,13 +747,13 @@ const styles = StyleSheet.create({
   },
   filterControl: {
     flexDirection: "row",
-    minHeight: 44,
+    minHeight: 40,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   filterButton: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 40,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -788,17 +770,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   filterTextActive: { color: colors.text, fontWeight: "700" },
-  filterCount: {
-    minWidth: 22,
-    height: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xxs,
-    borderRadius: 11,
-  },
-  filterCountActive: { backgroundColor: colors.primaryMuted },
-  filterCountText: { color: colors.textSubtle, fontSize: 11, fontWeight: "700" },
-  filterCountTextActive: { color: colors.primaryHover },
   errorBanner: {
     minHeight: 44,
     flexDirection: "row",
@@ -810,7 +781,7 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 17 },
   stateCard: {
-    minHeight: 260,
+    minHeight: 220,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,
@@ -837,14 +808,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   logoFallbackText: { color: colors.text, fontSize: 12, fontWeight: "800" },
-  crewList: { marginTop: spacing.xs },
+  crewList: { marginTop: 0 },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: 64,
+    marginLeft: 56,
     backgroundColor: colors.divider,
   },
   crewRow: {
-    minHeight: 82,
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
