@@ -625,7 +625,7 @@ export default function GroupDriveViewScreen() {
             title={isReady ? 'Ready at A · tap to undo' : "I'm at A · Ready"}
             variant={isReady ? 'secondary' : 'primary'}
           />
-          <Text style={styles.actionHint}>Ready only updates the Lobby. It does not start location sharing.</Text>
+          <Text style={styles.actionHint}>Ready coordinates the Lobby only. It never starts location sharing.</Text>
         </View>
       ) : null}
 
