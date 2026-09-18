@@ -1862,18 +1862,82 @@ export default function LiveMapScreen() {
       })),
     [events],
   );
-  const openDriverProfile = useCallback((driverId: string) => {
-    router.push({
-      pathname: "/driver-profile/[id]",
-      params: { id: driverId },
-    });
-  }, []);
+  const selectedDriver = useMemo(
+    () =>
+      selectedDriverId
+        ? activeDrivers.find((driver) => driver.user_id === selectedDriverId) ?? null
+        : null,
+    [activeDrivers, selectedDriverId],
+  );
+
+  const openDriverPreview = useCallback(
+    (driverId: string) => {
+      if (isRouteMode || groupDriveVisible) return;
+      const driver = activeDrivers.find((candidate) => candidate.user_id === driverId);
+      if (!driver) return;
+      setSelectedEvent(null);
+      setSelectedDriverId(driverId);
+      setIsCameraAwayFromUser(true);
+      animateTo(pointRegion(driver));
+    },
+    [activeDrivers, animateTo, groupDriveVisible, isRouteMode],
+  );
+
   const selectMapboxEvent = useCallback(
     (event: MapboxEvent) => {
+      if (groupDriveVisible) return;
+      if (isRouteMode && focusEventId && event.id !== focusEventId) return;
       const fullEvent = events.find((candidate) => candidate.id === event.id);
-      if (fullEvent) selectEvent(fullEvent);
+      if (fullEvent) {
+        setSelectedDriverId(null);
+        selectEvent(fullEvent);
+      }
     },
-    [events, selectEvent],
+    [events, focusEventId, groupDriveVisible, isRouteMode, selectEvent],
+  );
+
+  const openGroupDriveHub = useCallback(() => {
+    setSelectedDriverId(null);
+    setGroupDriveStartInPlanner(false);
+    setGroupDriveDestination(null);
+    setGroupDriveRoute(null);
+    setGroupDriveVisible(true);
+  }, []);
+
+  const openEventGroupDrive = useCallback(() => {
+    if (!selectedEvent || !hasValidCoordinates(selectedEvent)) return;
+    setGroupDriveStartInPlanner(true);
+    setGroupDriveDestination({
+      latitude: selectedEvent.latitude,
+      longitude: selectedEvent.longitude,
+      label: selectedEvent.location_name?.trim() || selectedEvent.title,
+    });
+    setGroupDriveRoute(null);
+    setGroupDriveVisible(true);
+  }, [selectedEvent]);
+
+  const previewGroupDriveRoute = useCallback(
+    (nextRoute: DriveRouteResult | null, destination: MapDestination | null) => {
+      setGroupDriveRoute(nextRoute);
+      if (
+        nextRoute &&
+        destination &&
+        driverLocationRef.current &&
+        hasValidLatLng(
+          driverLocationRef.current.latitude,
+          driverLocationRef.current.longitude,
+        )
+      ) {
+        requestAnimationFrame(() =>
+          fitRouteToMap(
+            nextRoute.coordinates,
+            destination,
+            driverLocationRef.current as LatLng,
+          ),
+        );
+      }
+    },
+    [fitRouteToMap],
   );
 
   const headerTop = insets.top + spacing.sm;
