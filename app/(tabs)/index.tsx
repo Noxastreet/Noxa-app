@@ -2058,9 +2058,11 @@ export default function LiveMapScreen() {
   const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
-  const routeCardBottom = eventCardBottom;
+  const routeCardBottom = isRouteMode
+    ? insets.bottom + spacing.sm
+    : eventCardBottom;
   const controlBottom =
-    eventCardBottom +
+    routeCardBottom +
     (isRouteMode && selectedEvent
       ? routeSheetExpanded
         ? 344
