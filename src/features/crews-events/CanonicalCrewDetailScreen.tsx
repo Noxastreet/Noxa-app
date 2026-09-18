@@ -909,7 +909,7 @@ export default function CanonicalCrewDetailScreen() {
         <CrewHeader onMore={() => setActionsOpen(true)} />
 
         <CrewHero
-          artworkUri={artworkUri}
+          artworkUri={activeTab === "activity" ? artworkUri : null}
           crew={crew}
           members={members}
           membershipButton={membershipButton}
@@ -997,7 +997,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   heroMeta: {
     marginTop: 3,
