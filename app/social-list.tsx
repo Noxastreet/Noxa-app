@@ -61,7 +61,6 @@ function Header() {
           variant="ghost"
         />
       }
-      subtitle="Followers & Following"
       title="Social"
     />
   );
@@ -79,7 +78,7 @@ function SocialTabs({
   onChange: (tab: SocialTab) => void;
 }) {
   return (
-    <View style={styles.tabsCard}>
+    <View style={styles.tabs}>
       {(["followers", "following"] as const).map((tab) => {
         const isActive = activeTab === tab;
         return (
@@ -417,7 +416,7 @@ export default function SocialListScreen() {
             <View style={styles.loadingCard}>
               <ActivityIndicator color={colors.primary} />
               <Text style={styles.stateMessage}>
-                Loading real social graph…
+                Loading…
               </Text>
             </View>
           ) : errorMessage ? (
@@ -437,46 +436,17 @@ export default function SocialListScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: 132,
     gap: 0,
   },
   listHeader: {
-    gap: spacing.md,
+    gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
-  },
-  headerCopy: { alignItems: "center", gap: spacing.xxs },
-  headerTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-  },
-  headerSubtitle: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
-  },
-  headerSpacer: { width: 44 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
-  tabsCard: {
+  tabs: {
     flexDirection: "row",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
@@ -494,10 +464,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "900",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
-  activeTabText: { color: colors.text },
+  activeTabText: { color: colors.text, fontWeight: "700" },
   searchShell: {
     minHeight: 46,
     flexDirection: "row",
@@ -534,8 +505,8 @@ const styles = StyleSheet.create({
   },
   stateTitle: {
     color: colors.text,
-    ...typography.v2.section,
-    fontWeight: "800",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   stateMessage: {
     color: colors.textMuted,
@@ -561,7 +532,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   avatar: {
