@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  side: { width: 44, minHeight: 44, justifyContent: 'center' },
+  side: { minWidth: 44, minHeight: 44, justifyContent: 'center' },
   right: { alignItems: 'flex-end' },
   copy: { flex: 1, minWidth: 0 },
   copyCentered: { alignItems: 'center' },
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   subtitle: {
     marginTop: spacing.xxs,
