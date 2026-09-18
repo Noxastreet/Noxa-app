@@ -21,16 +21,15 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   label: {
-    color: colors.primary,
+    color: colors.textMuted,
     fontSize: typography.caption,
-    fontWeight: '900',
-    letterSpacing: 2.2,
+    fontWeight: '700',
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
   title: {
     color: colors.text,
-    fontSize: typography.h2,
-    fontWeight: '900',
-    letterSpacing: -0.7,
+    ...typography.v2.row,
+    fontWeight: '700',
   },
 });
