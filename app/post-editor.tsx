@@ -17,7 +17,7 @@ import {
 
 import { NoxaButton, NoxaIconButton, NoxaInput, NoxaScreen, NoxaTopBar } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing } from "@/src/theme";
 
 const postImagesBucket = "post-images";
 const maxPostImageBytes = 10 * 1024 * 1024;
