@@ -118,7 +118,6 @@ export default function GroupDrivesScreen() {
           <View style={styles.headerBlock}>
             <GroupDriveHeader
               title="Group Drives"
-              subtitle="Private routes with invited people"
               right={
                 <NoxaIconButton
                   accessibilityLabel="Create Group Drive"
@@ -170,7 +169,7 @@ export default function GroupDrivesScreen() {
             <NoxaEmptyState
               icon="navigate-outline"
               title="No Group Drives yet"
-              body="Create a real route and invite friends or Crew members. Nothing is invented here."
+              body="Create a route and invite friends or Crew members."
             />
           )
         }
@@ -184,7 +183,7 @@ export default function GroupDrivesScreen() {
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
   },
   headerBlock: { gap: spacing.md, marginBottom: spacing.sm },
