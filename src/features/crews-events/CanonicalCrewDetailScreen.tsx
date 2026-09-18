@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
   garageRowCopy: { flex: 1, minWidth: 0 },
   garageTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
   garageMeta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
-  memberList: { overflow: "hidden" },  memberList: { overflow: "hidden" },
+  memberList: { overflow: "hidden" },
   memberRow: {
     minHeight: 64,
     flexDirection: "row",
