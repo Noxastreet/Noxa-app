@@ -65,12 +65,18 @@ if (!failures.length) {
     failures.push('pre-signout cleanup must pause writer, delete server row, then forget local session');
   }
   requirePattern('pre-signout cleanup does not preserve retry state on failure', groupLocation, /if \(error \|\| data !== true\)[\s\S]*storeSession\(storedSession\)[\s\S]*throw new Error/);
+  let signOutSurfaceCount = 0;
   for (const [label, text] of [['Settings', settings], ['Profile', profile]]) {
     const clearIndex = text.indexOf('clearGroupDriveLocationBeforeSignOut()');
     const signOutIndex = text.indexOf("supabase.auth.signOut({ scope: 'local' })");
+    if (signOutIndex < 0) continue;
+    signOutSurfaceCount += 1;
     if (!(clearIndex >= 0 && signOutIndex > clearIndex)) {
       failures.push(`${label} must clear Group Drive exact location before auth sign-out`);
     }
+  }
+  if (signOutSurfaceCount < 1) {
+    failures.push('no authenticated sign-out surface is protected by Group Drive location cleanup');
   }
 
   // Natural expiry must run independently of clients so stale exact location
