@@ -565,53 +565,6 @@ export default function EventEditorScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.previewCard}>
-                        <View style={styles.previewTopline}>
-              <View style={styles.previewBadge}>
-                <Ionicons name="flag" size={14} color={colors.primaryHover} />
-                <Text style={styles.previewBadgeText}>{form.category}</Text>
-              </View>
-              <Text style={styles.previewStatus}>
-                {form.isPublic ? "Public" : "Private"}
-              </Text>
-            </View>
-            <Text numberOfLines={2} style={styles.previewTitle}>
-              {form.title.trim() || "Your event"}
-            </Text>
-            <View style={styles.previewMeta}>
-              <View style={styles.previewMetaItem}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={15}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.previewMetaText}>
-                  {dateFormatter.format(form.startAt)}
-                </Text>
-              </View>
-              <View style={styles.previewMetaItem}>
-                <Ionicons
-                  name="time-outline"
-                  size={15}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.previewMetaText}>
-                  {timeFormatter.format(form.startAt)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.previewLocation}>
-              <Ionicons
-                name="location-outline"
-                size={15}
-                color={colors.primaryHover}
-              />
-              <Text numberOfLines={1} style={styles.previewLocationText}>
-                {form.locationName || "Choose an exact location"}
-              </Text>
-            </View>
-          </View>
-
           {loading ? (
             <View style={styles.stateCard}>
               <ActivityIndicator color={colors.primary} />
@@ -626,7 +579,6 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>Details</Text>
               <Text style={styles.sectionTitle}>Event details</Text>
             </View>
             <NoxaInput
@@ -687,7 +639,6 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>Location</Text>
               <Text style={styles.sectionTitle}>Meeting point</Text>
             </View>
             <View style={styles.readOnlyLocation}>
@@ -752,7 +703,6 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>Schedule</Text>
               <Text style={styles.sectionTitle}>Date and time</Text>
             </View>
             <Text style={styles.scheduleLabel}>Starts</Text>
@@ -809,7 +759,6 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>Organizer</Text>
               <Text style={styles.sectionTitle}>Hosted by</Text>
             </View>
             <View style={styles.hostOptions}>
@@ -837,7 +786,6 @@ export default function EventEditorScreen() {
 
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>Visibility</Text>
               <Text style={styles.sectionTitle}>Choose the audience</Text>
             </View>
             <View style={styles.visibilityOptions}>
@@ -1041,10 +989,10 @@ const styles = StyleSheet.create({
   },
   headerSpacer: { width: 44, height: 44 },
   content: {
-    padding: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: 124,
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
   previewCard: {
     minHeight: 124,
