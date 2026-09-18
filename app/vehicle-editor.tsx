@@ -263,10 +263,9 @@ function BackButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-function FormSection({ title, eyebrow, children }: { title: string; eyebrow: string; children: ReactNode }) {
+function FormSection({ title, children }: { title: string; eyebrow: string; children: ReactNode }) {
   return (
     <View style={styles.sectionCard}>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
       <Text style={styles.sectionTitle}>{title}</Text>
       <View style={styles.sectionContent}>{children}</View>
     </View>
@@ -328,8 +327,6 @@ function VehicleCoverEditor({
   year: string;
 }) {
   const hasImage = Boolean(previewUri);
-  const vehicleName = [brand.trim(), model.trim()].filter(Boolean).join(' ');
-
   return (
     <View style={styles.coverEditor}>
       <View style={styles.coverPreview}>
@@ -337,32 +334,10 @@ function VehicleCoverEditor({
           <Image source={{ uri: previewUri }} style={styles.coverPreviewImage} />
         ) : (
           <View style={styles.coverPlaceholder}>
-            <View style={styles.coverGlow} />
-            <VehicleTypeIcon vehicleType={vehicleType} size={54} color={colors.primaryHover} />
+            <VehicleTypeIcon vehicleType={vehicleType} size={42} color={colors.textMuted} />
+            <Text style={styles.coverPlaceholderText}>Add a vehicle photo</Text>
           </View>
         )}
-        <View style={styles.coverScrim} />
-        <View style={styles.coverTopline}>
-          <View style={styles.garageBadge}>
-            <VehicleTypeIcon vehicleType={vehicleType} size={14} color={colors.primaryHover} />
-            <Text style={styles.garageBadgeText}>{vehicleType === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
-          </View>
-          <Text style={styles.coverVisibility}>{isPublic ? 'PUBLIC' : 'PRIVATE'}</Text>
-        </View>
-        <View style={styles.coverCopy}>
-          <Text numberOfLines={2} style={styles.coverVehicleName}>
-            {vehicleName || 'YOUR VEHICLE'}
-          </Text>
-          <View style={styles.coverSpecs}>
-            <Text style={styles.coverSpec}>{year.trim() || 'YEAR'}</Text>
-            {horsepower.trim() ? (
-              <>
-                <View style={styles.specDot} />
-                <Text style={styles.coverSpec}>{horsepower.trim()} HP</Text>
-              </>
-            ) : null}
-          </View>
-        </View>
       </View>
       <View style={styles.coverActions}>
         <Pressable accessibilityRole="button" disabled={disabled} onPress={onChoose} style={({ pressed }) => [styles.coverActionButton, pressed && styles.pressed, disabled && styles.disabled]}>
@@ -885,13 +860,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   coverPreview: {
-    aspectRatio: 16 / 9,
+    height: 156,
     overflow: 'hidden',
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
   },
   coverPreviewImage: {
     width: '100%',
@@ -901,7 +873,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#090A0E',
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceSoft,
+  },
+  coverPlaceholderText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
   },
   coverGlow: {
     position: 'absolute',
