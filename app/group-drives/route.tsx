@@ -15,7 +15,7 @@ import {
 import { MapboxEventLocationPickerCompat } from '@/src/features/mapbox/MapboxEventLocationPickerCompat';
 import { NOXA_FALLBACK_COORDINATE } from '@/src/features/mapbox/config';
 import type { LatLng } from '@/src/features/mapbox/types';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 type RoutePoint = LatLng & { label: string };
 type PickerTarget = 'start' | 'end';
