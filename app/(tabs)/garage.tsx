@@ -265,12 +265,7 @@ export default function GarageScreen() {
     <NoxaScreen padded={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
-          <View style={styles.headingBlock}>
-            <Text style={styles.pageTitle}>Garage</Text>
-            <Text style={styles.pageSubtitle}>
-              {isLoadingVehicles ? 'Loading vehicles…' : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle' : 'vehicles'}`}
-            </Text>
-          </View>
+          <Text style={styles.pageTitle}>Garage</Text>
           <NoxaIconButton
             accessibilityLabel="Add vehicle"
             accessibilityHint="Opens vehicle picker"
@@ -296,16 +291,6 @@ export default function GarageScreen() {
           </View>
         )}
 
-        {!isLoadingVehicles && !hasVehicleError && vehicles.length > 0 ? (
-          <Pressable
-            accessibilityLabel="Add another vehicle"
-            accessibilityRole="button"
-            onPress={() => router.push('/vehicle-picker')}
-            style={({ pressed }) => [styles.addSlot, pressed && styles.pressed]}>
-            <Ionicons name="add" size={17} color={colors.textMuted} />
-            <Text style={styles.addSlotText}>Add another vehicle</Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
     </NoxaScreen>
   );
@@ -315,17 +300,16 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: 144,
-    gap: spacing.sm,
+    paddingBottom: 112,
+    gap: spacing.xs,
   },
   topBar: {
-    minHeight: 60,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  headingBlock: { flex: 1 },
   pageTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.body,
@@ -333,13 +317,6 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     letterSpacing: -0.3,
     fontWeight: '700',
-  },
-  pageSubtitle: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '500',
   },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.52 },
@@ -349,15 +326,15 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   vehicleMain: {
-    minHeight: 88,
+    minHeight: 80,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
   },
   vehicleThumbnail: {
-    width: 80,
-    height: 60,
+    width: 72,
+    height: 54,
     overflow: 'hidden',
     borderRadius: radius.sm,
     backgroundColor: colors.surfaceSoft,
@@ -442,12 +419,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   retryText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '700' },
-  addSlot: {
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  addSlotText: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: '600' },
 });
