@@ -24,16 +24,11 @@ type EventCategory = 'meet' | 'drive' | 'track' | 'social';
 
 type EventRow = {
   id: string;
-  creator_id: string;
-  crew_id: string | null;
   title: string;
-  description: string | null;
   category: EventCategory;
   location_name: string;
   starts_at: string;
   ends_at: string | null;
-  cover_image_url: string | null;
-  is_public: boolean;
   status: string;
 };
 
@@ -198,7 +193,7 @@ export default function CanonicalEventsScreen() {
     const eventsResult = await supabase
       .from('events')
       .select(
-        'id,creator_id,crew_id,title,description,category,location_name,starts_at,ends_at,cover_image_url,is_public,status',
+        'id,title,category,location_name,starts_at,ends_at,status',
       )
       .eq('status', 'scheduled')
       .or(
@@ -230,9 +225,15 @@ export default function CanonicalEventsScreen() {
     setRefreshing(false);
     hasLoadedRef.current = true;
 
+    if (!baseModels.length) return;
+
     void supabase
       .from('event_attendees')
       .select('event_id,user_id,response,joined_at')
+      .in(
+        'event_id',
+        baseModels.map((event) => event.id),
+      )
       .then((attendanceResult) => {
         if (attendanceResult.error) return;
 
