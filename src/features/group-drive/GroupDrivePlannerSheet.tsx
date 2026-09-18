@@ -1,6 +1,14 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -404,7 +412,7 @@ export function GroupDrivePlannerSheet({
   }, [crews, selectedCrews, selectedFriends]);
 
   const toggleSelection = useCallback(
-    (setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) => {
+    (setter: Dispatch<SetStateAction<Set<string>>>, id: string) => {
       setter((current) => {
         const next = new Set(current);
         if (next.has(id)) next.delete(id);
