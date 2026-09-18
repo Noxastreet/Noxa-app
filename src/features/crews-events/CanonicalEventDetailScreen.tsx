@@ -27,7 +27,6 @@ import {
   CanonicalArtwork,
   CanonicalAvatar,
   CanonicalAvatarStack,
-  CanonicalPill,
   CanonicalSectionHeader,
   profileName,
   type CanonicalProfile,
@@ -139,12 +138,10 @@ function Hero({
   compact,
 }: {
   event: EventExperienceRow;
-  attendees: CanonicalProfile[];
-  goingCount: number;
   compact: boolean;
 }) {
   return (
-    <View>
+    <View style={styles.identityRow}>
       {event.cover_image_url ? (
         <CanonicalArtwork
           uri={event.cover_image_url}
@@ -191,7 +188,7 @@ function EssentialInfo({ event }: { event: EventExperienceRow }) {
           <Ionicons name="time-outline" size={16} color={colors.textMuted} />
         </View>
         <View style={styles.infoCopy}>
-          <Text style={styles.infoLabel}>Time</Text>
+          <Text style={styles.infoLabel}>Date & time</Text>
           <Text style={styles.infoValue}>
             {formatEventDate(event.starts_at)} · {formatEventTimeLine(event)}
           </Text>
@@ -697,10 +694,10 @@ export default function CanonicalEventDetailScreen() {
 
   const goingLabel =
     myResponse === "going"
-      ? "YOU'RE GOING"
+      ? "Going"
       : rsvpClosed
-        ? "RSVP CLOSED"
-        : "I'M GOING";
+        ? "RSVP closed"
+        : "I'm going";
 
   return (
     <NoxaScreen padded={false}>
@@ -710,12 +707,7 @@ export default function CanonicalEventDetailScreen() {
       >
         <EventHeader onMore={() => setActionsOpen(true)} />
 
-        <Hero
-          attendees={attendees}
-          compact={compactLayout}
-          event={event}
-          goingCount={goingCount}
-        />
+        <Hero compact={compactLayout} event={event} />
 
         {error ? (
           <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
@@ -729,14 +721,9 @@ export default function CanonicalEventDetailScreen() {
         </View>
 
         <View style={styles.detailsSection}>
-          <Text style={styles.detailsEyebrow}>About</Text>
+          <CanonicalSectionHeader title="About" />
           <Text style={styles.detailsText}>
-            {event.description ||
-              "The organizer has not added a full description yet. Check the location and time before driving."}
-          </Text>
-          <View style={styles.detailsDivider} />
-          <Text style={styles.rulesText}>
-            Respect the location, local traffic rules and other drivers.
+            {event.description || "No description provided."}
           </Text>
         </View>
 
@@ -772,13 +759,13 @@ export default function CanonicalEventDetailScreen() {
             <View style={styles.goingCopy}>
               <Text style={styles.goingTitle}>
                 {goingCount
-                  ? `${Math.min(goingCount, 3)} familiar ${pluralize(Math.min(goingCount, 3), "driver")} · ${goingCount} total`
-                  : "No confirmed drivers yet"}
+                  ? `${goingCount} going`
+                  : "No one has confirmed yet"}
               </Text>
               <Text style={styles.goingMeta}>
                 {goingCount
-                  ? "Friends, Crew members and other drivers"
-                  : "Confirm attendance to appear here"}
+                  ? "Friends, crew members and other drivers"
+                  : "Confirm attendance to join the list"}
               </Text>
             </View>
           </View>
@@ -803,9 +790,6 @@ export default function CanonicalEventDetailScreen() {
               <CanonicalAvatar profile={creator} size={44} />
             )}
             <View style={styles.organizerCopy}>
-              <Text style={styles.organizerEyebrow}>
-                ORGANIZED BY {crew ? "· CREW" : ""}
-              </Text>
               <Text numberOfLines={1} style={styles.organizerTitle}>
                 {organizerName}
               </Text>
@@ -876,19 +860,26 @@ const styles = StyleSheet.create({
   contentHost: { paddingBottom: 80 },
   pressed: { opacity: 0.72 },
   header: { paddingHorizontal: spacing.md },
+  identityRow: {
+    minHeight: 92,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
   hero: {
-    height: 120,
-    marginHorizontal: spacing.md,
-    borderRadius: radius.lg,
+    width: 88,
+    height: 88,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  heroCompact: { height: 104 },
-  heroImage: { borderRadius: radius.lg },
+  heroCompact: { width: 76, height: 76 },
+  heroImage: { borderRadius: radius.md },
   heroCopy: {
+    flex: 1,
+    minWidth: 0,
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
   },
   heroMetaRow: {
     flexDirection: "row",
@@ -915,11 +906,13 @@ const styles = StyleSheet.create({
   heroLifecycleLive: { color: colors.primaryHover },
   heroTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.section,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.3,
     fontWeight: "700",
   },
-  heroTitleCompact: { fontSize: 23, lineHeight: 28 },
+  heroTitleCompact: { fontSize: 20, lineHeight: 25 },
   errorBanner: {
     minHeight: 48,
     marginHorizontal: spacing.md,
@@ -945,7 +938,7 @@ const styles = StyleSheet.create({
   },
   sectionDivided: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     gap: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.divider,
@@ -1035,12 +1028,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   organizerCopy: { flex: 1 },
-  organizerEyebrow: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "600",
-  },
   organizerTitle: {
     color: colors.text,
     fontSize: 15,
@@ -1062,21 +1049,11 @@ const styles = StyleSheet.create({
   detailsSection: {
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.divider,
   },
-  detailsEyebrow: {
-    color: colors.text,
-    ...typography.v2.row,
-    fontWeight: "700",
-  },
   detailsText: { color: colors.text, ...typography.v2.body },
-  detailsDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.divider,
-  },
-  rulesText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   chatButtonWrap: { marginHorizontal: spacing.md, marginTop: spacing.sm },
   stickyFooter: {
     position: "absolute",
