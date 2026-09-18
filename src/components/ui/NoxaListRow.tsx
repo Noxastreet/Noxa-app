@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { animations, colors, radius, spacing } from '@/src/theme';
+import { animations, colors, spacing, typography } from '@/src/theme';
 
 type NoxaListRowProps = {
   caption?: string;
@@ -54,11 +54,11 @@ export function NoxaListRow({
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 66,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 0,
   },
   divider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
   icon: {
@@ -66,16 +66,16 @@ const styles = StyleSheet.create({
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceSoft,
+    borderRadius: 19,
+    backgroundColor: 'transparent',
   },
-  iconDestructive: { backgroundColor: colors.primarySubtle },
+  iconDestructive: { backgroundColor: 'transparent' },
   copy: { flex: 1, minWidth: 0 },
-  label: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  label: { color: colors.text, ...typography.v2.row, fontWeight: '600' },
   labelDestructive: { color: colors.primaryHover },
-  caption: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '600' },
-  value: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
-  pressed: { backgroundColor: colors.surfacePressed, transform: [{ scale: animations.pressedScale }] },
-  pressedReduced: { backgroundColor: colors.surfacePressed },
+  caption: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 17, fontWeight: '500' },
+  value: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  pressed: { opacity: 0.72, transform: [{ scale: animations.pressedScale }] },
+  pressedReduced: { opacity: 0.72 },
   disabled: { opacity: 0.5 },
 });
