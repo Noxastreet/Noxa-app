@@ -303,6 +303,7 @@ export function GroupDrivePlannerSheet({
   const [createdDriveId, setCreatedDriveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const startResolvedRef = useRef(false);
+  const consumedMapPointRef = useRef<LatLng | null>(null);
 
   const stepIndex = STEPS.indexOf(step);
   const bodyMaxHeight = Math.max(160, Math.min(300, windowHeight * 0.36));
@@ -313,7 +314,9 @@ export function GroupDrivePlannerSheet({
     let active = true;
     void resolveDrivePointLabel(currentLocation, false).then((label) => {
       if (!active) return;
-      setStart({ ...currentLocation, label: label || 'Current location' });
+      setStart((current) =>
+        current ?? { ...currentLocation, label: label || 'Current location' },
+      );
     });
     return () => {
       active = false;
@@ -321,7 +324,15 @@ export function GroupDrivePlannerSheet({
   }, [currentLocation, start]);
 
   useEffect(() => {
-    if (step !== 'where' || !pickerTarget || !mapPoint) return;
+    if (
+      step !== 'where' ||
+      !pickerTarget ||
+      !mapPoint ||
+      consumedMapPointRef.current === mapPoint
+    ) {
+      return;
+    }
+    consumedMapPointRef.current = mapPoint;
     let active = true;
     const approximate = pickerTarget === 'end';
     void resolveDrivePointLabel(mapPoint, approximate).then((label) => {
@@ -453,13 +464,18 @@ export function GroupDrivePlannerSheet({
     }
   }, [busy, end, onRoutePreview, start]);
 
+  const handleClose = useCallback(() => {
+    if (busy) return;
+    onRoutePreview(null);
+    onSelectionPointChange(null);
+    onClose();
+  }, [busy, onClose, onRoutePreview, onSelectionPointChange]);
+
   const goBack = useCallback(() => {
     if (busy) return;
     setError(null);
     if (step === 'where') {
-      onRoutePreview(null);
-      onSelectionPointChange(null);
-      onClose();
+      handleClose();
       return;
     }
     const previous = STEPS[Math.max(0, stepIndex - 1)];
@@ -472,9 +488,8 @@ export function GroupDrivePlannerSheet({
     setStep(previous);
   }, [
     busy,
-    onClose,
+    handleClose,
     onRoutePreview,
-    onSelectionPointChange,
     step,
     stepIndex,
   ]);
@@ -673,7 +688,7 @@ export function GroupDrivePlannerSheet({
             accessibilityLabel="Close Group Drive planning"
             disabled={busy}
             icon="close"
-            onPress={goBack}
+            onPress={handleClose}
             size={40}
             variant="ghost"
           />
