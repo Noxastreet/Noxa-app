@@ -163,12 +163,12 @@ export async function calculateDriveRoute(
   return data;
 }
 
-export async function saveDriveRoute(
+export async function saveCalculatedDriveRoute(
   driveSessionId: string,
   start: { latitude: number; longitude: number; label: string },
   end: { latitude: number; longitude: number; label: string },
+  route: DriveRouteResult,
 ) {
-  const route = await calculateDriveRoute([start, end]);
   await rpc<number>('noxa_set_drive_route', {
     target_drive_session_id: driveSessionId,
     start_latitude: start.latitude,
@@ -182,6 +182,15 @@ export async function saveDriveRoute(
     calculated_duration_seconds: route.durationSeconds,
     calculated_route_provider: route.provider,
   });
+}
+
+export async function saveDriveRoute(
+  driveSessionId: string,
+  start: { latitude: number; longitude: number; label: string },
+  end: { latitude: number; longitude: number; label: string },
+) {
+  const route = await calculateDriveRoute([start, end]);
+  await saveCalculatedDriveRoute(driveSessionId, start, end, route);
   return route;
 }
 
