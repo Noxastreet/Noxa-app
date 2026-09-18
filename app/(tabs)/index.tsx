@@ -1880,6 +1880,22 @@ export default function LiveMapScreen() {
     },
     [events, selectEvent],
   );
+  const handleMapDriverPress = useCallback(
+    (driverId: string) => {
+      if (!groupDrivePlannerOpen) openDriverProfile(driverId);
+    },
+    [groupDrivePlannerOpen, openDriverProfile],
+  );
+  const handleMapEventPress = useCallback(
+    (event: MapboxEvent) => {
+      if (!groupDrivePlannerOpen) selectMapboxEvent(event);
+    },
+    [groupDrivePlannerOpen, selectMapboxEvent],
+  );
+  const handleGroupDriveMapPress = useCallback((point: LatLng) => {
+    setGroupDriveMapPoint(point);
+    setGroupDriveSelectionPoint(point);
+  }, []);
 
   const headerTop = insets.top + spacing.sm;
   const headerBottom = headerTop + 44;
@@ -1924,12 +1940,16 @@ export default function LiveMapScreen() {
         : null;
   const noticesTop = headerBottom + spacing.sm;
   const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
-  const eventCardBottom =
-    insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
+  const eventCardBottom = overlayBottom;
   const routeCardBottom = eventCardBottom;
+  const hasContextualSurface =
+    groupDrivePlannerOpen || Boolean(selectedEvent);
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);
+    (hasContextualSurface
+      ? Math.max(contextualSurfaceHeight, spacing.xxl)
+      : 0) +
+    spacing.sm;
   const showRecenter =
     !isRouteFollowing && (!driverLocation || isCameraAwayFromUser);
 
@@ -1941,15 +1961,23 @@ export default function LiveMapScreen() {
         driverLocation={driverLocation}
         events={mapboxEvents}
         initialRegion={initialRegion}
-        isRouteMode={isRouteMode}
-        followUserLocation={isRouteFollowing}
+        isRouteMode={isRouteMode || Boolean(groupDriveRoutePreview)}
+        followUserLocation={groupDrivePlannerOpen ? false : isRouteFollowing}
         mapFilter="all"
         onFollowUserLocationChange={setIsRouteFollowing}
         onUserPan={() => setIsCameraAwayFromUser(true)}
-        onDriverPress={openDriverProfile}
-        onEventPress={selectMapboxEvent}
-        route={route}
-        selectedEventId={selectedEvent?.id ?? null}
+        onMapPress={
+          groupDrivePlannerOpen && groupDriveMapSelectionActive
+            ? handleGroupDriveMapPress
+            : undefined
+        }
+        onDriverPress={handleMapDriverPress}
+        onEventPress={handleMapEventPress}
+        route={groupDriveRoutePreview ?? route}
+        selectionPoint={groupDriveSelectionPoint}
+        selectedEventId={
+          groupDrivePlannerOpen ? null : selectedEvent?.id ?? null
+        }
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
@@ -2077,7 +2105,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!selectedEvent ? (
+        {!selectedEvent && !groupDrivePlannerOpen ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -2086,11 +2114,11 @@ export default function LiveMapScreen() {
             ]}
           >
             <NoxaIconButton
-              accessibilityHint="Open Group Drives"
-              accessibilityLabel="Group Drives"
+              accessibilityHint="Create a Group Drive without leaving the map"
+              accessibilityLabel="Create Group Drive"
               icon="navigate-outline"
               iconSize={19}
-              onPress={() => router.push("/group-drives")}
+              onPress={() => openGroupDrivePlanner(null)}
               size={44}
               variant="overlay"
             />
@@ -2166,14 +2194,35 @@ export default function LiveMapScreen() {
             canFollow={routeStatus === "ready" && Boolean(driverLocation)}
             onClose={closeRouteMode}
             onFollowToggle={toggleRouteFollow}
+            onHeightChange={handleContextualSurfaceHeight}
             onRetry={retryRoute}
           />
         ) : selectedEvent ? (
           <EventCard
             event={selectedEvent}
             bottomOffset={eventCardBottom}
-            onClose={() => setSelectedEvent(null)}
+            onClose={() => {
+              setSelectedEvent(null);
+              setContextualSurfaceHeight(0);
+            }}
+            onHeightChange={handleContextualSurfaceHeight}
             onRoute={() => routeToEvent(selectedEvent)}
+          />
+        ) : null}
+
+        {groupDrivePlannerOpen ? (
+          <GroupDrivePlannerSheet
+            bottomOffset={eventCardBottom}
+            crewContextId={groupDriveCrewContextId}
+            currentLocation={driverLocation}
+            mapPoint={groupDriveMapPoint}
+            onClose={closeGroupDrivePlanner}
+            onCreated={handleGroupDriveCreated}
+            onHeightChange={handleContextualSurfaceHeight}
+            onMapSelectionChange={setGroupDriveMapSelectionActive}
+            onOpenList={openGroupDriveList}
+            onRoutePreview={setGroupDriveRoutePreview}
+            onSelectionPointChange={setGroupDriveSelectionPoint}
           />
         ) : null}
       </View>
