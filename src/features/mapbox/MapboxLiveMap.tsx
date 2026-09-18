@@ -538,6 +538,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               />
               <LineLayer
                 id="noxa-route-line"
+                aboveLayerID="noxa-route-casing"
                 style={{
                   lineCap: "round",
                   lineColor: colors.primaryHover,
