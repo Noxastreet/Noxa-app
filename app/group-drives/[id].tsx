@@ -477,7 +477,7 @@ export default function GroupDriveViewScreen() {
     <Screen scroll constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
         title={preActive ? 'Drive Lobby' : 'Group Drive'}
-        subtitle={isHost ? 'You are the host' : 'Private participant view'}
+        subtitle={isHost ? 'Host' : 'Participant'}
       />
       <View style={styles.hero}>
         <DriveStatus status={drive.status} />
@@ -526,7 +526,7 @@ export default function GroupDriveViewScreen() {
               <Text style={styles.meetingMeta}>{approach.message}</Text>
             ) : (
               <Text style={styles.meetingMeta}>
-                See your distance to A without sharing your position with the Group Drive.
+                Check your distance to A without sharing it with the group.
               </Text>
             )}
           </View>
@@ -546,7 +546,7 @@ export default function GroupDriveViewScreen() {
               />
             ) : null}
           </View>
-          <Text style={styles.meetingPrivacy}>Your position is used only to calculate your route to A. It is not shared with Group Drive participants. Ready does not start live sharing.</Text>
+          <Text style={styles.meetingPrivacy}>Distance check stays private. Ready does not start live sharing.</Text>
         </View>
       ) : null}
 
@@ -556,7 +556,7 @@ export default function GroupDriveViewScreen() {
           <View style={styles.activeNoticeCopy}>
             <Text style={styles.activeNoticeTitle}>Active Drive</Text>
             <Text style={styles.phaseNoticeText}>
-              Open the live route. If this drive still needs location consent on this device, NOXA asks once over the map instead of sending you to another screen.
+              Open the live route. Location sharing stays optional and is requested on the map only when needed.
             </Text>
           </View>
         </View>
@@ -625,7 +625,7 @@ export default function GroupDriveViewScreen() {
             title={isReady ? 'Ready at A · tap to undo' : "I'm at A · Ready"}
             variant={isReady ? 'secondary' : 'primary'}
           />
-          <Text style={styles.actionHint}>Ready coordinates the Lobby only. It never starts location sharing. Use it once you are prepared to leave point A.</Text>
+          <Text style={styles.actionHint}>Ready only updates the Lobby. It does not start location sharing.</Text>
         </View>
       ) : null}
 
@@ -679,14 +679,16 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl,
-    gap: spacing.lg,
+    gap: spacing.md,
   },
-  hero: { gap: spacing.sm, paddingTop: spacing.sm },
+  hero: { gap: spacing.xs, paddingTop: spacing.xs },
   title: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.value,
-    fontWeight: '900',
+    fontFamily: typography.fontFamily.body,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.3,
+    fontWeight: '700',
   },
   caption: {
     color: colors.textMuted,
@@ -719,8 +721,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   meetingCard: {
-    gap: spacing.md,
-    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
@@ -785,7 +787,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.divider,
