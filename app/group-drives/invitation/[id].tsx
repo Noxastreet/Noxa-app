@@ -15,7 +15,7 @@ import {
   respondToDriveInvitation,
   type DriveInvitationPreview,
 } from '@/src/features/group-drive';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 export default function GroupDriveInvitationScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -78,7 +78,7 @@ export default function GroupDriveInvitationScreen() {
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="INVITATION" />
+        <GroupDriveHeader title="Invitation" />
         <NoxaLoadingState label="Loading invitation…" />
       </Screen>
     );
@@ -87,7 +87,7 @@ export default function GroupDriveInvitationScreen() {
   if (!preview) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="INVITATION" />
+        <GroupDriveHeader title="Invitation" />
         <NoxaEmptyState icon="mail-unread-outline" title="Invitation unavailable" body={error ?? 'This invitation can no longer be opened.'} />
         <NoxaButton fullWidth onPress={() => router.replace('/group-drives')} title="Back to Group Drives" variant="secondary" />
       </Screen>
@@ -96,10 +96,10 @@ export default function GroupDriveInvitationScreen() {
 
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
-      <GroupDriveHeader title="INVITATION" subtitle="Limited preview before joining" />
+      <GroupDriveHeader title="Invitation" subtitle="Limited preview before joining" />
       <View style={styles.hero}>
         <View style={styles.heroIcon}><Ionicons name="navigate" size={27} color={colors.text} /></View>
-        <Text style={styles.eyebrow}>PRIVATE GROUP DRIVE</Text>
+        <Text style={styles.eyebrow}>Private Group Drive</Text>
         <Text style={styles.title}>{preview.title}</Text>
         <Text style={styles.host}>Invited by {preview.hostDisplayName}</Text>
       </View>
@@ -139,13 +139,13 @@ export default function GroupDriveInvitationScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  hero: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
-  heroIcon: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.primary },
-  eyebrow: { color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 1.8 },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.value, fontWeight: '900', textAlign: 'center' },
-  host: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
-  facts: { borderTopWidth: 1, borderTopColor: colors.divider },
-  privacyNote: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
+  hero: { gap: spacing.sm, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  heroIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  eyebrow: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
+  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '800' },
+  host: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  facts: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+  privacyNote: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   privacyText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
   actions: { gap: spacing.xs },
