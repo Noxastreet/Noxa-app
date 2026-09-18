@@ -442,11 +442,6 @@ function ActivityTab({
   );
 }
 
-function EventsTab
-    </View>
-  );
-}
-
 function EventsTab({ events }: { events: CrewEvent[] }) {
   return (
     <View style={styles.tabContent}>
