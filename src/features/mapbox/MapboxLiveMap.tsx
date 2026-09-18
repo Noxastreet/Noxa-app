@@ -120,12 +120,14 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       activeDrivers,
       events,
       route,
+      selectionPoint,
       selectedEventId,
       mapFilter,
       isRouteMode,
       followUserLocation,
       onFollowUserLocationChange,
       onUserPan,
+      onMapPress,
       onDriverPress,
       onEventPress,
     },
@@ -298,6 +300,22 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           onMapLoadingError={() => {
             if (!isLoaded) setHasError(true);
           }}
+          onPress={
+            onMapPress
+              ? (feature) => {
+                  if (feature.geometry.type !== "Point") return;
+                  const [longitude, latitude] = feature.geometry.coordinates;
+                  if (
+                    typeof latitude === "number" &&
+                    Number.isFinite(latitude) &&
+                    typeof longitude === "number" &&
+                    Number.isFinite(longitude)
+                  ) {
+                    onMapPress({ latitude, longitude });
+                  }
+                }
+              : undefined
+          }
           onCameraChanged={(state) => {
             if (state.gestures.isGestureActive) {
               onUserPan();
@@ -521,6 +539,18 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 </MarkerView>
               ))
             : null}
+          {selectionPoint ? (
+            <MarkerView
+              allowOverlap
+              anchor={{ x: 0.5, y: 0.82 }}
+              coordinate={toPosition(selectionPoint)}
+            >
+              <View pointerEvents="none" style={styles.selectionMarker}>
+                <Ionicons name="location" size={22} color={colors.text} />
+              </View>
+            </MarkerView>
+          ) : null}
+
           {routeShape && routeRenderKey ? (
             <ShapeSource
               id="noxa-route-source"
@@ -576,6 +606,16 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 MapboxLiveMap.displayName = "MapboxLiveMap";
 
 const styles = StyleSheet.create({
+  selectionMarker: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.primary,
+  },
   stateView: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
