@@ -191,32 +191,6 @@ function DriverAvatar({ driver, size = 52 }: { driver: DriverResult; size?: numb
   );
 }
 
-function DriverCard({ driver }: { driver: DriverResult }) {
-  const name = driverName(driver);
-
-  return (
-    <Pressable
-      accessibilityLabel={`Open ${name}`}
-      accessibilityRole="button"
-      onPress={() =>
-        router.push({
-          pathname: "/driver-profile/[id]",
-          params: { id: driver.id },
-        })
-      }
-      style={({ pressed }) => [styles.driverCard, pressed && styles.pressed]}
-    >
-      <DriverAvatar driver={driver} size={56} />
-      <Text numberOfLines={1} style={styles.driverCardName}>
-        {name}
-      </Text>
-      <Text numberOfLines={1} style={styles.driverCardMeta}>
-        {driver.username ? `@${driver.username}` : driver.city || "NOXA driver"}
-      </Text>
-    </Pressable>
-  );
-}
-
 function DriverRow({ driver }: { driver: DriverResult }) {
   const name = driverName(driver);
 
@@ -308,7 +282,7 @@ function CrewRow({ crew }: { crew: CrewResult }) {
           {crew.city || crew.description || "NOXA crew"}
         </Text>
       </View>
-      <Text style={styles.resultType}>{crew.is_public ? "PUBLIC" : "PRIVATE"}</Text>
+      <Text style={styles.resultType}>{crew.is_public ? "Public" : "Private"}</Text>
       <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
   );
@@ -326,7 +300,7 @@ function EventRow({ event }: { event: EventResult }) {
       onPress={() =>
         router.push({ pathname: "/event-details", params: { id: event.id } })
       }
-      style={({ pressed }) => [styles.eventCard, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.resultRow, pressed && styles.pressed]}
     >
       <ResultArtwork icon="flag-outline" imageUrl={event.cover_image_url} />
       <View style={styles.resultCopy}>
@@ -555,23 +529,11 @@ export default function SearchScreen() {
               {showDrivers && results.drivers.length > 0 ? (
                 <View style={styles.section}>
                   <SectionHeading count={results.drivers.length} title="Drivers" />
-                  {hasQuery ? (
-                    <View style={styles.resultStack}>
-                      {results.drivers.map((driver) => (
-                        <DriverRow driver={driver} key={driver.id} />
-                      ))}
-                    </View>
-                  ) : (
-                    <ScrollView
-                      contentContainerStyle={styles.driverStrip}
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      {results.drivers.map((driver) => (
-                        <DriverCard driver={driver} key={driver.id} />
-                      ))}
-                    </ScrollView>
-                  )}
+                  <View style={styles.resultStack}>
+                    {results.drivers.map((driver) => (
+                      <DriverRow driver={driver} key={driver.id} />
+                    ))}
+                  </View>
                 </View>
               ) : null}
 
@@ -622,7 +584,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
     backgroundColor: colors.background,
@@ -675,28 +637,27 @@ const styles = StyleSheet.create({
   },
   filters: { gap: spacing.xs, paddingVertical: spacing.sm },
   filterChip: {
-    minHeight: 34,
+    minHeight: 40,
     justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
   },
   filterChipActive: {
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    borderBottomColor: colors.primary,
   },
   filterText: {
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
-  filterTextActive: { color: colors.text },
+  filterTextActive: { color: colors.text, fontWeight: "700" },
   content: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxxl,
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   section: { gap: spacing.sm },
   sectionHeading: {
@@ -714,13 +675,6 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: "800",
   },
-  driverStrip: { gap: spacing.sm, paddingRight: spacing.lg },
-  driverCard: {
-    width: 104,
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-  },
   avatarFallback: {
     alignItems: "center",
     justifyContent: "center",
@@ -733,20 +687,6 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: "900",
   },
-  driverCardName: {
-    width: "100%",
-    color: colors.text,
-    textAlign: "center",
-    fontSize: typography.caption,
-    fontWeight: "900",
-  },
-  driverCardMeta: {
-    width: "100%",
-    color: colors.textMuted,
-    textAlign: "center",
-    fontSize: 10,
-    fontWeight: "700",
-  },
   resultStack: {
     overflow: "hidden",
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -758,18 +698,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  eventCard: {
-    minHeight: 82,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   resultImage: {
@@ -799,9 +729,9 @@ const styles = StyleSheet.create({
   },
   resultType: {
     color: colors.textSubtle,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.8,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "600",
   },
   errorBanner: {
     flexDirection: "row",
