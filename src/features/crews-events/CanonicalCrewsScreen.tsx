@@ -598,6 +598,46 @@ export default function CanonicalCrewsScreen() {
     [events],
   );
 
+  const createCrew = useCallback(
+    async (input: {
+      name: string;
+      city: string;
+      description: string;
+      isPublic: boolean;
+      joinPolicy: JoinPolicy;
+    }) => {
+      if (!userId || creating) return;
+      setCreating(true);
+      setError(null);
+
+      const { data, error: createError } = await supabase
+        .from("crews")
+        .insert({
+          owner_id: userId,
+          name: input.name.trim(),
+          city: input.city.trim() || null,
+          description: input.description.trim() || null,
+          is_public: input.isPublic,
+          join_policy: input.joinPolicy,
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        setError(createError.message);
+        setCreating(false);
+        return;
+      }
+
+      setCreateVisible(false);
+      setFilter("mine");
+      await load(false);
+      router.push({ pathname: "/crew/[id]", params: { id: data.id } });
+      setCreating(false);
+    },
+    [creating, load, userId],
+  );
+
   const content = useMemo(() => {
     if (loading) {
       return (
