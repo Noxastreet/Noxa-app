@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { CrewModuleHeader, CrewModuleIconButton } from "@/src/components/crew/CrewModuleChrome";
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { initials, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
@@ -307,31 +308,20 @@ export default function CrewGalleryScreen() {
 
   return (
     <NoxaScreen padded={false}>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-        >
-          <Ionicons name="chevron-back" size={21} color={colors.text} />
-        </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>CREW GALLERY</Text>
-          <Text numberOfLines={1} style={styles.headerSubtitle}>{crew?.name ?? "NOXA crew"}</Text>
-        </View>
-        <Text style={styles.photoCount}>{items.length} PHOTOS</Text>
-        {canUpload ? (
-          <Pressable
-            accessibilityLabel="Add crew photo"
-            accessibilityRole="button"
-            onPress={() => void chooseImage()}
-            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="add" size={22} color={colors.text} />
-          </Pressable>
-        ) : null}
-      </View>
+      <CrewModuleHeader
+        badge={items.length ? `${items.length} photos` : undefined}
+        right={
+          canUpload ? (
+            <CrewModuleIconButton
+              icon="add"
+              label="Add crew photo"
+              onPress={() => void chooseImage()}
+            />
+          ) : undefined
+        }
+        subtitle={crew?.name ?? "NOXA crew"}
+        title="Crew Gallery"
+      />
 
       {loading ? (
         <View style={styles.state}>
@@ -345,7 +335,7 @@ export default function CrewGalleryScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.latestBar}>
-            <Text style={styles.latestActive}>LATEST</Text>
+            <Text style={styles.latestActive}>Latest</Text>
             <Text style={styles.latestHint}>
               {canUpload ? "Crew member uploads" : "Join the crew to view and add photos"}
             </Text>
@@ -355,7 +345,7 @@ export default function CrewGalleryScreen() {
             <View style={styles.uploadCard}>
               <Image source={{ uri: pendingAsset.uri }} style={styles.uploadPreview} />
               <View style={styles.uploadFields}>
-                <Text style={styles.uploadTitle}>NEW CREW PHOTO</Text>
+                <Text style={styles.uploadTitle}>New crew photo</Text>
                 <TextInput
                   value={caption}
                   onChangeText={setCaption}
@@ -368,7 +358,7 @@ export default function CrewGalleryScreen() {
                 />
                 <View style={styles.uploadActions}>
                   <NoxaButton
-                    title="CANCEL"
+                    title="Cancel"
                     size="sm"
                     variant="secondary"
                     disabled={uploading}
@@ -378,7 +368,7 @@ export default function CrewGalleryScreen() {
                     }}
                   />
                   <NoxaButton
-                    title="UPLOAD"
+                    title="Upload"
                     size="sm"
                     loading={uploading}
                     onPress={() => void uploadImage()}
@@ -399,14 +389,14 @@ export default function CrewGalleryScreen() {
               <View style={styles.emptyIcon}>
                 <Ionicons name="images-outline" size={32} color={colors.primaryHover} />
               </View>
-              <Text style={styles.emptyTitle}>NO CREW PHOTOS YET</Text>
+              <Text style={styles.emptyTitle}>No crew photos yet</Text>
               <Text style={styles.emptyText}>
                 {canUpload
                   ? "Add the first real moment from this crew."
                   : "Crew member photos will appear here after you join."}
               </Text>
               {canUpload ? (
-                <NoxaButton title="ADD A PHOTO" onPress={() => void chooseImage()} />
+                <NoxaButton title="Add a photo" onPress={() => void chooseImage()} />
               ) : null}
             </View>
           ) : (
@@ -465,7 +455,7 @@ export default function CrewGalleryScreen() {
             >
               <Ionicons name="close" size={22} color={colors.text} />
             </Pressable>
-            <Text style={styles.lightboxTitle}>CREW PHOTO</Text>
+            <Text style={styles.lightboxTitle}>Crew photo</Text>
             {selectedItem
             && (selectedItem.uploader_id === currentUserId || canManage) ? (
               <Pressable
@@ -565,21 +555,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.xxs,
   },
-  latestActive: { color: colors.text, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
-  latestHint: { color: colors.textSubtle, fontSize: 10, fontWeight: "700" },
+  latestActive: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  latestHint: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   uploadCard: {
     flexDirection: "row",
     gap: spacing.sm,
     marginBottom: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   uploadPreview: { width: 96, height: 112, borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
   uploadFields: { flex: 1, gap: spacing.xs },
-  uploadTitle: { color: colors.primaryHover, fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
+  uploadTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
   captionInput: {
     minHeight: 52,
     padding: spacing.sm,
@@ -623,20 +611,17 @@ const styles = StyleSheet.create({
   ownerName: { maxWidth: "70%", color: "rgba(255,255,255,0.82)", fontSize: 10, fontWeight: "700" },
   state: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   stateText: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
-  empty: { minHeight: 430, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
+  empty: { minHeight: 300, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingVertical: spacing.xxl },
   emptyIcon: {
-    width: 66,
-    height: 66,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
   },
   emptyTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
+    ...typography.v2.section,
+    fontWeight: "800",
     textAlign: "center",
   },
   emptyText: { color: colors.textMuted, fontSize: 13, lineHeight: 20, textAlign: "center" },
@@ -659,7 +644,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
   lightboxButton: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  lightboxTitle: { color: colors.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
+  lightboxTitle: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: "600" },
   lightboxImageWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.sm },
   lightboxImage: { width: "100%", height: "100%" },
   lightboxDetails: {
