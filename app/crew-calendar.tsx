@@ -18,7 +18,7 @@ import {
 import { NoxaBadge, NoxaScreen } from "@/src/components/ui";
 import { uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type CrewRow = { id: string; name: string };
@@ -292,7 +292,7 @@ export default function CrewCalendarScreen() {
   return (
     <NoxaScreen padded={false}>
       <CrewModuleHeader
-        badge="MEMBERS"
+        badge="Members"
         right={
           <CrewModuleIconButton
             disabled={refreshing}
@@ -302,7 +302,7 @@ export default function CrewCalendarScreen() {
           />
         }
         subtitle={crew?.name ?? "NOXA crew"}
-        title="CREW CALENDAR"
+        title="Crew Calendar"
       />
 
       {loading ? (
@@ -349,7 +349,7 @@ export default function CrewCalendarScreen() {
                 <Ionicons name="chevron-back" size={18} color={colors.textMuted} />
               </Pressable>
               <View style={styles.monthCopy}>
-                <Text style={styles.monthEyebrow}>CREW SCHEDULE</Text>
+                <Text style={styles.monthEyebrow}>Schedule</Text>
                 <Text style={styles.monthTitle}>{formatMonth(visibleMonth)}</Text>
               </View>
               <Pressable
@@ -408,13 +408,13 @@ export default function CrewCalendarScreen() {
 
           <View style={styles.listHeader}>
             <View>
-              <Text style={styles.listEyebrow}>{selectedDate ? "SELECTED DAY" : "THIS MONTH"}</Text>
+              <Text style={styles.listEyebrow}>{selectedDate ? "Selected day" : "This month"}</Text>
               <Text style={styles.listTitle}>
                 {selectedDate
                   ? new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric" }).format(
                       new Date(`${selectedDate}T12:00:00`),
                     )
-                  : "CREW EVENTS"}
+                  : "Crew events"}
               </Text>
             </View>
             <View style={styles.listActions}>
@@ -447,7 +447,7 @@ export default function CrewCalendarScreen() {
               <View style={styles.emptyIcon}>
                 <Ionicons name="calendar-outline" size={28} color={colors.primaryHover} />
               </View>
-              <Text style={styles.emptyTitle}>NO EVENTS HERE</Text>
+              <Text style={styles.emptyTitle}>No events here</Text>
               <Text style={styles.emptyText}>
                 {selectedDate
                   ? "Choose another day or clear the day filter."
@@ -467,7 +467,7 @@ export default function CrewCalendarScreen() {
                 style={({ pressed }) => [styles.emptyAction, pressed && styles.pressed]}
               >
                 <Text style={styles.emptyActionText}>
-                  {selectedDate ? "SHOW MONTH" : canCreate ? "CREATE EVENT" : "NEXT MONTH"}
+                  {selectedDate ? "Show month" : canCreate ? "Create event" : "Next month"}
                 </Text>
               </Pressable>
             </View>
@@ -486,32 +486,26 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   monthCard: {
-    padding: spacing.md,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   monthHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   monthButton: {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   monthCopy: { flex: 1, alignItems: "center" },
-  monthEyebrow: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  monthEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   monthTitle: {
     marginTop: 2,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   weekHeader: { flexDirection: "row", marginTop: spacing.lg, marginBottom: spacing.xs },
   weekday: {
@@ -539,14 +533,12 @@ const styles = StyleSheet.create({
   eventDot: { width: 4, height: 4, borderRadius: radius.pill, backgroundColor: colors.primaryHover },
   eventDotSelected: { backgroundColor: colors.text },
   listHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  listEyebrow: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  listEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   listTitle: {
     marginTop: 2,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
-    textTransform: "uppercase",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   listActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   countPill: {
@@ -562,35 +554,28 @@ const styles = StyleSheet.create({
   },
   countText: { color: colors.textMuted, fontSize: 10, fontWeight: "900" },
   createButton: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
-    ...shadows.redGlow,
   },
-  eventList: { gap: spacing.sm },
+  eventList: { gap: 0 },
   eventCard: {
-    minHeight: 126,
+    minHeight: 92,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   dateTile: {
-    width: 54,
-    height: 64,
+    width: 52,
+    height: 58,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
   },
   dateDay: {
     color: colors.text,
@@ -602,30 +587,24 @@ const styles = StyleSheet.create({
   eventCopy: { flex: 1, minWidth: 0, gap: 5 },
   eventBadgeRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   category: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
-  eventTitle: { color: colors.text, fontSize: 14, fontWeight: "900", lineHeight: 19 },
+  eventTitle: { color: colors.text, fontSize: 14, fontWeight: "600", lineHeight: 19 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   metaText: { flexShrink: 1, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   metaDot: { width: 2, height: 2, marginHorizontal: 2, borderRadius: radius.pill, backgroundColor: colors.textSubtle },
   emptyCard: {
-    minHeight: 230,
+    minHeight: 220,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
   },
   emptyIcon: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySubtle,
   },
-  emptyTitle: { color: colors.text, fontSize: 14, fontWeight: "900", letterSpacing: 0.8 },
+  emptyTitle: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "600" },
   emptyText: { maxWidth: 260, color: colors.textMuted, fontSize: 12, fontWeight: "700", lineHeight: 18, textAlign: "center" },
   emptyAction: {
     minHeight: 40,
@@ -636,6 +615,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     backgroundColor: colors.primary,
   },
-  emptyActionText: { color: colors.text, fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
+  emptyActionText: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
   pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
 });
