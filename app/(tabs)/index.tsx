@@ -1671,6 +1671,92 @@ export default function LiveMapScreen() {
     router.setParams({ focusEventId: event.id, mapMode: "route" });
   }, []);
 
+  const openGroupDrivePlanner = useCallback((crewId: string | null = null) => {
+    setIsRouteFollowing(false);
+    setVisibilityMenuOpen(false);
+    setSelectedEvent(null);
+    setGroupDriveCrewContextId(crewId);
+    setGroupDriveMapPoint(null);
+    setGroupDriveSelectionPoint(null);
+    setGroupDriveRoutePreview(null);
+    setContextualSurfaceHeight(0);
+    setGroupDrivePlannerOpen(true);
+  }, []);
+
+  const closeGroupDrivePlanner = useCallback(() => {
+    setGroupDrivePlannerOpen(false);
+    setGroupDriveCrewContextId(null);
+    setGroupDriveMapPoint(null);
+    setGroupDriveSelectionPoint(null);
+    setGroupDriveMapSelectionActive(false);
+    setGroupDriveRoutePreview(null);
+    setContextualSurfaceHeight(0);
+  }, []);
+
+  const handleContextualSurfaceHeight = useCallback((height: number) => {
+    if (!Number.isFinite(height) || height <= 0) return;
+    setContextualSurfaceHeight((current) =>
+      Math.abs(current - height) > 2 ? height : current,
+    );
+  }, []);
+
+  const openGroupDriveList = useCallback(() => {
+    router.push("/group-drives");
+  }, []);
+
+  const handleGroupDriveCreated = useCallback(
+    (driveSessionId: string) => {
+      closeGroupDrivePlanner();
+      router.push({
+        pathname: "/group-drives/[id]",
+        params: { id: driveSessionId },
+      });
+    },
+    [closeGroupDrivePlanner],
+  );
+
+  useEffect(() => {
+    if (normalizedGroupDriveMode !== "create") return;
+    const crewId =
+      typeof normalizedGroupDriveCrewId === "string" &&
+      uuidPattern.test(normalizedGroupDriveCrewId)
+        ? normalizedGroupDriveCrewId
+        : null;
+    openGroupDrivePlanner(crewId);
+    router.setParams({
+      groupDriveMode: undefined,
+      groupDriveCrewId: undefined,
+    });
+  }, [
+    normalizedGroupDriveCrewId,
+    normalizedGroupDriveMode,
+    openGroupDrivePlanner,
+  ]);
+
+  useEffect(() => {
+    if (!groupDrivePlannerOpen || !groupDriveRoutePreview) return;
+    const points = groupDriveRoutePreview.coordinates;
+    if (points.length < 2) return;
+    mapRef.current?.fitToCoordinates(points, {
+      animated: true,
+      edgePadding: {
+        top: insets.top + 96,
+        right: spacing.xl,
+        bottom:
+          overlayBottom +
+          Math.max(contextualSurfaceHeight, 180) +
+          spacing.md,
+        left: spacing.xl,
+      },
+    });
+  }, [
+    contextualSurfaceHeight,
+    groupDrivePlannerOpen,
+    groupDriveRoutePreview,
+    insets.top,
+    overlayBottom,
+  ]);
+
   const selectEvent = useCallback(
     (event: EventMarkerRow) => {
       setSelectedEvent(event);
