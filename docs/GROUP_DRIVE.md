@@ -273,7 +273,7 @@ No RLS policies are created by this document — this section defines what futur
 ## 8. Retention requirements
 
 - `drive_location_state`: no retained history — rows exist only while a participant's own status is `active` in an `active` session (`accepted` alone never qualifies, §4.5), deleted synchronously on every relevant state transition (§4.5, §6). The same scheduled job that enforces the `active_expires_at` 8-hour cap (§5.4) also acts as the safety-net cleanup for orphaned rows in Phase 3, in addition to synchronous deletion, not a substitute for it.
-- `drive_sessions`, `drive_stops`, `drive_participants`, `drive_invitations`: retained indefinitely as historical/product records, same durability expectation as `events`/`event_attendees`. `route_geometry` on a completed session is historical trip data, not live tracking data, and is treated like the existing `crew_convoys` completion record, not like `driver_locations`.
+- `drive_sessions`, `drive_stops`, `drive_participants`, `drive_invitations`: Group Drive has its own retention contract and does not inherit Event RSVP retention. `event_attendees` is intentionally purged after an Event ends or is cancelled. `route_geometry` on a completed Group Drive remains governed by the Group Drive-specific product/privacy rules in this document.
 - No production migration, cleanup job, or retention change described here is applied by this document. Any future cleanup job for `drive_location_state` follows the same production-change rule already established in `docs/security/NOXA_LIVE_DRIVE_MIGRATION_A_RUNBOOK.md`: reviewed migration, documented rollback, explicit owner approval, post-deployment verification.
 
 ## 9. MVP scope
