@@ -181,7 +181,7 @@ export default function SettingsScreen() {
               variant="ghost"
             />
           }
-          title="SETTINGS"
+          title="Settings"
           subtitle="Account, privacy and app controls"
         />
 
@@ -225,7 +225,7 @@ export default function SettingsScreen() {
             <NoxaLoadingState label="Loading account…" />
           ) : (
             <>
-              <SettingsGroup label="ACCOUNT" description="Your public identity and Garage">
+              <SettingsGroup label="Account" description="Your public identity and Garage">
                 <SettingsRow
                   caption="Name, username, bio, city and photo"
                   icon="person-outline"
@@ -242,7 +242,7 @@ export default function SettingsScreen() {
                 />
               </SettingsGroup>
 
-              <SettingsGroup label="PRIVACY & SAFETY" description="Visibility, moderation and legal controls">
+              <SettingsGroup label="Privacy & Safety" description="Visibility, moderation and legal controls">
                 <SettingsRow
                   caption="Real Crew, Event and community activity"
                   icon="notifications-outline"
@@ -270,7 +270,7 @@ export default function SettingsScreen() {
                 />
               </SettingsGroup>
 
-              <SettingsGroup label="APP & SUPPORT" description="Help, introduction and app information">
+              <SettingsGroup label="App & Support" description="Help, introduction and app information">
                 <SettingsRow
                   caption="Review the NOXA introduction"
                   icon="play-circle-outline"
@@ -292,7 +292,7 @@ export default function SettingsScreen() {
               </SettingsGroup>
 
               {profile ? (
-                <SettingsGroup label="SESSION">
+                <SettingsGroup label="Session">
                   <SettingsRow
                     disabled={isSigningOut}
                     icon="log-out-outline"
@@ -302,12 +302,12 @@ export default function SettingsScreen() {
                   />
                 </SettingsGroup>
               ) : (
-                <NoxaButton fullWidth onPress={() => router.push('/sign-in')} title="SIGN IN TO NOXA" />
+                <NoxaButton fullWidth onPress={() => router.push('/sign-in')} title="Sign in" />
               )}
 
               {profile ? (
                 <View style={styles.dangerZone}>
-                  <Text style={styles.dangerLabel}>ACCOUNT DELETION</Text>
+                  <Text style={styles.dangerLabel}>Account deletion</Text>
                   <Text style={styles.dangerDescription}>
                     Permanently remove your NOXA account and associated data. Identity verification is required before deletion.
                   </Text>
@@ -316,16 +316,12 @@ export default function SettingsScreen() {
                     onPress={() => router.push('/delete-account')}
                     style={({ pressed }) => [styles.deleteAccountButton, pressed && styles.pressed]}>
                     <Ionicons name="trash-outline" size={17} color={colors.primaryHover} />
-                    <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
+                    <Text style={styles.deleteAccountText}>Delete account</Text>
                     <Ionicons name="chevron-forward" size={16} color={colors.primaryHover} />
                   </Pressable>
                 </View>
               ) : null}
 
-              <View accessible accessibilityLabel="NOXA, crafted by KARAKETIDIS" style={styles.signature}>
-                <Text style={styles.signatureBrand}>NOXA</Text>
-                <Text style={styles.signatureCredit}>CRAFTED BY KARAKETIDIS</Text>
-              </View>
             </>
           )}
         </ScrollView>
@@ -385,11 +381,11 @@ const styles = StyleSheet.create({
   groupHeading: { gap: 2 },
   groupLabel: {
     color: colors.text,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: typography.letterSpacing.label,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
   },
-  groupDescription: { color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
+  groupDescription: { color: colors.textMuted, fontSize: 12, lineHeight: 17, fontWeight: '500' },
   groupList: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -403,11 +399,11 @@ const styles = StyleSheet.create({
   },
   dangerLabel: {
     color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.2,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
   },
-  dangerDescription: { color: colors.textMuted, fontSize: 10, fontWeight: '700', lineHeight: 16 },
+  dangerDescription: { color: colors.textMuted, fontSize: 12, fontWeight: '500', lineHeight: 18 },
   deleteAccountButton: {
     minHeight: 48,
     flexDirection: 'row',
@@ -416,7 +412,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderAccent,
   },
-  deleteAccountText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  deleteAccountText: { flex: 1, color: colors.primaryHover, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   signature: { alignItems: 'center', gap: 3, paddingTop: spacing.xs },
   signatureBrand: {
     color: colors.textSubtle,
