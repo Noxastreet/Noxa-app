@@ -404,13 +404,17 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               clusterRadius={42}
               hitbox={{ width: 48, height: 48 }}
               id="noxa-drivers-source"
-              onPress={(event) => {
-                const feature = event.features[0];
-                if (feature?.properties?.cluster) return;
-                if (feature?.geometry.type === "Point") {
-                  onDriverSourcePress(feature);
-                }
-              }}
+              onPress={
+                onMapPress
+                  ? undefined
+                  : (event) => {
+                      const feature = event.features[0];
+                      if (feature?.properties?.cluster) return;
+                      if (feature?.geometry.type === "Point") {
+                        onDriverSourcePress(feature);
+                      }
+                    }
+              }
               shape={driverFeatures}
             >
               <CircleLayer
@@ -457,7 +461,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   <TouchableOpacity
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
                     activeOpacity={0.82}
+                    disabled={Boolean(onMapPress)}
                     onPress={() => onDriverPress(driver.user_id)}
+                    pointerEvents={onMapPress ? "none" : "auto"}
                     style={[
                       styles.driverMarker,
                       driver.is_relevant && styles.driverMarkerRelevant,
@@ -483,10 +489,16 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             <ShapeSource
               hitbox={{ width: 48, height: 48 }}
               id="noxa-events-source"
-              onPress={(event) => {
-                const feature = event.features[0];
-                if (feature?.geometry.type === "Point") onEventSourcePress(feature);
-              }}
+              onPress={
+                onMapPress
+                  ? undefined
+                  : (event) => {
+                      const feature = event.features[0];
+                      if (feature?.geometry.type === "Point") {
+                        onEventSourcePress(feature);
+                      }
+                    }
+              }
               shape={eventFeatures}
             >
               <CircleLayer
@@ -521,7 +533,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   <TouchableOpacity
                     accessibilityLabel={`${event.title} event`}
                     activeOpacity={0.82}
+                    disabled={Boolean(onMapPress)}
                     onPress={() => onEventPress(event)}
+                    pointerEvents={onMapPress ? "none" : "auto"}
                     style={styles.eventMarkerPressTarget}
                   >
                     <View
