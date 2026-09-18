@@ -14,7 +14,7 @@ import {
 
 import { NoxaEmptyState, NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type SearchFilter = "all" | "drivers" | "vehicles" | "crews" | "events";
 
@@ -122,7 +122,7 @@ function SearchHeader({ loading }: { loading: boolean }) {
       >
         <Ionicons name="chevron-back" size={22} color={colors.text} />
       </Pressable>
-      <Text style={styles.headerTitle}>EXPLORE</Text>
+      <Text style={styles.headerTitle}>Search</Text>
       <View style={styles.headerStatus}>
         {loading ? <ActivityIndicator color={colors.primary} size="small" /> : null}
       </View>
@@ -242,7 +242,7 @@ function DriverRow({ driver }: { driver: DriverResult }) {
             .join(" · ") || "NOXA community"}
         </Text>
       </View>
-      <Text style={styles.resultType}>DRIVER</Text>
+      <Text style={styles.resultType}>Driver</Text>
       <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
   );
@@ -284,7 +284,7 @@ function VehicleRow({ vehicle }: { vehicle: VehicleResult }) {
           {vehicle.horsepower} HP · {vehicle.color}
         </Text>
       </View>
-      <Text style={styles.resultType}>VEHICLE</Text>
+      <Text style={styles.resultType}>Vehicle</Text>
       <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
   );
@@ -618,31 +618,26 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   header: {
-    minHeight: 62,
+    minHeight: 60,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
-    backgroundColor: colors.surfaceBase,
+    backgroundColor: colors.background,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
   headerTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: "900",
-    letterSpacing: 1.4,
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   headerStatus: { width: 40, alignItems: "center" },
   searchArea: {
@@ -711,9 +706,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
+    ...typography.v2.row,
+    fontWeight: "700",
   },
   sectionCount: {
     color: colors.textSubtle,
@@ -722,15 +716,10 @@ const styles = StyleSheet.create({
   },
   driverStrip: { gap: spacing.sm, paddingRight: spacing.lg },
   driverCard: {
-    width: 126,
+    width: 104,
     alignItems: "center",
     gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingVertical: spacing.sm,
   },
   avatarFallback: {
     alignItems: "center",
@@ -760,10 +749,9 @@ const styles = StyleSheet.create({
   },
   resultStack: {
     overflow: "hidden",
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   resultRow: {
     minHeight: 76,
@@ -776,12 +764,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   eventCard: {
-    minHeight: 86,
+    minHeight: 82,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    padding: spacing.sm,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   resultImage: {
