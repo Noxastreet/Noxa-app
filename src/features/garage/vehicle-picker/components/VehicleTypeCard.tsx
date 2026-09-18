@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/theme';
 
 import type { VehicleTypePickerItem } from '../types';
 import { PickerCardFrame } from './PickerCardFrame';
@@ -48,30 +48,25 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   iconWrap: {
-    width: 50,
-    height: 50,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
   },
-  iconWrapSelected: {
-    backgroundColor: colors.primaryMuted,
-  },
+  iconWrapSelected: {},
   copy: {
     flex: 1,
     gap: 2,
   },
   label: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '900',
-    textTransform: 'uppercase',
+    ...typography.v2.row,
+    fontWeight: '700',
   },
   caption: {
     color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
 });
