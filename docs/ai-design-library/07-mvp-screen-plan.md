@@ -568,7 +568,6 @@
 - `app/social-list.tsx`;
 - `app/event-chat.tsx`;
 - `app/event-gallery.tsx`;
-- `app/event-summary.tsx`;
 - `app/crew-chat.tsx`;
 - `app/crew-gallery.tsx`;
 - `app/crew-calendar.tsx`;
