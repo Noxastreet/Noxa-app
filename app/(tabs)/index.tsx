@@ -1878,6 +1878,37 @@ export default function LiveMapScreen() {
     selectedEvent,
   ]);
 
+  useEffect(() => {
+    if (
+      !isRouteMode ||
+      isRouteFollowing ||
+      !route ||
+      !driverLocation ||
+      !selectedEvent ||
+      !hasValidCoordinates(selectedEvent)
+    ) {
+      return;
+    }
+    requestAnimationFrame(() =>
+      fitRouteToMap(
+        route.coordinates,
+        {
+          latitude: selectedEvent.latitude,
+          longitude: selectedEvent.longitude,
+        },
+        driverLocation,
+      ),
+    );
+  }, [
+    contextualSurfaceHeight,
+    driverLocation,
+    fitRouteToMap,
+    isRouteFollowing,
+    isRouteMode,
+    route,
+    selectedEvent,
+  ]);
+
   const nearbyDrivers = useMemo(
     () =>
       driverLocation
@@ -1996,7 +2027,10 @@ export default function LiveMapScreen() {
   const controlBottom =
     eventCardBottom +
     (hasContextualSurface
-      ? Math.max(contextualSurfaceHeight, spacing.xxl)
+      ? Math.max(
+          contextualSurfaceHeight,
+          groupDrivePlannerOpen ? 280 : selectedEvent ? 180 : spacing.xxl,
+        )
       : 0) +
     spacing.sm;
   const showRecenter =
