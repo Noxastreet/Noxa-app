@@ -42,6 +42,7 @@ type DepartureMode = "now" | "scheduled";
 
 type Props = {
   visible: boolean;
+  bottomOffset: number;
   currentLocation: LatLng | null;
   mapCenter: LatLng;
   initialDestination?: Destination | null;
@@ -331,6 +332,7 @@ function CrewRow({
 
 export function MapGroupDriveFlow({
   visible,
+  bottomOffset,
   currentLocation,
   mapCenter,
   initialDestination = null,
@@ -1038,7 +1040,10 @@ export function MapGroupDriveFlow({
         dismissible={!saving}
         onDismiss={state === "hub" ? closeFlow : backFromPlanner}
         onHeightChange={onHeightChange}
-        style={[styles.sheet, { maxHeight: Math.max(420, height * 0.72) }]}
+        style={[
+          styles.sheet,
+          { bottom: bottomOffset, maxHeight: Math.max(420, height * 0.72) },
+        ]}
       >
         {state === "hub"
           ? renderHub()
@@ -1093,7 +1098,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
   },
   header: {
     minHeight: 60,
