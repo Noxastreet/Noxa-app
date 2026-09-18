@@ -54,13 +54,10 @@ function formatHandle(username: string | null) {
   return username.startsWith('@') ? username : `@${username}`;
 }
 
-function SettingsGroup({ children, label, description }: { children: ReactNode; label: string; description?: string }) {
+function SettingsGroup({ children, label }: { children: ReactNode; label: string }) {
   return (
     <View style={styles.group}>
-      <View style={styles.groupHeading}>
-        <Text style={styles.groupLabel}>{label}</Text>
-        {description ? <Text style={styles.groupDescription}>{description}</Text> : null}
-      </View>
+      <Text style={styles.groupLabel}>{label}</Text>
       <View style={styles.groupList}>{children}</View>
     </View>
   );
@@ -182,7 +179,6 @@ export default function SettingsScreen() {
             />
           }
           title="Settings"
-          subtitle="Account, privacy and app controls"
         />
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -195,7 +191,7 @@ export default function SettingsScreen() {
               {profile?.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
               ) : (
-                <NoxaAvatar initials={getInitials(displayName)} size={56} />
+                <NoxaAvatar initials={getInitials(displayName)} size={48} />
               )}
             </View>
             <View style={styles.profileCopy}>
@@ -225,7 +221,7 @@ export default function SettingsScreen() {
             <NoxaLoadingState label="Loading account…" />
           ) : (
             <>
-              <SettingsGroup label="Account" description="Your public identity and Garage">
+              <SettingsGroup label="Account">
                 <SettingsRow
                   caption="Name, username, bio, city and photo"
                   icon="person-outline"
@@ -242,7 +238,7 @@ export default function SettingsScreen() {
                 />
               </SettingsGroup>
 
-              <SettingsGroup label="Privacy & Safety" description="Visibility, moderation and legal controls">
+              <SettingsGroup label="Privacy & Safety">
                 <SettingsRow
                   caption="Real Crew, Event and community activity"
                   icon="notifications-outline"
@@ -270,7 +266,7 @@ export default function SettingsScreen() {
                 />
               </SettingsGroup>
 
-              <SettingsGroup label="App & Support" description="Help, introduction and app information">
+              <SettingsGroup label="App & Support">
                 <SettingsRow
                   caption="Review the NOXA introduction"
                   icon="play-circle-outline"
@@ -333,14 +329,14 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     backgroundColor: colors.background,
   },
   pressed: { opacity: 0.74, transform: [{ scale: 0.985 }] },
-  content: { paddingTop: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.xl },
+  content: { paddingTop: spacing.md, paddingBottom: spacing.xxxl, gap: spacing.lg },
   profileRow: {
-    minHeight: 82,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -349,8 +345,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   avatarRing: {
-    width: 62,
-    height: 62,
+    width: 52,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -358,16 +354,21 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
-  avatarImage: { width: 56, height: 56, borderRadius: radius.pill },
+  avatarImage: { width: 48, height: 48, borderRadius: radius.pill },
   profileCopy: { flex: 1, minWidth: 0 },
   profileName: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '900',
-    lineHeight: typography.lineHeight.title,
+    fontFamily: typography.fontFamily.body,
+    ...typography.v2.row,
+    fontWeight: '600',
   },
-  profileMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: '700' },
+  profileMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
   errorRow: {
     minHeight: 50,
     flexDirection: 'row',
@@ -377,15 +378,13 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   errorText: { flex: 1, color: colors.textMuted, fontSize: 11, fontWeight: '700' },
-  group: { gap: spacing.sm },
-  groupHeading: { gap: 2 },
+  group: { gap: spacing.xs },
   groupLabel: {
-    color: colors.text,
-    fontSize: 13,
-    lineHeight: 18,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '600',
   },
-  groupDescription: { color: colors.textMuted, fontSize: 12, lineHeight: 17, fontWeight: '500' },
   groupList: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
