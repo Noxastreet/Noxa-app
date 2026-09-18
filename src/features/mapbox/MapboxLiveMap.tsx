@@ -201,7 +201,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: "easeTo",
         });
       },
-      [bottomContentInset, followUserLocation, isRouteMode, onFollowUserLocationChange],
+      [followUserLocation, isRouteMode, onFollowUserLocationChange],
     );
 
     const fitToCoordinates: LiveMapHandle["fitToCoordinates"] = useCallback(
@@ -238,7 +238,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: options?.animated === false ? "none" : "easeTo",
         });
       },
-      [followUserLocation, isRouteMode, onFollowUserLocationChange],
+      [bottomContentInset, followUserLocation, isRouteMode, onFollowUserLocationChange],
     );
 
     useImperativeHandle(
