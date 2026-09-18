@@ -44,6 +44,7 @@ type Props = {
   visible: boolean;
   bottomOffset: number;
   currentLocation: LatLng | null;
+  startInPlanner?: boolean;
   mapCenter: LatLng;
   initialDestination?: Destination | null;
   onClose: () => void;
@@ -334,6 +335,7 @@ export function MapGroupDriveFlow({
   visible,
   bottomOffset,
   currentLocation,
+  startInPlanner = false,
   mapCenter,
   initialDestination = null,
   onClose,
@@ -395,6 +397,11 @@ export function MapGroupDriveFlow({
       onMapSelectionChange(false);
       return;
     }
+    if (startInPlanner && initialDestination && state === "hub") {
+      resetPlanner(initialDestination);
+      setState("destination");
+      return;
+    }
     if (state === "hub") {
       setDrivesLoading(true);
       setError(null);
@@ -409,7 +416,14 @@ export function MapGroupDriveFlow({
         })
         .finally(() => setDrivesLoading(false));
     }
-  }, [state, visible, onMapSelectionChange]);
+  }, [
+    initialDestination,
+    onMapSelectionChange,
+    resetPlanner,
+    startInPlanner,
+    state,
+    visible,
+  ]);
 
   useEffect(() => {
     if (!visible) return;
@@ -456,6 +470,8 @@ export function MapGroupDriveFlow({
   const closeFlow = () => {
     onPreviewRoute(null, null);
     onMapSelectionChange(false);
+    resetPlanner(null);
+    setState("hub");
     onClose();
   };
 
