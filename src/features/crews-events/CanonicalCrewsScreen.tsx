@@ -639,7 +639,7 @@ export default function CanonicalCrewsScreen() {
           </Text>
           <Text style={styles.stateText}>
             {filter === "mine"
-              ? "Create a crew or discover one that fits your community."
+              ? "Create a crew or discover a public one."
               : "Public crews will appear here when they are available."}
           </Text>
           {filter === "mine" ? (
