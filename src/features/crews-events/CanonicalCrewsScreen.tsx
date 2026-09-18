@@ -81,7 +81,7 @@ function getOwnerName(row: CrewRow) {
 }
 
 function formatDrive(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
@@ -143,16 +143,18 @@ function CrewFilterControl({
             <Text style={[styles.filterText, active && styles.filterTextActive]}>
               {item.label}
             </Text>
-            <View style={[styles.filterCount, active && styles.filterCountActive]}>
-              <Text
-                style={[
-                  styles.filterCountText,
-                  active && styles.filterCountTextActive,
-                ]}
-              >
-                {item.count}
-              </Text>
-            </View>
+            {item.count > 0 ? (
+              <View style={[styles.filterCount, active && styles.filterCountActive]}>
+                <Text
+                  style={[
+                    styles.filterCountText,
+                    active && styles.filterCountTextActive,
+                  ]}
+                >
+                  {item.count}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
         );
       })}
@@ -212,8 +214,8 @@ function CrewListRow({
 
 function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
   const date = new Date(event.starts_at);
-  const day = new Intl.DateTimeFormat(undefined, { day: "2-digit" }).format(date);
-  const month = new Intl.DateTimeFormat(undefined, { month: "short" })
+  const day = new Intl.DateTimeFormat('en-GB', { day: "2-digit" }).format(date);
+  const month = new Intl.DateTimeFormat('en-GB', { month: "short" })
     .format(date)
     .replace(".", "")
     .replace(".", "");
@@ -640,13 +642,13 @@ export default function CanonicalCrewsScreen() {
               ? "Create a crew or discover one that fits your community."
               : "Public crews will appear here when they are available."}
           </Text>
-          <CanonicalPrimaryButton
-            label={filter === "mine" ? "Create crew" : "Refresh"}
-            variant={filter === "mine" ? "accent" : "surface"}
-            onPress={() =>
-              filter === "mine" ? setCreateVisible(true) : void load(false)
-            }
-          />
+          {filter === "mine" ? (
+            <CanonicalPrimaryButton
+              label="Create crew"
+              variant="accent"
+              onPress={() => setCreateVisible(true)}
+            />
+          ) : null}
         </View>
       );
     }

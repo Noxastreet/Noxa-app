@@ -266,6 +266,7 @@ function logMapDataFailure(resource: "events" | "drivers", error: unknown) {
 
 function formatDistance(meters: number) {
   if (!Number.isFinite(meters)) return "—";
+  if (meters < 10) return "<10 m";
   if (meters < 1000) return `${Math.max(0, Math.round(meters))} m`;
   return `${(meters / 1000).toFixed(meters < 10000 ? 1 : 0)} km`;
 }
@@ -1874,15 +1875,17 @@ export default function LiveMapScreen() {
             />
           </TouchableOpacity>
 
-          <View pointerEvents="none" style={styles.livingPulse}>
-            <View style={styles.livingPulseRow}>
-              <View style={styles.livingPulseDot} />
-              <Text style={styles.livingPulseNumber}>{nearbyDrivers.length}</Text>
+          {nearbyDrivers.length > 0 ? (
+            <View pointerEvents="none" style={styles.livingPulse}>
+              <View style={styles.livingPulseRow}>
+                <View style={styles.livingPulseDot} />
+                <Text style={styles.livingPulseNumber}>{nearbyDrivers.length}</Text>
+              </View>
+              <Text style={styles.livingPulseLabel}>
+                {driverLocation ? "nearby now" : "active now"}
+              </Text>
             </View>
-            <Text style={styles.livingPulseLabel}>
-              {driverLocation ? "nearby now" : "active now"}
-            </Text>
-          </View>
+          ) : null}
 
           <View style={styles.headerActions}>
             <NoxaIconButton
@@ -2672,8 +2675,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    borderColor: colors.primary,
+    backgroundColor: "rgba(200,16,46,0.22)",
   },
   routeFollowButtonActive: {
     backgroundColor: colors.primary,

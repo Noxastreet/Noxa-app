@@ -96,7 +96,7 @@ function VehicleCard({ vehicle }: { vehicle: CrewVehicle }) {
       <View style={styles.artworkShade} />
       <View style={styles.artworkTopRow}>
         <NoxaBadge label="CREW BUILD" variant="primary" />
-        {vehicle.tuning_stage ? (
+        {vehicle.tuning_stage && vehicle.tuning_stage.trim() !== '-1' ? (
           <View style={styles.stageBadge}>
             <Text style={styles.stageText}>{vehicle.tuning_stage.toUpperCase()}</Text>
           </View>

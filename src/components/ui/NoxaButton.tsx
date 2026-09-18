@@ -64,6 +64,7 @@ export function NoxaButton({
         style,
         pressed && !isDisabled && (reduceMotion ? styles.pressedReduced : styles.pressed),
         isDisabled && styles.disabled,
+        isDisabled && variant === 'primary' && styles.primaryDisabled,
       ]}>
       <View style={styles.content}>
         {loading ? (
@@ -104,6 +105,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   primary: { backgroundColor: colors.primary, borderColor: colors.primary },
+  primaryDisabled: { backgroundColor: colors.surfaceRaised, borderColor: colors.borderStrong },
   secondary: { backgroundColor: 'transparent', borderColor: colors.borderStrong },
   ghost: { backgroundColor: 'transparent', borderColor: 'transparent' },
   danger: { backgroundColor: 'transparent', borderColor: colors.borderAccent },

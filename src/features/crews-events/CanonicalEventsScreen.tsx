@@ -45,26 +45,26 @@ type EventListModel = EventRow & {
 };
 
 function formatDay(value: string) {
-  return new Intl.DateTimeFormat(undefined, { day: '2-digit' }).format(
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit' }).format(
     new Date(value),
   );
 }
 
 function formatMonth(value: string) {
-  return new Intl.DateTimeFormat(undefined, { month: 'short' })
+  return new Intl.DateTimeFormat('en-GB', { month: 'short' })
     .format(new Date(value))
     .replace('.', '');
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(value));
 }
 
 function formatWeekday(value: string) {
-  return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(
     new Date(value),
   );
 }
@@ -362,13 +362,15 @@ export default function CanonicalEventsScreen() {
                   variant="ghost"
                   onPress={() => router.push('/event-history')}
                 />
-                <NoxaIconButton
-                  accessibilityLabel="Create event"
-                  accessibilityHint="Opens event creation"
-                  icon="add"
-                  variant="ghost"
-                  onPress={() => router.push('/event-editor')}
-                />
+                {events.length ? (
+                  <NoxaIconButton
+                    accessibilityLabel="Create event"
+                    accessibilityHint="Opens event creation"
+                    icon="add"
+                    variant="ghost"
+                    onPress={() => router.push('/event-editor')}
+                  />
+                ) : null}
               </View>
             </View>
 

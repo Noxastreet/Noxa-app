@@ -93,7 +93,7 @@ const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function formatDrive(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
@@ -101,7 +101,7 @@ function formatDrive(value: string) {
 }
 
 function formatEstablished(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     month: "short",
     year: "numeric",
   })
@@ -191,7 +191,7 @@ function MembershipButton({
         compact
         disabled
         icon="shield-checkmark-outline"
-        label="OWNER"
+        label="Owner"
         variant="surface"
         onPress={() => undefined}
       />
@@ -203,7 +203,7 @@ function MembershipButton({
       <CanonicalPrimaryButton
         compact
         icon="checkmark"
-        label="JOINED"
+        label="Joined"
         loading={busy}
         variant="surface"
         onPress={onLeave}
@@ -215,7 +215,7 @@ function MembershipButton({
     return (
       <CanonicalPrimaryButton
         compact
-        label="REQUESTED"
+        label="Requested"
         loading={busy}
         variant="surface"
         onPress={onCancelRequest}
@@ -229,7 +229,7 @@ function MembershipButton({
         compact
         disabled
         icon="lock-closed-outline"
-        label="INVITE ONLY"
+        label="Invite only"
         variant="surface"
         onPress={() => undefined}
       />
@@ -239,7 +239,7 @@ function MembershipButton({
   return (
     <CanonicalPrimaryButton
       compact
-      label={crew.join_policy === "approval" ? "REQUEST" : "JOIN"}
+      label={crew.join_policy === "approval" ? "Request" : "Join"}
       loading={busy}
       onPress={onJoin}
     />
@@ -420,53 +420,29 @@ function ActivityTab({
         ) : null}
       </View>
 
-      <SectionTitle title="Garage" meta={`${vehicles.length} vehicles`} />
+      <SectionTitle
+        title="Garage"
+        meta={vehicles.length === 1 ? "1 vehicle" : `${vehicles.length} vehicles`}
+      />
       <Pressable
         accessibilityLabel="Open crew garage"
         accessibilityRole="button"
-        onPress={() =>
-          router.push({ pathname: "/crew-garage", params: { id: crew.id } })
-        }
-        style={({ pressed }) => [styles.garageCard, pressed && styles.pressed]}
+        onPress={() => router.push({ pathname: "/crew-garage", params: { id: crew.id } })}
+        style={({ pressed }) => [styles.garageRow, pressed && styles.pressed]}
       >
-        <CanonicalArtwork
-          uri={vehicles[0]?.cover_image_url}
-          style={styles.garageArtwork}
-          imageStyle={styles.garageArtworkImage}
-          icon="car-sport-outline"
-        >
-          <View style={styles.garageShade} />
-          <View style={styles.garageCopy}>
-            <Text style={styles.garageEyebrow}>Member vehicles</Text>
-            <Text style={styles.garageTitle}>Garage</Text>
-          </View>
-          <View style={styles.garageArrow}>
-            <Ionicons name="arrow-forward" size={18} color={colors.text} />
-          </View>
-        </CanonicalArtwork>
+        <CanonicalArtwork uri={vehicles[0]?.cover_image_url} style={styles.garageThumb} imageStyle={styles.garageThumbImage} icon="car-sport-outline" />
+        <View style={styles.garageRowCopy}>
+          <Text style={styles.garageTitle}>Garage</Text>
+          <Text numberOfLines={1} style={styles.garageMeta}>{vehicles[0] ? vehicleName(vehicles[0]) : "No public vehicles yet"}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
       </Pressable>
+    
+    </View>
+  );
+}
 
-      {vehicles.length ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.vehicleList}
-        >
-          {vehicles.slice(0, 8).map((vehicle) => (
-            <View key={vehicle.id} style={styles.vehicleCard}>
-              <CanonicalArtwork
-                uri={vehicle.cover_image_url}
-                style={styles.vehicleArtwork}
-                imageStyle={styles.vehicleArtworkImage}
-                icon="car-sport-outline"
-              />
-              <Text numberOfLines={1} style={styles.vehicleTitle}>
-                {vehicleName(vehicle)}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      ) : null}
+function EventsTab
     </View>
   );
 }
@@ -907,7 +883,7 @@ export default function CanonicalCrewDetailScreen() {
             {error || "This crew no longer exists."}
           </Text>
           <CanonicalPrimaryButton
-            label="GO BACK"
+            label="Go back"
             variant="surface"
             onPress={() => router.back()}
           />
@@ -1008,7 +984,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   heroMedia: {
-    height: 148,
+    height: 104,
     marginHorizontal: spacing.md,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
@@ -1019,14 +995,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
   },
   heroNameBlock: { flex: 1, minWidth: 0 },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    ...typography.v2.value,
-    fontWeight: "900",
+    ...typography.v2.section,
+    fontWeight: "800",
   },
   heroMeta: {
     marginTop: 3,
@@ -1158,49 +1134,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   activityMeta: { color: colors.textMuted, fontSize: 12, lineHeight: 16 },
-  garageCard: {
-    height: 104,
-    overflow: "hidden",
-    borderRadius: radius.md,
+  garageRow: {
+    minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider,
   },
-  garageArtwork: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    padding: spacing.md,
-  },
-  garageArtworkImage: { borderRadius: radius.md },
-  garageShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.48)",
-  },
-  garageCopy: { gap: 1 },
-  garageEyebrow: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "600",
-  },
-  garageTitle: {
-    color: colors.text,
-    ...typography.v2.row,
-    fontWeight: "800",
-  },
-  garageArrow: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 18,
-    backgroundColor: "rgba(20,20,26,0.72)",
-  },
-  vehicleList: { gap: spacing.sm, paddingRight: spacing.md },
-  vehicleCard: { width: 136, gap: spacing.xs },
-  vehicleArtwork: { height: 84, borderRadius: radius.sm },
-  vehicleArtworkImage: { borderRadius: radius.sm },
-  vehicleTitle: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "600" },
-  memberList: { overflow: "hidden" },
+  garageThumb: { width: 72, height: 52, borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
+  garageThumbImage: { borderRadius: radius.sm },
+  garageRowCopy: { flex: 1, minWidth: 0 },
+  garageTitle: { color: colors.text, ...typography.v2.row, fontWeight: "700" },
+  garageMeta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
+  memberList: { overflow: "hidden" },  memberList: { overflow: "hidden" },
   memberRow: {
     minHeight: 64,
     flexDirection: "row",
@@ -1245,7 +1188,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   emptyCard: {
-    minHeight: 180,
+    minHeight: 132,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.sm,

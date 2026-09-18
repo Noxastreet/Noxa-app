@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
+    fontFamily: typography.fontFamily.brandDisplay,
     fontWeight: '800',
     letterSpacing: -0.2,
   },

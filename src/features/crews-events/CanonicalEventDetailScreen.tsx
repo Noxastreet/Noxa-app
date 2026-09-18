@@ -74,21 +74,21 @@ type GalleryItem = {
 const galleryBucket = "event-gallery";
 
 function categoryLabel(event: EventExperienceRow) {
-  if (event.category === "meet") return "CAR MEET";
-  if (event.category === "drive") return "DRIVE";
-  if (event.category === "track") return "TRACK";
-  return "EVENT";
+  if (event.category === "meet") return "Car meet";
+  if (event.category === "drive") return "Drive";
+  if (event.category === "track") return "Track";
+  return "Event";
 }
 
 function lifecycleUrgency(event: EventExperienceRow) {
   const lifecycle = eventLifecycle(event);
-  if (lifecycle === "live") return "LIVE";
-  if (lifecycle === "soon") return "TONIGHT";
-  if (lifecycle === "completed") return "COMPLETED";
-  if (lifecycle === "cancelled") return "CANCELLED";
+  if (lifecycle === "live") return "Live";
+  if (lifecycle === "soon") return "Tonight";
+  if (lifecycle === "completed") return "Completed";
+  if (lifecycle === "cancelled") return "Cancelled";
   const date = new Date(event.starts_at);
   const today = new Date();
-  return date.toDateString() === today.toDateString() ? "TODAY" : "UPCOMING";
+  return date.toDateString() === today.toDateString() ? "Today" : "Upcoming";
 }
 
 function pluralize(count: number, singular: string, plural = `${singular}s`) {
@@ -111,7 +111,6 @@ function EventHeader({ onMore }: { onMore?: () => void }) {
   return (
     <View style={styles.header}>
       <NoxaTopBar
-        centered
         left={
           <NoxaIconButton
             accessibilityLabel="Go back"
@@ -130,7 +129,6 @@ function EventHeader({ onMore }: { onMore?: () => void }) {
             />
           ) : undefined
         }
-        subtitle="EVENT"
       />
     </View>
   );
@@ -193,7 +191,7 @@ function EssentialInfo({ event }: { event: EventExperienceRow }) {
           <Ionicons name="time-outline" size={16} color={colors.textMuted} />
         </View>
         <View style={styles.infoCopy}>
-          <Text style={styles.infoLabel}>TIME</Text>
+          <Text style={styles.infoLabel}>Time</Text>
           <Text style={styles.infoValue}>
             {formatEventDate(event.starts_at)} · {formatEventTimeLine(event)}
           </Text>
@@ -204,7 +202,7 @@ function EssentialInfo({ event }: { event: EventExperienceRow }) {
           <Ionicons name="location-outline" size={16} color={colors.textMuted} />
         </View>
         <View style={styles.infoCopy}>
-          <Text style={styles.infoLabel}>PLACE</Text>
+          <Text style={styles.infoLabel}>Location</Text>
           <Text style={styles.infoValue}>{event.location_name}</Text>
         </View>
       </View>
@@ -214,7 +212,7 @@ function EssentialInfo({ event }: { event: EventExperienceRow }) {
             <Ionicons name="people-outline" size={16} color={colors.textMuted} />
           </View>
           <View style={styles.infoCopy}>
-            <Text style={styles.infoLabel}>CAPACITY</Text>
+            <Text style={styles.infoLabel}>Capacity</Text>
             <Text style={styles.infoValue}>{event.capacity} confirmed drivers</Text>
           </View>
         </View>
@@ -887,10 +885,10 @@ const styles = StyleSheet.create({
   heroCompact: { height: 104 },
   heroImage: { borderRadius: radius.lg },
   heroCopy: {
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
   },
   heroMetaRow: {
     flexDirection: "row",
@@ -918,10 +916,10 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    ...typography.v2.value,
-    fontWeight: "900",
+    ...typography.v2.section,
+    fontWeight: "800",
   },
-  heroTitleCompact: { fontSize: 27, lineHeight: 30 },
+  heroTitleCompact: { fontSize: 23, lineHeight: 28 },
   errorBanner: {
     minHeight: 48,
     marginHorizontal: spacing.md,
@@ -984,8 +982,9 @@ const styles = StyleSheet.create({
   infoCopy: { flex: 1 },
   infoLabel: {
     color: colors.textMuted,
-    ...typography.v2.label,
-    fontWeight: "700",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
   infoValue: {
     marginTop: 2,

@@ -257,7 +257,7 @@ export default function VehicleDetailsScreen() {
       { label: 'Color', value: vehicle.color },
       { label: 'Transmission', value: vehicle.transmission },
       { label: 'Drivetrain', value: vehicle.drivetrain },
-      { label: 'Tuning', value: vehicle.tuning_stage },
+      { label: 'Tuning', value: vehicle.tuning_stage?.trim() === '-1' ? null : vehicle.tuning_stage },
       { label: 'Visibility', value: typeof vehicle.is_public === 'boolean' ? (vehicle.is_public ? 'Public' : 'Private') : null },
     ].filter((row) => isPresent(row.value));
   }, [vehicle]);

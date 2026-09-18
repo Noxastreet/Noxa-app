@@ -53,7 +53,7 @@ import type {
 } from "./types";
 
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
-const ROUTE_FOLLOW_ZOOM = 16.5;
+const ROUTE_FOLLOW_ZOOM = 15.4;
 const DRIVER_CLUSTER_LIMIT = 80;
 const STANDARD_BASEMAP_CONFIG = {
   lightPreset: "night" as const,
@@ -351,7 +351,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               paddingBottom: 260,
               paddingLeft: spacing.xl,
             }}
-            followPitch={54}
+            followPitch={48}
             followUserLocation={
               followUserLocation && Boolean(driverLocation) && isRouteMode
             }
@@ -531,19 +531,19 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 id="noxa-route-casing"
                 style={{
                   lineCap: "round",
-                  lineColor: "rgba(18,3,5,0.94)",
+                  lineColor: "rgba(0,0,0,0.58)",
                   lineJoin: "round",
-                  lineWidth: 12,
+                  lineWidth: 10,
                 }}
               />
               <LineLayer
                 id="noxa-route-line"
                 style={{
                   lineCap: "round",
-                  lineColor: colors.primary,
+                  lineColor: colors.primaryHover,
                   lineJoin: "round",
-                  lineOpacity: 0.98,
-                  lineWidth: 6,
+                  lineOpacity: 1,
+                  lineWidth: 7,
                 }}
               />
             </ShapeSource>

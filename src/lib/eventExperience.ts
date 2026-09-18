@@ -75,7 +75,7 @@ export function lifecycleLabel(lifecycle: EventLifecycle) {
 }
 
 export function formatEventDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -84,14 +84,14 @@ export function formatEventDate(value: string) {
 }
 
 export function formatEventTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
 }
 
 export function formatEventDateTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -101,7 +101,7 @@ export function formatEventDateTime(value: string) {
 }
 
 export function formatMessageTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat('en-GB', {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));

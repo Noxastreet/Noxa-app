@@ -61,7 +61,7 @@ function vehicleMeta(vehicle: GarageVehicle) {
   const items = [
     vehicle.color?.trim() || null,
     vehicle.horsepower === null ? null : `${vehicle.horsepower} HP`,
-    vehicle.tuning_stage?.trim() || null,
+    vehicle.tuning_stage?.trim() && vehicle.tuning_stage.trim() !== '-1' ? vehicle.tuning_stage.trim() : null,
     vehicle.zero_to_hundred === null ? null : `${vehicle.zero_to_hundred}s 0–100`,
   ].filter((value): value is string => Boolean(value));
 
