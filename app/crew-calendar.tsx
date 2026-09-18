@@ -16,7 +16,7 @@ import {
   CrewModuleState,
 } from "@/src/components/crew/CrewModuleChrome";
 import { NoxaBadge, NoxaScreen } from "@/src/components/ui";
-import { uuidPattern } from "@/src/lib/eventExperience";
+import { getEventLifecycle, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, shadows, spacing, typography } from "@/src/theme";
 
@@ -70,21 +70,11 @@ function formatTime(value: string) {
 }
 
 function eventState(event: EventRow) {
-  if (event.status === "cancelled") return "CANCELLED";
-  if (event.status === "completed") return "COMPLETED";
-  const now = Date.now();
-  const starts = new Date(event.starts_at).getTime();
-  const ends = event.ends_at ? new Date(event.ends_at).getTime() : starts + 3 * 60 * 60 * 1000;
-  if (now >= starts && now <= ends) return "LIVE";
-  if (now > ends) return "COMPLETED";
-  return "UPCOMING";
+  return getEventLifecycle(event) === "live" ? "LIVE" : "UPCOMING";
 }
 
-function stateVariant(state: string): "primary" | "success" | "default" | "warning" {
-  if (state === "LIVE") return "success";
-  if (state === "CANCELLED") return "warning";
-  if (state === "UPCOMING") return "primary";
-  return "default";
+function stateVariant(state: string): "primary" | "success" {
+  return state === "LIVE" ? "success" : "primary";
 }
 
 function CalendarEventCard({ event }: { event: CalendarEvent }) {
@@ -209,7 +199,11 @@ export default function CrewCalendarScreen() {
     }
 
     const rows = (eventRows ?? []) as EventRow[];
-    const eventIds = rows.map((event) => event.id);
+    const activeRows = rows.filter((event) => {
+      const lifecycle = getEventLifecycle(event);
+      return lifecycle === "scheduled" || lifecycle === "live";
+    });
+    const eventIds = activeRows.map((event) => event.id);
     const attendeeResult = eventIds.length
       ? await supabase
           .from("event_attendees")
@@ -228,7 +222,7 @@ export default function CrewCalendarScreen() {
     for (const attendee of attendeeResult.data ?? []) {
       counts.set(attendee.event_id, (counts.get(attendee.event_id) ?? 0) + 1);
     }
-    const nextEvents = rows.map((event) => ({
+    const nextEvents = activeRows.map((event) => ({
       ...event,
       goingCount: counts.get(event.id) ?? 0,
     }));
@@ -280,6 +274,8 @@ export default function CrewCalendarScreen() {
   }, [events, selectedDate, visibleMonth]);
 
   const todayKey = localDateKey(new Date());
+  const currentMonth = useMemo(() => startOfMonth(new Date()), []);
+  const canGoPrevious = visibleMonth.getTime() > currentMonth.getTime();
   const onChangeMonth = useCallback((amount: number) => {
     setVisibleMonth((current) => addMonths(current, amount));
     setSelectedDate(null);
@@ -343,8 +339,13 @@ export default function CrewCalendarScreen() {
               <Pressable
                 accessibilityLabel="Previous month"
                 accessibilityRole="button"
+                disabled={!canGoPrevious}
                 onPress={() => onChangeMonth(-1)}
-                style={({ pressed }) => [styles.monthButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.monthButton,
+                  !canGoPrevious && styles.monthButtonDisabled,
+                  pressed && canGoPrevious && styles.pressed,
+                ]}
               >
                 <Ionicons name="chevron-back" size={18} color={colors.textMuted} />
               </Pressable>
@@ -504,6 +505,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surfaceSoft,
   },
+  monthButtonDisabled: { opacity: 0.32 },
   monthCopy: { flex: 1, alignItems: "center" },
   monthEyebrow: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
   monthTitle: {

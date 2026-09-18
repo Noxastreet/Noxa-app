@@ -94,7 +94,6 @@ export default function RootLayout() {
           <Stack.Screen name="event-editor" />
           <Stack.Screen name="event-chat" />
           <Stack.Screen name="event-gallery" />
-          <Stack.Screen name="event-summary" />
           <Stack.Screen name="crew-chat" />
           <Stack.Screen name="crew-gallery" />
           <Stack.Screen name="crew-garage" />
