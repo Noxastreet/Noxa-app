@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing } from '@/src/theme';
 import type { VehicleColorOption } from '../vehicleColors';
 import { pickerMotion } from '../motion';
 
@@ -61,18 +61,16 @@ export function ColorCard({ color, onPress, selected }: ColorCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    minHeight: 68,
+    minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   selected: {
-    borderColor: colors.borderAccent,
+    borderBottomColor: colors.borderStrong,
     backgroundColor: colors.primarySubtle,
   },
   swatchRing: {
@@ -97,9 +95,9 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     color: colors.textMuted,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: '800',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
   },
   labelSelected: {
     color: colors.text,
