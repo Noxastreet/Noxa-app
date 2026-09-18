@@ -40,7 +40,7 @@ export function GroupDriveHeader({
 export function GroupDriveStep({ current, label }: { current: number; label: string }) {
   return (
     <View accessibilityLabel={`Step ${current} of 5, ${label}`} style={styles.step}>
-      <Text style={styles.stepIndex}>0{current} / 05</Text>
+      <Text style={styles.stepIndex}>{current} of 5</Text>
       <Text style={styles.stepLabel}>{label}</Text>
     </View>
   );
@@ -78,17 +78,16 @@ export function GroupDriveFact({
 const styles = StyleSheet.create({
   step: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   stepIndex: {
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: '900',
-    letterSpacing: typography.letterSpacing.label,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   stepLabel: {
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   status: {
     minHeight: 28,
@@ -96,32 +95,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
   },
-  statusActive: { borderColor: colors.borderAccent, backgroundColor: colors.primaryMuted },
+  statusActive: {},
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
   statusDotActive: { backgroundColor: colors.primaryHover },
-  statusText: { color: colors.text, fontSize: 11, fontWeight: '800' },
+  statusText: { color: colors.textMuted, fontSize: 11, lineHeight: 14, fontWeight: '700' },
   fact: {
     minHeight: 62,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   factCopy: { flex: 1, minWidth: 0 },
   factLabel: {
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
   },
-  factValue: { marginTop: 3, color: colors.text, fontSize: 15, fontWeight: '700' },
+  factValue: { marginTop: 2, color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: '600' },
 });
