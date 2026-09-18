@@ -84,7 +84,7 @@ export default function GroupDriveDetailsEditorScreen() {
   return (
     <Screen scroll keyboardAvoiding constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
-        title={editMode ? 'EDIT DETAILS' : driveSessionId ? 'EDIT DRIVE' : 'NEW GROUP DRIVE'}
+        title={editMode ? 'Edit details' : driveSessionId ? 'Edit Drive' : 'New Group Drive'}
         subtitle={crewId ? 'Crew context · invite-only' : 'Invite-only by design'}
       />
       {!editMode ? <GroupDriveStep current={1} label="Drive details" /> : null}
@@ -142,7 +142,7 @@ export default function GroupDriveDetailsEditorScreen() {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
   intro: { gap: spacing.sm, paddingTop: spacing.sm },
-  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
+  title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '800' },
   body: { color: colors.textMuted, ...typography.v2.body },
   form: { gap: spacing.lg },
   descriptionInput: { minHeight: 126, paddingTop: spacing.md },
