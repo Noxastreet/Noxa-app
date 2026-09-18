@@ -576,6 +576,13 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     backgroundColor: colors.background,
   },
+  headerAction: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
   pressed: {
     opacity: 0.72,
     transform: [{ scale: 0.985 }],
