@@ -90,7 +90,7 @@ function Identity({
   errorMessage: string | null;
   onRetry: () => void;
 }) {
-  const displayName = profile?.display_name ?? 'NOXA Driver';
+  const displayName = profile?.display_name ?? 'NOXA driver';
   const username = formatUsername(profile?.username ?? null);
   const bio = profile?.bio?.trim() || 'Tell the community about yourself.';
   const location = formatProfileLocation(profile?.country_code, profile?.city);
@@ -167,7 +167,7 @@ function GarageFeature({
           </View>
           <View style={styles.emptyGarageCopy}>
             <Text style={styles.emptyGarageTitle}>Add your first vehicle</Text>
-            <Text style={styles.emptyGarageText}>Build your automotive identity.</Text>
+            <Text style={styles.emptyGarageText}>Add a vehicle to show it here.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
         </Pressable>
