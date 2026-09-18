@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   pageSubtitle: {
     marginTop: 2,
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: '900',
+    fontWeight: '700',
     textAlign: 'center',
   },
   stateText: {
