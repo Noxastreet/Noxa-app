@@ -263,7 +263,7 @@ function BackButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-function FormSection({ title, children }: { title: string; eyebrow: string; children: ReactNode }) {
+function FormSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={styles.sectionCard}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -337,12 +337,12 @@ function VehicleCoverEditor({
       <View style={styles.coverActions}>
         <Pressable accessibilityRole="button" disabled={disabled} onPress={onChoose} style={({ pressed }) => [styles.coverActionButton, pressed && styles.pressed, disabled && styles.disabled]}>
           <Ionicons name="image" size={16} color={colors.text} />
-          <Text style={styles.coverActionText}>{hasImage ? 'CHANGE COVER' : 'CHOOSE COVER'}</Text>
+          <Text style={styles.coverActionText}>{hasImage ? 'Change Photo' : 'Choose Photo'}</Text>
         </Pressable>
         {hasImage ? (
           <Pressable accessibilityRole="button" disabled={disabled} onPress={onRemove} style={({ pressed }) => [styles.coverActionButton, styles.coverRemoveButton, pressed && styles.pressed, disabled && styles.disabled]}>
             <Ionicons name="trash-outline" size={16} color={colors.primary} />
-            <Text style={[styles.coverActionText, styles.coverRemoveText]}>REMOVE</Text>
+            <Text style={[styles.coverActionText, styles.coverRemoveText]}>Remove</Text>
           </Pressable>
         ) : null}
         {isBusy ? <ActivityIndicator color={colors.primary} size="small" /> : null}
@@ -358,8 +358,10 @@ function VisibilityOption({ active, description, disabled, icon, label, onPress 
       <View style={[styles.visibilityIcon, active && styles.visibilityIconActive]}>
         <Ionicons name={icon} size={20} color={active ? colors.primaryHover : colors.textMuted} />
       </View>
-      <Text style={styles.visibilityTitle}>{label}</Text>
-      <Text style={styles.visibilityDescription}>{description}</Text>
+      <View style={styles.visibilityCopy}>
+        <Text style={styles.visibilityTitle}>{label}</Text>
+        <Text style={styles.visibilityDescription}>{description}</Text>
+      </View>
       <View style={[styles.radio, active && styles.radioActive]}>{active ? <View style={styles.radioDot} /> : null}</View>
     </Pressable>
   );
@@ -752,7 +754,7 @@ export default function VehicleEditorScreen() {
 
           {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
-          <FormSection eyebrow="01 / VEHICLE" title="Vehicle identity">
+          <FormSection title="Vehicle">
             <FieldError message={errors.brand}>
               <NoxaInput editable={!isSubmitting} label="Brand · required" maxLength={60} onChangeText={(value) => setField('brand', value)} placeholder="Porsche" value={form.brand} autoCapitalize="words" />
             </FieldError>
@@ -767,7 +769,7 @@ export default function VehicleEditorScreen() {
 
           {errors.coverImageUrl ? <Text style={styles.formError}>{errors.coverImageUrl}</Text> : null}
 
-          <FormSection eyebrow="02 / PERFORMANCE" title="Performance details">
+          <FormSection title="Performance">
             <FieldError message={errors.horsepower}>
               <NoxaInput editable={!isSubmitting} label="Horsepower · optional" onChangeText={(value) => setField('horsepower', value)} placeholder="518" value={form.horsepower} keyboardType="number-pad" />
             </FieldError>
@@ -785,7 +787,7 @@ export default function VehicleEditorScreen() {
             </FieldError>
           </FormSection>
 
-          <FormSection eyebrow="03 / PROFILE" title="Story & visibility">
+          <FormSection title="Details">
             <FieldError message={errors.description}>
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Description</Text>
@@ -800,7 +802,7 @@ export default function VehicleEditorScreen() {
           </FormSection>
         </ScrollView>
         <View style={styles.fixedFooter}>
-          <NoxaButton disabled={isSubmitting} loading={isSubmitting} onPress={saveVehicle} title={isEditMode ? 'SAVE CHANGES' : 'ADD TO GARAGE'} fullWidth />
+          <NoxaButton disabled={isSubmitting} loading={isSubmitting} onPress={saveVehicle} title={isEditMode ? 'Save Changes' : 'Add to Garage'} fullWidth />
         </View>
       </KeyboardAvoidingView>
     </NoxaScreen>
@@ -816,31 +818,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
     backgroundColor: colors.surfaceBase,
   },
   headerTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.subtitle,
-    fontWeight: '900',
-    letterSpacing: 1.2,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700',
   },
   headerSpacer: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
   },
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: 124,
     gap: spacing.lg,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -855,9 +857,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   coverPreview: {
-    height: 156,
+    height: 128,
     overflow: 'hidden',
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     backgroundColor: colors.surfaceSoft,
   },
   coverPreviewImage: {
@@ -876,88 +878,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
-  },
-  coverGlow: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
-  },
-  coverScrim: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.24)',
-  },
-  coverTopline: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  garageBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: 'rgba(10,10,14,0.72)',
-  },
-  garageBadgeText: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  coverVisibility: {
-    color: colors.text,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-  },
-  coverCopy: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
-    gap: spacing.xs,
-  },
-  coverVehicleName: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: '900',
-    letterSpacing: -0.4,
-    textShadowColor: 'rgba(0,0,0,0.72)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
-  },
-  coverSpecs: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  coverSpec: {
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  specDot: {
-    width: 4,
-    height: 4,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryHover,
   },
   coverActions: {
     minHeight: 44,
@@ -984,9 +904,9 @@ const styles = StyleSheet.create({
   },
   coverActionText: {
     color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: '900',
-    letterSpacing: 0.4,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   coverRemoveText: {
     color: colors.primaryHover,
@@ -994,18 +914,13 @@ const styles = StyleSheet.create({
   coverHelp: {
     color: colors.textSubtle,
     fontSize: 10,
-    fontWeight: '700',
+    lineHeight: 14,
+    fontWeight: '500',
   },
   sectionCard: {
     paddingVertical: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
-  },
-  eyebrow: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
   },
   sectionTitle: {
     marginTop: 2,
@@ -1014,7 +929,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionContent: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     gap: spacing.md,
   },
   fieldGroup: {
@@ -1074,8 +989,9 @@ const styles = StyleSheet.create({
   characterCount: {
     textAlign: 'right',
     color: colors.textSubtle,
-    fontSize: typography.caption,
-    fontWeight: '700',
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: '500',
   },
   errorText: {
     color: colors.primary,
@@ -1113,45 +1029,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   visibilityOptions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 0,
   },
   visibilityOption: {
-    minHeight: 132,
-    flex: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   visibilityOptionActive: {
-    borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
   visibilityIcon: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xxs,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
   },
   visibilityIconActive: {
     backgroundColor: colors.primaryMuted,
   },
+  visibilityCopy: { flex: 1, minWidth: 0 },
   visibilityTitle: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: '900',
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
   },
   visibilityDescription: {
-    flex: 1,
+    marginTop: 2,
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: '700',
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '500',
   },
   radio: {
     width: 20,
@@ -1176,11 +1091,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    backgroundColor: colors.glass,
+    backgroundColor: colors.background,
   },
 });
