@@ -3,7 +3,6 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Image,
-  ImageBackground,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,7 +10,6 @@ import {
   Text,
   TextInput,
   View,
-  type ImageStyle,
 } from "react-native";
 
 import {
@@ -19,7 +17,7 @@ import {
   CrewModuleIconButton,
   CrewModuleState,
 } from "@/src/components/crew/CrewModuleChrome";
-import { NoxaBadge, NoxaScreen } from "@/src/components/ui";
+import { NoxaScreen } from "@/src/components/ui";
 import { initials, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
@@ -72,44 +70,22 @@ function OwnerAvatar({ profile }: { profile?: ProfileRow }) {
   );
 }
 
-function Spec({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.spec}>
-      <Text numberOfLines={1} style={styles.specValue}>{value}</Text>
-      <Text style={styles.specLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function VehicleFallback({ vehicleType }: { vehicleType: VehicleRow["vehicle_type"] }) {
   if (vehicleType === "motorcycle") {
-    return <FontAwesome5 name="motorcycle" size={68} color={colors.primaryMuted} />;
+    return <FontAwesome5 name="motorcycle" size={28} color={colors.textMuted} />;
   }
 
-  return <Ionicons name="car-sport" size={84} color={colors.primaryMuted} />;
+  return <Ionicons name="car-sport" size={30} color={colors.textMuted} />;
 }
 
 function VehicleCard({ vehicle }: { vehicle: CrewVehicle }) {
   const title = vehicleName(vehicle);
-  const artwork = (
-    <>
-      <View style={styles.artworkShade} />
-      <View style={styles.artworkTopRow}>
-        <NoxaBadge label="CREW BUILD" variant="primary" />
-        {vehicle.tuning_stage && vehicle.tuning_stage.trim() !== '-1' ? (
-          <View style={styles.stageBadge}>
-            <Text style={styles.stageText}>{vehicle.tuning_stage.toUpperCase()}</Text>
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.artworkCopy}>
-        <Text numberOfLines={1} style={styles.vehicleBrand}>{vehicle.brand}</Text>
-        <Text numberOfLines={1} style={styles.vehicleModel}>
-          {[vehicle.year, vehicle.model].filter(Boolean).join(" ") || "Vehicle"}
-        </Text>
-      </View>
-    </>
-  );
+  const meta = [
+    vehicle.year,
+    vehicle.vehicle_type === "motorcycle" ? "Motorcycle" : "Car",
+    vehicle.horsepower === null ? null : `${vehicle.horsepower} HP`,
+    vehicle.tuning_stage && vehicle.tuning_stage.trim() !== "-1" ? vehicle.tuning_stage : null,
+  ].filter(Boolean).join(" · ");
 
   return (
     <Pressable
@@ -121,35 +97,27 @@ function VehicleCard({ vehicle }: { vehicle: CrewVehicle }) {
       style={({ pressed }) => [styles.vehicleCard, pressed && styles.pressed]}
     >
       {vehicle.cover_image_url ? (
-        <ImageBackground
-          imageStyle={styles.artworkRadius as ImageStyle}
+        <Image
           resizeMode="cover"
           source={{ uri: vehicle.cover_image_url }}
-          style={styles.artwork}
-        >
-          {artwork}
-        </ImageBackground>
+          style={styles.vehicleThumbnail}
+        />
       ) : (
-        <View style={[styles.artwork, styles.artworkFallback]}>
+        <View style={[styles.vehicleThumbnail, styles.artworkFallback]}>
           <VehicleFallback vehicleType={vehicle.vehicle_type} />
-          {artwork}
         </View>
       )}
 
-      <View style={styles.ownerRow}>
-        <OwnerAvatar profile={vehicle.owner} />
-        <View style={styles.ownerCopy}>
-          <Text style={styles.ownerEyebrow}>CREW DRIVER</Text>
+      <View style={styles.vehicleCopy}>
+        <Text numberOfLines={1} style={styles.vehicleTitle}>{title}</Text>
+        {meta ? <Text numberOfLines={1} style={styles.vehicleMeta}>{meta}</Text> : null}
+        <View style={styles.ownerInline}>
+          <OwnerAvatar profile={vehicle.owner} />
           <Text numberOfLines={1} style={styles.ownerName}>{profileName(vehicle.owner)}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
       </View>
 
-      <View style={styles.specRow}>
-        <Spec label="POWER" value={vehicle.horsepower === null ? "—" : `${vehicle.horsepower} HP`} />
-        <Spec label="DRIVETRAIN" value={vehicle.drivetrain || "—"} />
-        <Spec label="COLOR" value={vehicle.color} />
-      </View>
+      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
   );
 }
@@ -293,11 +261,6 @@ export default function CrewGarageScreen() {
     );
   }, [query, vehicles]);
 
-  const driversWithVehicles = useMemo(
-    () => new Set(vehicles.map((vehicle) => vehicle.owner_id)).size,
-    [vehicles],
-  );
-
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     void loadGarage(false);
@@ -315,7 +278,7 @@ export default function CrewGarageScreen() {
             onPress={onRefresh}
           />
         }
-        subtitle={crew?.name ?? "NOXA crew"}
+        subtitle={crew ? `${crew.name} · ${memberCount} members` : "NOXA crew"}
         title="Crew Garage"
       />
 
@@ -352,21 +315,6 @@ export default function CrewGarageScreen() {
           }
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryCell}>
-              <Text style={styles.summaryValue}>{vehicles.length}</Text>
-              <Text style={styles.summaryLabel}>Builds</Text>
-            </View>
-            <View style={[styles.summaryCell, styles.summaryBorder]}>
-              <Text style={styles.summaryValue}>{driversWithVehicles}</Text>
-              <Text style={styles.summaryLabel}>Drivers</Text>
-            </View>
-            <View style={[styles.summaryCell, styles.summaryBorder]}>
-              <Text style={styles.summaryValue}>{memberCount}</Text>
-              <Text style={styles.summaryLabel}>Members</Text>
-            </View>
-          </View>
-
           <View style={styles.searchBar}>
             <Ionicons name="search-outline" size={18} color={colors.textMuted} />
             <TextInput
@@ -392,10 +340,6 @@ export default function CrewGarageScreen() {
 
           {visibleVehicles.length ? (
             <View style={styles.vehicleList}>
-              <View style={styles.listHeading}>
-                <Text style={styles.listTitle}>Public builds</Text>
-                <Text style={styles.listCount}>{visibleVehicles.length} vehicles</Text>
-              </View>
               {visibleVehicles.map((vehicle) => (
                 <VehicleCard key={vehicle.id} vehicle={vehicle} />
               ))}
@@ -421,27 +365,11 @@ export default function CrewGarageScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.huge,
     gap: spacing.md,
   },
-  summaryRow: {
-    minHeight: 58,
-    flexDirection: "row",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.divider,
-  },
-  summaryCell: { flex: 1, alignItems: "center", justifyContent: "center" },
-  summaryBorder: { borderLeftWidth: 1, borderLeftColor: colors.divider },
-  summaryValue: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.row,
-    fontWeight: "700",
-  },
-  summaryLabel: { marginTop: 2, color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   searchBar: {
     minHeight: 48,
     flexDirection: "row",
@@ -455,61 +383,30 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, color: colors.text, fontSize: 14, fontWeight: "700" },
   vehicleList: { gap: 0 },
-  listHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  listTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  listCount: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   vehicleCard: {
-    overflow: "hidden",
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  artwork: { height: 148, justifyContent: "flex-end", overflow: "hidden", borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
-  artworkRadius: { borderRadius: radius.md },
-  artworkFallback: { alignItems: "center", justifyContent: "center" },
-  artworkShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(6,6,10,0.42)" },
-  artworkTopRow: {
-    position: "absolute",
-    top: spacing.sm,
-    left: spacing.sm,
-    right: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  stageBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    backgroundColor: "rgba(6,6,10,0.72)",
-  },
-  stageText: { color: colors.text, fontSize: 8, fontWeight: "900", letterSpacing: 0.6 },
-  artworkCopy: { position: "absolute", left: spacing.md, right: spacing.md, bottom: spacing.md },
-  vehicleBrand: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.section,
-    fontWeight: "800",
-  },
-  vehicleModel: { marginTop: 2, color: "rgba(240,240,244,0.72)", fontSize: 13, fontWeight: "800" },
-  ownerRow: {
-    minHeight: 58,
+    minHeight: 80,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: 0,
+    paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
-  avatar: { width: 38, height: 38, borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
+  vehicleThumbnail: {
+    width: 84,
+    height: 64,
+    overflow: "hidden",
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSoft,
+  },
+  artworkFallback: { alignItems: "center", justifyContent: "center" },
+  vehicleCopy: { flex: 1, minWidth: 0 },
+  vehicleTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
+  vehicleMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
+  ownerInline: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xs },
+  avatar: { width: 22, height: 22, borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   avatarFallback: { alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.text, fontSize: 11, fontWeight: "900" },
-  ownerCopy: { flex: 1, minWidth: 0 },
-  ownerEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
-  ownerName: { marginTop: 2, color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "600" },
-  specRow: { minHeight: 70, flexDirection: "row" },
-  spec: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xs },
-  specValue: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "600" },
-  specLabel: { marginTop: 2, color: colors.textMuted, fontSize: 10, lineHeight: 14, fontWeight: "500" },
+  avatarText: { color: colors.text, fontSize: 7, fontWeight: "700" },
+  ownerName: { flex: 1, color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   pressed: { opacity: 0.82, transform: [{ scale: 0.988 }] },
 });
