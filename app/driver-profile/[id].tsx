@@ -573,7 +573,7 @@ export default function PublicDriverProfileScreen() {
                 <Ionicons name="information-circle-outline" size={17} color={colors.textMuted} />
                 <Text style={styles.warningText}>{errorMessage}</Text>
                 <Pressable accessibilityRole="button" onPress={loadDriverProfile}>
-                  <Text style={styles.warningAction}>RETRY</Text>
+                  <Text style={styles.warningAction}>Retry</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -585,7 +585,7 @@ export default function PublicDriverProfileScreen() {
               </View>
             ) : (
               <View style={styles.section}>
-                <Text style={styles.sectionEyebrow}>VEHICLE</Text>
+                <Text style={styles.sectionEyebrow}>Vehicle</Text>
                 <View style={styles.emptyVehicle}>
                   <VehicleTypeIcon vehicleType="car" size={28} color={colors.textMuted} />
                   <Text style={styles.emptyVehicleText}>No public vehicle shared yet.</Text>
