@@ -1824,6 +1824,37 @@ export default function LiveMapScreen() {
     selectedEvent,
   ]);
 
+  useEffect(() => {
+    if (!contextSheetHeight || isRouteFollowing) return;
+    const origin = driverLocationRef.current;
+    if (!origin || !hasValidLatLng(origin.latitude, origin.longitude)) return;
+
+    if (groupDriveRoute && groupDriveDestination) {
+      fitRouteToMap(groupDriveRoute.coordinates, groupDriveDestination, origin);
+      return;
+    }
+
+    if (isRouteMode && route && hasValidCoordinates(selectedEvent)) {
+      fitRouteToMap(
+        route.coordinates,
+        {
+          latitude: selectedEvent.latitude,
+          longitude: selectedEvent.longitude,
+        },
+        origin,
+      );
+    }
+  }, [
+    contextSheetHeight,
+    fitRouteToMap,
+    groupDriveDestination,
+    groupDriveRoute,
+    isRouteFollowing,
+    isRouteMode,
+    route,
+    selectedEvent,
+  ]);
+
   const nearbyDrivers = useMemo(
     () =>
       driverLocation
