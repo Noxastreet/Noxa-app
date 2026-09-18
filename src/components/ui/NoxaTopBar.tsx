@@ -46,16 +46,14 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.sectionTitle,
+    ...typography.v2.section,
     fontWeight: '900',
-    letterSpacing: typography.letterSpacing.title,
-    lineHeight: typography.lineHeight.title,
   },
   subtitle: {
     marginTop: spacing.xxs,
     color: colors.textMuted,
     fontSize: typography.caption,
-    fontWeight: '600',
+    fontWeight: '500',
     lineHeight: 17,
   },
 });
