@@ -1,0 +1,50 @@
+name: TestFlight NOXA V2 PR 297
+
+on:
+  push:
+    branches:
+      - feat/native-mobile-events-list-20260918
+    paths:
+      - .github/workflows/testflight-v2-pr297.yml
+
+concurrency:
+  group: testflight-v2-pr297
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit:
+    name: Build NOXA V2 and submit iOS
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      CI: "1"
+
+    steps:
+      - name: Check out exact V2 head
+        uses: actions/checkout@v4
+
+      - name: Verify Expo token is configured
+        shell: bash
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN organization secret is missing for Noxa-app."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Print V2 build checkpoint
+        run: |
+          echo "NOXA V2 Git SHA: $GITHUB_SHA"
+          node -e "const e=require('./eas.json'); console.log('EAS production environment:', e.build.production.environment); console.log('Auto increment:', e.build.production.autoIncrement); console.log('ASC app id:', e.submit.production.ios.ascAppId)"
+
+      - name: Build NOXA V2 iOS and submit to TestFlight
+        run: npx eas-cli@latest build --platform ios --profile production --auto-submit --non-interactive
