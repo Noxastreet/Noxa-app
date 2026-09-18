@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 
+import { CrewModuleHeader, CrewModuleIconButton } from "@/src/components/crew/CrewModuleChrome";
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import {
   formatMessageTime,
@@ -200,36 +201,18 @@ export default function CrewChatScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
       >
-        <View style={styles.header}>
-          <Pressable
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="chevron-back" size={21} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <View style={styles.titleRow}>
-              <Text numberOfLines={1} style={styles.headerTitle}>CREW CHAT</Text>
-              <View style={styles.privateBadge}>
-                <Ionicons name="lock-closed" size={9} color={colors.primaryHover} />
-                <Text style={styles.privateText}>MEMBERS</Text>
-              </View>
-            </View>
-            <Text numberOfLines={1} style={styles.headerSubtitle}>
-              {crew?.name ?? "NOXA crew"} · {memberCount} members
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Refresh crew chat"
-            accessibilityRole="button"
-            onPress={() => void loadMessages()}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="refresh" size={18} color={colors.textMuted} />
-          </Pressable>
-        </View>
+        <CrewModuleHeader
+          badge="Members"
+          right={
+            <CrewModuleIconButton
+              icon="refresh"
+              label="Refresh crew chat"
+              onPress={() => void loadMessages()}
+            />
+          }
+          subtitle={`${crew?.name ?? "NOXA crew"} · ${memberCount} members`}
+          title="Crew Chat"
+        />
 
         {loading ? (
           <View style={styles.state}>
@@ -241,12 +224,12 @@ export default function CrewChatScreen() {
             <View style={styles.lockIcon}>
               <Ionicons name="lock-closed" size={28} color={colors.primaryHover} />
             </View>
-            <Text style={styles.stateTitle}>MEMBERS-ONLY CHAT</Text>
+            <Text style={styles.stateTitle}>Members-only chat</Text>
             <Text style={styles.stateText}>
               Join this crew to read and send messages.
             </Text>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            <NoxaButton title="BACK TO CREW" onPress={() => router.back()} />
+            <NoxaButton title="Back to crew" onPress={() => router.back()} />
           </View>
         ) : (
           <>
@@ -265,7 +248,7 @@ export default function CrewChatScreen() {
                     <Ionicons name="megaphone" size={15} color={colors.primaryHover} />
                   </View>
                   <View style={styles.noticeCopy}>
-                    <Text style={styles.noticeLabel}>CREW NOTICE</Text>
+                    <Text style={styles.noticeLabel}>Crew notice</Text>
                     <Text style={styles.noticeText}>{crew.description}</Text>
                   </View>
                   <Pressable
@@ -287,7 +270,7 @@ export default function CrewChatScreen() {
               {messages.length === 0 ? (
                 <View style={styles.empty}>
                   <Ionicons name="chatbubbles-outline" size={30} color={colors.textSubtle} />
-                  <Text style={styles.emptyTitle}>START THE CREW CHAT</Text>
+                  <Text style={styles.emptyTitle}>Start the crew chat</Text>
                   <Text style={styles.emptyText}>
                     Messages are visible only to current crew members.
                   </Text>
@@ -425,26 +408,22 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: spacing.sm,
     marginBottom: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   noticeIcon: {
     width: 30,
     height: 30,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
   },
   noticeCopy: { flex: 1, gap: spacing.xxs },
   noticeLabel: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 0.8,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
   noticeText: { color: colors.text, fontSize: 12, lineHeight: 18 },
   noticeClose: { padding: spacing.xxs },
@@ -504,7 +483,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: Platform.OS === "ios" ? spacing.lg : spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
     backgroundColor: colors.surfaceBase,
   },
@@ -538,18 +517,15 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   lockIcon: {
-    width: 64,
-    height: 64,
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
   },
   stateTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: "900",
+    ...typography.v2.section,
+    fontWeight: "800",
   },
   stateText: { color: colors.textMuted, fontSize: 13, lineHeight: 20, textAlign: "center" },
   empty: {
@@ -561,9 +537,9 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 16,
-    fontWeight: "900",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
   },
   emptyText: { maxWidth: 270, color: colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: "center" },
   errorCard: {
