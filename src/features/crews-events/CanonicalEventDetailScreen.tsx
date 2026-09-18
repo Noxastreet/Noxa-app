@@ -162,7 +162,7 @@ function Hero({
           <Text
             style={[
               styles.heroLifecycle,
-              getEventLifecycle(event) === "live" && styles.heroLifecycleLive,
+              eventLifecycle(event) === "live" && styles.heroLifecycleLive,
             ]}
           >
             {lifecycleUrgency(event)}
