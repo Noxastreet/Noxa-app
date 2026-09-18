@@ -95,8 +95,12 @@ if (fs.existsSync(path.join(root, 'supabase/functions/drive-route/index.ts'))) {
   requireText('supabase/functions/drive-route/index.ts', [
     ['auth validation missing', /\/auth\/v1\/user/],
     ['ordered points validation missing', /points\.length < 2/],
-    ['provider timeout missing', /setTimeout\(\(\) => controller\.abort\(\), 8000\)/],
-    ['provider disclosure missing', /provider: 'openrouteservice'/],
+    ['provider timeout missing', /PROVIDER_TIMEOUT_MS = 5500/],
+    ['traffic-aware Mapbox primary missing', /mapbox\/driving-traffic/],
+    ['Mapbox alternatives missing', /alternatives: 'true'/],
+    ['fastest ORS fallback missing', /preference: 'fastest'/],
+    ['Mapbox provider disclosure missing', /provider: 'mapbox-driving-traffic'/],
+    ['ORS fallback provider disclosure missing', /provider: 'openrouteservice-fastest'/],
     ['route geometry missing', /type: 'LineString'/],
   ]);
 }
