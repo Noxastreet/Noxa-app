@@ -20,7 +20,7 @@ import {
 import { NoxaScreen } from "@/src/components/ui";
 import { initials, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing } from "@/src/theme";
 
 type CrewRow = { id: string; name: string };
 type MemberRow = { user_id: string };
