@@ -13,9 +13,9 @@ import {
   View,
 } from "react-native";
 
-import { NoxaScreen } from "@/src/components/ui";
+import { NoxaIconButton, NoxaScreen, NoxaTopBar } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type SocialTab = "followers" | "following";
 
@@ -52,21 +52,18 @@ function getInitials(displayName: string) {
 
 function Header() {
   return (
-    <View style={styles.header}>
-      <Pressable
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
-        onPress={() => router.back()}
-        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-      >
-        <Ionicons name="chevron-back" size={22} color={colors.text} />
-      </Pressable>
-      <View style={styles.headerCopy}>
-        <Text style={styles.headerTitle}>SOCIAL</Text>
-        <Text style={styles.headerSubtitle}>Followers &amp; Following</Text>
-      </View>
-      <View style={styles.headerSpacer} />
-    </View>
+    <NoxaTopBar
+      left={
+        <NoxaIconButton
+          accessibilityLabel="Go back"
+          icon="chevron-back"
+          onPress={() => router.back()}
+          variant="ghost"
+        />
+      }
+      subtitle="Followers & Following"
+      title="Social"
+    />
   );
 }
 
@@ -171,9 +168,7 @@ function SocialRow({ profile }: { profile: SocialProfile }) {
         <Text style={styles.username}>{username}</Text>
         <Text style={styles.city}>{profile.city || "NOXA community"}</Text>
       </View>
-      <View style={styles.viewPill}>
-        <Text style={styles.viewPillText}>VIEW</Text>
-      </View>
+      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
     </Pressable>
   );
 }
@@ -483,7 +478,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   tabsCard: {
     flexDirection: "row",
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
   tabButton: {
@@ -523,47 +518,42 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   loadingCard: {
+    minHeight: 220,
     alignItems: "center",
+    justifyContent: "center",
     gap: spacing.md,
     marginTop: spacing.md,
-    padding: spacing.xl,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
   },
   stateCard: {
-    gap: spacing.md,
+    gap: spacing.sm,
     marginTop: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.xl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   stateTitle: {
     color: colors.text,
-    fontSize: typography.h2,
-    fontWeight: "900",
+    ...typography.v2.section,
+    fontWeight: "800",
   },
   stateMessage: {
     color: colors.textMuted,
-    fontSize: typography.body,
-    fontWeight: "700",
-    lineHeight: 22,
+    ...typography.v2.body,
   },
   retryButton: {
     alignSelf: "flex-start",
+    minHeight: 40,
+    justifyContent: "center",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
+    borderRadius: radius.button,
     backgroundColor: colors.primary,
-    ...shadows.redGlow,
   },
   retryText: {
     color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "900",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   userRow: {
     minHeight: 76,
@@ -593,18 +583,21 @@ const styles = StyleSheet.create({
   userCopy: { flex: 1, minWidth: 0, gap: spacing.xxs },
   userName: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "800",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "600",
   },
   username: {
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "800",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
   },
   city: {
     color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: "700",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "500",
   },
   viewPill: {
     paddingHorizontal: spacing.sm,
