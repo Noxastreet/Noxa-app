@@ -1,6 +1,7 @@
 name: TestFlight NOXA V2 PR 297
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - feat/native-mobile-events-list-20260918
