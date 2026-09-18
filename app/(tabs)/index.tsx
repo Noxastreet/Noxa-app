@@ -15,6 +15,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
+import {
+  GroupDrivePlannerSheet,
+  type DriveRouteResult,
+} from "@/src/features/group-drive";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -450,6 +454,8 @@ export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
     mapMode?: string | string[];
+    groupDriveMode?: string | string[];
+    groupDriveCrewId?: string | string[];
   }>();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<LiveMapHandle | null>(null);
@@ -467,6 +473,13 @@ export default function LiveMapScreen() {
   const [routeStatus, setRouteStatus] = useState<RouteStatus>("idle");
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const [isRouteFollowing, setIsRouteFollowing] = useState(false);
+  const [groupDrivePlannerOpen, setGroupDrivePlannerOpen] = useState(false);
+  const [groupDriveCrewContextId, setGroupDriveCrewContextId] = useState<string | null>(null);
+  const [groupDriveMapPoint, setGroupDriveMapPoint] = useState<LatLng | null>(null);
+  const [groupDriveSelectionPoint, setGroupDriveSelectionPoint] = useState<LatLng | null>(null);
+  const [groupDriveMapSelectionActive, setGroupDriveMapSelectionActive] = useState(false);
+  const [groupDriveRoutePreview, setGroupDriveRoutePreview] = useState<DriveRouteResult | null>(null);
+  const [contextualSurfaceHeight, setContextualSurfaceHeight] = useState(0);
   const [isCameraAwayFromUser, setIsCameraAwayFromUser] = useState(false);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
@@ -519,6 +532,8 @@ export default function LiveMapScreen() {
   const [mapLens] = useState<MapLens>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
   const normalizedMapMode = normalizeParam(params.mapMode);
+  const normalizedGroupDriveMode = normalizeParam(params.groupDriveMode);
+  const normalizedGroupDriveCrewId = normalizeParam(params.groupDriveCrewId);
   const focusEventId =
     typeof normalizedFocusEventId === "string" &&
     uuidPattern.test(normalizedFocusEventId)
@@ -529,6 +544,8 @@ export default function LiveMapScreen() {
   activeDriversRef.current = activeDrivers;
 
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
+  const overlayBottom =
+    insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
 
   const animateTo = useCallback(
     (region: MapRegion) => mapRef.current?.animateToRegion(region, 550),
@@ -544,12 +561,24 @@ export default function LiveMapScreen() {
         edgePadding: {
           top: insets.top + 96,
           right: spacing.xl,
-          bottom: insets.bottom + TAB_BAR_HEIGHT + 190,
+          bottom:
+            overlayBottom +
+            Math.max(
+              contextualSurfaceHeight,
+              isRouteMode || groupDrivePlannerOpen ? 180 : 0,
+            ) +
+            spacing.md,
           left: spacing.xl,
         },
       });
     },
-    [insets.bottom, insets.top],
+    [
+      contextualSurfaceHeight,
+      groupDrivePlannerOpen,
+      insets.top,
+      isRouteMode,
+      overlayBottom,
+    ],
   );
 
   const invalidateDriverLocation = useCallback(
