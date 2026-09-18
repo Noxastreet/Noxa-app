@@ -40,6 +40,22 @@ function MiniAction({ title, danger, disabled, onPress }: { title: string; dange
   );
 }
 
+function ManageAction({ icon, title, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.manageAction, pressed && styles.pressed]}
+    >
+      <View style={styles.manageActionIcon}>
+        <Ionicons name={icon} size={19} color={colors.text} />
+      </View>
+      <Text style={styles.manageActionText}>{title}</Text>
+      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+    </Pressable>
+  );
+}
+
 export default function CrewManageScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const crewId = Array.isArray(params.id) ? params.id[0] : params.id || '';
@@ -277,8 +293,8 @@ export default function CrewManageScreen() {
             {error ? <Pressable onPress={() => setError(null)} style={styles.error}><Text style={styles.errorText}>{error}</Text></Pressable> : null}
 
             <View style={styles.quickList}>
-              <NoxaButton fullWidth title="Create Crew Event" onPress={() => router.push({ pathname: '/event-editor', params: { crewId } })} />
-              <NoxaButton fullWidth title="New Group Drive" variant="secondary" onPress={() => router.push({ pathname: '/group-drives/details', params: { crewId } })} />
+              <ManageAction icon="calendar-outline" title="Create Crew Event" onPress={() => router.push({ pathname: '/event-editor', params: { crewId } })} />
+              <ManageAction icon="navigate-outline" title="New Group Drive" onPress={() => router.push({ pathname: '/group-drives/details', params: { crewId } })} />
             </View>
 
             <View style={styles.section}>
@@ -351,13 +367,16 @@ export default function CrewManageScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  content: { padding: spacing.lg, paddingBottom: 120, gap: spacing.xl },
-  state: { minHeight: 260, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingVertical: spacing.xxl },
-  stateTitle: { color: colors.text, ...typography.v2.section, fontWeight: '800' },
+  header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  content: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: 120, gap: spacing.lg },
+  state: { minHeight: 200, alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
+  stateTitle: { color: colors.text, ...typography.v2.row, fontWeight: '700' },
   error: { padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
   errorText: { color: colors.text, fontSize: 11, lineHeight: 16 },
-  quickList: { gap: spacing.sm },
+  quickList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
+  manageAction: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  manageActionIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
+  manageActionText: { flex: 1, color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '600' },
   section: { gap: spacing.sm },
   sectionTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   row: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
@@ -366,15 +385,15 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '600' },
   meta: { marginTop: 2, color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   muted: { color: colors.textMuted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  miniAction: { minHeight: 34, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceRaised },
+  miniAction: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceRaised },
   miniDanger: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
   miniText: { color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '600' },
   miniDangerText: { color: colors.primaryHover },
   inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  input: { flex: 1, minHeight: 42, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, color: colors.text, fontSize: 13 },
+  input: { flex: 1, minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, color: colors.text, fontSize: 13 },
   memberBlock: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   memberActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xs, paddingBottom: spacing.sm },
-  dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderAccent },
+  dangerZone: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderAccent },
   dangerCopy: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
