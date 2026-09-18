@@ -38,12 +38,15 @@ export type MapboxLiveMapProps = {
   activeDrivers: MapboxDriver[];
   events: MapboxEvent[];
   route: MapboxRoute | null;
+  bottomInset?: number;
+  selectionPoint?: LatLng | null;
   selectedEventId: string | null;
   mapFilter: MapboxMapFilter;
   isRouteMode: boolean;
   followUserLocation: boolean;
   onFollowUserLocationChange: (following: boolean) => void;
   onUserPan: () => void;
+  onMapPress?: (point: LatLng) => void;
   onDriverPress: (driverId: string) => void;
   onEventPress: (event: MapboxEvent) => void;
 };

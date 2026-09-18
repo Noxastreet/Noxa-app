@@ -749,7 +749,7 @@ export default function CanonicalEventDetailScreen() {
                 disabled={!validCoordinates(event)}
                 leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
                 size="sm"
-                title="Navigate"
+                title="Drive there"
                 variant="overlay"
                 onPress={navigate}
               />

@@ -9,7 +9,9 @@ import { NoxaButton } from '@/src/components/ui';
 import {
   GroupDriveHeader,
   GroupDriveStep,
+  coordinateLabel,
   loadGroupDriveDetails,
+  resolveDrivePointLabel,
   saveDriveRoute,
 } from '@/src/features/group-drive';
 import { MapboxEventLocationPickerCompat } from '@/src/features/mapbox/MapboxEventLocationPickerCompat';
@@ -19,34 +21,6 @@ import { colors, radius, spacing, typography } from '@/src/theme';
 
 type RoutePoint = LatLng & { label: string };
 type PickerTarget = 'start' | 'end';
-
-function coordinateLabel(latitude: number, longitude: number) {
-  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-}
-
-async function resolveLabel(point: LatLng, approximate: boolean) {
-  try {
-    const address = (await Location.reverseGeocodeAsync(point))[0];
-    if (!address) {
-      return approximate
-        ? 'Destination shared after joining'
-        : coordinateLabel(point.latitude, point.longitude);
-    }
-    if (approximate) {
-      const area = Array.from(
-        new Set([address.city, address.district, address.subregion, address.region].filter(Boolean)),
-      );
-      return area.length ? area.join(', ') : 'Destination shared after joining';
-    }
-    const street = [address.name, address.street].filter(Boolean).join(' ').trim();
-    const parts = Array.from(new Set([street, address.city, address.region].filter(Boolean)));
-    return parts.length ? parts.join(', ') : coordinateLabel(point.latitude, point.longitude);
-  } catch {
-    return approximate
-      ? 'Destination shared after joining'
-      : coordinateLabel(point.latitude, point.longitude);
-  }
-}
 
 function PointRow({
   icon,
@@ -130,7 +104,10 @@ export default function GroupDriveRouteScreen() {
   const confirmPoint = async (coordinate: LatLng) => {
     const target = pickerTarget;
     if (!target) return;
-    const point = { ...coordinate, label: await resolveLabel(coordinate, target === 'end') };
+    const point = {
+      ...coordinate,
+      label: await resolveDrivePointLabel(coordinate, target === 'end'),
+    };
     if (target === 'start') setStart(point);
     else setEnd(point);
     setPickerTarget(null);

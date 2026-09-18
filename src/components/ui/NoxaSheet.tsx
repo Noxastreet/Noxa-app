@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -8,11 +15,18 @@ type NoxaSheetProps = {
   subtitle?: string;
   title?: string;
   style?: StyleProp<ViewStyle>;
+  onLayout?: (event: LayoutChangeEvent) => void;
 };
 
-export function NoxaSheet({ children, style, subtitle, title }: NoxaSheetProps) {
+export function NoxaSheet({
+  children,
+  onLayout,
+  style,
+  subtitle,
+  title,
+}: NoxaSheetProps) {
   return (
-    <View style={[styles.sheet, style]}>
+    <View onLayout={onLayout} style={[styles.sheet, style]}>
       <View accessible={false} style={styles.handle} />
       {title || subtitle ? (
         <View style={styles.header}>
@@ -27,15 +41,17 @@ export function NoxaSheet({ children, style, subtitle, title }: NoxaSheetProps) 
 
 const styles = StyleSheet.create({
   sheet: {
-    gap: spacing.lg,
-    padding: spacing.lg,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    backgroundColor: colors.surfaceBase,
+    ...shadows.control,
   },
   handle: {
     width: 36,
