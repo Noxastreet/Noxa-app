@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   identity: { gap: spacing.md },
   identityTop: {
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.display,
     ...typography.v2.section,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   username: {
     marginTop: 2,
