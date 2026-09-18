@@ -111,12 +111,17 @@ export async function listMyGroupDrives(): Promise<GroupDriveListItem[]> {
   }));
 }
 
-export async function createDriveSession(title: string, description: string) {
+export async function createDriveSession(
+  title: string,
+  description: string,
+  crewId: string | null = null,
+  scheduledStartAt: string | null = null,
+) {
   return rpc<string>('noxa_create_drive_session', {
     drive_title: title.trim(),
     drive_description: description.trim() || null,
-    context_crew_id: null,
-    drive_scheduled_start_at: null,
+    context_crew_id: crewId,
+    drive_scheduled_start_at: scheduledStartAt,
   });
 }
 
@@ -163,12 +168,12 @@ export async function calculateDriveRoute(
   return data;
 }
 
-export async function saveDriveRoute(
+export async function saveCalculatedDriveRoute(
   driveSessionId: string,
   start: { latitude: number; longitude: number; label: string },
   end: { latitude: number; longitude: number; label: string },
+  route: DriveRouteResult,
 ) {
-  const route = await calculateDriveRoute([start, end]);
   await rpc<number>('noxa_set_drive_route', {
     target_drive_session_id: driveSessionId,
     start_latitude: start.latitude,
@@ -182,6 +187,15 @@ export async function saveDriveRoute(
     calculated_duration_seconds: route.durationSeconds,
     calculated_route_provider: route.provider,
   });
+}
+
+export async function saveDriveRoute(
+  driveSessionId: string,
+  start: { latitude: number; longitude: number; label: string },
+  end: { latitude: number; longitude: number; label: string },
+) {
+  const route = await calculateDriveRoute([start, end]);
+  await saveCalculatedDriveRoute(driveSessionId, start, end, route);
   return route;
 }
 
@@ -248,22 +262,28 @@ export async function cancelDriveInvitation(invitationId: string) {
   });
 }
 
-export async function loadDriveInviteOptions(driveSessionId: string): Promise<DriveInviteOptions> {
+export async function loadDriveInviteOptions(
+  driveSessionId: string | null = null,
+): Promise<DriveInviteOptions> {
   const userId = await currentUserId();
   const [outgoingResult, incomingResult, membershipsResult, participantsResult, invitationsResult] =
     await Promise.all([
       supabase.from('follows').select('following_id').eq('follower_id', userId),
       supabase.from('follows').select('follower_id').eq('following_id', userId),
       supabase.from('crew_members').select('crew_id').eq('user_id', userId),
-      supabase
-        .from('drive_participants')
-        .select('user_id')
-        .eq('drive_session_id', driveSessionId),
-      supabase
-        .from('drive_invitations')
-        .select('invited_user_id,status')
-        .eq('drive_session_id', driveSessionId)
-        .eq('status', 'invited'),
+      driveSessionId
+        ? supabase
+            .from('drive_participants')
+            .select('user_id')
+            .eq('drive_session_id', driveSessionId)
+        : Promise.resolve({ data: [], error: null }),
+      driveSessionId
+        ? supabase
+            .from('drive_invitations')
+            .select('invited_user_id,status')
+            .eq('drive_session_id', driveSessionId)
+            .eq('status', 'invited')
+        : Promise.resolve({ data: [], error: null }),
     ]);
   const error =
     outgoingResult.error ??
