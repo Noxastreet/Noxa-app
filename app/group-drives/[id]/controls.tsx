@@ -116,7 +116,7 @@ export default function ActiveDriveControlsScreen() {
   if (loading) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="ACTIVE DRIVE" />
+        <GroupDriveHeader title="Active Drive" />
         <NoxaLoadingState label="Loading drive controls…" />
       </Screen>
     );
@@ -125,7 +125,7 @@ export default function ActiveDriveControlsScreen() {
   if (!drive) {
     return (
       <Screen constrained={false} contentStyle={styles.content}>
-        <GroupDriveHeader title="ACTIVE DRIVE" />
+        <GroupDriveHeader title="Active Drive" />
         <NoxaEmptyState
           icon="alert-circle-outline"
           title="Controls unavailable"
@@ -144,14 +144,14 @@ export default function ActiveDriveControlsScreen() {
   return (
     <Screen scroll constrained={false} contentStyle={styles.content}>
       <GroupDriveHeader
-        title="ACTIVE DRIVE"
+        title="Active Drive"
         subtitle={isHost ? 'Host controls' : 'Your drive controls'}
       />
 
       <View style={styles.hero}>
         <View style={styles.livePill}>
           <View style={styles.liveDot} />
-          <Text style={styles.liveText}>LIVE</Text>
+          <Text style={styles.liveText}>Live</Text>
         </View>
         <Text style={styles.title}>{drive.title}</Text>
         <Text style={styles.body}>
@@ -186,7 +186,7 @@ export default function ActiveDriveControlsScreen() {
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
       <View style={styles.dangerZone}>
-        <Text style={styles.dangerLabel}>{isHost ? 'HOST CONTROL' : 'LEAVE DRIVE'}</Text>
+        <Text style={styles.dangerLabel}>{isHost ? 'Host control' : 'Leave drive'}</Text>
         {isHost ? (
           <NoxaButton fullWidth loading={working} onPress={confirmEnd} title="End Group Drive" variant="danger" />
         ) : canLeave ? (
@@ -207,20 +207,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
     minHeight: 28,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
   },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success },
-  liveText: { color: colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  liveText: { color: colors.success, fontSize: 12, lineHeight: 16, fontWeight: '600' },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    ...typography.v2.value,
-    fontWeight: '900',
+    ...typography.v2.section,
+    fontWeight: '800',
   },
   body: { color: colors.textMuted, ...typography.v2.body },
   actions: { gap: spacing.sm },
@@ -228,17 +223,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
   },
   privacyCopy: { flex: 1, gap: spacing.xxs },
-  privacyTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  privacyTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   privacyBody: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider },
-  dangerLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+  dangerLabel: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: '500' },
   unavailable: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
 });
