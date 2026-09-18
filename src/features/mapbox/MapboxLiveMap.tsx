@@ -324,7 +324,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             ) {
               onMapCenterChange({ latitude, longitude });
             }
-          }
+          }}
           pitchEnabled
           projection="mercator"
           rotateEnabled
