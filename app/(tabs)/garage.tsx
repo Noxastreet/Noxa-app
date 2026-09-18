@@ -192,9 +192,9 @@ function GarageState({ error, isLoading, onRetry }: { error: boolean; isLoading:
     <View style={styles.collectionState}>
       <View style={styles.stateIcon}><Ionicons name="car-sport-outline" size={30} color={colors.primary} /></View>
       <Text style={styles.stateTitle}>Your garage is empty</Text>
-      <Text style={styles.stateText}>Add a car or motorcycle and start building your NOXA identity.</Text>
+      <Text style={styles.stateText}>Add a car or motorcycle to your garage.</Text>
       <Pressable accessibilityRole="button" onPress={() => router.push('/vehicle-picker')} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-        <Text style={styles.retryText}>Add first vehicle</Text>
+        <Text style={styles.retryText}>Add vehicle</Text>
       </Pressable>
     </View>
   );
