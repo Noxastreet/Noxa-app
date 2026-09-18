@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -92,6 +92,8 @@ function EventRowItem({ event }: { event: EventListModel }) {
   const isLive = lifecycle === 'live';
   const attendanceLabel =
     event.attendeeCount === 1 ? '1 going' : `${event.attendeeCount} going`;
+  const typeLabel = eventType(event);
+  const showType = event.title.trim().toLowerCase() !== typeLabel.toLowerCase();
 
   return (
     <Pressable
@@ -142,12 +144,16 @@ function EventRowItem({ event }: { event: EventListModel }) {
         </View>
 
         <View style={styles.metaLine}>
-          <Text numberOfLines={1} style={styles.eventType}>
-            {eventType(event)}
-          </Text>
-          <Text accessible={false} style={styles.metaDot}>
-            ·
-          </Text>
+          {showType ? (
+            <>
+              <Text numberOfLines={1} style={styles.eventType}>
+                {typeLabel}
+              </Text>
+              <Text accessible={false} style={styles.metaDot}>
+                ·
+              </Text>
+            </>
+          ) : null}
           {event.myResponse === 'going' ? (
             <View style={styles.goingState}>
               <Ionicons
@@ -266,20 +272,6 @@ export default function CanonicalEventsScreen() {
     }, [load]),
   );
 
-  const thisWeekCount = useMemo(
-    () =>
-      events.filter((event) => {
-        if (getEventLifecycle(event) === 'live') return true;
-        const diff = new Date(event.starts_at).getTime() - Date.now();
-        return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
-      }).length,
-    [events],
-  );
-
-  const liveCount = useMemo(
-    () => events.filter((event) => getEventLifecycle(event) === 'live').length,
-    [events],
-  );
 
   const renderEmptyState = () => {
     if (loading) {
@@ -355,13 +347,6 @@ export default function CanonicalEventsScreen() {
             <View style={styles.header}>
               <Text style={styles.screenTitle}>Events</Text>
               <View style={styles.headerActions}>
-                <NoxaIconButton
-                  accessibilityLabel="Event history"
-                  accessibilityHint="Opens past events"
-                  icon="time-outline"
-                  variant="ghost"
-                  onPress={() => router.push('/event-history')}
-                />
                 {events.length ? (
                   <NoxaIconButton
                     accessibilityLabel="Create event"
@@ -372,25 +357,6 @@ export default function CanonicalEventsScreen() {
                   />
                 ) : null}
               </View>
-            </View>
-
-            <View style={styles.contextRow}>
-              <View style={styles.contextCopy}>
-                <Text style={styles.contextTitle}>Upcoming</Text>
-                <Text style={styles.contextMeta}>
-                  {thisWeekCount === 1
-                    ? '1 event in the next 7 days'
-                    : `${thisWeekCount} events in the next 7 days`}
-                </Text>
-              </View>
-              {liveCount ? (
-                <View style={styles.liveSummary}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveSummaryText}>
-                    {liveCount === 1 ? '1 live' : `${liveCount} live`}
-                  </Text>
-                </View>
-              ) : null}
             </View>
 
             {error && events.length ? (
@@ -424,13 +390,13 @@ export default function CanonicalEventsScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingTop: spacing.sm,
-    paddingBottom: 128,
+    paddingBottom: 112,
   },
   contentEmpty: {
     flexGrow: 1,
   },
   header: {
-    minHeight: 60,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -447,44 +413,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xxs,
   },
-  contextRow: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  contextCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  contextTitle: {
-    color: colors.text,
-    ...typography.v2.row,
-    fontWeight: '700',
-  },
-  contextMeta: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  liveSummary: {
-    minHeight: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxs,
-    paddingHorizontal: spacing.sm,
-  },
-  liveSummaryText: {
-    color: colors.primaryHover,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-  },
   liveDot: {
     width: 6,
     height: 6,
@@ -496,11 +424,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.divider,
   },
   eventRow: {
-    minHeight: 110,
+    minHeight: 96,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
   eventRowPressed: {
     opacity: 0.72,
