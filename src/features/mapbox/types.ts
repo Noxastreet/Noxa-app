@@ -38,6 +38,7 @@ export type MapboxLiveMapProps = {
   activeDrivers: MapboxDriver[];
   events: MapboxEvent[];
   route: MapboxRoute | null;
+  bottomInset?: number;
   selectionPoint?: LatLng | null;
   selectedEventId: string | null;
   mapFilter: MapboxMapFilter;
