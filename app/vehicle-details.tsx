@@ -133,7 +133,7 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
   ].filter(isPresent).join(' · ');
 
   return (
-    <View style={styles.heroBlock}>
+    <View style={styles.vehicleIdentity}>
       {vehicle.cover_image_url ? (
         <ImageBackground
           source={{ uri: vehicle.cover_image_url }}
@@ -149,7 +149,7 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
 
       <View style={styles.heroIdentity}>
         <Text numberOfLines={2} style={styles.heroTitle}>{title}</Text>
-        {meta ? <Text numberOfLines={1} style={styles.heroMeta}>{meta}</Text> : null}
+        {meta ? <Text numberOfLines={2} style={styles.heroMeta}>{meta}</Text> : null}
       </View>
     </View>
   );
@@ -421,7 +421,7 @@ export default function VehicleDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 72, gap: spacing.lg },
+  content: { paddingBottom: 72, gap: spacing.md },
   header: {
     minHeight: 60,
     flexDirection: 'row',
@@ -438,30 +438,40 @@ const styles = StyleSheet.create({
   },
   headerSpacer: { width: 44, height: 44 },
   pressed: { opacity: 0.72 },
-  heroBlock: { gap: spacing.md },
+  vehicleIdentity: {
+    minHeight: 108,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
   heroImage: {
-    height: 168,
-    marginHorizontal: spacing.lg,
-    borderRadius: radius.lg,
+    width: 112,
+    height: 84,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
   heroFallback: {
-    height: 112,
-    marginHorizontal: spacing.lg,
-    borderRadius: radius.lg,
+    width: 112,
+    height: 84,
+    borderRadius: radius.md,
     backgroundColor: colors.surfaceSoft,
   },
-  heroImageRadius: { borderRadius: radius.lg },
+  heroImageRadius: { borderRadius: radius.md },
   vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center' },
   heroIdentity: {
+    flex: 1,
+    minWidth: 0,
     gap: 3,
-    paddingHorizontal: spacing.lg,
   },
   heroTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.value,
-    fontWeight: '900',
+    fontFamily: typography.fontFamily.body,
+    fontSize: 22,
+    lineHeight: 27,
+    letterSpacing: -0.3,
+    fontWeight: '700',
   },
   heroMeta: {
     color: colors.textMuted,
@@ -470,7 +480,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   ownerCard: {
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.md,
     minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
@@ -503,7 +513,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   sectionBlock: {
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.md,
     gap: spacing.sm,
     paddingTop: spacing.xs,
   },
@@ -545,7 +555,7 @@ const styles = StyleSheet.create({
   bodyText: { color: colors.text, ...typography.v2.body },
   stateCard: {
     minHeight: 280,
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
