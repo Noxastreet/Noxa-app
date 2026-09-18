@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 
-import { NoxaButton, NoxaScreen } from "@/src/components/ui";
+import { NoxaButton, NoxaIconButton, NoxaScreen, NoxaTopBar } from "@/src/components/ui";
 import {
   eventLifecycle,
   formatMessageTime,
@@ -203,54 +203,26 @@ export default function EventChatScreen() {
         style={styles.flex}
       >
         <View style={styles.header}>
-          <Pressable
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="chevron-back" size={21} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <View style={styles.titleRow}>
-              <Text numberOfLines={1} style={styles.headerTitle}>EVENT CHAT</Text>
-              {event ? (
-                <View
-                  style={[
-                    styles.lifecycleBadge,
-                    lifecycle === "live" && styles.lifecycleLive,
-                    lifecycle === "completed" && styles.lifecycleComplete,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.lifecycleDot,
-                      lifecycle === "completed" && styles.lifecycleDotComplete,
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.lifecycleText,
-                      lifecycle === "completed" && styles.lifecycleTextComplete,
-                    ]}
-                  >
-                    {lifecycleLabel(lifecycle)}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.headerSubtitle}>
-              {event?.title ?? "NOXA event"} · {participantCount} participants
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Refresh chat"
-            accessibilityRole="button"
-            onPress={() => void loadMessages()}
-            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="refresh" size={18} color={colors.textMuted} />
-          </Pressable>
+          <NoxaTopBar
+            left={
+              <NoxaIconButton
+                accessibilityLabel="Go back"
+                icon="chevron-back"
+                onPress={() => router.back()}
+                variant="ghost"
+              />
+            }
+            right={
+              <NoxaIconButton
+                accessibilityLabel="Refresh chat"
+                icon="refresh"
+                onPress={() => void loadMessages()}
+                variant="ghost"
+              />
+            }
+            subtitle={`${event?.title ?? "NOXA event"} · ${participantCount} participants · ${lifecycleLabel(lifecycle)}`}
+            title="Event Chat"
+          />
         </View>
 
         {loading ? (
@@ -263,12 +235,12 @@ export default function EventChatScreen() {
             <View style={styles.stateIcon}>
               <Ionicons name="chatbubbles-outline" size={30} color={colors.primaryHover} />
             </View>
-            <Text style={styles.stateTitle}>CHAT IS FOR PARTICIPANTS</Text>
+            <Text style={styles.stateTitle}>Chat is for participants</Text>
             <Text style={styles.stateText}>
               RSVP to this event before joining the attendee conversation.
             </Text>
             <NoxaButton
-              title="BACK TO EVENT"
+              title="Back to event"
               onPress={() => router.replace({ pathname: "/event-details", params: { id: eventId } })}
             />
           </View>
@@ -278,7 +250,7 @@ export default function EventChatScreen() {
               <View style={styles.pinnedCard}>
                 <View style={styles.pinnedRail} />
                 <View style={styles.pinnedCopy}>
-                  <Text style={styles.pinnedLabel}>PINNED · EVENT ORGANIZER</Text>
+                  <Text style={styles.pinnedLabel}>Pinned · Event organizer</Text>
                   <Text numberOfLines={3} style={styles.pinnedText}>{event.description}</Text>
                 </View>
                 <Pressable
@@ -304,7 +276,7 @@ export default function EventChatScreen() {
               {messages.length === 0 ? (
                 <View style={styles.emptyChat}>
                   <Ionicons name="chatbubble-ellipses-outline" size={27} color={colors.textSubtle} />
-                  <Text style={styles.emptyTitle}>START THE CONVERSATION</Text>
+                  <Text style={styles.emptyTitle}>Start the conversation</Text>
                   <Text style={styles.emptyText}>Share arrival updates and event details here.</Text>
                 </View>
               ) : (
@@ -388,14 +360,9 @@ export default function EventChatScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
-    backgroundColor: colors.surfaceBase,
   },
   headerButton: {
     width: 38,
@@ -445,17 +412,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.xs,
-    marginHorizontal: spacing.sm,
+    marginHorizontal: spacing.md,
     marginTop: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   pinnedRail: { width: 5, alignSelf: "stretch", borderRadius: 3, backgroundColor: colors.primary },
   pinnedCopy: { flex: 1, gap: spacing.xxs },
-  pinnedLabel: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+  pinnedLabel: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   pinnedText: { color: colors.textMuted, fontSize: 12, fontWeight: "600", lineHeight: 18 },
   messages: { flexGrow: 1, padding: spacing.sm, paddingBottom: spacing.lg },
   systemMessage: { alignItems: "center", paddingVertical: spacing.sm },
@@ -508,7 +473,7 @@ const styles = StyleSheet.create({
   messageTime: { marginTop: 3, color: colors.textSubtle, fontSize: 9, fontWeight: "600" },
   messageTimeMine: { textAlign: "right" },
   emptyChat: { flex: 1, minHeight: 260, alignItems: "center", justifyContent: "center", gap: spacing.xs },
-  emptyTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 18, fontWeight: "900" },
+  emptyTitle: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "600" },
   emptyText: { color: colors.textMuted, fontSize: 12, textAlign: "center" },
   composer: {
     flexDirection: "row",
@@ -517,7 +482,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
     backgroundColor: colors.surfaceBase,
   },
