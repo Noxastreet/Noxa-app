@@ -214,3 +214,56 @@ For every migration slice:
 9. physical iOS/TestFlight acceptance for critical iOS flows
 
 A passing static check is not runtime proof.
+
+
+## 9. NOXA V2 implementation coverage
+
+Umbrella PR: #297
+Current V2 strategy: one frontend branch, one final native build after the complete visual/system pass.
+
+### Migrated user-facing families
+
+- Events list, detail, history, gallery, chat, recap, editor
+- Crews list, detail, calendar, garage, gallery, chat, polls, management
+- Garage, Vehicle Detail, Vehicle Editor, Vehicle Picker / Finalize flow
+- Profile, Public Driver Profile, Edit Profile, Social lists
+- Group Drive list, lobby, active shell, controls, route, schedule, participants, invitation, location sharing, summary/review
+- Search
+- Notifications
+- Settings
+- Delete Account / Blocked Users
+- Post Detail / Post Editor
+- Auth shared chrome, Onboarding, Visibility Setup, Username flow
+- Legal document presentation
+- Welcome entry hierarchy
+- Shared screen/header/list/button/section/crew/group-drive primitives
+
+### Intentionally retained
+
+- Map root remains structurally unchanged because it is already a map-dominant native working surface and has dedicated progressive-disclosure, performance and location contracts. A cosmetic rewrite would add regression risk without solving the original website-inside-app problem.
+- Auth route files that consume the shared NoxaAuthScreen were not rewritten individually where the shared migration already changes their presentation.
+- route wrappers such as Events Detail, Crews and Vehicle Picker remain wrappers.
+- privacy/terms route wrappers remain wrappers around the migrated LegalDocumentScreen.
+- Crew Convoy (`app/convoy-setup.tsx`) remains frozen legacy by canonical product decision and is not part of Group Drive or the active MVP migration.
+- `participant-stack-preview` remains a development-only Group Drive simulation screen.
+
+### Diff discipline
+
+The V2 PR adds no new:
+- `radius.hero` usage
+- `shadows.card` usage
+- uppercase text transforms
+- `toUpperCase()` presentation transformations
+- raw 28px+ typography
+
+The only new intentional uppercase status copy is `LIVE`.
+
+Content borders newly added in V2 are hairlines. Remaining full-width 1px borders in new diff are limited to functional controls, not card-based content composition.
+
+### Static acceptance
+
+Latest fully green pre-final V2 head:
+`9e29f26265c4bbad9c0bb8089c9b1f29bb833404`
+Quality run #660: PASS across TypeScript, ESLint, Expo Doctor, Auth, Supabase, Map, performance, social/post reliability and all Group Drive phase contracts.
+
+Current final head adds only the last native-grammar passes for Active Participants and Welcome and is subject to a final Quality run before native build acceptance.
