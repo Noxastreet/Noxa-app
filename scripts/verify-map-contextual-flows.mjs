@@ -56,5 +56,6 @@ requireMatch('Live map follow padding must be sheet aware', liveMap, /paddingBot
 requireMatch('Group Drive API must reuse calculated route persistence', groupDriveApi, /saveCalculatedDriveRoute/);
 requireMatch('Group Drive invite candidate loader must share one implementation', groupDriveApi, /loadDriveInviteCandidatesForUser/);
 requireMatch('Event Detail must continue to reuse known event destination', eventDetail, /focusEventId: event\.id, mapMode: "route"/);
+requireMatch('Event Detail must use the same Drive there language', eventDetail, /title="Drive there"/);
 
 console.log('Map contextual flow verification passed.');
