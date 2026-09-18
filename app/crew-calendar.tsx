@@ -350,7 +350,6 @@ export default function CrewCalendarScreen() {
                 <Ionicons name="chevron-back" size={18} color={colors.textMuted} />
               </Pressable>
               <View style={styles.monthCopy}>
-                <Text style={styles.monthEyebrow}>Schedule</Text>
                 <Text style={styles.monthTitle}>{formatMonth(visibleMonth)}</Text>
               </View>
               <Pressable
@@ -408,8 +407,7 @@ export default function CrewCalendarScreen() {
           </View>
 
           <View style={styles.listHeader}>
-            <View>
-              <Text style={styles.listEyebrow}>{selectedDate ? "Selected day" : "This month"}</Text>
+            <View style={styles.listTitleRow}>
               <Text style={styles.listTitle}>
                 {selectedDate
                   ? new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric" }).format(
@@ -417,11 +415,9 @@ export default function CrewCalendarScreen() {
                     )
                   : "Crew events"}
               </Text>
+              <Text style={styles.listCount}>{monthEvents.length}</Text>
             </View>
             <View style={styles.listActions}>
-              <View style={styles.countPill}>
-                <Text style={styles.countText}>{monthEvents.length}</Text>
-              </View>
               {canCreate ? (
                 <Pressable
                   accessibilityLabel="Create crew event"
@@ -481,8 +477,8 @@ export default function CrewCalendarScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.huge,
     gap: spacing.lg,
   },
@@ -501,9 +497,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   monthCopy: { flex: 1, alignItems: "center" },
-  monthEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
   monthTitle: {
-    marginTop: 2,
     color: colors.text,
     ...typography.v2.row,
     fontWeight: "700",
@@ -534,29 +528,17 @@ const styles = StyleSheet.create({
   eventDot: { width: 4, height: 4, borderRadius: radius.pill, backgroundColor: colors.primaryHover },
   eventDotSelected: { backgroundColor: colors.text },
   listHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  listEyebrow: { color: colors.textMuted, fontSize: 11, lineHeight: 15, fontWeight: "500" },
+  listTitleRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.xs },
   listTitle: {
-    marginTop: 2,
     color: colors.text,
     ...typography.v2.row,
     fontWeight: "700",
   },
+  listCount: { color: colors.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "500" },
   listActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  countPill: {
-    minWidth: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xs,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
-  },
-  countText: { color: colors.textMuted, fontSize: 10, fontWeight: "900" },
   createButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -564,7 +546,7 @@ const styles = StyleSheet.create({
   },
   eventList: { gap: 0 },
   eventCard: {
-    minHeight: 92,
+    minHeight: 80,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
@@ -606,9 +588,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyTitle: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "600" },
-  emptyText: { maxWidth: 260, color: colors.textMuted, fontSize: 12, fontWeight: "700", lineHeight: 18, textAlign: "center" },
+  emptyText: { maxWidth: 260, color: colors.textMuted, fontSize: 12, fontWeight: "500", lineHeight: 18, textAlign: "center" },
   emptyAction: {
-    minHeight: 40,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     marginTop: spacing.xs,
