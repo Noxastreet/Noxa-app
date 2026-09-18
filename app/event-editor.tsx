@@ -954,8 +954,10 @@ function VisibilityOption({
           color={active ? colors.primaryHover : colors.textMuted}
         />
       </View>
-      <Text style={styles.visibilityTitle}>{label}</Text>
-      <Text style={styles.visibilityText}>{description}</Text>
+      <View style={styles.visibilityCopy}>
+        <Text style={styles.visibilityTitle}>{label}</Text>
+        <Text style={styles.visibilityText}>{description}</Text>
+      </View>
       <View style={[styles.radio, active && styles.radioActive]}>
         {active ? <View style={styles.radioDot} /> : null}
       </View>
@@ -970,7 +972,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.divider,
   },
@@ -983,16 +985,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    ...typography.v2.row,
+    fontFamily: typography.fontFamily.body,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: "700",
   },
   headerSpacer: { width: 44, height: 44 },
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: 124,
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   previewCard: {
     minHeight: 124,
@@ -1064,8 +1067,8 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     gap: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.divider,
   },
@@ -1091,8 +1094,9 @@ const styles = StyleSheet.create({
     marginTop: -spacing.xs,
     textAlign: "right",
     color: colors.textSubtle,
-    fontSize: typography.caption,
-    fontWeight: "700",
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: "500",
   },
   categoryGrid: {
     flexDirection: "row",
@@ -1267,43 +1271,42 @@ const styles = StyleSheet.create({
   hostHelper: { color: colors.textMuted, fontSize: 11, fontWeight: "700", lineHeight: 17 },
   hostError: { color: colors.primaryHover, fontSize: 11, fontWeight: "700" },
   visibilityOptions: {
-    flexDirection: "row",
-    gap: spacing.sm,
+    gap: 0,
   },
   visibilityOption: {
-    minHeight: 154,
-    flex: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSoft,
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
   visibilityOptionActive: {
-    borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
   visibilityIcon: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.xxs,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
   },
   visibilityIconActive: { backgroundColor: colors.primaryMuted },
+  visibilityCopy: { flex: 1, minWidth: 0 },
   visibilityTitle: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "900",
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "600",
   },
   visibilityText: {
-    flex: 1,
+    marginTop: 2,
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "700",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "500",
   },
   radio: {
     width: 20,
@@ -1326,21 +1329,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: colors.glass,
+    backgroundColor: colors.background,
   },
   stateCard: {
+    minHeight: 120,
     gap: spacing.sm,
     alignItems: "center",
-    padding: spacing.lg,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    justifyContent: "center",
+    padding: spacing.md,
   },
   stateText: {
     color: colors.textMuted,
