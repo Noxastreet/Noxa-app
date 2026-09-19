@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 
-const lobbyScreen = fs.readFileSync('app/group-drives/[id].tsx', 'utf8');
+const lobbyRedirect = fs.readFileSync('app/group-drives/[id].tsx', 'utf8');
+const lobbyCard = fs.readFileSync(
+  'src/features/map-context/MapGroupDriveFlow.tsx',
+  'utf8',
+);
 const lobbyRuntime = fs.readFileSync('src/features/group-drive/lobby.ts', 'utf8');
 const participantStack = fs.readFileSync(
   'src/features/group-drive/components/GroupDriveParticipantStack.tsx',
@@ -14,40 +18,42 @@ const expect = (condition, message) => {
 };
 
 expect(
-  lobbyScreen.includes('MEET AT A') &&
-    lobbyScreen.includes('Navigate to A') &&
-    lobbyScreen.includes('Show my distance'),
-  'Lobby must expose a clear meeting-at-A approach flow.',
+  lobbyRedirect.includes('pathname: "/(tabs)"') &&
+    lobbyRedirect.includes('groupDriveId: driveSessionId'),
+  'Legacy full-screen Lobby route must hand off to the persistent Map card.',
 );
 expect(
-  lobbyScreen.includes('readLocalNavigationLocation') &&
-    lobbyScreen.includes('calculateDriveRoute(['),
-  'Lobby must calculate the current user route to point A.',
+  lobbyCard.includes('| "lobby"') &&
+    lobbyCard.includes('renderLobby') &&
+    lobbyCard.includes('initialDriveId'),
+  'Map Group Drive flow must own the pre-drive Lobby state.',
 );
 expect(
-  lobbyScreen.includes('not shared with Group Drive participants') &&
-    lobbyScreen.includes('Ready does not start live sharing'),
-  'Lobby approach flow must preserve explicit privacy disclosure.',
+  lobbyCard.includes("I'm at A · Ready") &&
+    lobbyCard.includes('Ready at A · tap to undo') &&
+    lobbyCard.includes('Waiting for ${waitingCount} at A'),
+  'Contextual Lobby must preserve Ready-at-A semantics and host gating.',
 );
 expect(
-  lobbyScreen.includes('Waiting for 1 driver at A') &&
-    lobbyScreen.includes('waitingCount === 0'),
-  'Host Start must wait until accepted participants are ready at A.',
+  lobbyCard.includes('Starting the drive cancels pending invitations') &&
+    lobbyCard.includes('Ready coordinates the Lobby only. It never starts location sharing.'),
+  'Contextual Lobby must preserve invitation and privacy disclosures.',
 );
 expect(
-  lobbyScreen.includes("router.replace({ pathname: '/group-drives/[id]/active'") &&
-    lobbyScreen.includes('subscribeToDriveLobbyStatus'),
-  'Lobby must route into Active Drive locally and on remote start.',
+  lobbyCard.includes('subscribeToDriveLobbyStatus') &&
+    lobbyCard.includes('setInterval(() => void loadLobby(lobbyDriveId), 5000)') &&
+    lobbyCard.includes('AppState.addEventListener("change"'),
+  'Contextual Lobby must reconcile realtime, polling, and foreground changes.',
+);
+expect(
+  lobbyCard.includes('pathname: "/group-drives/[id]/active"') &&
+    lobbyCard.includes('startDrive(lobbyDrive.id)'),
+  'Contextual Lobby must route into Active Drive locally and on remote start.',
 );
 expect(
   lobbyRuntime.includes("table: 'drive_sessions'") &&
     lobbyRuntime.includes("status === 'active'"),
   'Lobby realtime must watch the drive session status transition.',
-);
-expect(
-  lobbyScreen.includes("AppState.addEventListener('change'") &&
-    lobbyScreen.includes("state === 'active'"),
-  'Lobby must reconcile drive status immediately when the app returns to foreground.',
 );
 expect(
   participantStack.includes("row.kind === 'unavailable' ? '—' : row.valueLabel"),
@@ -59,8 +65,8 @@ expect(
   'Active Drive must render the distance-aware participant stack.',
 );
 expect(
-  !/startGroupDriveLocationSession|requestBackgroundPermissionsAsync|startLocationUpdatesAsync/.test(lobbyScreen),
-  'Pre-drive Lobby must not start Group Drive background location sharing.',
+  !/startGroupDriveLocationSession|requestBackgroundPermissionsAsync|startLocationUpdatesAsync/.test(lobbyCard),
+  'Pre-drive contextual Lobby must not start Group Drive background location sharing.',
 );
 
 if (failures.length) {
