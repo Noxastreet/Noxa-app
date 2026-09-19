@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
@@ -69,42 +70,44 @@ function AuthDeepLinkBridge() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider value={noxaTheme}>
-        <SupabaseAuthLifecycle />
-        <AuthDeepLinkBridge />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="welcome" />
-          <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="visibility-setup" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="forgot-password" />
-          <Stack.Screen name="reset-password" />
-          <Stack.Screen name="auth/callback" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="notifications" />
-          <Stack.Screen name="settings" />
-          <Stack.Screen name="blocked-users" />
-          <Stack.Screen name="delete-account" />
-          <Stack.Screen name="privacy-policy" />
-          <Stack.Screen name="terms-of-service" />
-          <Stack.Screen name="search" />
-          <Stack.Screen name="group-drives" />
-          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="event-details" />
-          <Stack.Screen name="event-editor" />
-          <Stack.Screen name="event-chat" />
-          <Stack.Screen name="event-gallery" />
-          <Stack.Screen name="crew-chat" />
-          <Stack.Screen name="crew-gallery" />
-          <Stack.Screen name="crew-garage" />
-          <Stack.Screen name="crew-calendar" />
-          <Stack.Screen name="crew-polls" />
-          <Stack.Screen name="convoy-setup" />
-          <Stack.Screen name="post-editor" />
-          <Stack.Screen name="post-details" />
-        </Stack>
-        <StatusBar style="light" />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider value={noxaTheme}>
+          <SupabaseAuthLifecycle />
+          <AuthDeepLinkBridge />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="welcome" />
+            <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="visibility-setup" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="forgot-password" />
+            <Stack.Screen name="reset-password" />
+            <Stack.Screen name="auth/callback" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="notifications" />
+            <Stack.Screen name="settings" />
+            <Stack.Screen name="blocked-users" />
+            <Stack.Screen name="delete-account" />
+            <Stack.Screen name="privacy-policy" />
+            <Stack.Screen name="terms-of-service" />
+            <Stack.Screen name="search" />
+            <Stack.Screen name="group-drives" />
+            <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="event-details" />
+            <Stack.Screen name="event-editor" />
+            <Stack.Screen name="event-chat" />
+            <Stack.Screen name="event-gallery" />
+            <Stack.Screen name="crew-chat" />
+            <Stack.Screen name="crew-gallery" />
+            <Stack.Screen name="crew-garage" />
+            <Stack.Screen name="crew-calendar" />
+            <Stack.Screen name="crew-polls" />
+            <Stack.Screen name="convoy-setup" />
+            <Stack.Screen name="post-editor" />
+            <Stack.Screen name="post-details" />
+          </Stack>
+          <StatusBar style="light" />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

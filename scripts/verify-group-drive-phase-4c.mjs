@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -22,11 +21,6 @@ for (const file of files) {
 
 function source(file) {
   return fs.readFileSync(path.join(root, file), 'utf8');
-}
-
-function gitBlobSha(text) {
-  const body = Buffer.from(text, 'utf8');
-  return crypto.createHash('sha1').update(`blob ${body.length}\0`).update(body).digest('hex');
 }
 
 if (!failures.length) {
@@ -84,10 +78,27 @@ if (!failures.length) {
     failures.push('local navigation GPS must never publish, start a background task, or request background permission');
   }
 
-  const expectedSharedMapBlob = '0b702610f9e817cf776d58ab9bc5b5081f8e054e';
-  const actualSharedMapBlob = gitBlobSha(sharedMap);
-  if (actualSharedMapBlob !== expectedSharedMapBlob) {
-    failures.push(`shared Home/Map MapboxLiveMap changed unexpectedly (${actualSharedMapBlob})`);
+  const sharedMapRequired = [
+    ['shared map must keep the existing Mapbox Standard basemap', /NOXA_MAPBOX_LIVE_STYLE_URL/],
+    ['shared map must keep the existing Camera runtime', /<Camera/],
+    ['shared map must keep the existing location puck', /<LocationPuck/],
+    ['shared map must keep the existing Group Drive route source', /id="noxa-route-source"/],
+    ['shared map must keep the existing route casing layer', /id="noxa-route-casing"/],
+    ['shared map must keep the existing route line layer', /id="noxa-route-line"/],
+    ['shared map must keep FollowWithCourse', /UserTrackingMode\.FollowWithCourse/],
+    ['sheet-aware follow padding must preserve the legacy Active Drive fallback', /paddingBottom: bottomContentInset \?\? 260/],
+    ['sheet-aware footer inset must preserve the legacy Mapbox footer fallback', /Math\.max\(84, \(bottomContentInset \?\? 0\) \+ 8\)/],
+  ];
+  for (const [label, pattern] of sharedMapRequired) {
+    if (!pattern.test(sharedMap)) failures.push(label);
+  }
+
+  const mapViewCount = (sharedMap.match(/<MapView\b/g) ?? []).length;
+  if (mapViewCount !== 1) {
+    failures.push(`shared Mapbox layer must still own exactly one MapView (found ${mapViewCount})`);
+  }
+  if (/supabase|TaskManager|startLocationUpdatesAsync|requestBackgroundPermissionsAsync/i.test(sharedMap)) {
+    failures.push('shared Mapbox layer must remain presentation-only and must not own backend/background location runtime');
   }
 }
 

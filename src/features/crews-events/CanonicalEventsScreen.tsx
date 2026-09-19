@@ -1,374 +1,264 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
-} from "react-native";
+} from 'react-native';
 
-import { NoxaScreen } from "@/src/components/ui";
 import {
-  CanonicalArtwork,
-  CanonicalAvatarStack,
-  CanonicalPill,
-  CanonicalPrimaryButton,
-  CanonicalSectionHeader,
-  type CanonicalProfile,
-} from "@/src/features/crews-events/CanonicalPrimitives";
-import { getEventLifecycle } from "@/src/lib/eventExperience";
-import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+  NoxaButton,
+  NoxaIconButton,
+  NoxaScreen,
+} from '@/src/components/ui';
+import { useResponsive } from '@/src/hooks/useResponsive';
+import { getEventLifecycle } from '@/src/lib/eventExperience';
+import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
+import { colors, spacing, typography } from '@/src/theme';
 
-type EventCategory = "meet" | "drive" | "track" | "social";
+type EventCategory = 'meet' | 'drive' | 'track' | 'social';
 
 type EventRow = {
   id: string;
-  creator_id: string;
-  crew_id: string | null;
   title: string;
-  description: string | null;
   category: EventCategory;
   location_name: string;
   starts_at: string;
   ends_at: string | null;
-  cover_image_url: string | null;
-  is_public: boolean;
   status: string;
 };
 
 type AttendanceRow = {
   event_id: string;
   user_id: string;
-  response: "going" | "maybe";
+  response: 'going' | 'maybe';
   joined_at?: string;
 };
 
-type EventCardModel = EventRow & {
+type EventListModel = EventRow & {
   attendeeCount: number;
-  myResponse: "going" | "maybe" | null;
+  myResponse: 'going' | 'maybe' | null;
 };
 
 function formatDay(value: string) {
-  return new Intl.DateTimeFormat(undefined, { day: "2-digit" }).format(
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit' }).format(
     new Date(value),
   );
 }
 
 function formatMonth(value: string) {
-  return new Intl.DateTimeFormat(undefined, { month: "short" })
+  return new Intl.DateTimeFormat('en-GB', { month: 'short' })
     .format(new Date(value))
-    .replace(".", "")
-    .toUpperCase();
+    .replace('.', '');
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: 'numeric',
+    minute: '2-digit',
   }).format(new Date(value));
 }
 
 function formatWeekday(value: string) {
-  return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(
     new Date(value),
   );
 }
 
 function compactLocation(value: string) {
   const parts = value
-    .split(",")
+    .split(',')
     .map((part) => part.trim())
     .filter(Boolean);
   const meaningful = parts.filter(
     (part) => !/^(unnamed\s+road\s*)+$/i.test(part),
   );
-  return meaningful[meaningful.length - 1] || parts[parts.length - 1] || "Location";
+  return meaningful[meaningful.length - 1] || parts[parts.length - 1] || 'Location';
 }
 
 function eventType(event: EventRow) {
-  if (event.category === "meet") return "CAR MEET";
-  if (event.category === "drive") return "DRIVE";
-  if (event.category === "track") return "TRACK";
-  return "EVENT";
+  if (event.category === 'meet') return 'Car meet';
+  if (event.category === 'drive') return 'Drive';
+  if (event.category === 'track') return 'Track';
+  return 'Event';
 }
 
-function urgency(event: EventRow) {
-  if (getEventLifecycle(event) === "live") return "LIVE";
-  const starts = new Date(event.starts_at).getTime();
-  const diff = starts - Date.now();
-  if (diff <= 12 * 60 * 60 * 1000) return "TONIGHT";
-  if (diff <= 24 * 60 * 60 * 1000) return "TODAY";
-  return "UPCOMING";
-}
-
-function HeroEvent({
-  event,
-  attendees,
-  busy,
-  onRsvp,
-}: {
-  event: EventCardModel;
-  attendees: CanonicalProfile[];
-  busy: boolean;
-  onRsvp: (event: EventCardModel) => void;
-}) {
-  const responseLabel = event.myResponse === "going" ? "GOING ✓" : "I'M GOING";
+function EventRowItem({ event }: { event: EventListModel }) {
+  const lifecycle = getEventLifecycle(event);
+  const isLive = lifecycle === 'live';
+  const attendanceLabel =
+    event.attendeeCount === 1 ? '1 going' : `${event.attendeeCount} going`;
 
   return (
     <Pressable
       accessibilityLabel={`Open ${event.title}`}
       accessibilityRole="button"
+      accessibilityHint="Opens event details"
       onPress={() =>
-        router.push({ pathname: "/event-details", params: { id: event.id } })
+        router.push({ pathname: '/event-details', params: { id: event.id } })
       }
-      style={({ pressed }) => [styles.heroCard, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.eventRow,
+        pressed && styles.eventRowPressed,
+      ]}
     >
-      <CanonicalArtwork
-        uri={event.cover_image_url}
-        style={styles.heroArtwork}
-        imageStyle={styles.heroArtworkImage}
-        icon="flag-outline"
-      >
-        <View style={styles.heroShadeTop} />
-        <View style={styles.heroShadeBottom} />
-
-        <View style={styles.heroTopRow}>
-          <View style={styles.pillRow}>
-            <CanonicalPill label={urgency(event)} tone="accent" />
-            <CanonicalPill label={eventType(event)} />
-          </View>
-          <View style={styles.heroDate}>
-            <Text style={styles.heroDateDay}>{formatDay(event.starts_at)}</Text>
-            <Text numberOfLines={1} style={styles.heroDateMonth}>
-              {formatMonth(event.starts_at)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.heroCopy}>
-          <Text numberOfLines={2} style={styles.heroTitle}>
-            {event.title.toUpperCase()}
-          </Text>
-          <Text numberOfLines={1} style={styles.heroMeta}>
-            {formatTime(event.starts_at)} · {compactLocation(event.location_name)}
-          </Text>
-
-          <View style={styles.heroSocialRow}>
-            <CanonicalAvatarStack
-              profiles={attendees}
-              total={event.attendeeCount}
-              max={3}
-              size={28}
-            />
-            <Text numberOfLines={1} style={styles.heroSocialText}>
-              {event.attendeeCount
-                ? `${event.attendeeCount} driver${event.attendeeCount === 1 ? "" : "s"} going`
-                : "Be the first driver going"}
-            </Text>
-          </View>
-
-          <View style={styles.heroFooter}>
-            <Text numberOfLines={1} style={styles.organizerLine}>
-              {event.crew_id ? "CREW EVENT" : "COMMUNITY EVENT"}
-            </Text>
-            <CanonicalPrimaryButton
-              compact
-              disabled={busy}
-              loading={busy}
-              label={responseLabel}
-              variant={event.myResponse === "going" ? "surface" : "accent"}
-              onPress={() => onRsvp(event)}
-            />
-          </View>
-        </View>
-      </CanonicalArtwork>
-    </Pressable>
-  );
-}
-
-function EventListCard({ event }: { event: EventCardModel }) {
-  return (
-    <Pressable
-      accessibilityLabel={`Open ${event.title}`}
-      accessibilityRole="button"
-      onPress={() =>
-        router.push({ pathname: "/event-details", params: { id: event.id } })
-      }
-      style={({ pressed }) => [styles.eventCard, pressed && styles.pressed]}
-    >
-      <View style={styles.dateTile}>
+      <View style={styles.dateColumn}>
         <Text style={styles.dateDay}>{formatDay(event.starts_at)}</Text>
-        <Text style={styles.dateMonth}>{formatMonth(event.starts_at)}</Text>
+        <Text numberOfLines={1} style={styles.dateMonth}>
+          {formatMonth(event.starts_at)}
+        </Text>
       </View>
-      <View
-        style={[
-          styles.eventAccent,
-          event.category === "meet" && styles.eventAccentMeet,
-          event.category === "drive" && styles.eventAccentDrive,
-        ]}
-      />
+
       <View style={styles.eventCopy}>
-        <Text numberOfLines={1} style={styles.eventTitle}>
-          {event.title.toUpperCase()}
+        <View style={styles.titleLine}>
+          <Text numberOfLines={2} style={styles.eventTitle}>
+            {event.title}
+          </Text>
+          {isLive ? (
+            <View style={styles.liveStatus}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>LIVE</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <Text numberOfLines={1} style={styles.eventTime}>
+          {formatWeekday(event.starts_at)} · {formatTime(event.starts_at)}
         </Text>
-        <Text numberOfLines={1} style={styles.eventMeta}>
-          {formatWeekday(event.starts_at)} · {formatTime(event.starts_at)} ·{" "}
-          {compactLocation(event.location_name)}
-        </Text>
-        <View style={styles.eventBottomRow}>
-          <CanonicalPill label={getEventLifecycle(event) === "live" ? "LIVE" : eventType(event)} tone={getEventLifecycle(event) === "live" ? "accent" : "default"} />
-          <Text style={styles.goingText}>{event.attendeeCount} GOING</Text>
+
+        <View style={styles.locationLine}>
+          <Ionicons
+            name="location-outline"
+            size={14}
+            color={colors.textMuted}
+          />
+          <Text numberOfLines={1} style={styles.locationText}>
+            {compactLocation(event.location_name)}
+          </Text>
+        </View>
+
+        <View style={styles.metaLine}>
+          <Text numberOfLines={1} style={styles.eventType}>
+            {eventType(event)}
+          </Text>
+          <Text accessible={false} style={styles.metaDot}>
+            ·
+          </Text>
+          {event.myResponse === 'going' ? (
+            <View style={styles.goingState}>
+              <Ionicons
+                name="checkmark-circle"
+                size={14}
+                color={colors.primaryHover}
+              />
+              <Text style={styles.goingStateText}>Going</Text>
+            </View>
+          ) : (
+            <Text numberOfLines={1} style={styles.attendanceText}>
+              {attendanceLabel}
+            </Text>
+          )}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={19} color={colors.textSubtle} />
-    </Pressable>
-  );
-}
 
-function NearbyStrip({ count }: { count: number }) {
-  return (
-    <View style={styles.nearbyStrip}>
-      <View style={styles.nearbyAccent} />
-      <View style={styles.nearbyCopy}>
-        <Text style={styles.nearbyEyebrow}>NEARBY NOW</Text>
-        <Text style={styles.nearbyText}>
-          {count
-            ? `${count} event${count === 1 ? "" : "s"} available around you`
-            : "New local events will appear here"}
-        </Text>
-      </View>
-      <Ionicons name="navigate-outline" size={20} color={colors.textMuted} />
-    </View>
+      <Ionicons
+        name="chevron-forward"
+        size={18}
+        color={colors.textSubtle}
+      />
+    </Pressable>
   );
 }
 
 export default function CanonicalEventsScreen() {
-  const [events, setEvents] = useState<EventCardModel[]>([]);
-  const [heroAttendees, setHeroAttendees] = useState<CanonicalProfile[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
+  const { gutter } = useResponsive();
+  const [events, setEvents] = useState<EventListModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [busyEventId, setBusyEventId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const hasLoadedRef = useRef(false);
 
-  const loadHeroProfiles = useCallback(async (eventId: string) => {
-    const { data: attendanceData, error: attendanceError } = await supabase
-      .from("event_attendees")
-      .select("user_id")
-      .eq("event_id", eventId)
-      .eq("response", "going")
-      .order("joined_at", { ascending: true })
-      .limit(4);
+  const load = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
+    setError(false);
 
-    if (attendanceError) {
-      setHeroAttendees([]);
-      return;
-    }
+    const currentUserId = (await getCurrentSessionUser())?.id ?? null;
+    const now = new Date();
+    const feedFloor = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const ids = (attendanceData ?? []).map((row) => row.user_id);
-    if (!ids.length) {
-      setHeroAttendees([]);
-      return;
-    }
+    const eventsResult = await supabase
+      .from('events')
+      .select(
+        'id,title,category,location_name,starts_at,ends_at,status',
+      )
+      .eq('status', 'scheduled')
+      .or(
+        `starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`,
+      )
+      .order('starts_at', { ascending: true });
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("id,display_name,username,avatar_url")
-      .in("id", ids);
-
-    const byId = new Map(
-      ((profileData ?? []) as CanonicalProfile[]).map((profile) => [
-        profile.id,
-        profile,
-      ]),
-    );
-    setHeroAttendees(
-      ids
-        .map((id) => byId.get(id))
-        .filter((profile): profile is CanonicalProfile => Boolean(profile)),
-    );
-  }, []);
-
-  const load = useCallback(
-    async (showSpinner = true) => {
-      if (showSpinner) setLoading(true);
-      setError(null);
-
-      const currentUserId = (await getCurrentSessionUser())?.id ?? null;
-      setUserId(currentUserId);
-
-      const now = new Date();
-      const feedFloor = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const eventsResult = await supabase
-        .from("events")
-        .select(
-          "id,creator_id,crew_id,title,description,category,location_name,starts_at,ends_at,cover_image_url,is_public,status",
-        )
-        .eq("status", "scheduled")
-        .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
-        .order("starts_at", { ascending: true });
-
-      if (eventsResult.error) {
-        setError(eventsResult.error.message || "Events could not be loaded.");
-        setLoading(false);
-        setRefreshing(false);
-        hasLoadedRef.current = true;
-        return;
-      }
-
-      const baseModels = ((eventsResult.data ?? []) as EventRow[])
-        .filter((event) => {
-          const lifecycle = getEventLifecycle(event);
-          return lifecycle === "scheduled" || lifecycle === "live";
-        })
-        .map((event) => ({
-          ...event,
-          attendeeCount: 0,
-          myResponse: null,
-        }));
-
-      setEvents(baseModels);
+    if (eventsResult.error) {
+      setError(true);
       setLoading(false);
       setRefreshing(false);
       hasLoadedRef.current = true;
+      return;
+    }
 
-      if (baseModels[0]) void loadHeroProfiles(baseModels[0].id);
-      else setHeroAttendees([]);
+    const baseModels = ((eventsResult.data ?? []) as EventRow[])
+      .filter((event) => {
+        const lifecycle = getEventLifecycle(event);
+        return lifecycle === 'scheduled' || lifecycle === 'live';
+      })
+      .map((event) => ({
+        ...event,
+        attendeeCount: 0,
+        myResponse: null,
+      }));
 
-      void supabase
-        .from("event_attendees")
-        .select("event_id,user_id,response,joined_at")
-        .then((attendanceResult) => {
-          if (attendanceResult.error) return;
+    setEvents(baseModels);
+    setLoading(false);
+    setRefreshing(false);
+    hasLoadedRef.current = true;
 
-          const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
-          const counts = new Map<string, number>();
-          const mine = new Map<string, "going" | "maybe">();
+    if (!baseModels.length) return;
 
-          for (const row of attendance) {
-            if (row.response === "going") {
-              counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1);
-            }
-            if (row.user_id === currentUserId) mine.set(row.event_id, row.response);
+    void supabase
+      .from('event_attendees')
+      .select('event_id,user_id,response,joined_at')
+      .in(
+        'event_id',
+        baseModels.map((event) => event.id),
+      )
+      .then((attendanceResult) => {
+        if (attendanceResult.error) return;
+
+        const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
+        const counts = new Map<string, number>();
+        const mine = new Map<string, 'going' | 'maybe'>();
+
+        for (const row of attendance) {
+          if (row.response === 'going') {
+            counts.set(row.event_id, (counts.get(row.event_id) ?? 0) + 1);
           }
+          if (row.user_id === currentUserId) {
+            mine.set(row.event_id, row.response);
+          }
+        }
 
-          setEvents((current) =>
-            current.map((event) => ({
-              ...event,
-              attendeeCount: counts.get(event.id) ?? 0,
-              myResponse: mine.get(event.id) ?? null,
-            })),
-          );
-        });
-    },
-    [loadHeroProfiles],
-  );
+        setEvents((current) =>
+          current.map((event) => ({
+            ...event,
+            attendeeCount: counts.get(event.id) ?? 0,
+            myResponse: mine.get(event.id) ?? null,
+          })),
+        );
+      });
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -376,550 +266,376 @@ export default function CanonicalEventsScreen() {
     }, [load]),
   );
 
-  const hero = events[0] ?? null;
-  const upcoming = events.slice(1, 5);
-  const nearbyCount = events.filter((event) => {
-    const lifecycle = getEventLifecycle(event);
-    if (lifecycle === "live") return true;
-    const diff = new Date(event.starts_at).getTime() - Date.now();
-    return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
-  }).length;
-
-  const setGoing = useCallback(
-    async (event: EventCardModel) => {
-      if (!userId || busyEventId) return;
-      setBusyEventId(event.id);
-      setError(null);
-
-      const result =
-        event.myResponse === "going"
-          ? await supabase
-              .from("event_attendees")
-              .delete()
-              .eq("event_id", event.id)
-              .eq("user_id", userId)
-          : event.myResponse
-            ? await supabase
-                .from("event_attendees")
-                .update({ response: "going" })
-                .eq("event_id", event.id)
-                .eq("user_id", userId)
-            : await supabase.from("event_attendees").insert({
-                event_id: event.id,
-                user_id: userId,
-                response: "going",
-              });
-
-      if (result.error) setError(result.error.message);
-      else await load(false);
-      setBusyEventId(null);
-    },
-    [busyEventId, load, userId],
+  const thisWeekCount = useMemo(
+    () =>
+      events.filter((event) => {
+        if (getEventLifecycle(event) === 'live') return true;
+        const diff = new Date(event.starts_at).getTime() - Date.now();
+        return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+      }).length,
+    [events],
   );
 
-  const content = useMemo(() => {
+  const liveCount = useMemo(
+    () => events.filter((event) => getEventLifecycle(event) === 'live').length,
+    [events],
+  );
+
+  const renderEmptyState = () => {
     if (loading) {
       return (
-        <View style={styles.stateCard}>
+        <View style={styles.state}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.stateText}>Loading events…</Text>
         </View>
       );
     }
 
-    if (error && !hero) {
+    if (error) {
       return (
-        <View style={styles.stateCard}>
-          <Ionicons name="cloud-offline-outline" size={38} color={colors.primary} />
+        <View style={styles.state}>
+          <Ionicons
+            name="cloud-offline-outline"
+            size={30}
+            color={colors.textMuted}
+          />
           <Text style={styles.stateTitle}>Events unavailable</Text>
-          <Text style={styles.stateText}>NOXA could not load the event feed.</Text>
-          <CanonicalPrimaryButton
-            label="TRY AGAIN"
+          <Text style={styles.stateText}>
+            Check your connection and try again.
+          </Text>
+          <NoxaButton
+            title="Try again"
+            size="md"
             onPress={() => void load()}
           />
         </View>
       );
     }
 
-    if (!hero) {
-      return (
-        <View style={styles.stateCard}>
-          <Ionicons name="calendar-outline" size={38} color={colors.primary} />
-          <Text style={styles.stateTitle}>Nothing scheduled yet</Text>
-          <Text style={styles.stateText}>
-            Create the first event or Car Meet in your city.
-          </Text>
-          <CanonicalPrimaryButton
-            label="CREATE EVENT"
-            onPress={() => router.push("/event-editor")}
-          />
-        </View>
-      );
-    }
-
     return (
-      <>
-        <HeroEvent
-          attendees={heroAttendees}
-          busy={busyEventId === hero.id}
-          event={hero}
-          onRsvp={setGoing}
+      <View style={styles.state}>
+        <Ionicons
+          name="calendar-outline"
+          size={30}
+          color={colors.textMuted}
         />
-
-        {upcoming.length ? (
-          <>
-            <CanonicalSectionHeader title="UPCOMING & LIVE" />
-            <View style={styles.eventList}>
-              {upcoming.map((event) => (
-                <EventListCard key={event.id} event={event} />
-              ))}
-            </View>
-          </>
-        ) : null}
-
-        <NearbyStrip count={nearbyCount} />
-
-        {events.length > 5 ? (
-          <>
-            <CanonicalSectionHeader title="MORE EVENTS" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.picksList}
-            >
-              {events.slice(5, 9).map((event) => (
-                <Pressable
-                  key={event.id}
-                  accessibilityRole="button"
-                  onPress={() =>
-                    router.push({
-                      pathname: "/event-details",
-                      params: { id: event.id },
-                    })
-                  }
-                  style={({ pressed }) => [
-                    styles.pickCard,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <CanonicalArtwork
-                    uri={event.cover_image_url}
-                    style={styles.pickArtwork}
-                    imageStyle={styles.pickArtworkImage}
-                    icon="flag-outline"
-                  >
-                    <View style={styles.pickShade} />
-                    <CanonicalPill label={urgency(event) === "LIVE" ? "LIVE" : eventType(event)} tone={urgency(event) === "LIVE" ? "accent" : "default"} />
-                    <View>
-                      <Text numberOfLines={2} style={styles.pickTitle}>
-                        {event.title.toUpperCase()}
-                      </Text>
-                      <Text style={styles.pickMeta}>
-                        {formatWeekday(event.starts_at)} ·{" "}
-                        {formatTime(event.starts_at)}
-                      </Text>
-                    </View>
-                  </CanonicalArtwork>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </>
-        ) : null}
-      </>
+        <Text style={styles.stateTitle}>No upcoming events</Text>
+        <Text style={styles.stateText}>
+          New events will appear here when they are scheduled.
+        </Text>
+        <NoxaButton
+          title="Create event"
+          size="md"
+          onPress={() => router.push('/event-editor')}
+        />
+      </View>
     );
-  }, [
-    busyEventId,
-    error,
-    events,
-    hero,
-    heroAttendees,
-    loading,
-    load,
-    nearbyCount,
-    setGoing,
-    upcoming,
-  ]);
+  };
 
   return (
     <NoxaScreen padded={false}>
-      <ScrollView
+      <FlatList
+        data={events}
+        keyExtractor={(event) => event.id}
+        renderItem={({ item }) => <EventRowItem event={item} />}
+        ItemSeparatorComponent={() => <View style={styles.divider} />}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            tintColor={colors.primary}
-            onRefresh={() => {
-              setRefreshing(true);
-              void load(false);
-            }}
-          />
-        }
-      >
-        <View style={styles.topBar}>
-          <View style={styles.heading}>
-            <Text style={styles.pageTitle}>EVENTS</Text>
-            <Text style={styles.pageSubtitle}>What is happening around you.</Text>
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          void load(false);
+        }}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: gutter },
+          !events.length && styles.contentEmpty,
+        ]}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.header}>
+              <Text style={styles.screenTitle}>Events</Text>
+              <View style={styles.headerActions}>
+                {events.length ? (
+                  <NoxaIconButton
+                    accessibilityLabel="Create event"
+                    accessibilityHint="Opens event creation"
+                    icon="add"
+                    variant="ghost"
+                    onPress={() => router.push('/event-editor')}
+                  />
+                ) : null}
+              </View>
+            </View>
+
+            <View style={styles.contextRow}>
+              <View style={styles.contextCopy}>
+                <Text style={styles.contextTitle}>Upcoming</Text>
+                <Text style={styles.contextMeta}>
+                  {thisWeekCount === 1
+                    ? '1 event in the next 7 days'
+                    : `${thisWeekCount} events in the next 7 days`}
+                </Text>
+              </View>
+              {liveCount ? (
+                <View style={styles.liveSummary}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveSummaryText}>
+                    {liveCount === 1 ? '1 live' : `${liveCount} live`}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {error && events.length ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading events"
+                onPress={() => void load(false)}
+                style={({ pressed }) => [
+                  styles.inlineError,
+                  pressed && styles.inlineErrorPressed,
+                ]}
+              >
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={16}
+                  color={colors.warning}
+                />
+                <Text style={styles.inlineErrorText}>
+                  Some event data may be out of date. Tap to retry.
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
-          <Pressable
-            accessibilityLabel="Create event"
-            accessibilityRole="button"
-            onPress={() => router.push("/event-editor")}
-            style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="add" size={17} color={colors.text} />
-            <Text style={styles.createText}>CREATE</Text>
-          </Pressable>
-        </View>
-
-        {error && hero ? (
-          <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={16}
-              color={colors.primaryHover}
-            />
-            <Text numberOfLines={2} style={styles.errorText}>
-              {error}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        {content}
-      </ScrollView>
+        }
+        ListEmptyComponent={renderEmptyState}
+      />
     </NoxaScreen>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: 136,
-    gap: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 128,
   },
-  pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
-  topBar: {
-    minHeight: 72,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
+  contentEmpty: {
+    flexGrow: 1,
+  },
+  header: {
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: spacing.md,
   },
-  heading: { flex: 1 },
-  pageTitle: {
+  screenTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h1,
-    lineHeight: typography.lineHeight.h1,
-    fontWeight: "900",
-    letterSpacing: typography.letterSpacing.tight,
+    ...typography.v2.section,
+    fontWeight: '700',
   },
-  pageSubtitle: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    lineHeight: typography.lineHeight.caption,
-  },
-  createButton: {
-    minHeight: 36,
-    marginTop: spacing.xxs,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xxs,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.button,
-    backgroundColor: colors.surface,
   },
-  createText: {
-    color: colors.text,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 0.6,
-  },
-  errorBanner: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
+  contextRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  errorText: {
+  contextCopy: {
     flex: 1,
+    minWidth: 0,
+  },
+  contextTitle: {
     color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  contextMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  liveSummary: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+  },
+  liveSummaryText: {
+    color: colors.primaryHover,
     fontSize: 12,
     lineHeight: 16,
+    fontWeight: '700',
   },
-  stateCard: {
-    minHeight: 280,
-    alignItems: "center",
-    justifyContent: "center",
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.divider,
+  },
+  eventRow: {
+    minHeight: 110,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
   },
-  stateTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: "900",
-    textAlign: "center",
+  eventRowPressed: {
+    opacity: 0.72,
   },
-  stateText: {
-    color: colors.textMuted,
-    fontSize: typography.body,
-    lineHeight: typography.lineHeight.body,
-    textAlign: "center",
-  },
-  heroCard: {
-    overflow: "hidden",
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.background,
-  },
-  heroArtwork: {
-    minHeight: 286,
-    justifyContent: "flex-end",
-    padding: spacing.md,
-    paddingTop: 84,
-  },
-  heroArtworkImage: { borderRadius: radius.hero - 1 },
-  heroShadeTop: {
-    ...StyleSheet.absoluteFillObject,
-    bottom: "48%",
-    backgroundColor: "rgba(0,0,0,0.12)",
-  },
-  heroShadeBottom: {
-    ...StyleSheet.absoluteFillObject,
-    top: "30%",
-    backgroundColor: "rgba(0,0,0,0.78)",
-  },
-  heroTopRow: {
-    position: "absolute",
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  pillRow: {
-    flex: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-    paddingRight: spacing.sm,
-  },
-  heroDate: {
-    width: 50,
-    height: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.md,
-    backgroundColor: colors.text,
-  },
-  heroDateDay: {
-    color: colors.background,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 23,
-    lineHeight: 25,
-    fontWeight: "900",
-  },
-  heroDateMonth: {
-    maxWidth: 42,
-    color: colors.primary,
-    fontSize: 8,
-    lineHeight: 10,
-    fontWeight: "900",
-    letterSpacing: 0.25,
-  },
-  heroCopy: { gap: spacing.sm },
-  heroTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 27,
-    lineHeight: 31,
-    fontWeight: "900",
-    letterSpacing: -0.4,
-  },
-  heroMeta: {
-    color: colors.primaryHover,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "900",
-    letterSpacing: 0.2,
-  },
-  heroSocialRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  heroSocialText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  heroFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  organizerLine: {
-    flex: 1,
-    color: colors.textMuted,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  eventList: { gap: spacing.sm },
-  eventCard: {
-    minHeight: 94,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-  },
-  dateTile: {
-    width: 50,
-    height: 62,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceRaised,
+  dateColumn: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dateDay: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: 23,
+    fontSize: 24,
     lineHeight: 26,
-    fontWeight: "900",
+    fontWeight: '700',
+    letterSpacing: -0.4,
   },
   dateMonth: {
-    color: colors.primaryHover,
-    fontSize: 8,
-    lineHeight: 11,
-    fontWeight: "900",
-    letterSpacing: 0.35,
-  },
-  eventAccent: {
-    width: 2,
-    alignSelf: "stretch",
-    borderRadius: 1,
-    backgroundColor: colors.primary,
-  },
-  eventAccentMeet: { backgroundColor: colors.primaryHover },
-  eventAccentDrive: { backgroundColor: colors.warning },
-  eventCopy: { flex: 1, gap: spacing.xxs },
-  eventTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "900",
-  },
-  eventMeta: {
+    maxWidth: 44,
+    marginTop: 1,
     color: colors.textMuted,
     fontSize: 11,
-    lineHeight: 15,
+    lineHeight: 14,
+    fontWeight: '700',
   },
-  eventBottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  eventCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xxs,
+  },
+  titleLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  goingText: {
-    color: colors.textSubtle,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  nearbyStrip: {
-    minHeight: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
-  },
-  nearbyAccent: {
-    width: 3,
-    alignSelf: "stretch",
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
-  nearbyCopy: { flex: 1 },
-  nearbyEyebrow: {
-    color: colors.primaryHover,
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-  nearbyText: {
+  eventTitle: {
+    flex: 1,
+    minWidth: 0,
     color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  liveStatus: {
+    minHeight: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.xs,
+  },
+  liveText: {
+    color: colors.primaryHover,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
+    letterSpacing: 0.35,
+  },
+  eventTime: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  locationLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  locationText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  metaLine: {
+    minHeight: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  eventType: {
+    color: colors.textSubtle,
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: "700",
   },
-  picksList: {
-    gap: spacing.md,
-    paddingRight: spacing.md,
+  metaDot: {
+    color: colors.textSubtle,
+    fontSize: 12,
+    lineHeight: 16,
   },
-  pickCard: {
-    width: 238,
-    height: 170,
-    overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+  attendanceText: {
+    color: colors.textSubtle,
+    fontSize: 12,
+    lineHeight: 16,
   },
-  pickArtwork: {
+  goingState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  goingStateText: {
+    color: colors.primaryHover,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  inlineError: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+  },
+  inlineErrorPressed: {
+    opacity: 0.7,
+  },
+  inlineErrorText: {
     flex: 1,
-    justifyContent: "space-between",
-    padding: spacing.sm,
-  },
-  pickArtworkImage: { borderRadius: radius.lg - 1 },
-  pickShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.48)",
-  },
-  pickTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 20,
-    lineHeight: 23,
-    fontWeight: "900",
-  },
-  pickMeta: {
     color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  state: {
+    flex: 1,
+    minHeight: 280,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xxl,
+  },
+  stateTitle: {
+    color: colors.text,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  stateText: {
+    maxWidth: 280,
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
 });

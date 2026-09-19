@@ -163,12 +163,12 @@ export async function calculateDriveRoute(
   return data;
 }
 
-export async function saveDriveRoute(
+export async function saveCalculatedDriveRoute(
   driveSessionId: string,
   start: { latitude: number; longitude: number; label: string },
   end: { latitude: number; longitude: number; label: string },
+  route: DriveRouteResult,
 ) {
-  const route = await calculateDriveRoute([start, end]);
   await rpc<number>('noxa_set_drive_route', {
     target_drive_session_id: driveSessionId,
     start_latitude: start.latitude,
@@ -182,6 +182,15 @@ export async function saveDriveRoute(
     calculated_duration_seconds: route.durationSeconds,
     calculated_route_provider: route.provider,
   });
+}
+
+export async function saveDriveRoute(
+  driveSessionId: string,
+  start: { latitude: number; longitude: number; label: string },
+  end: { latitude: number; longitude: number; label: string },
+) {
+  const route = await calculateDriveRoute([start, end]);
+  await saveCalculatedDriveRoute(driveSessionId, start, end, route);
   return route;
 }
 
@@ -248,39 +257,26 @@ export async function cancelDriveInvitation(invitationId: string) {
   });
 }
 
-export async function loadDriveInviteOptions(driveSessionId: string): Promise<DriveInviteOptions> {
-  const userId = await currentUserId();
-  const [outgoingResult, incomingResult, membershipsResult, participantsResult, invitationsResult] =
-    await Promise.all([
-      supabase.from('follows').select('following_id').eq('follower_id', userId),
-      supabase.from('follows').select('follower_id').eq('following_id', userId),
-      supabase.from('crew_members').select('crew_id').eq('user_id', userId),
-      supabase
-        .from('drive_participants')
-        .select('user_id')
-        .eq('drive_session_id', driveSessionId),
-      supabase
-        .from('drive_invitations')
-        .select('invited_user_id,status')
-        .eq('drive_session_id', driveSessionId)
-        .eq('status', 'invited'),
-    ]);
-  const error =
-    outgoingResult.error ??
-    incomingResult.error ??
-    membershipsResult.error ??
-    participantsResult.error ??
-    invitationsResult.error;
-  if (error) throw new Error(publicGroupDriveError(error));
+async function loadDriveInviteCandidatesForUser(
+  userId: string,
+  unavailableIds: Set<string>,
+): Promise<DriveInviteOptions> {
+  const [outgoingResult, incomingResult, membershipsResult] = await Promise.all([
+    supabase.from('follows').select('following_id').eq('follower_id', userId),
+    supabase.from('follows').select('follower_id').eq('following_id', userId),
+    supabase.from('crew_members').select('crew_id').eq('user_id', userId),
+  ]);
+  const relationshipError =
+    outgoingResult.error ?? incomingResult.error ?? membershipsResult.error;
+  if (relationshipError) throw new Error(publicGroupDriveError(relationshipError));
 
-  const outgoing = new Set((outgoingResult.data ?? []).map((row) => String(row.following_id)));
+  const outgoing = new Set(
+    (outgoingResult.data ?? []).map((row) => String(row.following_id)),
+  );
   const mutualIds = (incomingResult.data ?? [])
     .map((row) => String(row.follower_id))
     .filter((id) => outgoing.has(id));
-  const unavailableIds = new Set([
-    ...(participantsResult.data ?? []).map((row) => String(row.user_id)),
-    ...(invitationsResult.data ?? []).map((row) => String(row.invited_user_id)),
-  ]);
+
   const profilesResult = mutualIds.length
     ? await supabase
         .from('profiles')
@@ -304,6 +300,7 @@ export async function loadDriveInviteOptions(driveSessionId: string): Promise<Dr
   if (crewsResult.error || crewMembersResult.error) {
     throw new Error('Crews could not be loaded.');
   }
+
   const eligibleCrewMembers = new Map<string, string[]>();
   for (const row of crewMembersResult.data ?? []) {
     const crewId = String(row.crew_id);
@@ -313,6 +310,7 @@ export async function loadDriveInviteOptions(driveSessionId: string): Promise<Dr
     members.push(memberId);
     eligibleCrewMembers.set(crewId, members);
   }
+
   return {
     friends: (profilesResult.data ?? []).map((profile) => ({
       ...mapProfile(profile),
@@ -325,6 +323,36 @@ export async function loadDriveInviteOptions(driveSessionId: string): Promise<Dr
       eligibleUserIds: eligibleCrewMembers.get(String(crew.id)) ?? [],
     })),
   };
+}
+
+export async function loadDriveInviteCandidates(): Promise<DriveInviteOptions> {
+  const userId = await currentUserId();
+  return loadDriveInviteCandidatesForUser(userId, new Set());
+}
+
+export async function loadDriveInviteOptions(
+  driveSessionId: string,
+): Promise<DriveInviteOptions> {
+  const userId = await currentUserId();
+  const [participantsResult, invitationsResult] = await Promise.all([
+    supabase
+      .from('drive_participants')
+      .select('user_id')
+      .eq('drive_session_id', driveSessionId),
+    supabase
+      .from('drive_invitations')
+      .select('invited_user_id,status')
+      .eq('drive_session_id', driveSessionId)
+      .eq('status', 'invited'),
+  ]);
+  const driveError = participantsResult.error ?? invitationsResult.error;
+  if (driveError) throw new Error(publicGroupDriveError(driveError));
+
+  const unavailableIds = new Set([
+    ...(participantsResult.data ?? []).map((row) => String(row.user_id)),
+    ...(invitationsResult.data ?? []).map((row) => String(row.invited_user_id)),
+  ]);
+  return loadDriveInviteCandidatesForUser(userId, unavailableIds);
 }
 
 export async function loadGroupDriveDetails(driveSessionId: string): Promise<GroupDriveDetails> {

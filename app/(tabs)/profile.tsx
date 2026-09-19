@@ -1,27 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
-  Animated,
   Image,
-  ImageBackground,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  type ImageStyle,
 } from 'react-native';
 
-import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
+import { NoxaAvatar, NoxaIconButton, NoxaScreen } from '@/src/components/ui';
 import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
-import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
   id: string;
@@ -51,20 +48,6 @@ type ProfilePost = {
   created_at: string;
 };
 
-function useEntryAnimation(delay = 0, distance: number = animations.entranceDistance) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(distance)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: animations.entrance, delay, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: animations.entrance, delay, useNativeDriver: true }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return { opacity, transform: [{ translateY }] };
-}
-
 function getProfileInitials(displayName: string) {
   const initials = displayName
     .split(' ')
@@ -84,14 +67,14 @@ function formatUsername(username: string | null) {
 function TopBar() {
   return (
     <View style={styles.topBar}>
-      <Text style={styles.pageTitle}>PROFILE</Text>
-      <Pressable
+      <Text style={styles.pageTitle}>Profile</Text>
+      <NoxaIconButton
         accessibilityLabel="Profile settings"
-        accessibilityRole="button"
+        accessibilityHint="Opens settings"
+        icon="settings-outline"
+        variant="ghost"
         onPress={() => router.push('/settings')}
-        style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-        <Ionicons name="settings-outline" size={21} color={colors.text} />
-      </Pressable>
+      />
     </View>
   );
 }
@@ -101,19 +84,25 @@ function Identity({
   isLoading,
   errorMessage,
   onRetry,
+  profileId,
+  followersCount,
+  followingCount,
 }: {
   profile: CurrentUserProfile | null;
   isLoading: boolean;
   errorMessage: string | null;
   onRetry: () => void;
+  profileId: string | null;
+  followersCount: number;
+  followingCount: number;
 }) {
-  const displayName = profile?.display_name ?? 'NOXA Driver';
+  const displayName = profile?.display_name ?? 'NOXA driver';
   const username = formatUsername(profile?.username ?? null);
   const bio = profile?.bio?.trim() || 'Tell the community about yourself.';
   const location = formatProfileLocation(profile?.country_code, profile?.city);
 
   return (
-    <Animated.View style={[styles.identity, useEntryAnimation(40, 12)]}>
+    <View style={styles.identity}>
       <View style={styles.identityTop}>
         <View style={styles.avatarRing}>
           {profile?.avatar_url ? (
@@ -140,6 +129,25 @@ function Identity({
         </View>
       </View>
 
+      <View style={styles.identitySocialRow}>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!profileId}
+          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'followers' } }) : undefined}
+          style={({ pressed }) => [styles.identitySocialMetric, pressed && styles.pressed]}>
+          <Text style={styles.identitySocialValue}>{followersCount}</Text>
+          <Text style={styles.identitySocialLabel}>followers</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          disabled={!profileId}
+          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'following' } }) : undefined}
+          style={({ pressed }) => [styles.identitySocialMetric, pressed && styles.pressed]}>
+          <Text style={styles.identitySocialValue}>{followingCount}</Text>
+          <Text style={styles.identitySocialLabel}>following</Text>
+        </Pressable>
+      </View>
+
       <Text style={styles.bio}>{bio}</Text>
 
       <Pressable
@@ -147,197 +155,119 @@ function Identity({
         accessibilityRole="button"
         onPress={() => router.push('/edit-profile')}
         style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}>
-        <Text style={styles.editButtonText}>EDIT PROFILE</Text>
+        <Text style={styles.editButtonText}>Edit profile</Text>
       </Pressable>
 
       {errorMessage ? (
         <View style={styles.inlineErrorRow}>
           <Text style={styles.inlineError}>{errorMessage}</Text>
           <Pressable accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-            <Text style={styles.retryText}>RETRY</Text>
+            <Text style={styles.retryText}>Retry</Text>
           </Pressable>
         </View>
       ) : null}
-    </Animated.View>
+    </View>
   );
 }
 
-function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | null; vehiclesCount: number }) {
-  const animatedStyle = useEntryAnimation(90, 16);
-
+function GarageFeature({
+  vehicle,
+  vehiclesCount,
+}: {
+  vehicle: ProfileVehicle | null;
+  vehiclesCount: number;
+}) {
   if (!vehicle) {
     return (
-      <Animated.View style={[styles.section, animatedStyle]}>
-        <Text style={styles.sectionEyebrow}>YOUR GARAGE</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Garage</Text>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Add your first vehicle"
           onPress={() => router.push('/vehicle-picker')}
-          style={({ pressed }) => [styles.emptyGarage, pressed && styles.pressed]}>
-          <View style={styles.emptyGarageIcon}>
-            <Ionicons name="add" size={21} color={colors.primaryHover} />
+          style={({ pressed }) => [styles.emptyGarage, pressed && styles.pressed]}
+        >
+          <View style={styles.vehicleThumbFallback}>
+            <Ionicons name="add" size={22} color={colors.textMuted} />
           </View>
           <View style={styles.emptyGarageCopy}>
             <Text style={styles.emptyGarageTitle}>Add your first vehicle</Text>
-            <Text style={styles.emptyGarageText}>Make your automotive identity visible in NOXA.</Text>
+            <Text style={styles.emptyGarageText}>Add a vehicle to show it here.</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
         </Pressable>
-      </Animated.View>
+      </View>
     );
   }
 
+  const title = [vehicle.brand, vehicle.model].filter(Boolean).join(' ') || 'Vehicle';
   const details = [
     vehicle.year ? String(vehicle.year) : null,
     vehicle.horsepower === null ? null : `${vehicle.horsepower} HP`,
     vehicle.color,
-  ].filter(Boolean).join(' · ');
-
-  const content = (
-    <>
-      <View style={styles.vehicleShade} />
-      <View style={styles.vehicleTopRow}>
-        <View style={styles.vehicleTypeBadge}>
-          <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={14} color={colors.primaryHover} />
-          <Text style={styles.vehicleTypeText}>{vehicle.vehicle_type === 'motorcycle' ? 'MOTORCYCLE' : 'CAR'}</Text>
-        </View>
-        <Text style={styles.vehicleCount}>{vehicle.is_primary ? 'PRIMARY' : vehiclesCount === 1 ? '1 VEHICLE' : `${vehiclesCount} VEHICLES`}</Text>
-      </View>
-      <View style={styles.vehicleCopy}>
-        <Text numberOfLines={1} style={styles.vehicleTitle}>{vehicle.brand}</Text>
-        <Text numberOfLines={1} style={styles.vehicleModel}>{vehicle.model || 'Vehicle'}</Text>
-        {details ? <Text numberOfLines={1} style={styles.vehicleMeta}>{details}</Text> : null}
-      </View>
-    </>
-  );
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <Animated.View style={[styles.section, animatedStyle]}>
+    <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionEyebrow}>YOUR GARAGE</Text>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/garage')}>
-          <Text style={styles.sectionLink}>VIEW ALL</Text>
+        <Text style={styles.sectionTitle}>Garage</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="View all vehicles"
+          onPress={() => router.push('/(tabs)/garage')}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text style={styles.sectionLink}>
+            {vehiclesCount === 1 ? '1 vehicle' : `${vehiclesCount} vehicles`}
+          </Text>
         </Pressable>
       </View>
+
       <Pressable
-        accessibilityLabel={`Open ${vehicle.brand} ${vehicle.model || ''}`.trim()}
+        accessibilityLabel={`Open ${title}`}
         accessibilityRole="button"
-        onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
-        style={({ pressed }) => [
-          styles.vehicleCard,
-          !vehicle.cover_image_url && styles.vehicleCardNoImage,
-          pressed && styles.pressed,
-        ]}>
+        onPress={() =>
+          router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })
+        }
+        style={({ pressed }) => [styles.vehicleRow, pressed && styles.pressed]}
+      >
         {vehicle.cover_image_url ? (
-          <ImageBackground
+          <Image
             source={{ uri: vehicle.cover_image_url }}
-            resizeMode="cover"
-            style={styles.vehicleArtwork}
-            imageStyle={styles.vehicleArtworkRadius as ImageStyle}>
-            {content}
-          </ImageBackground>
+            style={styles.vehicleThumb}
+          />
         ) : (
-          <View style={[styles.vehicleArtwork, styles.vehicleFallback]}>
-            <View style={styles.vehicleFallbackVisual}>
-              <VehicleTypeIcon vehicleType={vehicle.vehicle_type} size={34} color={colors.textMuted} />
-              <Text style={styles.vehicleFallbackLabel}>NO PHOTO</Text>
-            </View>
-            {content}
+          <View style={[styles.vehicleThumb, styles.vehicleThumbFallback]}>
+            <VehicleTypeIcon
+              vehicleType={vehicle.vehicle_type}
+              size={28}
+              color={colors.textMuted}
+            />
           </View>
         )}
+        <View style={styles.vehicleRowCopy}>
+          <View style={styles.vehicleTitleLine}>
+            <Text numberOfLines={1} style={styles.vehicleTitle}>{title}</Text>
+            {vehicle.is_primary ? (
+              <Text style={styles.primaryVehicleState}>Primary</Text>
+            ) : null}
+          </View>
+          {details ? <Text numberOfLines={1} style={styles.vehicleMeta}>{details}</Text> : null}
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
       </Pressable>
-    </Animated.View>
-  );
-}
-
-function NoxaContext({ vehiclesCount }: { vehiclesCount: number }) {
-  const rows = [
-    {
-      key: 'garage',
-      label: 'Garage',
-      caption: vehiclesCount === 1 ? '1 vehicle' : `${vehiclesCount} vehicles`,
-      icon: 'car-sport-outline' as const,
-      onPress: () => router.push('/(tabs)/garage'),
-    },
-    {
-      key: 'crews',
-      label: 'Crews',
-      caption: 'Your automotive community',
-      icon: 'people-outline' as const,
-      onPress: () => router.push('/(tabs)/crews'),
-    },
-    {
-      key: 'events',
-      label: 'Events',
-      caption: 'Meets and upcoming activity',
-      icon: 'calendar-outline' as const,
-      onPress: () => router.push('/(tabs)/events'),
-    },
-  ];
-
-  return (
-    <Animated.View style={[styles.section, useEntryAnimation(130)]}>
-      <Text style={styles.sectionEyebrow}>YOUR NOXA</Text>
-      <View style={styles.contextList}>
-        {rows.map((row, index) => (
-          <Pressable
-            key={row.key}
-            accessibilityRole="button"
-            onPress={row.onPress}
-            style={({ pressed }) => [styles.contextRow, index < rows.length - 1 && styles.rowDivider, pressed && styles.pressed]}>
-            <View style={styles.contextIcon}><Ionicons name={row.icon} size={20} color={colors.text} /></View>
-            <View style={styles.contextCopy}>
-              <Text style={styles.contextLabel}>{row.label}</Text>
-              <Text style={styles.contextCaption}>{row.caption}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
-          </Pressable>
-        ))}
-      </View>
-    </Animated.View>
-  );
-}
-
-function SocialContext({
-  profileId,
-  followersCount,
-  followingCount,
-}: {
-  profileId: string | null;
-  followersCount: number;
-  followingCount: number;
-}) {
-  return (
-    <Animated.View style={[styles.section, useEntryAnimation(165)]}>
-      <Text style={styles.sectionEyebrow}>COMMUNITY</Text>
-      <View style={styles.socialRow}>
-        <Pressable
-          accessibilityRole="button"
-          disabled={!profileId}
-          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'followers' } }) : undefined}
-          style={({ pressed }) => [styles.socialMetric, pressed && styles.pressed]}>
-          <Text style={styles.socialValue}>{followersCount}</Text>
-          <Text style={styles.socialLabel}>Followers</Text>
-        </Pressable>
-        <View style={styles.socialDivider} />
-        <Pressable
-          accessibilityRole="button"
-          disabled={!profileId}
-          onPress={profileId ? () => router.push({ pathname: '/social-list', params: { userId: profileId, mode: 'following' } }) : undefined}
-          style={({ pressed }) => [styles.socialMetric, pressed && styles.pressed]}>
-          <Text style={styles.socialValue}>{followingCount}</Text>
-          <Text style={styles.socialLabel}>Following</Text>
-        </Pressable>
-      </View>
-    </Animated.View>
+    </View>
   );
 }
 
 function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: boolean }) {
   return (
-    <Animated.View style={[styles.section, useEntryAnimation(195)]}>
+    <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <View>
-          <Text style={styles.sectionEyebrow}>MOMENTS</Text>
+          <Text style={styles.sectionTitle}>Moments</Text>
           <Text style={styles.sectionCaption}>{posts.length === 1 ? '1 shared moment' : `${posts.length} shared moments`}</Text>
         </View>
         <Pressable accessibilityLabel="Create post" accessibilityRole="button" onPress={() => router.push('/post-editor')}>
@@ -367,20 +297,15 @@ function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: b
           <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
         </Pressable>
       )}
-    </Animated.View>
+    </View>
   );
 }
 
 function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; onSignOut: () => void }) {
   return (
-    <Animated.View style={[styles.section, useEntryAnimation(225)]}>
-      <Text style={styles.sectionEyebrow}>ACCOUNT</Text>
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Account</Text>
       <View style={styles.contextList}>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={({ pressed }) => [styles.contextRow, styles.rowDivider, pressed && styles.pressed]}>
-          <View style={styles.contextIcon}><Ionicons name="settings-outline" size={20} color={colors.text} /></View>
-          <Text style={[styles.contextLabel, styles.flexLabel]}>Settings</Text>
-          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
-        </Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.push('/notifications')} style={({ pressed }) => [styles.contextRow, styles.rowDivider, pressed && styles.pressed]}>
           <View style={styles.contextIcon}><Ionicons name="notifications-outline" size={20} color={colors.text} /></View>
           <Text style={[styles.contextLabel, styles.flexLabel]}>Notifications</Text>
@@ -395,7 +320,7 @@ function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; on
           <Text style={styles.logoutText}>{isSigningOut ? 'Logging out…' : 'Log Out'}</Text>
         </Pressable>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -524,10 +449,16 @@ export default function ProfileScreen() {
     <NoxaScreen padded={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <TopBar />
-        <Identity profile={profileData} isLoading={isProfileLoading} errorMessage={profileError} onRetry={loadProfile} />
+        <Identity
+          profile={profileData}
+          isLoading={isProfileLoading}
+          errorMessage={profileError}
+          onRetry={loadProfile}
+          profileId={profileData?.id ?? null}
+          followersCount={followersCount}
+          followingCount={followingCount}
+        />
         <GarageFeature vehicle={featuredVehicle} vehiclesCount={vehiclesCount} />
-        <NoxaContext vehiclesCount={vehiclesCount} />
-        <SocialContext profileId={profileData?.id ?? null} followersCount={followersCount} followingCount={followingCount} />
         <ProfilePosts posts={posts} isLoading={isProfileLoading} />
         <AccountActions isSigningOut={isSigningOut} onSignOut={confirmSignOut} />
       </ScrollView>
@@ -538,14 +469,14 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: 144,
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
-  pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.987 }] },
+  pressed: { opacity: 0.72 },
   disabled: { opacity: 0.45 },
   topBar: {
-    minHeight: 48,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -553,128 +484,305 @@ const styles = StyleSheet.create({
   pageTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSoft,
+    ...typography.v2.section,
+    fontWeight: '700',
   },
   identity: { gap: spacing.md },
-  identityTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  identityTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   avatarRing: {
-    width: 88,
-    height: 88,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
   },
-  avatarImage: { width: 82, height: 82, borderRadius: radius.pill },
+  avatarImage: { width: 72, height: 72, borderRadius: radius.pill },
   identityNames: { flex: 1, minWidth: 0 },
   name: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    fontWeight: '900',
-    lineHeight: typography.lineHeight.h2,
+    ...typography.v2.section,
+    fontWeight: '700',
   },
-  username: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  locationRow: { marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.xxs },
+  username: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  locationRow: {
+    marginTop: spacing.xxs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
   locationFlag: { fontSize: 14, lineHeight: 16 },
-  location: { flexShrink: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  bio: { color: colors.text, fontSize: 13, fontWeight: '600', lineHeight: 20 },
+  location: {
+    flexShrink: 1,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  identitySocialRow: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  identitySocialMetric: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.xxs,
+  },
+  identitySocialValue: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  identitySocialLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  bio: { color: colors.text, ...typography.v2.body },
   editButton: {
-    minHeight: 42,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.button,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
   },
-  editButtonText: { color: colors.text, fontSize: 10, fontWeight: '900', letterSpacing: 0.75 },
-  inlineErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  inlineError: { flex: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  retryButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.button, backgroundColor: colors.primarySubtle },
-  retryText: { color: colors.primaryHover, fontSize: 9, fontWeight: '900' },
-  section: { gap: spacing.sm },
-  sectionEyebrow: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  sectionLink: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  sectionCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
-  vehicleCard: {
-    height: 224,
-    overflow: 'hidden',
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+  editButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
   },
-  vehicleCardNoImage: {
-    height: 166,
-    borderRadius: radius.xl,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  vehicleArtwork: { flex: 1, justifyContent: 'flex-end' },
-  vehicleArtworkRadius: { borderRadius: radius.hero },
-  vehicleFallback: { backgroundColor: colors.surfaceSoft },
-  vehicleFallbackVisual: {
-    position: 'absolute',
-    top: 48,
-    right: spacing.md,
+  inlineErrorRow: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    opacity: 0.55,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
   },
-  vehicleFallbackLabel: {
+  inlineError: {
+    flex: 1,
     color: colors.textMuted,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
   },
-  vehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.35)' },
-  vehicleTopRow: { position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  vehicleTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, minHeight: 30, borderRadius: radius.pill, backgroundColor: 'rgba(6,6,10,0.70)' },
-  vehicleTypeText: { color: colors.primaryHover, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
-  vehicleCount: { color: colors.text, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
-  vehicleCopy: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md },
-  vehicleTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, fontWeight: '900', textTransform: 'uppercase' },
-  vehicleModel: { marginTop: 2, color: colors.text, fontSize: typography.subtitle, fontWeight: '800' },
-  vehicleMeta: { marginTop: spacing.xs, color: 'rgba(240,240,244,0.70)', fontSize: typography.caption, fontWeight: '700' },
-  emptyGarage: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  emptyGarageIcon: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
+  retryButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  retryText: {
+    color: colors.primaryHover,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  section: { gap: spacing.sm },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  sectionTitle: {
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  sectionLink: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
+  sectionCaption: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  vehicleRow: {
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  vehicleThumb: {
+    width: 82,
+    height: 62,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSoft,
+  },
+  vehicleThumbFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vehicleRowCopy: { flex: 1, minWidth: 0, gap: 3 },
+  vehicleTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  vehicleTitle: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.text,
+    ...typography.v2.row,
+    fontWeight: '700',
+  },
+  primaryVehicleState: {
+    color: colors.primaryHover,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
+  },
+  vehicleMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  emptyGarage: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
   emptyGarageCopy: { flex: 1 },
-  emptyGarageTitle: { color: colors.text, fontSize: typography.body, fontWeight: '900' },
-  emptyGarageText: { marginTop: 2, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  contextList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  contextRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
-  contextIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
+  emptyGarageTitle: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
+  },
+  emptyGarageText: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  contextList: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  contextRow: {
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  rowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+  },
+  contextIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   contextCopy: { flex: 1, minWidth: 0 },
-  contextLabel: { color: colors.text, fontSize: typography.body, fontWeight: '800' },
-  contextCaption: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '700' },
+  contextLabel: {
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  contextCaption: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
   flexLabel: { flex: 1 },
-  socialRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  socialMetric: { flex: 1, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: spacing.xs },
-  socialDivider: { width: StyleSheet.hairlineWidth, height: 28, backgroundColor: colors.divider },
-  socialValue: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.subtitle, fontWeight: '900' },
-  socialLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '700' },
+  socialRow: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  socialMetric: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  socialDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 28,
+    backgroundColor: colors.divider,
+  },
+  socialValue: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '800',
+  },
+  socialLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '500',
+  },
   postGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  postTile: { width: '31.6%', aspectRatio: 1, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.surfaceSoft },
+  postTile: {
+    width: '31.6%',
+    aspectRatio: 1,
+    overflow: 'hidden',
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceSoft,
+  },
   postImage: { width: '100%', height: '100%' },
-  momentEmpty: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
-  mutedText: { flex: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
-  logoutIcon: { backgroundColor: colors.primarySubtle },
-  logoutText: { flex: 1, color: colors.primaryHover, fontSize: typography.body, fontWeight: '800' },
+  momentEmpty: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  mutedText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  logoutIcon: { backgroundColor: 'transparent' },
+  logoutText: {
+    flex: 1,
+    color: colors.primaryHover,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
 });

@@ -15,6 +15,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
+import type { DriveRouteResult } from "@/src/features/group-drive";
+import { MapContextSheet } from "@/src/features/map-context/MapContextSheet";
+import { MapGroupDriveFlow } from "@/src/features/map-context/MapGroupDriveFlow";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -91,7 +94,9 @@ type RouteResult = {
   coordinates: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  provider: string;
 };
+type MapDestination = LatLng & { label: string };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
 type MapDataRequestState = "loading" | "ready" | "error";
 type MapLens = "all" | "mine";
@@ -283,42 +288,43 @@ function EventCard({
   event,
   bottomOffset,
   onClose,
+  onHeightChange,
   onRoute,
 }: {
   event: EventMarkerRow;
   bottomOffset: number;
   onClose: () => void;
+  onHeightChange: (height: number) => void;
   onRoute: () => void;
 }) {
   const canRoute = hasValidCoordinates(event);
   return (
-    <View style={[styles.eventCard, { bottom: bottomOffset }]}>
+    <MapContextSheet
+      onDismiss={onClose}
+      onHeightChange={onHeightChange}
+      style={[styles.eventCard, { bottom: bottomOffset }]}
+    >
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
-          <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
+          <Text style={styles.cardKicker}>
+            {getEventLifecycle(event) === "live" ? "LIVE EVENT" : "UPCOMING EVENT"}
+          </Text>
           <Text style={styles.cardTitle} numberOfLines={2}>
             {event.title}
           </Text>
-          <Text style={styles.cardSubtitle}>
-            {formatEventTime(event.starts_at)}
-          </Text>
+          <Text style={styles.cardSubtitle}>{formatEventTime(event.starts_at)}</Text>
           <Text style={styles.cardLocation} numberOfLines={1}>
             {event.location_name ?? "Exact location selected"}
           </Text>
         </View>
-        <View style={styles.eventCardHeaderActions}>
-          <View style={styles.eventCardIcon}>
-            <Ionicons name="calendar-outline" size={18} color={colors.text} />
-          </View>
-          <NoxaIconButton
-            accessibilityLabel="Close event preview"
-            icon="close"
-            iconSize={18}
-            onPress={onClose}
-            size={40}
-            variant="ghost"
-          />
-        </View>
+        <NoxaIconButton
+          accessibilityLabel="Close event preview"
+          icon="close"
+          iconSize={18}
+          onPress={onClose}
+          size={40}
+          variant="ghost"
+        />
       </View>
       <View style={styles.eventActions}>
         <NoxaButton
@@ -330,20 +336,20 @@ function EventCard({
           }
           size="md"
           style={styles.eventDetailsButton}
-          title="View details"
+          title="Details"
           variant="ghost"
         />
         <NoxaButton
-          accessibilityLabel="Route to event"
+          accessibilityLabel="Drive to event"
           disabled={!canRoute}
           leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
           onPress={onRoute}
           size="md"
           style={styles.eventPrimaryButton}
-          title="Route"
+          title="Drive there"
         />
       </View>
-    </View>
+    </MapContextSheet>
   );
 }
 
@@ -357,6 +363,8 @@ function RouteCard({
   canFollow,
   onClose,
   onFollowToggle,
+  onGroupDrive,
+  onHeightChange,
   onRetry,
 }: {
   event: EventMarkerRow;
@@ -368,14 +376,55 @@ function RouteCard({
   canFollow: boolean;
   onClose: () => void;
   onFollowToggle: () => void;
+  onGroupDrive: () => void;
+  onHeightChange: (height: number) => void;
   onRetry: () => void;
 }) {
   const loading = status === "loading";
+
+  if (following && route) {
+    return (
+      <MapContextSheet
+        dismissible={false}
+        onHeightChange={onHeightChange}
+        style={[styles.routeCard, styles.routeCardDriving, { bottom: bottomOffset }]}
+      >
+        <View style={styles.drivingRow}>
+          <View style={styles.drivingIcon}>
+            <Ionicons name="navigate" size={18} color={colors.text} />
+          </View>
+          <View style={styles.routeTitleWrap}>
+            <Text style={styles.cardKicker}>DRIVING</Text>
+            <Text style={styles.routeTitle} numberOfLines={1}>
+              {event.title}
+            </Text>
+            <Text style={styles.routeStatusText}>
+              {formatDuration(route.durationSeconds)} · {formatDistance(route.distanceMeters)}
+            </Text>
+          </View>
+          <TouchableOpacity
+            accessibilityLabel="Exit navigation"
+            accessibilityRole="button"
+            activeOpacity={0.82}
+            onPress={onClose}
+            style={styles.routeEndButton}
+          >
+            <Text style={styles.routeEndText}>End</Text>
+          </TouchableOpacity>
+        </View>
+      </MapContextSheet>
+    );
+  }
+
   return (
-    <View style={[styles.routeCard, { bottom: bottomOffset }]}>
+    <MapContextSheet
+      onDismiss={onClose}
+      onHeightChange={onHeightChange}
+      style={[styles.routeCard, { bottom: bottomOffset }]}
+    >
       <View style={styles.routeHeader}>
         <View style={styles.routeTitleWrap}>
-          <Text style={styles.cardKicker}>NOXA route</Text>
+          <Text style={styles.cardKicker}>ROUTE</Text>
           <Text style={styles.routeTitle} numberOfLines={1}>
             {event.title}
           </Text>
@@ -392,47 +441,26 @@ function RouteCard({
       {loading ? (
         <View style={styles.routeStatusRow}>
           <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={styles.routeStatusText}>Building road route…</Text>
+          <Text style={styles.routeStatusText}>Building traffic-aware route…</Text>
         </View>
       ) : route ? (
-        <View style={styles.routeMetrics}>
-          <Text style={styles.routeMetric}>
-            {formatDistance(route.distanceMeters)}
-          </Text>
-          <Text style={styles.routeMetricMuted}>•</Text>
-          <Text style={styles.routeMetric}>
-            ~{formatDuration(route.durationSeconds)}
-          </Text>
+        <View style={styles.routeOptionCompact}>
+          <View>
+            <Text style={styles.routeOptionTitle}>Fastest</Text>
+            <Text style={styles.routeStatusText}>Traffic-aware route</Text>
+          </View>
+          <View style={styles.routeMetricsCompact}>
+            <Text style={styles.routeMetric}>{formatDuration(route.durationSeconds)}</Text>
+            <Text style={styles.routeMetricMuted}>·</Text>
+            <Text style={styles.routeMetric}>{formatDistance(route.distanceMeters)}</Text>
+            <Ionicons name="checkmark-circle" size={18} color={colors.primaryHover} />
+          </View>
         </View>
       ) : (
         <Text style={styles.routeStatusText}>
           {message ?? "Route unavailable. Keep exploring the NOXA map."}
         </Text>
       )}
-      {route && canFollow ? (
-        <TouchableOpacity
-          accessibilityLabel={
-            following ? "Stop following current location" : "Follow route"
-          }
-          accessibilityRole="button"
-          accessibilityState={{ selected: following }}
-          activeOpacity={0.82}
-          onPress={onFollowToggle}
-          style={[
-            styles.routeFollowButton,
-            following && styles.routeFollowButtonActive,
-          ]}
-        >
-          <Ionicons
-            name={following ? "navigate" : "navigate-outline"}
-            size={16}
-            color={following ? colors.text : colors.primaryHover}
-          />
-          <Text style={styles.routeFollowText}>
-            {following ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
-      ) : null}
       {status === "error" ? (
         <TouchableOpacity
           activeOpacity={0.82}
@@ -442,13 +470,83 @@ function RouteCard({
           <Text style={styles.routeRetryText}>Retry route</Text>
         </TouchableOpacity>
       ) : null}
-    </View>
+      {route && canFollow ? (
+        <View style={styles.routeActions}>
+          <NoxaButton
+            onPress={onGroupDrive}
+            size="md"
+            style={styles.eventDetailsButton}
+            title="Group Drive"
+            variant="ghost"
+          />
+          <NoxaButton
+            accessibilityLabel="Start navigation"
+            leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
+            onPress={onFollowToggle}
+            size="md"
+            style={styles.eventPrimaryButton}
+            title="Start"
+          />
+        </View>
+      ) : null}
+    </MapContextSheet>
+  );
+}
+
+function DriverCard({
+  bottomOffset,
+  driver,
+  onClose,
+  onHeightChange,
+}: {
+  bottomOffset: number;
+  driver: ActiveDriver;
+  onClose: () => void;
+  onHeightChange: (height: number) => void;
+}) {
+  return (
+    <MapContextSheet
+      onDismiss={onClose}
+      onHeightChange={onHeightChange}
+      style={[styles.driverCard, { bottom: bottomOffset }]}
+    >
+      <View style={styles.driverCardRow}>
+        <View style={styles.driverCardIcon}>
+          <Ionicons name="car-sport" size={18} color={colors.text} />
+        </View>
+        <View style={styles.driverCardCopy}>
+          <Text style={styles.cardKicker}>DRIVER</Text>
+          <Text numberOfLines={1} style={styles.driverCardTitle}>
+            {driverLabel(driver)}
+          </Text>
+        </View>
+        <NoxaIconButton
+          accessibilityLabel="Close driver preview"
+          icon="close"
+          iconSize={18}
+          onPress={onClose}
+          size={40}
+          variant="ghost"
+        />
+      </View>
+      <NoxaButton
+        fullWidth
+        onPress={() =>
+          router.push({
+            pathname: "/driver-profile/[id]",
+            params: { id: driver.user_id },
+          })
+        }
+        title="View profile"
+      />
+    </MapContextSheet>
   );
 }
 
 export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
+    groupDriveId?: string | string[];
     mapMode?: string | string[];
   }>();
   const insets = useSafeAreaInsets();
@@ -463,6 +561,17 @@ export default function LiveMapScreen() {
   const [selectedEvent, setSelectedEvent] = useState<EventMarkerRow | null>(
     null,
   );
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [groupDriveVisible, setGroupDriveVisible] = useState(false);
+  const [groupDriveStartInPlanner, setGroupDriveStartInPlanner] = useState(false);
+  const openedGroupDriveIdRef = useRef<string | null>(null);
+  const [groupDriveDestination, setGroupDriveDestination] =
+    useState<MapDestination | null>(null);
+  const [groupDriveRoute, setGroupDriveRoute] =
+    useState<DriveRouteResult | null>(null);
+  const [groupDriveMapSelection, setGroupDriveMapSelection] = useState(false);
+  const [mapCenter, setMapCenter] = useState<LatLng>(THESSALONIKI);
+  const [contextSheetHeight, setContextSheetHeight] = useState(0);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeStatus, setRouteStatus] = useState<RouteStatus>("idle");
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
@@ -518,13 +627,35 @@ export default function LiveMapScreen() {
   );
   const [mapLens] = useState<MapLens>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
+  const normalizedGroupDriveId = normalizeParam(params.groupDriveId);
   const normalizedMapMode = normalizeParam(params.mapMode);
+  const groupDriveId =
+    typeof normalizedGroupDriveId === "string" &&
+    uuidPattern.test(normalizedGroupDriveId)
+      ? normalizedGroupDriveId
+      : null;
   const focusEventId =
     typeof normalizedFocusEventId === "string" &&
     uuidPattern.test(normalizedFocusEventId)
       ? normalizedFocusEventId
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
+
+  useEffect(() => {
+    if (!groupDriveId) {
+      openedGroupDriveIdRef.current = null;
+      return;
+    }
+    if (openedGroupDriveIdRef.current === groupDriveId) return;
+    openedGroupDriveIdRef.current = groupDriveId;
+    setSelectedEvent(null);
+    setSelectedDriverId(null);
+    setGroupDriveStartInPlanner(false);
+    setGroupDriveDestination(null);
+    setGroupDriveRoute(null);
+    setGroupDriveVisible(true);
+  }, [groupDriveId]);
+
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
 
@@ -544,12 +675,16 @@ export default function LiveMapScreen() {
         edgePadding: {
           top: insets.top + 96,
           right: spacing.xl,
-          bottom: insets.bottom + TAB_BAR_HEIGHT + 190,
+          bottom:
+            insets.bottom +
+            TAB_BAR_HEIGHT +
+            FLOATING_GAP +
+            Math.max(190, contextSheetHeight + spacing.sm),
           left: spacing.xl,
         },
       });
     },
-    [insets.bottom, insets.top],
+    [contextSheetHeight, insets.bottom, insets.top],
   );
 
   const invalidateDriverLocation = useCallback(
@@ -1546,7 +1681,9 @@ export default function LiveMapScreen() {
           hasValidLatLng(point.latitude, point.longitude),
         ) &&
         Number.isFinite(data.distanceMeters) &&
-        Number.isFinite(data.durationSeconds)
+        Number.isFinite(data.durationSeconds) &&
+        typeof data.provider === "string" &&
+        data.provider.length > 0
       ) {
         nextRoute = data;
       } else {
@@ -1714,6 +1851,37 @@ export default function LiveMapScreen() {
     selectedEvent,
   ]);
 
+  useEffect(() => {
+    if (!contextSheetHeight || isRouteFollowing) return;
+    const origin = driverLocationRef.current;
+    if (!origin || !hasValidLatLng(origin.latitude, origin.longitude)) return;
+
+    if (groupDriveRoute && groupDriveDestination) {
+      fitRouteToMap(groupDriveRoute.coordinates, groupDriveDestination, origin);
+      return;
+    }
+
+    if (isRouteMode && route && hasValidCoordinates(selectedEvent)) {
+      fitRouteToMap(
+        route.coordinates,
+        {
+          latitude: selectedEvent.latitude,
+          longitude: selectedEvent.longitude,
+        },
+        origin,
+      );
+    }
+  }, [
+    contextSheetHeight,
+    fitRouteToMap,
+    groupDriveDestination,
+    groupDriveRoute,
+    isRouteFollowing,
+    isRouteMode,
+    route,
+    selectedEvent,
+  ]);
+
   const nearbyDrivers = useMemo(
     () =>
       driverLocation
@@ -1752,18 +1920,98 @@ export default function LiveMapScreen() {
       })),
     [events],
   );
-  const openDriverProfile = useCallback((driverId: string) => {
-    router.push({
-      pathname: "/driver-profile/[id]",
-      params: { id: driverId },
-    });
-  }, []);
+  const selectedDriver = useMemo(
+    () =>
+      selectedDriverId
+        ? activeDrivers.find((driver) => driver.user_id === selectedDriverId) ?? null
+        : null,
+    [activeDrivers, selectedDriverId],
+  );
+
+  const openDriverPreview = useCallback(
+    (driverId: string) => {
+      if (isRouteMode || groupDriveVisible) return;
+      const driver = activeDrivers.find((candidate) => candidate.user_id === driverId);
+      if (!driver) return;
+      setSelectedEvent(null);
+      setSelectedDriverId(driverId);
+      setIsCameraAwayFromUser(true);
+      animateTo(pointRegion(driver));
+    },
+    [activeDrivers, animateTo, groupDriveVisible, isRouteMode],
+  );
+
   const selectMapboxEvent = useCallback(
     (event: MapboxEvent) => {
+      if (groupDriveVisible) return;
+      if (isRouteMode && focusEventId && event.id !== focusEventId) return;
       const fullEvent = events.find((candidate) => candidate.id === event.id);
-      if (fullEvent) selectEvent(fullEvent);
+      if (fullEvent) {
+        setSelectedDriverId(null);
+        selectEvent(fullEvent);
+      }
     },
-    [events, selectEvent],
+    [events, focusEventId, groupDriveVisible, isRouteMode, selectEvent],
+  );
+
+  const openGroupDriveHub = useCallback(() => {
+    router.setParams({ groupDriveId: undefined });
+    openedGroupDriveIdRef.current = null;
+    setSelectedDriverId(null);
+    setGroupDriveStartInPlanner(false);
+    setGroupDriveDestination(null);
+    setGroupDriveRoute(null);
+    setGroupDriveVisible(true);
+  }, []);
+
+  const openEventGroupDrive = useCallback(() => {
+    if (!selectedEvent || !hasValidCoordinates(selectedEvent) || !route) return;
+    router.setParams({ groupDriveId: undefined });
+    openedGroupDriveIdRef.current = null;
+    setGroupDriveStartInPlanner(true);
+    setGroupDriveDestination({
+      latitude: selectedEvent.latitude,
+      longitude: selectedEvent.longitude,
+      label: selectedEvent.location_name?.trim() || selectedEvent.title,
+    });
+    setGroupDriveRoute({
+      geometry: {
+        type: "LineString",
+        coordinates: route.coordinates.map((point) => [
+          point.longitude,
+          point.latitude,
+        ]),
+      },
+      coordinates: route.coordinates,
+      distanceMeters: route.distanceMeters,
+      durationSeconds: route.durationSeconds,
+      provider: route.provider,
+    });
+    setGroupDriveVisible(true);
+  }, [route, selectedEvent]);
+
+  const previewGroupDriveRoute = useCallback(
+    (nextRoute: DriveRouteResult | null, destination: MapDestination | null) => {
+      setGroupDriveRoute(nextRoute);
+      if (
+        nextRoute &&
+        destination &&
+        driverLocationRef.current &&
+        hasValidLatLng(
+          driverLocationRef.current.latitude,
+          driverLocationRef.current.longitude,
+        )
+      ) {
+        requestAnimationFrame(() =>
+          fitRouteToMap(
+            nextRoute.coordinates,
+            destination,
+            driverLocationRef.current as LatLng,
+          ),
+        );
+      }
+    },
+    [fitRouteToMap],
   );
 
   const headerTop = insets.top + spacing.sm;
@@ -1812,11 +2060,14 @@ export default function LiveMapScreen() {
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
-  const controlBottom =
-    eventCardBottom +
-    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);
+  const mapRouteMode = isRouteMode || Boolean(groupDriveRoute);
+  const mapBottomContentInset =
+    eventCardBottom + Math.max(contextSheetHeight, spacing.sm) + spacing.sm;
+  const controlBottom = mapBottomContentInset;
   const showRecenter =
-    !isRouteFollowing && (!driverLocation || isCameraAwayFromUser);
+    !groupDriveMapSelection &&
+    !isRouteFollowing &&
+    (!driverLocation || isCameraAwayFromUser);
 
   return (
     <View style={styles.screen}>
@@ -1826,14 +2077,16 @@ export default function LiveMapScreen() {
         driverLocation={driverLocation}
         events={mapboxEvents}
         initialRegion={initialRegion}
-        isRouteMode={isRouteMode}
+        isRouteMode={mapRouteMode}
         followUserLocation={isRouteFollowing}
+        bottomContentInset={mapBottomContentInset}
         mapFilter="all"
         onFollowUserLocationChange={setIsRouteFollowing}
+        onMapCenterChange={setMapCenter}
         onUserPan={() => setIsCameraAwayFromUser(true)}
-        onDriverPress={openDriverProfile}
+        onDriverPress={openDriverPreview}
         onEventPress={selectMapboxEvent}
-        route={route}
+        route={groupDriveRoute ?? route}
         selectedEventId={selectedEvent?.id ?? null}
       />
 
@@ -1962,7 +2215,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!selectedEvent ? (
+        {!selectedEvent && !selectedDriver && !groupDriveVisible ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -1971,11 +2224,11 @@ export default function LiveMapScreen() {
             ]}
           >
             <NoxaIconButton
-              accessibilityHint="Open Group Drives"
+              accessibilityHint="Open Group Drives without leaving the map"
               accessibilityLabel="Group Drives"
               icon="navigate-outline"
               iconSize={19}
-              onPress={() => router.push("/group-drives")}
+              onPress={openGroupDriveHub}
               size={44}
               variant="overlay"
             />
@@ -2040,7 +2293,17 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {selectedEvent && isRouteMode ? (
+        {groupDriveMapSelection ? (
+          <View pointerEvents="none" style={styles.mapSelectionPin}>
+            <View style={styles.mapSelectionHalo} />
+            <View style={styles.mapSelectionHead}>
+              <Ionicons name="location" size={21} color={colors.text} />
+            </View>
+            <View style={styles.mapSelectionStem} />
+          </View>
+        ) : null}
+
+        {!groupDriveVisible && selectedEvent && isRouteMode ? (
           <RouteCard
             event={selectedEvent}
             route={route}
@@ -2051,16 +2314,60 @@ export default function LiveMapScreen() {
             canFollow={routeStatus === "ready" && Boolean(driverLocation)}
             onClose={closeRouteMode}
             onFollowToggle={toggleRouteFollow}
+            onGroupDrive={openEventGroupDrive}
+            onHeightChange={setContextSheetHeight}
             onRetry={retryRoute}
           />
-        ) : selectedEvent ? (
+        ) : !groupDriveVisible && selectedEvent ? (
           <EventCard
             event={selectedEvent}
             bottomOffset={eventCardBottom}
-            onClose={() => setSelectedEvent(null)}
+            onClose={() => {
+              setSelectedEvent(null);
+              setContextSheetHeight(0);
+            }}
+            onHeightChange={setContextSheetHeight}
             onRoute={() => routeToEvent(selectedEvent)}
           />
+        ) : !groupDriveVisible && selectedDriver ? (
+          <DriverCard
+            bottomOffset={eventCardBottom}
+            driver={selectedDriver}
+            onClose={() => {
+              setSelectedDriverId(null);
+              setContextSheetHeight(0);
+            }}
+            onHeightChange={setContextSheetHeight}
+          />
         ) : null}
+
+        <MapGroupDriveFlow
+          visible={groupDriveVisible}
+          bottomOffset={eventCardBottom}
+          currentLocation={driverLocation}
+          startInPlanner={groupDriveStartInPlanner}
+          mapCenter={mapCenter}
+          initialDestination={groupDriveDestination}
+          initialDriveId={groupDriveId}
+          initialRoute={groupDriveRoute}
+          onFocusPoint={(point) => {
+            setIsCameraAwayFromUser(true);
+            animateTo(pointRegion(point));
+          }}
+          onClose={() => {
+            router.setParams({ groupDriveId: undefined });
+            openedGroupDriveIdRef.current = null;
+            setGroupDriveVisible(false);
+            setGroupDriveStartInPlanner(false);
+            setGroupDriveDestination(null);
+            setGroupDriveRoute(null);
+            setGroupDriveMapSelection(false);
+            setContextSheetHeight(0);
+          }}
+          onHeightChange={setContextSheetHeight}
+          onMapSelectionChange={setGroupDriveMapSelection}
+          onPreviewRoute={previewGroupDriveRoute}
+        />
       </View>
 
       <Modal
@@ -2697,5 +3004,127 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.caption,
     fontWeight: "600",
+  },
+  routeCardDriving: {
+    paddingVertical: spacing.sm,
+  },
+  drivingRow: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  drivingIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  routeEndButton: {
+    minWidth: 54,
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.button,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+  },
+  routeEndText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  routeOptionCompact: {
+    minHeight: 66,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+  },
+  routeOptionTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  routeMetricsCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  routeActions: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    gap: spacing.xs,
+  },
+  driverCard: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    padding: spacing.lg,
+  },
+  driverCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  driverCardIcon: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  driverCardCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  driverCardTitle: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  mapSelectionPin: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: 44,
+    height: 58,
+    alignItems: "center",
+    marginLeft: -22,
+    marginTop: -52,
+  },
+  mapSelectionHalo: {
+    position: "absolute",
+    top: 2,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(200,16,46,0.20)",
+  },
+  mapSelectionHead: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  mapSelectionStem: {
+    width: 3,
+    height: 12,
+    marginTop: -2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
   },
 });
