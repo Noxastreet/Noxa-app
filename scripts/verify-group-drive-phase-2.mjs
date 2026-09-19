@@ -17,6 +17,7 @@ const expectedFiles = [
   'app/group-drives/schedule.tsx',
   'app/group-drives/review.tsx',
   'app/group-drives/[id].tsx',
+  'src/features/map-context/MapGroupDriveFlow.tsx',
   'app/group-drives/invitation/[id].tsx',
   'docs/security/NOXA_GROUP_DRIVE_PHASE_2_RUNBOOK.md',
 ];
@@ -62,19 +63,27 @@ if (fs.existsSync(path.join(root, 'src/features/group-drive/lobby.ts'))) {
 }
 
 if (fs.existsSync(path.join(root, 'app/group-drives/[id].tsx'))) {
-  const lobbyScreen = requireText('app/group-drives/[id].tsx', [
-    ['Lobby title missing', /GROUP DRIVE LOBBY/],
+  requireText('app/group-drives/[id].tsx', [
+    ['Legacy Lobby route must redirect to the Map tab', /pathname: "\/\(tabs\)"/],
+    ['Legacy Lobby route must preserve the drive id', /groupDriveId: driveSessionId/],
+  ]);
+}
+
+if (fs.existsSync(path.join(root, 'src/features/map-context/MapGroupDriveFlow.tsx'))) {
+  const lobbyCard = requireText('src/features/map-context/MapGroupDriveFlow.tsx', [
+    ['Contextual Lobby state missing', /\| "lobby"/],
     ['Ready-at-A action missing', /I'm at A · Ready/],
     ['Ready-at-A undo state missing', /Ready at A · tap to undo/],
-    ['host Start action missing', /title="Start Drive"/],
-    ['waiting-at-A start gate missing', /Waiting for .*drivers? at A/],
-    ['pending-invitation Start warning missing', /pending .*invitation.*cancelled when the drive starts/],
-    ['Lobby refresh missing', /setInterval\(\(\) => void refreshLobby\(\), 5000\)/],
-    ['cross-device context refresh missing', /snapshot\.sessionStatus !== current\.status[\s\S]*snapshot\.routeVersion !== current\.routeVersion/],
+    ['host Start action missing', /Start Group Drive/],
+    ['waiting-at-A start gate missing', /Waiting for .* at A/],
+    ['pending-invitation Start warning missing', /Starting the drive cancels pending invitations/],
+    ['Lobby refresh missing', /setInterval\(\(\) => void loadLobby\(lobbyDriveId\), 5000\)/],
+    ['cross-device realtime refresh missing', /subscribeToDriveLobbyStatus/],
+    ['foreground reconciliation missing', /AppState\.addEventListener\("change"/],
     ['Ready privacy copy missing', /Ready coordinates the Lobby only\. It never starts location sharing\./],
   ]);
-  if (/drive_location_state|startLocationUpdatesAsync|requestBackgroundPermissionsAsync/.test(lobbyScreen)) {
-    failures.push('Phase 2B screen must not contain precise-location runtime code');
+  if (/startGroupDriveLocationSession|startLocationUpdatesAsync|requestBackgroundPermissionsAsync/.test(lobbyCard)) {
+    failures.push('Phase 2B contextual Lobby must not start precise-location runtime code');
   }
 }
 
