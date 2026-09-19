@@ -546,6 +546,7 @@ function DriverCard({
 export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
+    groupDriveId?: string | string[];
     mapMode?: string | string[];
   }>();
   const insets = useSafeAreaInsets();
@@ -563,6 +564,7 @@ export default function LiveMapScreen() {
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [groupDriveVisible, setGroupDriveVisible] = useState(false);
   const [groupDriveStartInPlanner, setGroupDriveStartInPlanner] = useState(false);
+  const openedGroupDriveIdRef = useRef<string | null>(null);
   const [groupDriveDestination, setGroupDriveDestination] =
     useState<MapDestination | null>(null);
   const [groupDriveRoute, setGroupDriveRoute] =
@@ -625,13 +627,31 @@ export default function LiveMapScreen() {
   );
   const [mapLens] = useState<MapLens>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
+  const normalizedGroupDriveId = normalizeParam(params.groupDriveId);
   const normalizedMapMode = normalizeParam(params.mapMode);
+  const groupDriveId =
+    typeof normalizedGroupDriveId === "string" &&
+    uuidPattern.test(normalizedGroupDriveId)
+      ? normalizedGroupDriveId
+      : null;
   const focusEventId =
     typeof normalizedFocusEventId === "string" &&
     uuidPattern.test(normalizedFocusEventId)
       ? normalizedFocusEventId
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
+
+  useEffect(() => {
+    if (!groupDriveId || openedGroupDriveIdRef.current === groupDriveId) return;
+    openedGroupDriveIdRef.current = groupDriveId;
+    setSelectedEvent(null);
+    setSelectedDriverId(null);
+    setGroupDriveStartInPlanner(false);
+    setGroupDriveDestination(null);
+    setGroupDriveRoute(null);
+    setGroupDriveVisible(true);
+  }, [groupDriveId]);
+
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
 
@@ -2320,7 +2340,12 @@ export default function LiveMapScreen() {
           startInPlanner={groupDriveStartInPlanner}
           mapCenter={mapCenter}
           initialDestination={groupDriveDestination}
+          initialDriveId={groupDriveId}
           initialRoute={groupDriveRoute}
+          onFocusPoint={(point) => {
+            setIsCameraAwayFromUser(true);
+            animateTo(pointRegion(point));
+          }}
           onClose={() => {
             setGroupDriveVisible(false);
             setGroupDriveStartInPlanner(false);
