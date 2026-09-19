@@ -946,15 +946,53 @@ export function MapGroupDriveFlow({
   const renderDestination = () => (
     <>
       <Progress state="destination" />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.stepScroll}
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.question}>Where are you going?</Text>
+
+        <View style={styles.originRow}>
+          <View style={styles.selectionIcon}>
+            <Ionicons name="navigate" size={18} color={colors.success} />
+          </View>
+          <View style={styles.driveCopy}>
+            <Text style={styles.sectionLabel}>A · START</Text>
+            <Text style={styles.selectionValue}>
+              {currentLocation ? "Current location" : "Locating current position…"}
+            </Text>
+          </View>
+          <Ionicons
+            name={currentLocation ? "checkmark-circle" : "time-outline"}
+            size={19}
+            color={currentLocation ? colors.success : colors.textSubtle}
+          />
+        </View>
+
+        <View style={styles.searchBlock}>
+          <Text style={styles.sectionLabel}>B · DESTINATION</Text>
+          <MapPlaceSearch
+            proximity={currentLocation ?? mapCenter}
+            onSelect={(place: MapPlaceSelection) => {
+              setDestination(place);
+              setPickingDestination(false);
+              setRoute(null);
+              setError(null);
+              onPreviewRoute(null, null);
+              onFocusPoint(place);
+            }}
+          />
+        </View>
+
         {pickingDestination ? (
           <View style={styles.instruction}>
             <Ionicons name="move-outline" size={20} color={colors.primaryHover} />
             <View style={styles.driveCopy}>
               <Text style={styles.instructionTitle}>Move the map</Text>
               <Text style={styles.muted}>
-                Keep the pin over the destination, then use this point.
+                Or move the map and keep the pin over the destination.
               </Text>
             </View>
           </View>
@@ -964,7 +1002,7 @@ export function MapGroupDriveFlow({
               <Ionicons name="flag" size={18} color={colors.primaryHover} />
             </View>
             <View style={styles.driveCopy}>
-              <Text style={styles.sectionLabel}>DESTINATION</Text>
+              <Text style={styles.sectionLabel}>SELECTED</Text>
               <Text numberOfLines={2} style={styles.selectionValue}>
                 {destination.label}
               </Text>
@@ -977,16 +1015,17 @@ export function MapGroupDriveFlow({
                 onPreviewRoute(null, null);
               }}
             >
-              <Text style={styles.linkText}>Change</Text>
+              <Text style={styles.linkText}>Map</Text>
             </Pressable>
           </View>
         ) : null}
+
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       </ScrollView>
       <Footer
         backLabel="Cancel"
         busy={routeLoading}
-        disabled={!pickingDestination && !destination}
+        disabled={!currentLocation || (!pickingDestination && !destination)}
         onBack={backFromPlanner}
         onPrimary={() => {
           if (pickingDestination) void confirmMapCenter();
@@ -997,10 +1036,10 @@ export function MapGroupDriveFlow({
     </>
   );
 
-  const renderRoute = () => (
+  const renderRoute = () => (  const renderRoute = () => (
     <>
       <Progress state="route" />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.stepScroll} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.question}>Which route?</Text>
         {route ? (
           <View style={[styles.routeOption, styles.routeOptionSelected]}>
@@ -1033,7 +1072,7 @@ export function MapGroupDriveFlow({
   const renderPeople = () => (
     <>
       <Progress state="people" />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.stepScroll} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.question}>Who is coming?</Text>
         <Pressable
           accessibilityRole="radio"
@@ -1120,7 +1159,7 @@ export function MapGroupDriveFlow({
         onBack={backFromPlanner}
         onPrimary={() => {
           setError(null);
-          setState("departure");
+          goTo("departure");
         }}
         primaryLabel="Continue"
       />
@@ -1130,7 +1169,7 @@ export function MapGroupDriveFlow({
   const renderDeparture = () => (
     <>
       <Progress state="departure" />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.stepScroll} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.question}>When do you leave?</Text>
         <View accessibilityRole="radiogroup" style={styles.choiceStack}>
           <Pressable
@@ -1215,7 +1254,7 @@ export function MapGroupDriveFlow({
             return;
           }
           setError(null);
-          setState("review");
+          goTo("review");
         }}
         primaryLabel="Continue"
       />
@@ -1225,9 +1264,13 @@ export function MapGroupDriveFlow({
   const renderReview = () => (
     <>
       <Progress state="review" />
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.stepScroll} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.question}>Ready to drive?</Text>
         <View style={styles.reviewList}>
+          <View style={styles.reviewRow}>
+            <Text style={styles.reviewLabel}>Start</Text>
+            <Text style={styles.reviewValue}>Current location</Text>
+          </View>
           <View style={styles.reviewRow}>
             <Text style={styles.reviewLabel}>Destination</Text>
             <Text numberOfLines={2} style={styles.reviewValue}>
@@ -1260,7 +1303,7 @@ export function MapGroupDriveFlow({
           </View>
         </View>
         <Text style={styles.reviewNote}>
-          Creating the Group Drive opens the Lobby. Location sharing still starts only after the explicit Active Drive flow.
+          Create keeps you on this map. The Lobby opens in this same card; live location sharing still starts only after the explicit Active Drive flow.
         </Text>
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       </ScrollView>
@@ -1273,6 +1316,291 @@ export function MapGroupDriveFlow({
     </>
   );
 
+  const toggleLobbyReady = async () => {
+    if (!lobbyDrive) return;
+    const mine = lobbyDrive.participants.find(
+      (participant) => participant.userId === lobbyDrive.currentUserId,
+    );
+    if (
+      !mine ||
+      mine.role === "host" ||
+      mine.status !== "accepted" ||
+      !isPreActive(lobbyDrive.status)
+    ) {
+      return;
+    }
+    setLobbyWorking(true);
+    setLobbyError(null);
+    try {
+      await setDriveReady(lobbyDrive.id, !mine.readyAt);
+      await loadLobby(lobbyDrive.id);
+    } catch (readyError) {
+      setLobbyError(
+        readyError instanceof Error
+          ? readyError.message
+          : "Ready state could not be updated.",
+      );
+    } finally {
+      setLobbyWorking(false);
+    }
+  };
+
+  const startLobbyDrive = async () => {
+    if (!lobbyDrive) return;
+    setLobbyWorking(true);
+    setLobbyError(null);
+    try {
+      await startDrive(lobbyDrive.id);
+      onMapSelectionChange(false);
+      onClose();
+      router.replace({
+        pathname: "/group-drives/[id]/active",
+        params: { id: lobbyDrive.id },
+      });
+    } catch (startError) {
+      setLobbyError(
+        startError instanceof Error
+          ? startError.message
+          : "Group Drive could not be started.",
+      );
+    } finally {
+      setLobbyWorking(false);
+    }
+  };
+
+  const renderLobby = () => {
+    if (lobbyLoading && !lobbyDrive) {
+      return (
+        <>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.eyebrow}>GROUP DRIVE</Text>
+              <Text style={styles.sheetTitle}>Lobby</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Close Group Drive"
+              accessibilityRole="button"
+              onPress={closeFlow}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={19} color={colors.textMuted} />
+            </Pressable>
+          </View>
+          <View style={styles.lobbyLoading}>
+            <ActivityIndicator color={colors.primaryHover} />
+            <Text style={styles.muted}>Loading Lobby…</Text>
+          </View>
+        </>
+      );
+    }
+
+    if (!lobbyDrive) {
+      return (
+        <>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.eyebrow}>GROUP DRIVE</Text>
+              <Text style={styles.sheetTitle}>Lobby unavailable</Text>
+            </View>
+            <Pressable
+              accessibilityLabel="Close Group Drive"
+              accessibilityRole="button"
+              onPress={closeFlow}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={19} color={colors.textMuted} />
+            </Pressable>
+          </View>
+          <View style={styles.lobbyLoading}>
+            <Text accessibilityRole="alert" style={styles.error}>
+              {lobbyError ?? "This Group Drive is unavailable."}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => lobbyDriveId && void loadLobby(lobbyDriveId)}
+              style={styles.retryInline}
+            >
+              <Text style={styles.linkText}>Try again</Text>
+            </Pressable>
+          </View>
+        </>
+      );
+    }
+
+    const preActive = isPreActive(lobbyDrive.status);
+    const isHost = lobbyDrive.currentUserId === lobbyDrive.hostId;
+    const mine = lobbyDrive.participants.find(
+      (participant) => participant.userId === lobbyDrive.currentUserId,
+    );
+    const acceptedParticipants = lobbyDrive.participants.filter(
+      (participant) =>
+        participant.role === "participant" &&
+        participant.status === "accepted",
+    );
+    const readyCount = acceptedParticipants.filter(
+      (participant) => Boolean(participant.readyAt),
+    ).length;
+    const waitingCount = acceptedParticipants.length - readyCount;
+    const canStart =
+      isHost &&
+      preActive &&
+      lobbyDrive.routeVersion > 0 &&
+      acceptedParticipants.length > 0 &&
+      waitingCount === 0;
+    const canToggleReady =
+      !isHost && preActive && mine?.status === "accepted";
+    const isReady = Boolean(mine?.readyAt);
+    const start = lobbyDrive.stops.find((stop) => stop.kind === "start");
+    const end = lobbyDrive.stops.find((stop) => stop.kind === "end");
+
+    const hostPrimaryLabel =
+      acceptedParticipants.length === 0
+        ? "Invite a driver first"
+        : waitingCount > 0
+          ? `Waiting for ${waitingCount}`
+          : "Start Group Drive";
+
+    return (
+      <>
+        <View style={styles.header}>
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>LOBBY</Text>
+            <Text numberOfLines={1} style={styles.sheetTitle}>
+              {lobbyDrive.title}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Close Group Drive"
+            accessibilityRole="button"
+            onPress={closeFlow}
+            style={styles.closeButton}
+          >
+            <Ionicons name="close" size={19} color={colors.textMuted} />
+          </Pressable>
+        </View>
+
+        <ScrollView
+          style={styles.stepScroll}
+          contentContainerStyle={styles.body}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.lobbyStatusRow}>
+            <View>
+              <Text style={styles.sectionLabel}>UPCOMING</Text>
+              <Text style={styles.lobbyStatusValue}>
+                {acceptedParticipants.length === 0
+                  ? "Waiting for drivers"
+                  : `${readyCount} ready · ${waitingCount} waiting`}
+              </Text>
+            </View>
+            <Ionicons name="people-outline" size={20} color={colors.textMuted} />
+          </View>
+
+          <View style={styles.reviewList}>
+            <View style={styles.reviewRow}>
+              <Text style={styles.reviewLabel}>A · Start</Text>
+              <Text numberOfLines={1} style={styles.reviewValue}>
+                {start?.label?.trim() || "Current location"}
+              </Text>
+            </View>
+            <View style={styles.reviewRow}>
+              <Text style={styles.reviewLabel}>B · Destination</Text>
+              <Text numberOfLines={2} style={styles.reviewValue}>
+                {end?.label?.trim() || "Destination"}
+              </Text>
+            </View>
+            <View style={styles.reviewRow}>
+              <Text style={styles.reviewLabel}>Departure</Text>
+              <Text style={styles.reviewValue}>
+                {lobbyDrive.scheduledStartAt
+                  ? `${dateFormat.format(new Date(lobbyDrive.scheduledStartAt))} · ${timeFormat.format(new Date(lobbyDrive.scheduledStartAt))}`
+                  : "Leave when everyone is ready"}
+              </Text>
+            </View>
+            <View style={styles.reviewRow}>
+              <Text style={styles.reviewLabel}>Route</Text>
+              <Text style={styles.reviewValue}>
+                {lobbyDrive.routeDurationSeconds !== null &&
+                lobbyDrive.routeDistanceMeters !== null
+                  ? `${formatDuration(lobbyDrive.routeDurationSeconds)} · ${formatDistance(lobbyDrive.routeDistanceMeters)}`
+                  : "Fastest route"}
+              </Text>
+            </View>
+          </View>
+
+          <View>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionLabel}>PARTICIPANTS</Text>
+              <Text style={styles.sectionCount}>
+                {lobbyDrive.participants.length}
+              </Text>
+            </View>
+            <View style={styles.listSurface}>
+              {lobbyDrive.participants.map((participant) => (
+                <LobbyParticipantRow
+                  key={participant.userId}
+                  participant={participant}
+                  preActive={preActive}
+                />
+              ))}
+            </View>
+          </View>
+
+          {lobbyDrive.invitations.some(
+            (invitation) => invitation.status === "invited",
+          ) ? (
+            <Text style={styles.muted}>
+              {lobbyDrive.invitations.filter(
+                (invitation) => invitation.status === "invited",
+              ).length} pending invitation(s)
+            </Text>
+          ) : null}
+
+          {lobbyError ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {lobbyError}
+            </Text>
+          ) : null}
+        </ScrollView>
+
+        <Footer
+          backLabel="Upcoming"
+          busy={lobbyWorking}
+          disabled={isHost ? !canStart : !canToggleReady}
+          onBack={() => {
+            onPreviewRoute(null, null);
+            setLobbyDriveId(null);
+            setLobbyDrive(null);
+            goTo("hub", -1);
+          }}
+          onPrimary={() => {
+            if (isHost) void startLobbyDrive();
+            else void toggleLobbyReady();
+          }}
+          primaryLabel={
+            isHost
+              ? hostPrimaryLabel
+              : canToggleReady
+                ? isReady
+                  ? "Not ready"
+                  : "I'm ready"
+                : "Waiting for host"
+          }
+        />
+      </>
+    );
+  };
+
+  const expandedSheetHeight = Math.min(610, Math.max(480, height * 0.64));
+  const stateEntering =
+    transitionDirection > 0
+      ? FadeInRight.duration(190)
+      : FadeInLeft.duration(190);
+  const stateExiting =
+    transitionDirection > 0
+      ? FadeOutLeft.duration(145)
+      : FadeOutRight.duration(145);
+
   return (
     <>
       <MapContextSheet
@@ -1281,20 +1609,36 @@ export function MapGroupDriveFlow({
         onHeightChange={onHeightChange}
         style={[
           styles.sheet,
-          { bottom: bottomOffset, maxHeight: Math.max(420, height * 0.72) },
+          {
+            bottom: bottomOffset,
+            maxHeight: Math.max(420, height * 0.72),
+          },
+          state !== "hub" && { height: expandedSheetHeight },
         ]}
       >
-        {state === "hub"
-          ? renderHub()
-          : state === "destination"
-            ? renderDestination()
-            : state === "route"
-              ? renderRoute()
-              : state === "people"
-                ? renderPeople()
-                : state === "departure"
-                  ? renderDeparture()
-                  : renderReview()}
+        <Animated.View
+          entering={stateEntering}
+          exiting={stateExiting}
+          key={state}
+          style={[
+            styles.stateContainer,
+            state !== "hub" && styles.stateContainerExpanded,
+          ]}
+        >
+          {state === "hub"
+            ? renderHub()
+            : state === "destination"
+              ? renderDestination()
+              : state === "route"
+                ? renderRoute()
+                : state === "people"
+                  ? renderPeople()
+                  : state === "departure"
+                    ? renderDeparture()
+                    : state === "review"
+                      ? renderReview()
+                      : renderLobby()}
+        </Animated.View>
       </MapContextSheet>
 
       <Modal
@@ -1338,6 +1682,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
+  stateContainer: { minHeight: 0 },
+  stateContainerExpanded: { flex: 1 },
+  stepScroll: { flex: 1 },
+  headerCopy: { flex: 1, minWidth: 0 },
   header: {
     minHeight: 60,
     flexDirection: "row",
@@ -1464,6 +1812,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
+  originRow: {
+    minHeight: 68,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  searchBlock: { gap: spacing.xs },
   instruction: {
     flexDirection: "row",
     alignItems: "center",
@@ -1628,6 +1988,46 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   reviewNote: { color: colors.textMuted, fontSize: 11, lineHeight: 16 },
+  lobbyLoading: {
+    flex: 1,
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  lobbyStatusRow: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceSoft,
+  },
+  lobbyStatusValue: {
+    marginTop: 3,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionCount: {
+    color: colors.textSubtle,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  retryInline: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+  },
   footer: {
     flexDirection: "row",
     gap: spacing.sm,
