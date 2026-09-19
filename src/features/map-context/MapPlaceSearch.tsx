@@ -87,7 +87,7 @@ export function MapPlaceSearch({ proximity, onSelect }: Props) {
         language: "el,en",
         limit: "4",
       });
-      if (isValidCoordinate(proximity)) {
+      if (proximity && isValidCoordinate(proximity)) {
         params.set("proximity", `${proximity.longitude},${proximity.latitude}`);
       }
 
