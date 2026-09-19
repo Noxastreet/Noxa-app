@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   BackHandler,
   Modal,
   Platform,
@@ -639,6 +640,9 @@ export function MapGroupDriveFlow({
     if (!visible || state !== "lobby" || !lobbyDriveId) return undefined;
     void loadLobby(lobbyDriveId);
     const interval = setInterval(() => void loadLobby(lobbyDriveId), 5000);
+    const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") void loadLobby(lobbyDriveId);
+    });
     const unsubscribe = subscribeToDriveLobbyStatus(lobbyDriveId, (status) => {
       if (status === "active") {
         onMapSelectionChange(false);
@@ -653,6 +657,7 @@ export function MapGroupDriveFlow({
     });
     return () => {
       clearInterval(interval);
+      appStateSubscription.remove();
       unsubscribe();
     };
   }, [
@@ -1455,7 +1460,7 @@ export function MapGroupDriveFlow({
       acceptedParticipants.length === 0
         ? "Invite a driver first"
         : waitingCount > 0
-          ? `Waiting for ${waitingCount}`
+          ? `Waiting for ${waitingCount} at A`
           : "Start Group Drive";
 
     return (
@@ -1550,7 +1555,13 @@ export function MapGroupDriveFlow({
             <Text style={styles.muted}>
               {lobbyDrive.invitations.filter(
                 (invitation) => invitation.status === "invited",
-              ).length} pending invitation(s)
+              ).length} pending invitation(s). Starting the drive cancels pending invitations.
+            </Text>
+          ) : null}
+
+          {!isHost && preActive ? (
+            <Text style={styles.reviewNote}>
+              Ready coordinates the Lobby only. It never starts location sharing.
             </Text>
           ) : null}
 
@@ -1580,8 +1591,8 @@ export function MapGroupDriveFlow({
               ? hostPrimaryLabel
               : canToggleReady
                 ? isReady
-                  ? "Not ready"
-                  : "I'm ready"
+                  ? "Ready at A · tap to undo"
+                  : "I'm at A · Ready"
                 : "Waiting for host"
           }
         />
