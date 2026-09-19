@@ -2,6 +2,9 @@ import { type ReactNode, useMemo } from "react";
 import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  FadeInDown,
+  FadeOutDown,
+  LinearTransition,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -21,6 +24,9 @@ type Props = {
 
 const DISMISS_DISTANCE = 96;
 const DISMISS_VELOCITY = 900;
+const SHEET_LAYOUT = LinearTransition.springify()
+  .damping(24)
+  .stiffness(240);
 
 export function MapContextSheet({
   children,
@@ -70,6 +76,9 @@ export function MapContextSheet({
   return (
     <Animated.View
       accessibilityViewIsModal={false}
+      entering={FadeInDown.duration(180)}
+      exiting={FadeOutDown.duration(150)}
+      layout={SHEET_LAYOUT}
       onLayout={handleLayout}
       style={[styles.sheet, animatedStyle, style]}
     >
