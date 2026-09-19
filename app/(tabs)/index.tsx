@@ -642,7 +642,11 @@ export default function LiveMapScreen() {
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
 
   useEffect(() => {
-    if (!groupDriveId || openedGroupDriveIdRef.current === groupDriveId) return;
+    if (!groupDriveId) {
+      openedGroupDriveIdRef.current = null;
+      return;
+    }
+    if (openedGroupDriveIdRef.current === groupDriveId) return;
     openedGroupDriveIdRef.current = groupDriveId;
     setSelectedEvent(null);
     setSelectedDriverId(null);
@@ -1951,6 +1955,8 @@ export default function LiveMapScreen() {
   );
 
   const openGroupDriveHub = useCallback(() => {
+    router.setParams({ groupDriveId: undefined });
+    openedGroupDriveIdRef.current = null;
     setSelectedDriverId(null);
     setGroupDriveStartInPlanner(false);
     setGroupDriveDestination(null);
@@ -1960,6 +1966,8 @@ export default function LiveMapScreen() {
 
   const openEventGroupDrive = useCallback(() => {
     if (!selectedEvent || !hasValidCoordinates(selectedEvent) || !route) return;
+    router.setParams({ groupDriveId: undefined });
+    openedGroupDriveIdRef.current = null;
     setGroupDriveStartInPlanner(true);
     setGroupDriveDestination({
       latitude: selectedEvent.latitude,
@@ -2347,6 +2355,8 @@ export default function LiveMapScreen() {
             animateTo(pointRegion(point));
           }}
           onClose={() => {
+            router.setParams({ groupDriveId: undefined });
+            openedGroupDriveIdRef.current = null;
             setGroupDriveVisible(false);
             setGroupDriveStartInPlanner(false);
             setGroupDriveDestination(null);
