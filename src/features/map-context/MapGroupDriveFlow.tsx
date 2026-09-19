@@ -15,6 +15,12 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Animated, {
+  FadeInLeft,
+  FadeInRight,
+  FadeOutLeft,
+  FadeOutRight,
+} from "react-native-reanimated";
 
 import { NoxaAvatar } from "@/src/components/ui";
 import {
@@ -24,20 +30,35 @@ import {
   inviteUsersToDrive,
   listMyGroupDrives,
   loadDriveInviteCandidates,
+  loadDriveLobbyReadiness,
+  loadGroupDriveDetails,
   saveCalculatedDriveRoute,
+  setDriveReady,
+  startDrive,
+  subscribeToDriveLobbyStatus,
   updateDriveDetails,
   type DriveInviteCrew,
   type DriveInviteFriend,
+  type DriveParticipant,
   type DriveRouteResult,
+  type GroupDriveDetails,
   type GroupDriveListItem,
 } from "@/src/features/group-drive";
 import type { LatLng } from "@/src/features/mapbox/types";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
 import { MapContextSheet } from "./MapContextSheet";
+import { MapPlaceSearch, type MapPlaceSelection } from "./MapPlaceSearch";
 
 type Destination = LatLng & { label: string };
-type FlowState = "hub" | "destination" | "route" | "people" | "departure" | "review";
+type FlowState =
+  | "hub"
+  | "destination"
+  | "route"
+  | "people"
+  | "departure"
+  | "review"
+  | "lobby";
 type PickerMode = "date" | "time";
 type DepartureMode = "now" | "scheduled";
 
@@ -48,14 +69,16 @@ type Props = {
   startInPlanner?: boolean;
   mapCenter: LatLng;
   initialDestination?: Destination | null;
+  initialDriveId?: string | null;
   initialRoute?: DriveRouteResult | null;
   onClose: () => void;
+  onFocusPoint: (point: LatLng) => void;
   onHeightChange?: (height: number) => void;
   onMapSelectionChange: (active: boolean) => void;
   onPreviewRoute: (route: DriveRouteResult | null, destination: Destination | null) => void;
 };
 
-const STEP_INDEX: Record<Exclude<FlowState, "hub">, number> = {
+const STEP_INDEX: Record<Exclude<FlowState, "hub" | "lobby">, number> = {
   destination: 1,
   route: 2,
   people: 3,
@@ -63,7 +86,7 @@ const STEP_INDEX: Record<Exclude<FlowState, "hub">, number> = {
   review: 5,
 };
 
-const STEP_LABEL: Record<Exclude<FlowState, "hub">, string> = {
+const STEP_LABEL: Record<Exclude<FlowState, "hub" | "lobby">, string> = {
   destination: "Where",
   route: "Route",
   people: "People",
@@ -131,7 +154,101 @@ function initials(name: string) {
   );
 }
 
-function Progress({ state }: { state: Exclude<FlowState, "hub"> }) {
+function isPreActive(status: GroupDriveDetails["status"]) {
+  return status === "draft" || status === "scheduled";
+}
+
+function mergeLobbyReadiness(
+  drive: GroupDriveDetails,
+  rows: Awaited<ReturnType<typeof loadDriveLobbyReadiness>>,
+) {
+  const readyByUser = new Map(rows.map((row) => [row.userId, row.readyAt]));
+  return {
+    ...drive,
+    participants: drive.participants.map((participant) => ({
+      ...participant,
+      readyAt: readyByUser.get(participant.userId) ?? null,
+    })),
+  };
+}
+
+function lobbyRoute(drive: GroupDriveDetails): {
+  route: DriveRouteResult;
+  destination: Destination;
+} | null {
+  const end = drive.stops.find((stop) => stop.kind === "end");
+  if (
+    !end ||
+    !drive.routeGeometry ||
+    drive.routeDistanceMeters === null ||
+    drive.routeDurationSeconds === null
+  ) {
+    return null;
+  }
+  return {
+    route: {
+      geometry: drive.routeGeometry,
+      coordinates: drive.routeGeometry.coordinates.map(([longitude, latitude]) => ({
+        latitude,
+        longitude,
+      })),
+      distanceMeters: drive.routeDistanceMeters,
+      durationSeconds: drive.routeDurationSeconds,
+      provider: drive.routeProvider ?? "mapbox",
+    },
+    destination: {
+      latitude: end.latitude,
+      longitude: end.longitude,
+      label: end.label?.trim() || "Destination",
+    },
+  };
+}
+
+function LobbyParticipantRow({
+  participant,
+  preActive,
+}: {
+  participant: DriveParticipant;
+  preActive: boolean;
+}) {
+  const name = participant.profile?.displayName ?? "NOXA driver";
+  const isHost = participant.role === "host";
+  const ready =
+    preActive &&
+    !isHost &&
+    participant.status === "accepted" &&
+    Boolean(participant.readyAt);
+  const meta = isHost
+    ? "Host"
+    : ready
+      ? "Ready"
+      : participant.status === "accepted"
+        ? "Waiting"
+        : participant.status;
+
+  return (
+    <View style={styles.personRow}>
+      <NoxaAvatar
+        imageUrl={participant.profile?.avatarUrl}
+        initials={initials(name)}
+        size={40}
+      />
+      <View style={styles.driveCopy}>
+        <Text numberOfLines={1} style={styles.personName}>{name}</Text>
+        <Text style={styles.personMeta}>{meta}</Text>
+      </View>
+      {isHost ? (
+        <Ionicons name="key-outline" size={17} color={colors.textMuted} />
+      ) : ready ? (
+        <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+      ) : (
+        <Ionicons name="time-outline" size={18} color={colors.textSubtle} />
+      )}
+    </View>
+  );
+}
+
+function Progress({ state }: { state: Exclude<FlowState, "hub" | "lobby"> }) {
   const current = STEP_INDEX[state];
   return (
     <View
@@ -340,14 +457,17 @@ export function MapGroupDriveFlow({
   startInPlanner = false,
   mapCenter,
   initialDestination = null,
+  initialDriveId = null,
   initialRoute = null,
   onClose,
+  onFocusPoint,
   onHeightChange,
   onMapSelectionChange,
   onPreviewRoute,
 }: Props) {
   const { height } = useWindowDimensions();
   const [state, setState] = useState<FlowState>("hub");
+  const [transitionDirection, setTransitionDirection] = useState<1 | -1>(1);
   const [drives, setDrives] = useState<GroupDriveListItem[]>([]);
   const [drivesLoading, setDrivesLoading] = useState(false);
   const [destination, setDestination] = useState<Destination | null>(initialDestination);
@@ -366,6 +486,11 @@ export function MapGroupDriveFlow({
   const [draftDate, setDraftDate] = useState(nextStart);
   const [saving, setSaving] = useState(false);
   const [createdDriveId, setCreatedDriveId] = useState<string | null>(null);
+  const [lobbyDriveId, setLobbyDriveId] = useState<string | null>(null);
+  const [lobbyDrive, setLobbyDrive] = useState<GroupDriveDetails | null>(null);
+  const [lobbyLoading, setLobbyLoading] = useState(false);
+  const [lobbyWorking, setLobbyWorking] = useState(false);
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const activeDrives = useMemo(
@@ -377,6 +502,11 @@ export function MapGroupDriveFlow({
   );
 
   const selectedPeopleCount = selectedFriends.size + selectedCrews.size;
+
+  const goTo = useCallback((next: FlowState, direction: 1 | -1 = 1) => {
+    setTransitionDirection(direction);
+    setState(next);
+  }, []);
 
   const resetPlanner = useCallback(
     (seed: Destination | null, seedRoute: DriveRouteResult | null = null) => {
@@ -391,6 +521,9 @@ export function MapGroupDriveFlow({
       setDepartureMode("now");
       setScheduledAt(nextStart());
       setCreatedDriveId(null);
+      setLobbyDriveId(null);
+      setLobbyDrive(null);
+      setLobbyError(null);
       setError(null);
       onPreviewRoute(seedRoute, seedRoute && seed ? seed : null);
     },
@@ -402,9 +535,15 @@ export function MapGroupDriveFlow({
       onMapSelectionChange(false);
       return;
     }
+    if (initialDriveId && state === "hub") {
+      setLobbyDriveId(initialDriveId);
+      setLobbyDrive(null);
+      goTo("lobby");
+      return;
+    }
     if (startInPlanner && initialDestination && state === "hub") {
       resetPlanner(initialDestination, initialRoute);
-      setState(initialRoute ? "people" : "destination");
+      goTo(initialRoute ? "people" : "destination");
       return;
     }
     if (state === "hub") {
@@ -422,7 +561,9 @@ export function MapGroupDriveFlow({
         .finally(() => setDrivesLoading(false));
     }
   }, [
+    goTo,
     initialDestination,
+    initialDriveId,
     initialRoute,
     onMapSelectionChange,
     resetPlanner,
@@ -465,6 +606,64 @@ export function MapGroupDriveFlow({
       .finally(() => setPeopleLoading(false));
   }, [peopleLoaded, state, visible]);
 
+  const loadLobby = useCallback(
+    async (driveId: string) => {
+      setLobbyLoading(true);
+      setLobbyError(null);
+      try {
+        let next = await loadGroupDriveDetails(driveId);
+        if (isPreActive(next.status)) {
+          const rows = await loadDriveLobbyReadiness(driveId);
+          next = mergeLobbyReadiness(next, rows);
+        }
+        setLobbyDrive(next);
+        const mapRoute = lobbyRoute(next);
+        if (mapRoute) {
+          onPreviewRoute(mapRoute.route, mapRoute.destination);
+        }
+      } catch (loadError) {
+        setLobbyDrive(null);
+        setLobbyError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Group Drive Lobby could not be loaded.",
+        );
+      } finally {
+        setLobbyLoading(false);
+      }
+    },
+    [onPreviewRoute],
+  );
+
+  useEffect(() => {
+    if (!visible || state !== "lobby" || !lobbyDriveId) return undefined;
+    void loadLobby(lobbyDriveId);
+    const interval = setInterval(() => void loadLobby(lobbyDriveId), 5000);
+    const unsubscribe = subscribeToDriveLobbyStatus(lobbyDriveId, (status) => {
+      if (status === "active") {
+        onMapSelectionChange(false);
+        onClose();
+        router.replace({
+          pathname: "/group-drives/[id]/active",
+          params: { id: lobbyDriveId },
+        });
+        return;
+      }
+      void loadLobby(lobbyDriveId);
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
+  }, [
+    loadLobby,
+    lobbyDriveId,
+    onClose,
+    onMapSelectionChange,
+    state,
+    visible,
+  ]);
+
   const closeFlow = useCallback(() => {
     onMapSelectionChange(false);
     resetPlanner(null);
@@ -473,8 +672,8 @@ export function MapGroupDriveFlow({
   }, [onClose, onMapSelectionChange, resetPlanner]);
 
   const openExistingDrive = (item: GroupDriveListItem) => {
-    closeFlow();
     if (item.myInvitationStatus === "invited" && item.invitationId) {
+      closeFlow();
       router.push({
         pathname: "/group-drives/invitation/[id]",
         params: { id: item.invitationId },
@@ -482,21 +681,21 @@ export function MapGroupDriveFlow({
       return;
     }
     if (item.sessionStatus === "active") {
+      closeFlow();
       router.push({
         pathname: "/group-drives/[id]/active",
         params: { id: item.driveSessionId },
       });
       return;
     }
-    router.push({
-      pathname: "/group-drives/[id]",
-      params: { id: item.driveSessionId },
-    });
+    setLobbyDriveId(item.driveSessionId);
+    setLobbyDrive(null);
+    goTo("lobby");
   };
 
   const startPlanner = () => {
     resetPlanner(initialDestination);
-    setState("destination");
+    goTo("destination");
   };
 
   const confirmMapCenter = async () => {
@@ -523,7 +722,7 @@ export function MapGroupDriveFlow({
       const next = await calculateDriveRoute([currentLocation, destination]);
       setRoute(next);
       onPreviewRoute(next, destination);
-      setState("route");
+      goTo("route");
     } catch (routeError) {
       setError(
         routeError instanceof Error
@@ -537,35 +736,44 @@ export function MapGroupDriveFlow({
 
   const loadPeopleStep = () => {
     setError(null);
-    setState("people");
+    goTo("people");
   };
 
   const backFromPlanner = useCallback(() => {
     setError(null);
     if (state === "destination") {
       onPreviewRoute(null, null);
-      setState("hub");
+      goTo("hub", -1);
       return;
     }
     if (state === "route") {
       onPreviewRoute(null, null);
-      setState("destination");
+      goTo("destination", -1);
       return;
     }
     if (state === "people") {
-      setState("route");
+      goTo("route", -1);
       return;
     }
     if (state === "departure") {
-      setState("people");
+      goTo("people", -1);
       return;
     }
     if (state === "review") {
-      setState("departure");
+      goTo("departure", -1);
+      return;
     }
-  }, [onPreviewRoute, state]);
+    if (state === "lobby") {
+      onPreviewRoute(null, null);
+      setLobbyDriveId(null);
+      setLobbyDrive(null);
+      goTo("hub", -1);
+    }
+  }, [goTo, onPreviewRoute, state]);
 
   useEffect(() => {
+    if (!visible) return undefined;
+    const subscription = BackHandler.addEventListener  useEffect(() => {
     if (!visible) return undefined;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (pickerMode) {
@@ -610,8 +818,9 @@ export function MapGroupDriveFlow({
 
   const createDrive = async () => {
     if (createdDriveId) {
-      closeFlow();
-      router.push({ pathname: "/group-drives/[id]", params: { id: createdDriveId } });
+      setLobbyDriveId(createdDriveId);
+      await loadLobby(createdDriveId);
+      goTo("lobby");
       return;
     }
     if (!currentLocation || !destination || !route) {
@@ -652,10 +861,10 @@ export function MapGroupDriveFlow({
       if (selectedCrews.size) {
         await inviteCrewsToDrive(id, Array.from(selectedCrews));
       }
-      onPreviewRoute(null, null);
+      setLobbyDriveId(id);
       onMapSelectionChange(false);
-      onClose();
-      router.push({ pathname: "/group-drives/[id]", params: { id } });
+      await loadLobby(id);
+      goTo("lobby");
     } catch (createError) {
       setError(
         id
