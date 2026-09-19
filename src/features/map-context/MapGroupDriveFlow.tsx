@@ -773,8 +773,6 @@ export function MapGroupDriveFlow({
 
   useEffect(() => {
     if (!visible) return undefined;
-    const subscription = BackHandler.addEventListener  useEffect(() => {
-    if (!visible) return undefined;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (pickerMode) {
         setPickerMode(null);
@@ -1036,7 +1034,7 @@ export function MapGroupDriveFlow({
     </>
   );
 
-  const renderRoute = () => (  const renderRoute = () => (
+  const renderRoute = () => (
     <>
       <Progress state="route" />
       <ScrollView style={styles.stepScroll} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
