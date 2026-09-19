@@ -902,23 +902,21 @@ export function MapGroupDriveFlow({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Text style={styles.sectionLabel}>UPCOMING</Text>
         {drivesLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.primaryHover} size="small" />
-            <Text style={styles.muted}>Loading upcoming drives…</Text>
+            <Text style={styles.muted}>Loading drives…</Text>
           </View>
         ) : activeDrives.length ? (
-          <View>
-            <Text style={styles.sectionLabel}>UPCOMING</Text>
-            <View style={styles.listSurface}>
-              {activeDrives.map((item) => (
-                <DriveRow
-                  item={item}
-                  key={item.driveSessionId}
-                  onPress={() => openExistingDrive(item)}
-                />
-              ))}
-            </View>
+          <View style={styles.listSurface}>
+            {activeDrives.map((item) => (
+              <DriveRow
+                item={item}
+                key={item.driveSessionId}
+                onPress={() => openExistingDrive(item)}
+              />
+            ))}
           </View>
         ) : (
           <View style={styles.emptyState}>
