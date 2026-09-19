@@ -355,13 +355,6 @@ export default function CanonicalEventsScreen() {
             <View style={styles.header}>
               <Text style={styles.screenTitle}>Events</Text>
               <View style={styles.headerActions}>
-                <NoxaIconButton
-                  accessibilityLabel="Event history"
-                  accessibilityHint="Opens past events"
-                  icon="time-outline"
-                  variant="ghost"
-                  onPress={() => router.push('/event-history')}
-                />
                 {events.length ? (
                   <NoxaIconButton
                     accessibilityLabel="Create event"
