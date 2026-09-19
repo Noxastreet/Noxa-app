@@ -286,10 +286,10 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       <View style={StyleSheet.absoluteFillObject}>
         <MapView
           attributionEnabled
-          attributionPosition={{ bottom: mapFooterInset, left: 8 }}
+          attributionPosition={{ bottom: mapFooterInset, left: 88 }}
           compassEnabled={false}
           logoEnabled
-          logoPosition={{ bottom: mapFooterInset, right: 8 }}
+          logoPosition={{ bottom: mapFooterInset, left: 8 }}
           onDidFinishLoadingMap={() => {
             setHasError(false);
             setIsLoaded(true);
