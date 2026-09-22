@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { animations, colors, radius, spacing } from '@/src/theme';
+import { animations, colors, radius, spacing, typography } from '@/src/theme';
 
 type SegmentOption<T extends string> = {
   label: string;
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   segment: {
-    minHeight: 40,
+    minHeight: 44,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -65,8 +65,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   segmentSelected: { backgroundColor: colors.surfacePressed },
-  label: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
-  labelSelected: { color: colors.text, fontWeight: '800' },
+  label: { ...typography.roles.secondary, fontFamily: typography.fontFamily.body, textAlign: 'center', color: colors.textMuted, fontWeight: '500' },
+  labelSelected: { color: colors.text, fontWeight: '600' },
   pressed: { opacity: 0.82, transform: [{ scale: animations.pressedScale }] },
   pressedReduced: { opacity: 0.68 },
 });
