@@ -1,0 +1,78 @@
+name: TestFlight Main Recovery
+
+on:
+  push:
+    branches:
+      - recovery/testflight-main-20260922
+
+concurrency:
+  group: testflight-main-recovery-20260922
+  cancel-in-progress: true
+
+jobs:
+  verify-build-submit:
+    name: Verify main baseline, build and submit iOS
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      CI: "1"
+      EXPECTED_MAIN_SHA: "0f225d07da3f6e3d9e622798d48242de431a1763"
+
+    steps:
+      - name: Check out recovery branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Prove product code equals main baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARENT_SHA="$(git rev-parse HEAD^)"
+          echo "Expected main: $EXPECTED_MAIN_SHA"
+          echo "Recovery parent: $PARENT_SHA"
+          if [ "$PARENT_SHA" != "$EXPECTED_MAIN_SHA" ]; then
+            echo "Recovery branch is not directly based on the approved main SHA."
+            exit 1
+          fi
+
+          CHANGED="$(git diff --name-only "$EXPECTED_MAIN_SHA" HEAD)"
+          echo "Files changed from main:"
+          printf '%s\n' "$CHANGED"
+          if [ "$CHANGED" != ".github/workflows/testflight-main-recovery.yml" ]; then
+            echo "Product code differs from main. Refusing to build."
+            exit 1
+          fi
+
+      - name: Verify Expo token is configured
+        shell: bash
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN repository secret is missing."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Recovery static gate
+        run: |
+          npx tsc --noEmit
+          npm run lint
+          npx expo-doctor
+
+      - name: Print build checkpoint
+        run: |
+          echo "Recovery Git SHA: $GITHUB_SHA"
+          echo "Product baseline SHA: $EXPECTED_MAIN_SHA"
+          node -e "const e=require('./eas.json'); console.log('EAS production environment:', e.build.production.environment); console.log('ASC app id:', e.submit.production.ios.ascAppId)"
+
+      - name: Build iOS and submit to TestFlight
+        run: npx eas-cli@latest build --platform ios --profile production --auto-submit --non-interactive
