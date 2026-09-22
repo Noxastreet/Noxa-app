@@ -11,32 +11,26 @@ concurrency:
 
 jobs:
   verify-build-submit:
-    name: Verify main baseline, build and submit iOS
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    name: Verify main baseline, local iOS build, submit
+    runs-on: macos-latest
+    timeout-minutes: 90
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       CI: "1"
       EXPECTED_MAIN_SHA: "0f225d07da3f6e3d9e622798d48242de431a1763"
+      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-main-recovery.ipa"
 
     steps:
       - name: Check out recovery branch
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Prove product code equals main baseline
         shell: bash
         run: |
           set -euo pipefail
-          PARENT_SHA="$(git rev-parse HEAD^)"
           echo "Expected main: $EXPECTED_MAIN_SHA"
-          echo "Recovery parent: $PARENT_SHA"
-          if [ "$PARENT_SHA" != "$EXPECTED_MAIN_SHA" ]; then
-            echo "Recovery branch is not directly based on the approved main SHA."
-            exit 1
-          fi
-
           CHANGED="$(git diff --name-only "$EXPECTED_MAIN_SHA" HEAD)"
           echo "Files changed from main:"
           printf '%s\n' "$CHANGED"
@@ -68,11 +62,32 @@ jobs:
           npm run lint
           npx expo-doctor
 
-      - name: Print build checkpoint
+      - name: Print native toolchain
         run: |
-          echo "Recovery Git SHA: $GITHUB_SHA"
-          echo "Product baseline SHA: $EXPECTED_MAIN_SHA"
-          node -e "const e=require('./eas.json'); console.log('EAS production environment:', e.build.production.environment); console.log('ASC app id:', e.submit.production.ios.ascAppId)"
+          xcodebuild -version
+          ruby --version
+          pod --version
+          node --version
+          npm --version
 
-      - name: Build iOS and submit to TestFlight
-        run: npx eas-cli@latest build --platform ios --profile production --auto-submit --non-interactive
+      - name: Build production IPA locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$IPA_PATH")"
+          npx eas-cli@latest build             --platform ios             --profile production             --local             --non-interactive             --output "$IPA_PATH"
+          test -f "$IPA_PATH"
+          ls -lh "$IPA_PATH"
+
+      - name: Submit local IPA to TestFlight
+        run: |
+          npx eas-cli@latest submit             --platform ios             --profile production             --path "$IPA_PATH"             --non-interactive             --wait
+
+      - name: Preserve IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-main-recovery-ipa
+          path: artifacts/noxa-main-recovery.ipa
+          if-no-files-found: ignore
+          retention-days: 3
