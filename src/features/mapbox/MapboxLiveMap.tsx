@@ -323,6 +323,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           styleURL={NOXA_MAPBOX_LIVE_STYLE_URL}
         >
           <StyleImport
+            key={isLoaded ? "noxa-standard-3d-loaded" : "noxa-standard-3d-initial"}
             config={STANDARD_BASEMAP_CONFIG}
             existing={true}
             id="basemap"
