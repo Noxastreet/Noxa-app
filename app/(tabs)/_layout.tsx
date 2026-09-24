@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -13,7 +13,6 @@ import {
   markVisibilitySetupComplete,
 } from '@/src/lib/visibilitySetup';
 import { colors } from '@/src/theme/colors';
-import { spacing } from '@/src/theme/spacing';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 type TabDestination =
@@ -25,16 +24,22 @@ type TabDestination =
   | '/visibility-setup'
   | null;
 
-function TabIcon({ name, color, emphasized = false }: { name: IconName; color: string; emphasized?: boolean }) {
+function TabIcon({
+  name,
+  focused,
+}: {
+  name: IconName;
+  focused: boolean;
+}) {
   return (
-    <View style={styles.iconWrap}>
-      <Ionicons name={name} size={emphasized ? 24 : 22} color={color} />
+    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+      <Ionicons
+        name={name}
+        size={focused ? 24 : 23}
+        color={focused ? colors.white : colors.textMuted}
+      />
     </View>
   );
-}
-
-function TabLabel({ label, focused }: { label: string; focused: boolean }) {
-  return <Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>;
 }
 
 export default function TabLayout() {
@@ -127,13 +132,11 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.accent,
-          tabBarInactiveTintColor: colors.textSubtle,
+          tabBarShowLabel: false,
           tabBarStyle: [
             styles.tabBar,
             {
-              height: 64 + insets.bottom,
-              paddingBottom: Math.max(insets.bottom, spacing.sm),
+              bottom: insets.bottom + 8,
             },
           ],
           tabBarItemStyle: styles.tabItem,
@@ -141,43 +144,68 @@ export default function TabLayout() {
           tabBarHideOnKeyboard: true,
         }}>
         <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Map',
+            tabBarAccessibilityLabel: 'Map',
+            tabBarIcon: ({ focused }) => (
+              <TabIcon
+                focused={focused}
+                name={focused ? 'map' : 'map-outline'}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="crews"
           options={{
-            title: 'Crews',
-            tabBarLabel: ({ focused }) => <TabLabel label="Crews" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'people' : 'people-outline'} color={color} />,
+            title: 'Crew',
+            tabBarAccessibilityLabel: 'Crew',
+            tabBarIcon: ({ focused }) => (
+              <TabIcon
+                focused={focused}
+                name={focused ? 'people' : 'people-outline'}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="events"
           options={{
             title: 'Events',
-            tabBarLabel: ({ focused }) => <TabLabel label="Events" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'calendar' : 'calendar-outline'} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Map',
-            tabBarLabel: ({ focused }) => <TabLabel label="Map" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'map' : 'map-outline'} color={color} emphasized />,
+            tabBarAccessibilityLabel: 'Events',
+            tabBarIcon: ({ focused }) => (
+              <TabIcon
+                focused={focused}
+                name={focused ? 'calendar' : 'calendar-outline'}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="garage"
           options={{
             title: 'Garage',
-            tabBarLabel: ({ focused }) => <TabLabel label="Garage" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'car-sport' : 'car-sport-outline'} color={color} />,
+            tabBarAccessibilityLabel: 'Garage',
+            tabBarIcon: ({ focused }) => (
+              <TabIcon
+                focused={focused}
+                name={focused ? 'car-sport' : 'car-sport-outline'}
+              />
+            ),
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
             title: 'Profile',
-            tabBarLabel: ({ focused }) => <TabLabel label="Profile" focused={focused} />,
-            tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} />,
+            tabBarAccessibilityLabel: 'Profile',
+            tabBarIcon: ({ focused }) => (
+              <TabIcon
+                focused={focused}
+                name={focused ? 'person' : 'person-outline'}
+              />
+            ),
           }}
         />
       </Tabs>
@@ -194,33 +222,33 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingTop: 10,
+    left: 12,
+    right: 12,
+    height: 56,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
     backgroundColor: colors.glass,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    borderRadius: 28,
     elevation: 0,
+    shadowColor: colors.black,
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
   },
   tabItem: {
+    height: 48,
     paddingVertical: 0,
   },
-  label: {
-    marginTop: 2,
-    color: colors.textSubtle,
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  labelActive: {
-    color: colors.text,
-    fontWeight: '600',
-  },
   iconWrap: {
-    width: 40,
-    height: 28,
+    width: 48,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 20,
+  },
+  iconWrapActive: {
+    backgroundColor: colors.surfacePressed,
   },
 });
