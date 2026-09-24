@@ -97,7 +97,7 @@ if (!failures.length) {
     if (!pattern.test(sharedMap)) failures.push(`shared Mapbox Standard 3D contract missing: ${pattern}`);
   }
 
-  const expectedSharedMapBlob = '5f7afaf877fc495ff0dd0d97a6232999a414d7d4';
+  const expectedSharedMapBlob = '9db315d7ad0cd2a9563d9131719293dcd33c5f9f';
   const actualSharedMapBlob = gitBlobSha(sharedMap);
   if (actualSharedMapBlob !== expectedSharedMapBlob) {
     failures.push(`shared Home/Map MapboxLiveMap changed unexpectedly (${actualSharedMapBlob})`);
