@@ -20,5 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install dependencies
+        run: npm ci
       - name: Read submission status
         run: npx --yes eas-cli@24.7.0 submit:view 6087114e-8701-4e22-b6e2-65bedd74ddc5 --json
