@@ -1,0 +1,171 @@
+name: TestFlight PR 311 Live Drive Tab Bar Once
+
+on:
+  push:
+    branches:
+      - ci/testflight-pr311-live-drive-tabbar-20260924
+    paths:
+      - .github/workflows/testflight-pr311-live-drive-tabbar-once.yml
+
+concurrency:
+  group: testflight-pr311-live-drive-tabbar-once-20260924
+  cancel-in-progress: false
+
+jobs:
+  verify-build-submit:
+    name: Verify PR 311 Live Drive + Tab Bar candidate, local iOS build, submit
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      CI: "1"
+      EXPECTED_CANDIDATE_SHA: "b9d351f9f563b76b7f05a981fd95d0c8b71d19bc"
+      EXPECTED_WORKFLOW_PATH: ".github/workflows/testflight-pr311-live-drive-tabbar-once.yml"
+      EXPECTED_BUNDLE_ID: "com.karaketidis.noxa"
+      EXPECTED_APP_VERSION: "1.0.0"
+      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-pr311-live-drive-tabbar-${{ github.run_id }}.ipa"
+
+    steps:
+      - name: Check out delivery branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove delivery commit is candidate plus workflow only
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARENT_SHA="$(git rev-parse HEAD^)"
+          echo "Delivery HEAD: $(git rev-parse HEAD)"
+          echo "Delivery parent: $PARENT_SHA"
+          echo "Expected candidate: $EXPECTED_CANDIDATE_SHA"
+          if [ "$PARENT_SHA" != "$EXPECTED_CANDIDATE_SHA" ]; then
+            echo "Delivery commit parent is not the exact PR #311 candidate. Refusing to build."
+            exit 1
+          fi
+
+          CHANGED="$(git diff --name-only "$EXPECTED_CANDIDATE_SHA" HEAD)"
+          printf 'Files changed from candidate:\n%s\n' "${CHANGED:-<none>}"
+          if [ "$CHANGED" != "$EXPECTED_WORKFLOW_PATH" ]; then
+            echo "Delivery branch differs from candidate by more than the one workflow file. Refusing to build."
+            exit 1
+          fi
+
+      - name: Check out exact PR 311 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: b9d351f9f563b76b7f05a981fd95d0c8b71d19bc
+          fetch-depth: 1
+
+      - name: Prove checked out product source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          echo "Checked out source: $ACTUAL_SHA"
+          if [ "$ACTUAL_SHA" != "$EXPECTED_CANDIDATE_SHA" ]; then
+            echo "Wrong product source checked out. Refusing to build."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Static gate
+        run: |
+          npx tsc --noEmit
+          npm run lint
+          npx expo-doctor
+
+      - name: Verify EAS CLI version
+        run: npx --yes eas-cli@24.7.0 --version
+
+      - name: Print native toolchain
+        run: |
+          xcodebuild -version
+          ruby --version
+          pod --version
+          node --version
+          npm --version
+
+      - name: Build production IPA locally once
+        shell: bash
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$IPA_PATH")"
+          npx --yes eas-cli@24.7.0 build --platform ios --profile production --local --non-interactive --output "$IPA_PATH"
+          test -f "$IPA_PATH"
+          ls -lh "$IPA_PATH"
+
+      - name: Verify IPA metadata
+        id: ipa_metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          unzip -q "$IPA_PATH" -d "$TMP_DIR"
+          APP_DIR="$(find "$TMP_DIR/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          INFO_PLIST="$APP_DIR/Info.plist"
+          test -f "$INFO_PLIST"
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")"
+          APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+          BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")"
+
+          echo "Bundle ID: $BUNDLE_ID"
+          echo "App version: $APP_VERSION"
+          echo "Build number: $BUILD_NUMBER"
+
+          if [ "$BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ]; then
+            echo "Unexpected bundle ID. Refusing to submit."
+            exit 1
+          fi
+          if [ "$APP_VERSION" != "$EXPECTED_APP_VERSION" ]; then
+            echo "Unexpected app version. Refusing to submit."
+            exit 1
+          fi
+          if ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Invalid build number. Refusing to submit."
+            exit 1
+          fi
+
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          {
+            echo "### PR #311 TestFlight delivery"
+            echo "- Source SHA: \`$EXPECTED_CANDIDATE_SHA\`"
+            echo "- Bundle ID: \`$BUNDLE_ID\`"
+            echo "- Version: \`$APP_VERSION\`"
+            echo "- Build number: \`$BUILD_NUMBER\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve IPA before submit
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-pr311-live-drive-tabbar-ipa-${{ github.run_id }}
+          path: artifacts/noxa-pr311-live-drive-tabbar-${{ github.run_id }}.ipa
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Submit preserved IPA to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@24.7.0 submit --platform ios --profile production --path "$IPA_PATH" --non-interactive
+
+      - name: Record successful upload evidence
+        shell: bash
+        run: |
+          {
+            echo "- Upload: successful"
+            echo "- Candidate source: \`$EXPECTED_CANDIDATE_SHA\`"
+            echo "- Submitted build number: \`$BUILD_NUMBER\`"
+          } >> "$GITHUB_STEP_SUMMARY"
