@@ -47,9 +47,22 @@ assert(
     liveDrive.indexOf('requiredAccuracy: PRECISE_LOCATION_MAX_ACCURACY_METERS', preciseHelperIndex) > preciseHelperIndex,
   'Live Drive must prefer a recent accurate iOS location sample before blocking on a new GPS fix.',
 );
+const balancedFixIndex = liveDrive.indexOf(
+  'accuracy: Location.Accuracy.Balanced',
+  preciseHelperIndex,
+);
+const highFixIndex = liveDrive.indexOf(
+  'accuracy: Location.Accuracy.High',
+  preciseHelperIndex,
+);
 assert(
-  liveDrive.indexOf('Location.getCurrentPositionAsync({', preciseHelperIndex) > preciseHelperIndex,
-  'Live Drive precise-location helper must fall back to one high-accuracy GPS request.',
+  balancedFixIndex > preciseHelperIndex && highFixIndex > balancedFixIndex,
+  'Live Drive precise-location helper must try the proven iOS Balanced fix before escalating to High accuracy.',
+);
+assert(
+  liveDrive.indexOf('if (hasPreciseLocationSample(balanced.coords)) return balanced;', preciseHelperIndex) >
+    preciseHelperIndex,
+  'Balanced iOS fixes must still pass the same precise-location validation before Live Drive can start.',
 );
 assert(permissionsIndex >= 0, 'requestLiveDrivePermissions must exist.');
 assert(
@@ -188,3 +201,14 @@ assert(
 if (!process.exitCode) {
   console.log('Live Drive initial-presence contract passed.');
 }
+
+
+assert(
+  visibilitySetup.includes("message.includes('precise location')") &&
+    visibilitySetup.includes('Enable Precise Location for NOXA in iPhone Settings'),
+  'Visibility setup must explain precise-location failures instead of collapsing them into a generic Live Drive error.',
+);
+assert(
+  visibilitySetup.includes("message.includes('location services are off')"),
+  'Visibility setup must explain disabled iPhone Location Services.',
+);
