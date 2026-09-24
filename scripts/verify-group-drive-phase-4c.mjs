@@ -84,7 +84,20 @@ if (!failures.length) {
     failures.push('local navigation GPS must never publish, start a background task, or request background permission');
   }
 
-  const expectedSharedMapBlob = '0b702610f9e817cf776d58ab9bc5b5081f8e054e';
+  const requiredStandard3dConfig = [
+    /show3dObjects:\s*true/,
+    /show3dBuildings:\s*true/,
+    /show3dFacades:\s*true/,
+    /show3dLandmarks:\s*true/,
+    /show3dTrees:\s*true/,
+    /key=\{isLoaded \? "noxa-standard-3d-loaded" : "noxa-standard-3d-initial"\}/,
+    /followPitch=\{ROUTE_FOLLOW_PITCH\}/,
+  ];
+  for (const pattern of requiredStandard3dConfig) {
+    if (!pattern.test(sharedMap)) failures.push(`shared Mapbox Standard 3D contract missing: ${pattern}`);
+  }
+
+  const expectedSharedMapBlob = '5f7afaf877fc495ff0dd0d97a6232999a414d7d4';
   const actualSharedMapBlob = gitBlobSha(sharedMap);
   if (actualSharedMapBlob !== expectedSharedMapBlob) {
     failures.push(`shared Home/Map MapboxLiveMap changed unexpectedly (${actualSharedMapBlob})`);
