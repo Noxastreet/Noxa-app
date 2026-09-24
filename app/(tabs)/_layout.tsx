@@ -1,10 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HapticTab } from '@/components/haptic-tab';
+import { NoxaBottomTabBar } from '@/components/noxa-bottom-tab-bar';
 import { PushNotificationBridge } from '@/src/features/notifications/PushNotificationBridge';
 import { resolveOnboardingCompletion } from '@/src/lib/onboarding';
 import { supabase } from '@/src/lib/supabase';
@@ -14,7 +12,6 @@ import {
 } from '@/src/lib/visibilitySetup';
 import { colors } from '@/src/theme/colors';
 
-type IconName = keyof typeof Ionicons.glyphMap;
 type TabDestination =
   | 'ready'
   | '/welcome'
@@ -24,26 +21,7 @@ type TabDestination =
   | '/visibility-setup'
   | null;
 
-function TabIcon({
-  name,
-  focused,
-}: {
-  name: IconName;
-  focused: boolean;
-}) {
-  return (
-    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-      <Ionicons
-        name={name}
-        size={focused ? 24 : 23}
-        color={focused ? colors.white : colors.text}
-      />
-    </View>
-  );
-}
-
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
   const [destination, setDestination] = useState<TabDestination>(null);
 
   useEffect(() => {
@@ -130,17 +108,10 @@ export default function TabLayout() {
     <>
       <PushNotificationBridge />
       <Tabs
+        tabBar={(props) => <NoxaBottomTabBar {...props} />}
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: false,
-          tabBarStyle: [
-            styles.tabBar,
-            {
-              bottom: insets.bottom + 6,
-            },
-          ],
-          tabBarItemStyle: styles.tabItem,
-          tabBarButton: HapticTab,
           tabBarHideOnKeyboard: true,
         }}>
         <Tabs.Screen
@@ -148,12 +119,6 @@ export default function TabLayout() {
           options={{
             title: 'Map',
             tabBarAccessibilityLabel: 'Map',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon
-                focused={focused}
-                name={focused ? 'map' : 'map-outline'}
-              />
-            ),
           }}
         />
         <Tabs.Screen
@@ -161,12 +126,6 @@ export default function TabLayout() {
           options={{
             title: 'Crew',
             tabBarAccessibilityLabel: 'Crew',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon
-                focused={focused}
-                name={focused ? 'people' : 'people-outline'}
-              />
-            ),
           }}
         />
         <Tabs.Screen
@@ -174,12 +133,6 @@ export default function TabLayout() {
           options={{
             title: 'Events',
             tabBarAccessibilityLabel: 'Events',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon
-                focused={focused}
-                name={focused ? 'calendar' : 'calendar-outline'}
-              />
-            ),
           }}
         />
         <Tabs.Screen
@@ -187,12 +140,6 @@ export default function TabLayout() {
           options={{
             title: 'Garage',
             tabBarAccessibilityLabel: 'Garage',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon
-                focused={focused}
-                name={focused ? 'car-sport' : 'car-sport-outline'}
-              />
-            ),
           }}
         />
         <Tabs.Screen
@@ -200,12 +147,6 @@ export default function TabLayout() {
           options={{
             title: 'Profile',
             tabBarAccessibilityLabel: 'Profile',
-            tabBarIcon: ({ focused }) => (
-              <TabIcon
-                focused={focused}
-                name={focused ? 'person' : 'person-outline'}
-              />
-            ),
           }}
         />
       </Tabs>
@@ -220,35 +161,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
-  tabBar: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    height: 52,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    backgroundColor: colors.glass,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: 26,
-    elevation: 0,
-    shadowColor: colors.black,
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-  },
-  tabItem: {
-    height: 44,
-    paddingVertical: 0,
-  },
-  iconWrap: {
-    width: 70,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-  },
-  iconWrapActive: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-  },
+
 });
