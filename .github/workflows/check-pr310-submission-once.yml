@@ -1,0 +1,24 @@
+name: Check PR 310 Submission Once
+
+on:
+  push:
+    branches:
+      - ci/check-pr310-submission-20260924
+    paths:
+      - .github/workflows/check-pr310-submission-once.yml
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e356acd5330ec5ec3de7a2d25adba97793ac61bb
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read submission status
+        run: npx --yes eas-cli@24.7.0 submit:view 6087114e-8701-4e22-b6e2-65bedd74ddc5 --json
