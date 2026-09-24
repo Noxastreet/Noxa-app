@@ -36,7 +36,7 @@ function TabIcon({
       <Ionicons
         name={name}
         size={focused ? 24 : 23}
-        color={focused ? colors.white : colors.textMuted}
+        color={focused ? colors.white : colors.text}
       />
     </View>
   );
@@ -136,7 +136,7 @@ export default function TabLayout() {
           tabBarStyle: [
             styles.tabBar,
             {
-              bottom: insets.bottom + 8,
+              bottom: insets.bottom + 6,
             },
           ],
           tabBarItemStyle: styles.tabItem,
@@ -222,33 +222,33 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     position: 'absolute',
-    left: 12,
-    right: 12,
-    height: 56,
+    left: 20,
+    right: 20,
+    height: 52,
     paddingHorizontal: 4,
     paddingVertical: 4,
     backgroundColor: colors.glass,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    borderRadius: 28,
+    borderColor: colors.border,
+    borderRadius: 26,
     elevation: 0,
     shadowColor: colors.black,
-    shadowOpacity: 0.24,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
   },
   tabItem: {
-    height: 48,
+    height: 44,
     paddingVertical: 0,
   },
   iconWrap: {
-    width: 48,
-    height: 40,
+    width: 70,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: 22,
   },
   iconWrapActive: {
-    backgroundColor: colors.surfacePressed,
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
 });
