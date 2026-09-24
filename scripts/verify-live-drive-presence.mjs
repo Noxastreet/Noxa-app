@@ -198,9 +198,6 @@ assert(
   'Unmount/remount must invalidate an older pending Live Drive startup.',
 );
 
-if (!process.exitCode) {
-  console.log('Live Drive initial-presence contract passed.');
-}
 
 
 assert(
@@ -212,3 +209,7 @@ assert(
   visibilitySetup.includes("message.includes('location services are off')"),
   'Visibility setup must explain disabled iPhone Location Services.',
 );
+
+if (!process.exitCode) {
+  console.log('Live Drive initial-presence contract passed.');
+}
