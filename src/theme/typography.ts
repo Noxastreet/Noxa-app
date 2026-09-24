@@ -39,9 +39,20 @@ export const typography = {
     caption: 0.4,
     label: 1.8,
   },
+  // Shared native UI roles. Adopt through existing primitives first; legacy
+  // screen scales below stay unchanged until their own reviewed phase.
+  roles: {
+    screenTitle: { fontSize: 30, lineHeight: 36, fontWeight: '600', letterSpacing: -0.6 },
+    sectionTitle: { fontSize: 20, lineHeight: 26, fontWeight: '600', letterSpacing: -0.3 },
+    body: { fontSize: 16, lineHeight: 22, fontWeight: '400' },
+    secondary: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+    metadata: { fontSize: 12, lineHeight: 16, fontWeight: '400' },
+    control: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  },
   // Visual Architecture V2 semantic scale (docs/VISUAL_ARCHITECTURE_V2.md §3).
   // Namespaced to avoid colliding with the scale above, which stays canonical
-  // for every screen that has not migrated. Nothing consumes `v2` yet.
+  // for screens using that scale. Existing onboarding and Group Drive screens
+  // still consume `v2`; migrate them only in their own reviewed phase.
   //
   // Each role is a spreadable TextStyle fragment. `letterSpacing` is absolute
   // points, converted from the contract's percentage tracking intent
