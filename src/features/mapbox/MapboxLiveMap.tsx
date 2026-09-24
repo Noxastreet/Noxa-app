@@ -54,10 +54,19 @@ import type {
 
 const DEFAULT_ZOOM = NOXA_MAPBOX_DEFAULT_ZOOM;
 const ROUTE_FOLLOW_ZOOM = 16.5;
+const ROUTE_FOLLOW_PITCH = 54;
+const ROUTE_MODE_PITCH = 48;
 const DRIVER_CLUSTER_LIMIT = 80;
 const STANDARD_BASEMAP_CONFIG = {
   lightPreset: "night" as const,
+  // Keep the aggregate flag for older Standard behavior, and explicitly
+  // enable each supported 3D family so a Standard style update cannot
+  // silently leave the basemap visually flat.
   show3dObjects: true,
+  show3dBuildings: true,
+  show3dFacades: true,
+  show3dLandmarks: true,
+  show3dTrees: true,
 };
 
 const NOXA_LOCATION_ARROW_IMAGE = "noxa-location-arrow";
@@ -193,7 +202,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
         cameraRef.current?.setCamera({
           centerCoordinate: toPosition(region),
           zoomLevel: DEFAULT_ZOOM,
-          pitch: isRouteMode ? 48 : 28,
+          pitch: isRouteMode ? ROUTE_MODE_PITCH : 28,
           animationDuration: duration,
           animationMode: "easeTo",
         });
@@ -343,7 +352,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             defaultSettings={{
               centerCoordinate: toPosition(initialRegion),
               zoomLevel: DEFAULT_ZOOM,
-              pitch: 28,
+              pitch: isRouteMode ? ROUTE_MODE_PITCH : 28,
             }}
             followPadding={{
               paddingTop: 110,
@@ -351,7 +360,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               paddingBottom: 260,
               paddingLeft: spacing.xl,
             }}
-            followPitch={54}
+            followPitch={ROUTE_FOLLOW_PITCH}
             followUserLocation={
               followUserLocation && Boolean(driverLocation) && isRouteMode
             }
