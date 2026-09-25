@@ -129,12 +129,15 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       activeDrivers,
       events,
       route,
+      bottomInset,
+      selectionPoint,
       selectedEventId,
       mapFilter,
       isRouteMode,
       followUserLocation,
       onFollowUserLocationChange,
       onUserPan,
+      onMapPress,
       onDriverPress,
       onEventPress,
     },
@@ -307,6 +310,22 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           onMapLoadingError={() => {
             if (!isLoaded) setHasError(true);
           }}
+          onPress={
+            onMapPress
+              ? (feature) => {
+                  if (feature.geometry.type !== "Point") return;
+                  const [longitude, latitude] = feature.geometry.coordinates;
+                  if (
+                    typeof latitude === "number" &&
+                    Number.isFinite(latitude) &&
+                    typeof longitude === "number" &&
+                    Number.isFinite(longitude)
+                  ) {
+                    onMapPress({ latitude, longitude });
+                  }
+                }
+              : undefined
+          }
           onCameraChanged={(state) => {
             if (state.gestures.isGestureActive) {
               onUserPan();
@@ -358,7 +377,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             followPadding={{
               paddingTop: 110,
               paddingRight: spacing.xl,
-              paddingBottom: 260,
+              paddingBottom: Math.max(180, bottomInset ?? 260),
               paddingLeft: spacing.xl,
             }}
             followPitch={ROUTE_FOLLOW_PITCH}
@@ -395,13 +414,17 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               clusterRadius={42}
               hitbox={{ width: 48, height: 48 }}
               id="noxa-drivers-source"
-              onPress={(event) => {
-                const feature = event.features[0];
-                if (feature?.properties?.cluster) return;
-                if (feature?.geometry.type === "Point") {
-                  onDriverSourcePress(feature);
-                }
-              }}
+              onPress={
+                onMapPress
+                  ? undefined
+                  : (event) => {
+                      const feature = event.features[0];
+                      if (feature?.properties?.cluster) return;
+                      if (feature?.geometry.type === "Point") {
+                        onDriverSourcePress(feature);
+                      }
+                    }
+              }
               shape={driverFeatures}
             >
               <CircleLayer
@@ -448,7 +471,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   <TouchableOpacity
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
                     activeOpacity={0.82}
+                    disabled={Boolean(onMapPress)}
                     onPress={() => onDriverPress(driver.user_id)}
+                    pointerEvents={onMapPress ? "none" : "auto"}
                     style={[
                       styles.driverMarker,
                       driver.is_relevant && styles.driverMarkerRelevant,
@@ -474,10 +499,16 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             <ShapeSource
               hitbox={{ width: 48, height: 48 }}
               id="noxa-events-source"
-              onPress={(event) => {
-                const feature = event.features[0];
-                if (feature?.geometry.type === "Point") onEventSourcePress(feature);
-              }}
+              onPress={
+                onMapPress
+                  ? undefined
+                  : (event) => {
+                      const feature = event.features[0];
+                      if (feature?.geometry.type === "Point") {
+                        onEventSourcePress(feature);
+                      }
+                    }
+              }
               shape={eventFeatures}
             >
               <CircleLayer
@@ -512,7 +543,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   <TouchableOpacity
                     accessibilityLabel={`${event.title} event`}
                     activeOpacity={0.82}
+                    disabled={Boolean(onMapPress)}
                     onPress={() => onEventPress(event)}
+                    pointerEvents={onMapPress ? "none" : "auto"}
                     style={styles.eventMarkerPressTarget}
                   >
                     <View
@@ -531,6 +564,18 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 </MarkerView>
               ))
             : null}
+          {selectionPoint ? (
+            <MarkerView
+              allowOverlap
+              anchor={{ x: 0.5, y: 0.82 }}
+              coordinate={toPosition(selectionPoint)}
+            >
+              <View pointerEvents="none" style={styles.selectionMarker}>
+                <Ionicons name="location" size={22} color={colors.text} />
+              </View>
+            </MarkerView>
+          ) : null}
+
           {routeShape && routeRenderKey ? (
             <ShapeSource
               id="noxa-route-source"
@@ -586,6 +631,16 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 MapboxLiveMap.displayName = "MapboxLiveMap";
 
 const styles = StyleSheet.create({
+  selectionMarker: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.primary,
+  },
   stateView: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
