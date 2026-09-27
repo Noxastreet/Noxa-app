@@ -344,7 +344,7 @@ begin
       set
         status = 'cancelled',
         completed_at = now(),
-        end_reason = 'invite_declined'
+        end_reason = 'host_cancelled'
       where id = current_session.id;
     end if;
 
