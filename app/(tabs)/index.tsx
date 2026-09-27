@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
+import { DriveTogetherMapLayer } from "@/src/features/group-drive/DriveTogetherMapLayer";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -450,10 +451,13 @@ export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
     mapMode?: string | string[];
+    driveInvitationId?: string | string[];
   }>();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<LiveMapHandle | null>(null);
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
+  const [driveTogetherOpen, setDriveTogetherOpen] = useState(false);
+  const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -519,6 +523,7 @@ export default function LiveMapScreen() {
   const [mapLens] = useState<MapLens>("all");
   const normalizedFocusEventId = normalizeParam(params.focusEventId);
   const normalizedMapMode = normalizeParam(params.mapMode);
+  const normalizedDriveInvitationId = normalizeParam(params.driveInvitationId);
   const focusEventId =
     typeof normalizedFocusEventId === "string" &&
     uuidPattern.test(normalizedFocusEventId)
@@ -1725,9 +1730,10 @@ export default function LiveMapScreen() {
         : activeDrivers,
     [activeDrivers, driverLocation],
   );
-  const mapboxDrivers = useMemo<MapboxDriver[]>(
-    () =>
-      activeDrivers.map((driver) => ({
+  const mapboxDrivers = useMemo<MapboxDriver[]>(() => {
+    const merged = new Map<string, MapboxDriver>();
+    for (const driver of activeDrivers) {
+      merged.set(driver.user_id, {
         user_id: driver.user_id,
         latitude: driver.latitude,
         longitude: driver.longitude,
@@ -1738,9 +1744,20 @@ export default function LiveMapScreen() {
           : null,
         is_relevant: myDriverIds.has(driver.user_id),
         is_dimmed: mapLens === "mine" && !myDriverIds.has(driver.user_id),
-      })),
-    [activeDrivers, mapLens, myDriverIds, primaryVehicleByUserId],
-  );
+      });
+    }
+    // Drive Together uses the existing Home/Map MapView. Its private
+    // participant locations override a public Live Drive marker for the same
+    // user so we never render duplicate people or create a second map.
+    for (const driver of driveTogetherDrivers) merged.set(driver.user_id, driver);
+    return Array.from(merged.values());
+  }, [
+    activeDrivers,
+    driveTogetherDrivers,
+    mapLens,
+    myDriverIds,
+    primaryVehicleByUserId,
+  ]);
   const mapboxEvents = useMemo<MapboxEvent[]>(
     () =>
       events.map((event) => ({
@@ -1971,11 +1988,11 @@ export default function LiveMapScreen() {
             ]}
           >
             <NoxaIconButton
-              accessibilityHint="Open Group Drives"
-              accessibilityLabel="Group Drives"
+              accessibilityHint="Invite a friend to drive together"
+              accessibilityLabel="Drive Together"
               icon="navigate-outline"
               iconSize={19}
-              onPress={() => router.push("/group-drives")}
+              onPress={() => setDriveTogetherOpen(true)}
               size={44}
               variant="overlay"
             />
@@ -2062,6 +2079,14 @@ export default function LiveMapScreen() {
           />
         ) : null}
       </View>
+
+      <DriveTogetherMapLayer
+        bottomOffset={eventCardBottom + spacing.sm}
+        invitationId={normalizedDriveInvitationId ?? null}
+        onDriversChange={setDriveTogetherDrivers}
+        onOpenChange={setDriveTogetherOpen}
+        open={driveTogetherOpen}
+      />
 
       <Modal
         animationType="fade"

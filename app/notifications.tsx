@@ -464,7 +464,7 @@ export default function NotificationsScreen() {
     } else if (item.kind === 'crew') {
       router.push({ pathname: '/crew/[id]', params: { id: item.routeId } });
     } else if (item.kind === 'drive') {
-      router.push({ pathname: '/group-drives/invitation/[id]', params: { id: item.routeId } });
+      router.push({ pathname: '/(tabs)', params: { driveInvitationId: item.routeId } });
     } else {
       router.push({ pathname: '/event-details', params: { id: item.routeId } });
     }

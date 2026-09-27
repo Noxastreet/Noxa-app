@@ -53,6 +53,10 @@ assert(
   'The native push router must accept the migration drive_invitation_id key.',
 );
 assert(
+  /pathname: '\/\(tabs\)'[\s\S]*driveInvitationId/.test(bridge),
+  'Drive invitations must reopen Home/Map so quick Drive Together can stay map-first.',
+);
+assert(
   /data:\s*\{[\s\S]*\.\.\.notification\.data[\s\S]*kind: notification\.kind/.test(pushFunction),
   'Remote push delivery must preserve notification.data for native routing.',
 );

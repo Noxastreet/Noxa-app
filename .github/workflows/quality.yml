@@ -102,6 +102,12 @@ jobs:
       - name: Group Drive Phase 1 local database smoke
         run: npm run test:group-drive-phase-1
 
+      - name: Drive Together map-first static contract
+        run: npm run verify:drive-together-quickflow
+
+      - name: Drive Together local database smoke
+        run: npm run test:drive-together-quickflow
+
       - name: Group Drive Phase 2 contract
         run: npm run verify:group-drive-phase-2
 

@@ -65,9 +65,11 @@ function openNotificationResponse(response: Notifications.NotificationResponse) 
     'driveInvitationId',
   );
   if (driveInvitationId) {
+    // Quick Drive Together invitations resolve on Home/Map. The Map layer
+    // safely redirects legacy planned invitations to the old invitation route.
     router.push({
-      pathname: '/group-drives/invitation/[id]',
-      params: { id: driveInvitationId },
+      pathname: '/(tabs)',
+      params: { driveInvitationId },
     });
     return;
   }
