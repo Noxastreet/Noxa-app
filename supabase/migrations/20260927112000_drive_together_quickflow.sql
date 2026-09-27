@@ -69,6 +69,14 @@ begin
     raise exception 'Drive Together requires a mutual friend';
   end if;
 
+  -- Serialize quick-start eligibility around both identities before checking
+  -- whether either driver is already active elsewhere.
+  perform profiles.id
+  from public.profiles
+  where profiles.id in (actor, target_user_id)
+  order by profiles.id
+  for update;
+
   -- One pending quick invitation at a time keeps the map state deterministic.
   select
     drive_sessions.id,
@@ -98,14 +106,6 @@ begin
     end if;
     raise exception 'Finish or cancel the current Drive Together invitation first';
   end if;
-
-  -- Serialize quick-start eligibility around both identities before checking
-  -- whether either driver is already active elsewhere.
-  perform profiles.id
-  from public.profiles
-  where profiles.id in (actor, target_user_id)
-  order by profiles.id
-  for update;
 
   select active_participant.user_id
   into conflicting_user_id
