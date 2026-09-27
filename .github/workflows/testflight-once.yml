@@ -20,6 +20,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: 60534824c902c7a1456e903bf0af10c0c61646c3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Project status
         run: npx --yes eas-cli@latest status --json --limit 10
       - name: Recent workflow runs
