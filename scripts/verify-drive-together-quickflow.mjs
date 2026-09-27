@@ -31,6 +31,10 @@ assert(
   'Quick Drive must be additive to the existing drive_sessions table.',
 );
 assert(
+  !/^as \$/m.test(migration) && !/^\$;$/m.test(migration),
+  'PL/pgSQL function dollar quotes must remain balanced.',
+);
+assert(
   /function public\.noxa_create_quick_drive\([\s\S]*private\.noxa_users_blocked[\s\S]*public\.follows[\s\S]*drive_mode[\s\S]*'quick'/.test(migration),
   'Quick creation must preserve blocking, mutual-friend privacy, and explicit quick mode.',
 );
