@@ -250,7 +250,7 @@ language plpgsql
 security definer
 stable
 set search_path = ''
-as $
+as $$
 declare
   actor uuid := (select auth.uid());
   result jsonb;
@@ -282,7 +282,7 @@ begin
 
   return result;
 end;
-$;
+$$;
 
 revoke all on function public.noxa_get_quick_drive_invitation(uuid)
   from public, anon, authenticated;
