@@ -87,6 +87,7 @@ export function DriveTogetherMapLayer({
 }: Props) {
   const [friends, setFriends] = useState<DriveProfile[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
+  const [friendsLoaded, setFriendsLoaded] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waiting, setWaiting] = useState<WaitingDrive | null>(null);
@@ -107,13 +108,14 @@ export function DriveTogetherMapLayer({
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Friends could not be loaded.');
     } finally {
+      setFriendsLoaded(true);
       setFriendsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (open && !friendsLoading && friends.length === 0) void loadFriends();
-  }, [friends.length, friendsLoading, loadFriends, open]);
+    if (open && !friendsLoading && !friendsLoaded) void loadFriends();
+  }, [friendsLoaded, friendsLoading, loadFriends, open]);
 
   useEffect(() => {
     let disposed = false;
@@ -328,6 +330,21 @@ export function DriveTogetherMapLayer({
     setInvite(null);
   }, []);
 
+  const declineInvite = useCallback(async () => {
+    if (!invite || working) return;
+    setWorking(true);
+    setError(null);
+    try {
+      const changed = await respondToDriveInvitation(invite.invitationId, false);
+      if (!changed) throw new Error('This invitation is no longer available.');
+      setInvite(null);
+    } catch (declineError) {
+      setError(declineError instanceof Error ? declineError.message : 'Invitation could not be declined.');
+    } finally {
+      setWorking(false);
+    }
+  }, [invite, working]);
+
   const cancelWaiting = useCallback(async () => {
     if (!waiting || working) return;
     setWorking(true);
@@ -471,10 +488,17 @@ export function DriveTogetherMapLayer({
                 Join and share your precise location only with this drive while it is active.
               </Text>
             </View>
+            <Pressable
+              accessibilityLabel="Dismiss Drive Together invitation"
+              disabled={working}
+              onPress={dismissInvite}
+              style={styles.cardCloseButton}>
+              <Ionicons name="close" size={17} color={colors.textMuted} />
+            </Pressable>
           </View>
           <View style={styles.cardActions}>
-            <Pressable disabled={working} onPress={dismissInvite} style={styles.secondaryButton}>
-              <Text style={styles.secondaryText}>Not now</Text>
+            <Pressable disabled={working} onPress={() => void declineInvite()} style={styles.secondaryButton}>
+              <Text style={styles.secondaryText}>Decline</Text>
             </Pressable>
             <Pressable disabled={working} onPress={() => void joinInvite()} style={styles.primaryButton}>
               {working ? <ActivityIndicator color={colors.text} size="small" /> : (
@@ -658,6 +682,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   cardCopy: { flex: 1, minWidth: 0 },
+  cardCloseButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
   cardEyebrow: {
     color: colors.primaryHover,
     fontSize: 9,
