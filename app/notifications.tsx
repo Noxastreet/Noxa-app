@@ -14,7 +14,12 @@ import {
 } from 'react-native';
 
 import { NoxaAvatar, NoxaEmptyState, NoxaHeader, NoxaScreen } from '@/src/components/ui';
-import { listMyGroupDrives } from '@/src/features/group-drive';
+import {
+  getDriveInvitationPreview,
+  listMyGroupDrives,
+  loadGroupDriveDetails,
+  respondToDriveInvitation,
+} from '@/src/features/group-drive';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
@@ -166,9 +171,10 @@ function ActivityRow({
   busyInvitationId: string | null;
   item: ActivityItem;
   onOpen: (item: ActivityItem) => void;
-  onRespond: (invitationId: string, accept: boolean) => void;
+  onRespond: (item: ActivityItem, accept: boolean) => void;
 }) {
-  const isBusy = item.kind === 'crew' && busyInvitationId === item.sourceId;
+  const isBusy = (item.kind === 'crew' || item.kind === 'drive')
+    && busyInvitationId === item.sourceId;
   const meta = item.kind === 'event' && item.startsAt
     ? formatEventDate(item.startsAt)
     : formatRelativeTime(item.timestamp);
@@ -185,14 +191,14 @@ function ActivityRow({
         <Text numberOfLines={2} style={styles.activitySubtitle}>{item.subtitle}</Text>
         {meta ? <Text style={styles.activityMeta}>{meta}</Text> : null}
 
-        {item.kind === 'crew' ? (
+        {item.kind === 'crew' || item.kind === 'drive' ? (
           <View style={styles.invitationActions}>
             <Pressable
               accessibilityRole="button"
               disabled={isBusy}
               onPress={(event) => {
                 event.stopPropagation();
-                onRespond(item.sourceId, true);
+                onRespond(item, true);
               }}
               style={({ pressed }) => [styles.acceptButton, pressed && styles.pressed, isBusy && styles.disabled]}>
               <Text style={styles.acceptText}>{isBusy ? 'Working…' : 'Accept'}</Text>
@@ -202,7 +208,7 @@ function ActivityRow({
               disabled={isBusy}
               onPress={(event) => {
                 event.stopPropagation();
-                onRespond(item.sourceId, false);
+                onRespond(item, false);
               }}
               style={({ pressed }) => [styles.declineButton, pressed && styles.pressed, isBusy && styles.disabled]}>
               <Text style={styles.declineText}>Decline</Text>
@@ -228,7 +234,7 @@ function InboxSection({
   items: ActivityItem[];
   busyInvitationId: string | null;
   onOpen: (item: ActivityItem) => void;
-  onRespond: (invitationId: string, accept: boolean) => void;
+  onRespond: (item: ActivityItem, accept: boolean) => void;
 }) {
   if (!items.length) return null;
 
@@ -470,22 +476,44 @@ export default function NotificationsScreen() {
     }
   };
 
-  const respondToInvitation = async (invitationId: string, accept: boolean) => {
-    if (busyInvitationId) return;
-    setBusyInvitationId(invitationId);
+  const respondToInvitation = async (item: ActivityItem, accept: boolean) => {
+    if (busyInvitationId || (item.kind !== 'crew' && item.kind !== 'drive')) return;
+    setBusyInvitationId(item.sourceId);
 
-    const { error } = await supabase.rpc('noxa_respond_to_crew_invitation', {
-      target_invitation_id: invitationId,
-      accept,
-    });
+    try {
+      if (item.kind === 'drive') {
+        const preview = await getDriveInvitationPreview(item.sourceId);
+        if (!preview) throw new Error('This Drive Together invitation is no longer available.');
 
-    setBusyInvitationId(null);
-    if (error) {
-      Alert.alert('Invitation not updated', 'Please try again.');
-      return;
+        const changed = await respondToDriveInvitation(item.sourceId, accept);
+        if (!changed) throw new Error('This Drive Together invitation is no longer available.');
+
+        if (accept) {
+          const drive = await loadGroupDriveDetails(preview.driveSessionId);
+          if (drive.driveMode === 'quick' && drive.status === 'active') {
+            router.replace('/(tabs)');
+            return;
+          }
+          router.push({ pathname: '/group-drives/[id]', params: { id: preview.driveSessionId } });
+          return;
+        }
+      } else {
+        const { error } = await supabase.rpc('noxa_respond_to_crew_invitation', {
+          target_invitation_id: item.sourceId,
+          accept,
+        });
+        if (error) throw error;
+      }
+
+      await loadActivities(true);
+    } catch (responseError) {
+      const message = responseError instanceof Error
+        ? responseError.message
+        : 'Please try again.';
+      Alert.alert('Invitation not updated', message);
+    } finally {
+      setBusyInvitationId(null);
     }
-
-    await loadActivities(true);
   };
 
   return (
@@ -560,7 +588,7 @@ export default function NotificationsScreen() {
                   items={needsAttention}
                   busyInvitationId={busyInvitationId}
                   onOpen={openActivity}
-                  onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
+                  onRespond={(item, accept) => void respondToInvitation(item, accept)}
                 />
                 <InboxSection
                   eyebrow="YOU’RE GOING"
@@ -568,7 +596,7 @@ export default function NotificationsScreen() {
                   items={upcoming}
                   busyInvitationId={busyInvitationId}
                   onOpen={openActivity}
-                  onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
+                  onRespond={(item, accept) => void respondToInvitation(item, accept)}
                 />
                 <InboxSection
                   eyebrow="SOCIAL"
@@ -576,7 +604,7 @@ export default function NotificationsScreen() {
                   items={community}
                   busyInvitationId={busyInvitationId}
                   onOpen={openActivity}
-                  onRespond={(invitationId, accept) => void respondToInvitation(invitationId, accept)}
+                  onRespond={(item, accept) => void respondToInvitation(item, accept)}
                 />
               </>
             )}

@@ -21,6 +21,10 @@ const quickSql = fs.readFileSync(
   path.join(repoRoot, 'supabase/migrations/20260927120358_drive_together_quickflow.sql'),
   'utf8',
 );
+const activeCancelGuardSql = fs.readFileSync(
+  path.join(repoRoot, 'supabase/migrations/20260927174500_drive_together_active_cancel_guard.sql'),
+  'utf8',
+);
 
 const ids = {
   host: '11111111-1111-4111-8111-111111111111',
@@ -170,7 +174,8 @@ try {
   await db.exec(baseSql);
   await db.exec(lobbySql);
   await db.exec(quickSql);
-  pass('base, lobby-safety, and quick-flow migrations compile together');
+  await db.exec(activeCancelGuardSql);
+  pass('base, lobby-safety, quick-flow, and active-cancel guard migrations compile together');
 
   const driveMode = await db.query(`
     select data_type, is_nullable, column_default
@@ -320,6 +325,14 @@ try {
     active_participants: 2,
   }]);
   pass('Join automatically activates both drivers without route, Ready, Lobby, or Start');
+
+  await expectError(
+    'stale waiting UI cannot cancel an already-active quick drive',
+    () => asRole(db, 'authenticated', ids.host, () =>
+      scalar(db, 'select public.noxa_cancel_drive($1)', [driveId]),
+    ),
+    /must be ended, not cancelled/i,
+  );
 
   const ended = await asRole(db, 'authenticated', ids.host, () =>
     scalar(db, 'select public.noxa_end_drive($1)', [driveId]),

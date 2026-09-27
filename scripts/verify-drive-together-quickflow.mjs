@@ -13,6 +13,10 @@ const migration = fs.readFileSync(
   'supabase/migrations/20260927120358_drive_together_quickflow.sql',
   'utf8',
 );
+const activeCancelGuard = fs.readFileSync(
+  'supabase/migrations/20260927174500_drive_together_active_cancel_guard.sql',
+  'utf8',
+);
 const api = fs.readFileSync('src/features/group-drive/api.ts', 'utf8');
 const layer = fs.readFileSync(
   'src/features/group-drive/DriveTogetherMapLayer.tsx',
@@ -85,6 +89,26 @@ assert(
 assert(
   /item\.kind === 'drive'[\s\S]*pathname: '\/\(tabs\)'[\s\S]*driveInvitationId/.test(notifications),
   'In-app drive invitations must reopen Home/Map.',
+);
+assert(
+  /item\.kind === 'crew' \|\| item\.kind === 'drive'/.test(notifications)
+    && /respondToDriveInvitation\(item\.sourceId, accept\)/.test(notifications)
+    && /getDriveInvitationPreview\(item\.sourceId\)/.test(notifications),
+  'Drive Together invitations in Activity must perform a real backend Accept/Decline instead of navigation only.',
+);
+assert(
+  /useFocusEffect/.test(layer)
+    && /findMyActiveQuickDriveId\(\)/.test(layer)
+    && /getPendingQuickDriveInvitation\(\)/.test(layer),
+  'Home/Map must refresh Drive Together state whenever it regains focus.',
+);
+assert(
+  /setInterval\(\(\) =>[\s\S]*reconcileWaitingDrive\(\)[\s\S]*2000/.test(layer),
+  'Host waiting state must poll as a fallback when the activation realtime event is missed.',
+);
+assert(
+  /drive_mode = 'quick'[\s\S]*status = 'active'[\s\S]*must be ended, not cancelled/.test(activeCancelGuard),
+  'Backend must reject stale quick-drive cancellation after activation.',
 );
 assert(
   fs.existsSync('app/group-drives/details.tsx')
