@@ -53,7 +53,7 @@ assert(
   'The native push router must accept the migration drive_invitation_id key.',
 );
 assert(
-  /pathname: '\/\\(tabs\\)'[\\s\\S]*driveInvitationId/.test(bridge),
+  /pathname: '\/\(tabs\)'[\s\S]*driveInvitationId/.test(bridge),
   'Drive invitations must reopen Home/Map so quick Drive Together can stay map-first.',
 );
 assert(
