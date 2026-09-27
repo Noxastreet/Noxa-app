@@ -267,6 +267,14 @@ try {
     /finish or cancel/i,
   );
 
+  await expectError(
+    'invitee cannot create a reciprocal pending quick session',
+    () => asRole(db, 'authenticated', ids.friend, () =>
+      scalar(db, 'select public.noxa_create_quick_drive($1)', [ids.host]),
+    ),
+    /already has a pending Drive Together invitation/i,
+  );
+
   const quickPreview = await asRole(db, 'authenticated', ids.friend, () =>
     scalar(db, 'select public.noxa_get_quick_drive_invitation($1)', [invitationId]),
   );
