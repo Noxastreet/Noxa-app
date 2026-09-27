@@ -12,6 +12,7 @@ import {
   formatDriveDistance,
   formatDriveDuration,
   getDriveInvitationPreview,
+  loadGroupDriveDetails,
   respondToDriveInvitation,
   type DriveInvitationPreview,
 } from '@/src/features/group-drive';
@@ -54,9 +55,14 @@ export default function GroupDriveInvitationScreen() {
       const changed = await respondToDriveInvitation(invitationId, accept);
       if (!changed) throw new Error('This invitation is no longer available.');
       if (accept) {
-        router.replace({ pathname: '/group-drives/[id]', params: { id: preview.driveSessionId } });
+        const drive = await loadGroupDriveDetails(preview.driveSessionId);
+        if (drive.driveMode === 'quick' && drive.status === 'active') {
+          router.replace('/(tabs)');
+        } else {
+          router.replace({ pathname: '/group-drives/[id]', params: { id: preview.driveSessionId } });
+        }
       } else {
-        router.replace('/group-drives');
+        router.replace('/(tabs)');
       }
     } catch (responseError) {
       setError(responseError instanceof Error ? responseError.message : 'Invitation could not be updated.');
