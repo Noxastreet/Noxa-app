@@ -38,6 +38,9 @@ function publicGroupDriveError(error: { code?: string; message?: string } | null
   if (/finish or cancel the current Drive Together invitation/i.test(message)) {
     return 'Finish or cancel the current Drive Together invitation first.';
   }
+  if (/Active Drive Together must be ended, not cancelled/i.test(message)) {
+    return 'Drive Together already started. End it from the live drive card.';
+  }
   if (/immutable|after (the )?drive starts/i.test(message)) {
     return 'This Group Drive can no longer be edited.';
   }
