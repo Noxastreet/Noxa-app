@@ -87,6 +87,18 @@ assert(
   'In-app drive invitations must reopen Home/Map.',
 );
 assert(
+  /item\.kind === 'crew' \|\| item\.kind === 'drive'/.test(notifications)
+    && /respondToDriveInvitation\(item\.sourceId, accept\)/.test(notifications)
+    && /getDriveInvitationPreview\(item\.sourceId\)/.test(notifications),
+  'Drive Together invitations in Activity must perform a real backend Accept/Decline instead of navigation only.',
+);
+assert(
+  /useFocusEffect/.test(layer)
+    && /findMyActiveQuickDriveId\(\)/.test(layer)
+    && /getPendingQuickDriveInvitation\(\)/.test(layer),
+  'Home/Map must refresh Drive Together state whenever it regains focus.',
+);
+assert(
   fs.existsSync('app/group-drives/details.tsx')
     && fs.existsSync('app/group-drives/route.tsx')
     && fs.existsSync('app/group-drives/[id].tsx'),
