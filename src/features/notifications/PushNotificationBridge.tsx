@@ -75,7 +75,7 @@ function openNotificationResponse(response: Notifications.NotificationResponse) 
   }
 
   if (firstDataString(data, 'drive_session_id', 'driveSessionId')) {
-    router.push('/(tabs)');
+    router.push('/group-drives');
     return;
   }
 
