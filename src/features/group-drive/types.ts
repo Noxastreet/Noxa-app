@@ -1,3 +1,5 @@
+export type DriveMode = 'planned' | 'quick';
+
 export type DriveSessionStatus =
   | 'draft'
   | 'scheduled'
@@ -83,6 +85,7 @@ export type DriveInvitation = {
 
 export type GroupDriveDetails = {
   currentUserId: string;
+  driveMode: DriveMode;
   id: string;
   hostId: string;
   title: string;
@@ -135,4 +138,18 @@ export type DriveRouteResult = {
   distanceMeters: number;
   durationSeconds: number;
   provider: string;
+};
+
+export type DriveTogetherCreateResult = {
+  driveSessionId: string;
+  invitationId: string;
+};
+
+export type PendingQuickDriveInvitation = {
+  invitationId: string;
+  driveSessionId: string;
+  hostId: string;
+  hostDisplayName: string;
+  hostAvatarUrl: string | null;
+  createdAt: string;
 };
