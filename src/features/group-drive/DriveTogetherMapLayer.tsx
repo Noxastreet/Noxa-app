@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -117,44 +117,57 @@ export function DriveTogetherMapLayer({
     if (open && !friendsLoading && !friendsLoaded) void loadFriends();
   }, [friendsLoaded, friendsLoading, loadFriends, open]);
 
-  useEffect(() => {
-    let disposed = false;
+  useFocusEffect(
+    useCallback(() => {
+      let disposed = false;
 
-    void (async () => {
-      try {
-        const active = await findMyActiveQuickDriveId();
-        if (disposed) return;
-        if (active) {
-          setActiveDriveId(active);
+      void (async () => {
+        try {
+          const active = await findMyActiveQuickDriveId();
+          if (disposed) return;
+          if (active) {
+            setActiveDriveId(active);
+            setWaiting(null);
+            setInvite(null);
+            return;
+          }
+
+          const pendingHost = await findMyWaitingQuickDrive();
+          if (disposed) return;
+          if (pendingHost) {
+            setActiveDriveId(null);
+            setWaiting(pendingHost);
+            setInvite(null);
+            return;
+          }
+
+          const pendingInvite = await getPendingQuickDriveInvitation();
+          if (disposed) return;
+          setActiveDriveId(null);
           setWaiting(null);
-          setInvite(null);
-          return;
+          if (pendingInvite) {
+            setInvite({
+              invitationId: pendingInvite.invitationId,
+              driveSessionId: pendingInvite.driveSessionId,
+              hostDisplayName: pendingInvite.hostDisplayName,
+            });
+          } else {
+            setInvite(null);
+          }
+        } catch (stateError) {
+          if (!disposed) {
+            setError(stateError instanceof Error
+              ? stateError.message
+              : 'Drive Together state could not be refreshed.');
+          }
         }
+      })();
 
-        const pendingHost = await findMyWaitingQuickDrive();
-        if (disposed) return;
-        if (pendingHost) {
-          setWaiting(pendingHost);
-          return;
-        }
-
-        const pendingInvite = await getPendingQuickDriveInvitation();
-        if (!disposed && pendingInvite) {
-          setInvite({
-            invitationId: pendingInvite.invitationId,
-            driveSessionId: pendingInvite.driveSessionId,
-            hostDisplayName: pendingInvite.hostDisplayName,
-          });
-        }
-      } catch {
-        // Quick-flow migration may not exist in an older build/environment yet.
-      }
-    })();
-
-    return () => {
-      disposed = true;
-    };
-  }, []);
+      return () => {
+        disposed = true;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     const id = invitationId?.trim() || null;
