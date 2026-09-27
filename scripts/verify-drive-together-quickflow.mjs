@@ -10,7 +10,7 @@ function assert(condition, message) {
 }
 
 const migration = fs.readFileSync(
-  'supabase/migrations/20260927112000_drive_together_quickflow.sql',
+  'supabase/migrations/20260927120358_drive_together_quickflow.sql',
   'utf8',
 );
 const api = fs.readFileSync('src/features/group-drive/api.ts', 'utf8');
