@@ -224,6 +224,53 @@ revoke all on function public.noxa_get_my_pending_quick_drive_invitation()
 grant execute on function public.noxa_get_my_pending_quick_drive_invitation()
   to authenticated;
 
+create or replace function public.noxa_get_quick_drive_invitation(
+  target_invitation_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = ''
+as $
+declare
+  actor uuid := (select auth.uid());
+  result jsonb;
+begin
+  if actor is null or target_invitation_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select jsonb_build_object(
+    'invitation_id', drive_invitations.id,
+    'drive_session_id', drive_sessions.id,
+    'host_id', drive_sessions.host_id,
+    'host_display_name', coalesce(nullif(btrim(profiles.display_name), ''), nullif(btrim(profiles.username), ''), 'NOXA driver'),
+    'host_avatar_url', profiles.avatar_url,
+    'created_at', drive_invitations.created_at
+  )
+  into result
+  from public.drive_invitations
+  join public.drive_sessions
+    on drive_sessions.id = drive_invitations.drive_session_id
+  join public.profiles
+    on profiles.id = drive_sessions.host_id
+  where drive_invitations.id = target_invitation_id
+    and drive_invitations.invited_user_id = actor
+    and drive_invitations.status = 'invited'
+    and drive_sessions.drive_mode = 'quick'
+    and drive_sessions.status = 'draft'
+    and not private.noxa_users_blocked(actor, drive_sessions.host_id);
+
+  return result;
+end;
+$;
+
+revoke all on function public.noxa_get_quick_drive_invitation(uuid)
+  from public, anon, authenticated;
+grant execute on function public.noxa_get_quick_drive_invitation(uuid)
+  to authenticated;
+
 -- Preserve the existing planned invitation behavior. Quick Drive Together
 -- invitations activate automatically on acceptance, with the same deterministic
 -- identity locking and active-drive overlap protection used by Start Drive.
