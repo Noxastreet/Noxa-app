@@ -201,11 +201,54 @@ export function DriveTogetherMapLayer({
       if (status === 'active') {
         setActiveDriveId(waiting.driveSessionId);
         setWaiting(null);
+        setInvite(null);
       } else if (status === 'cancelled' || status === 'completed') {
         setWaiting(null);
       }
     });
   }, [waiting]);
+
+  useEffect(() => {
+    if (!waiting?.driveSessionId) return undefined;
+
+    let disposed = false;
+    let reconciling = false;
+
+    const reconcileWaitingDrive = async () => {
+      if (reconciling) return;
+      reconciling = true;
+      try {
+        const activeId = await findMyActiveQuickDriveId();
+        if (disposed) return;
+        if (activeId === waiting.driveSessionId) {
+          setActiveDriveId(activeId);
+          setWaiting(null);
+          setInvite(null);
+          return;
+        }
+
+        const stillWaiting = await findMyWaitingQuickDrive();
+        if (disposed) return;
+        if (!stillWaiting || stillWaiting.driveSessionId !== waiting.driveSessionId) {
+          setWaiting(null);
+        }
+      } catch {
+        // Realtime remains primary. Polling only closes missed-event gaps.
+      } finally {
+        reconciling = false;
+      }
+    };
+
+    void reconcileWaitingDrive();
+    const interval = setInterval(() => {
+      void reconcileWaitingDrive();
+    }, 2000);
+
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+    };
+  }, [waiting?.driveSessionId]);
 
   useEffect(() => {
     let disposed = false;
