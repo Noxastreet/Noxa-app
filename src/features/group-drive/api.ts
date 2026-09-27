@@ -9,7 +9,9 @@ import {
 import type {
   DriveInvitation,
   DriveInvitationPreview,
+  DriveTogetherCreateResult,
   DriveInviteOptions,
+  PendingQuickDriveInvitation,
   DriveParticipant,
   DriveProfile,
   DriveRouteResult,
@@ -29,6 +31,12 @@ function publicGroupDriveError(error: { code?: string; message?: string } | null
   if (/future|past time/i.test(message)) return 'Choose a future start time.';
   if (/mutual friend|cannot be invited|unavailable/i.test(message)) {
     return 'One of the selected drivers can no longer be invited.';
+  }
+  if (/already active in another Group Drive|driver is already active/i.test(message)) {
+    return 'One of you is already in another active Drive Together session.';
+  }
+  if (/finish or cancel the current Drive Together invitation/i.test(message)) {
+    return 'Finish or cancel the current Drive Together invitation first.';
   }
   if (/immutable|after (the )?drive starts/i.test(message)) {
     return 'This Group Drive can no longer be edited.';
@@ -118,6 +126,117 @@ export async function createDriveSession(title: string, description: string) {
     context_crew_id: null,
     drive_scheduled_start_at: null,
   });
+}
+
+export async function listDriveTogetherFriends() {
+  const userId = await currentUserId();
+  const [outgoingResult, incomingResult] = await Promise.all([
+    supabase.from('follows').select('following_id').eq('follower_id', userId),
+    supabase.from('follows').select('follower_id').eq('following_id', userId),
+  ]);
+  const error = outgoingResult.error ?? incomingResult.error;
+  if (error) throw new Error('Friends could not be loaded.');
+
+  const outgoing = new Set((outgoingResult.data ?? []).map((row) => String(row.following_id)));
+  const mutualIds = (incomingResult.data ?? [])
+    .map((row) => String(row.follower_id))
+    .filter((id) => outgoing.has(id));
+  if (!mutualIds.length) return [];
+
+  const profilesResult = await supabase
+    .from('profiles')
+    .select('id,display_name,username,avatar_url')
+    .in('id', mutualIds)
+    .order('display_name', { ascending: true });
+  if (profilesResult.error) throw new Error('Friends could not be loaded.');
+  return (profilesResult.data ?? []).map(mapProfile);
+}
+
+export async function createQuickDrive(targetUserId: string): Promise<DriveTogetherCreateResult> {
+  const result = await rpc<Record<string, unknown>>('noxa_create_quick_drive', {
+    target_user_id: targetUserId,
+  });
+  const driveSessionId = String(result?.drive_session_id ?? '');
+  const invitationId = String(result?.invitation_id ?? '');
+  if (!driveSessionId || !invitationId) {
+    throw new Error('Drive Together could not be created.');
+  }
+  return { driveSessionId, invitationId };
+}
+
+export async function getPendingQuickDriveInvitation(): Promise<PendingQuickDriveInvitation | null> {
+  const result = await rpc<Record<string, unknown> | null>(
+    'noxa_get_my_pending_quick_drive_invitation',
+  );
+  if (!result) return null;
+  return {
+    invitationId: String(result.invitation_id),
+    driveSessionId: String(result.drive_session_id),
+    hostId: String(result.host_id),
+    hostDisplayName: String(result.host_display_name ?? 'NOXA driver'),
+    hostAvatarUrl: result.host_avatar_url ? String(result.host_avatar_url) : null,
+    createdAt: String(result.created_at),
+  };
+}
+
+export async function findMyActiveQuickDriveId() {
+  const userId = await currentUserId();
+  const participantsResult = await supabase
+    .from('drive_participants')
+    .select('drive_session_id')
+    .eq('user_id', userId)
+    .eq('status', 'active');
+  if (participantsResult.error) throw new Error('Drive Together state could not be loaded.');
+  const ids = (participantsResult.data ?? []).map((row) => String(row.drive_session_id));
+  if (!ids.length) return null;
+
+  const sessionsResult = await supabase
+    .from('drive_sessions')
+    .select('id,started_at')
+    .in('id', ids)
+    .eq('drive_mode', 'quick')
+    .eq('status', 'active')
+    .order('started_at', { ascending: false })
+    .limit(1);
+  if (sessionsResult.error) throw new Error('Drive Together state could not be loaded.');
+  return sessionsResult.data?.[0]?.id ? String(sessionsResult.data[0].id) : null;
+}
+
+export async function findMyWaitingQuickDrive() {
+  const userId = await currentUserId();
+  const sessionResult = await supabase
+    .from('drive_sessions')
+    .select('id,created_at')
+    .eq('host_id', userId)
+    .eq('drive_mode', 'quick')
+    .eq('status', 'draft')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (sessionResult.error) throw new Error('Drive Together state could not be loaded.');
+  if (!sessionResult.data) return null;
+
+  const invitationResult = await supabase
+    .from('drive_invitations')
+    .select('id,invited_user_id,status')
+    .eq('drive_session_id', sessionResult.data.id)
+    .eq('status', 'invited')
+    .limit(1)
+    .maybeSingle();
+  if (invitationResult.error) throw new Error('Drive Together invitation could not be loaded.');
+  if (!invitationResult.data) return null;
+
+  const profileResult = await supabase
+    .from('profiles')
+    .select('id,display_name,username,avatar_url')
+    .eq('id', invitationResult.data.invited_user_id)
+    .maybeSingle();
+  if (profileResult.error) throw new Error('Driver profile could not be loaded.');
+  return {
+    driveSessionId: String(sessionResult.data.id),
+    invitationId: String(invitationResult.data.id),
+    friend: profileResult.data ? mapProfile(profileResult.data) : null,
+  };
 }
 
 export async function updateDriveDetails(
@@ -332,7 +451,7 @@ export async function loadGroupDriveDetails(driveSessionId: string): Promise<Gro
   const { data: session, error: sessionError } = await supabase
     .from('drive_sessions')
     .select(
-      'id,host_id,title,description,crew_id,status,scheduled_start_at,started_at,completed_at,end_reason,route_geometry,route_distance_meters,route_duration_seconds,route_provider,route_version',
+      'id,host_id,title,description,crew_id,drive_mode,status,scheduled_start_at,started_at,completed_at,end_reason,route_geometry,route_distance_meters,route_duration_seconds,route_provider,route_version',
     )
     .eq('id', driveSessionId)
     .maybeSingle();
@@ -394,6 +513,7 @@ export async function loadGroupDriveDetails(driveSessionId: string): Promise<Gro
   }));
   return {
     currentUserId: userId,
+    driveMode: (session.drive_mode as GroupDriveDetails['driveMode']) ?? 'planned',
     id: String(session.id),
     hostId: String(session.host_id),
     title: String(session.title),
