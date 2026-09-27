@@ -37,6 +37,12 @@ function getSafeLiveDriveError(error: unknown) {
   if (message.includes('background location')) {
     return 'Background location was not allowed. You are still in Ghost.';
   }
+  if (message.includes('precise location')) {
+    return 'Precise Location is unavailable. Enable Precise Location for NOXA in iPhone Settings, then retry.';
+  }
+  if (message.includes('location services are off')) {
+    return 'iPhone Location Services are off. Enable them in Settings, then retry.';
+  }
   if (message.includes('allow location') || message.includes('foreground')) {
     return 'Location access was not allowed. You are still in Ghost.';
   }

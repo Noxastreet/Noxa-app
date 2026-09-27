@@ -118,11 +118,24 @@ async function getPreciseLocationSample() {
     return lastKnown;
   }
 
+  // The map itself uses Balanced successfully on iOS. Prefer that faster fix
+  // first, then escalate to High only when the returned sample is still too
+  // imprecise for Live Drive. Reduced Accuracy remains rejected by the same
+  // < 1000 m validation below.
   try {
-    const current = await Location.getCurrentPositionAsync({
+    const balanced = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    if (hasPreciseLocationSample(balanced.coords)) return balanced;
+  } catch {
+    // Fall through to one High-accuracy attempt.
+  }
+
+  try {
+    const high = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
     });
-    return hasPreciseLocationSample(current.coords) ? current : null;
+    return hasPreciseLocationSample(high.coords) ? high : null;
   } catch {
     return null;
   }
