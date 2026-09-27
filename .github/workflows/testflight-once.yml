@@ -1,4 +1,4 @@
-name: NOXA TestFlight Build
+name: NOXA TestFlight Local Build
 
 on:
   push:
@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  build-submit:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+  local-build-submit:
+    runs-on: macos-latest
+    timeout-minutes: 120
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -41,5 +41,22 @@ jobs:
           fi
           npx --yes eas-cli@latest whoami
 
-      - name: Build iOS production and submit to TestFlight
-        run: npx --yes eas-cli@latest build --platform ios --profile production --non-interactive --auto-submit
+      - name: Configure non-interactive TestFlight team
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const file = 'eas.json';
+          const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+          config.submit ??= {};
+          config.submit.production ??= {};
+          config.submit.production.ios ??= {};
+          config.submit.production.ios.appleTeamId = 'V8H92SG76B';
+          fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
+          NODE
+
+      - name: Build production IPA locally
+        run: npx --yes eas-cli@latest build --platform ios --profile production --local --non-interactive --output ./noxa.ipa
+
+      - name: Submit IPA to TestFlight
+        run: npx --yes eas-cli@latest submit --platform ios --profile production --path ./noxa.ipa --non-interactive --wait
