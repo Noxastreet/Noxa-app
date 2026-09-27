@@ -18,7 +18,7 @@ const lobbySql = fs.readFileSync(
   'utf8',
 );
 const quickSql = fs.readFileSync(
-  path.join(repoRoot, 'supabase/migrations/20260927112000_drive_together_quickflow.sql'),
+  path.join(repoRoot, 'supabase/migrations/20260927120358_drive_together_quickflow.sql'),
   'utf8',
 );
 
