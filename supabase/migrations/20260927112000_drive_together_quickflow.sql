@@ -107,6 +107,24 @@ begin
     raise exception 'Finish or cancel the current Drive Together invitation first';
   end if;
 
+  -- Neither driver may participate in another pending quick session. This also
+  -- closes the reciprocal-invite race (A invites B while B invites A).
+  if exists (
+    select 1
+    from public.drive_sessions as pending_session
+    join public.drive_invitations as pending_invitation
+      on pending_invitation.drive_session_id = pending_session.id
+     and pending_invitation.status = 'invited'
+    where pending_session.drive_mode = 'quick'
+      and pending_session.status = 'draft'
+      and (
+        pending_session.host_id in (actor, target_user_id)
+        or pending_invitation.invited_user_id in (actor, target_user_id)
+      )
+  ) then
+    raise exception 'One of you already has a pending Drive Together invitation';
+  end if;
+
   select active_participant.user_id
   into conflicting_user_id
   from public.drive_participants as active_participant
