@@ -31,7 +31,7 @@ assert(
   'Quick Drive must be additive to the existing drive_sessions table.',
 );
 assert(
-  !/^as \$/m.test(migration) && !/^\$;$/m.test(migration),
+  !/^as \$$/m.test(migration) && !/^\$;$/m.test(migration),
   'PL/pgSQL function dollar quotes must remain balanced.',
 );
 assert(
