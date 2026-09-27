@@ -1,4 +1,4 @@
-name: NOXA TestFlight Inspect
+name: NOXA TestFlight ASC Inspect
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Project status
-        run: npx --yes eas-cli@latest status --json --limit 10
-      - name: Recent workflow runs
-        run: npx --yes eas-cli@latest workflow:runs --json --limit 20
+      - name: App Store Connect link status
+        run: npx --yes eas-cli@latest integrations:asc:status --json --non-interactive
+      - name: TestFlight status
+        run: npx --yes eas-cli@latest submit:status --platform ios --profile production --json --non-interactive
