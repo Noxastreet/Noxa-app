@@ -19,7 +19,7 @@ import {
   endGroupDrive,
   findMyActiveQuickDriveId,
   findMyWaitingQuickDrive,
-  getDriveInvitationPreview,
+  getQuickDriveInvitation,
   getGroupDriveLocationSession,
   getPendingQuickDriveInvitation,
   groupDriveLocations,
@@ -160,9 +160,13 @@ export function DriveTogetherMapLayer({
     explicitInvitationRef.current = id;
     let disposed = false;
 
-    void getDriveInvitationPreview(id)
+    void getQuickDriveInvitation(id)
       .then((preview) => {
-        if (disposed || !preview) return;
+        if (disposed) return;
+        if (!preview) {
+          router.push({ pathname: '/group-drives/invitation/[id]', params: { id } });
+          return;
+        }
         setInvite({
           invitationId: id,
           driveSessionId: preview.driveSessionId,
