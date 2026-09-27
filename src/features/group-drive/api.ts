@@ -179,6 +179,24 @@ export async function getPendingQuickDriveInvitation(): Promise<PendingQuickDriv
   };
 }
 
+export async function getQuickDriveInvitation(
+  invitationId: string,
+): Promise<PendingQuickDriveInvitation | null> {
+  const result = await rpc<Record<string, unknown> | null>(
+    'noxa_get_quick_drive_invitation',
+    { target_invitation_id: invitationId },
+  );
+  if (!result) return null;
+  return {
+    invitationId: String(result.invitation_id),
+    driveSessionId: String(result.drive_session_id),
+    hostId: String(result.host_id),
+    hostDisplayName: String(result.host_display_name ?? 'NOXA driver'),
+    hostAvatarUrl: result.host_avatar_url ? String(result.host_avatar_url) : null,
+    createdAt: String(result.created_at),
+  };
+}
+
 export async function findMyActiveQuickDriveId() {
   const userId = await currentUserId();
   const participantsResult = await supabase
