@@ -26,6 +26,7 @@ export type QuickNavigationProjection = {
   progressFraction: number;
   arrived: boolean;
   nextManeuver: DriveRouteManeuver | null;
+  distanceToNextManeuverMeters: number | null;
 };
 
 export type QuickRerouteState = {
@@ -61,7 +62,7 @@ export function nextQuickDriveManeuver(
       candidate = { maneuver, progress };
     }
   }
-  return candidate?.maneuver ?? null;
+  return candidate;
 }
 
 export function projectQuickNavigation(
@@ -76,16 +77,24 @@ export function projectQuickNavigation(
   );
   if (!projection) return null;
 
+  const nextManeuver = nextQuickDriveManeuver(
+    route,
+    maneuvers,
+    projection.progressFraction,
+  );
   return {
     remainingDistanceMeters: projection.remainingMeters,
     distanceFromRouteMeters: projection.distanceFromRouteMeters,
     progressFraction: projection.progressFraction,
     arrived: projection.remainingMeters <= QUICK_DRIVE_ARRIVAL_METERS,
-    nextManeuver: nextQuickDriveManeuver(
-      route,
-      maneuvers,
-      projection.progressFraction,
-    ),
+    nextManeuver: nextManeuver?.maneuver ?? null,
+    distanceToNextManeuverMeters: nextManeuver
+      ? Math.max(
+          0,
+          route.routeDistanceMeters
+            * (nextManeuver.progress - projection.progressFraction),
+        )
+      : null,
   };
 }
 
