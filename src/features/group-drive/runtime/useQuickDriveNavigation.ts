@@ -244,7 +244,7 @@ export function useQuickDriveNavigation({
       return;
     }
 
-    const current = locationRef.current ?? location;
+    const current = locationRef.current;
     if (!current) {
       setStatus('locating');
       setError(null);
@@ -257,7 +257,6 @@ export function useQuickDriveNavigation({
     buildRoute,
     destination,
     driveSessionId,
-    location,
     resetRoute,
   ]);
 
