@@ -5,6 +5,7 @@ export * from './nativeLocation';
 export * from './participantStack';
 export * from './participantStackPresentation';
 export * from './pendingServerAction';
+export * from './quickNavigation';
 export * from './realtime';
 export * from './routeProgress';
 export * from './simulation';
