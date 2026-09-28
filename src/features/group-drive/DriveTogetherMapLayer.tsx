@@ -1505,61 +1505,73 @@ export function DriveTogetherMapLayer({
       );
     }
 
+    const collapsed = sheetSnap === 'collapsed';
+    const expanded = sheetSnap === 'expanded';
     const myDistance = navigation.projection?.remainingDistanceMeters ?? null;
     const nextTurnDistance =
       navigation.projection?.distanceToNextManeuverMeters ?? null;
     const nextInstruction =
       navigation.projection?.nextManeuver?.instruction ?? null;
 
-    return (
-      <ScrollView
-        contentContainerStyle={styles.roomContent}
-        showsVerticalScrollIndicator={false}>
-        <Pressable
-          onPress={() =>
-            setSheetSnap((current) =>
-              current === 'collapsed' ? 'medium' : current)
-          }
-          style={styles.roomHeadline}>
-          <View style={[styles.liveBadge, roomActive && styles.liveBadgeActive]}>
-            <Ionicons
-              name={roomActive ? 'navigate' : 'time-outline'}
-              size={16}
-              color={roomActive ? colors.success : colors.primaryHover}
-            />
-          </View>
-          <View style={styles.flexCopy}>
-            <View style={styles.roomKickerRow}>
-              <Text style={styles.eyebrow}>
-                {roomActive
-                  ? `DRIVE TOGETHER · ${connectionLabel(connection)}`
-                  : 'DRIVE TOGETHER · WAITING'}
-              </Text>
-              {roomActive && myDistance !== null ? (
-                <Text style={styles.myDistance}>
-                  {formatQuickRemainingDistance(myDistance)}
-                </Text>
-              ) : null}
-            </View>
-            <Text numberOfLines={1} style={styles.roomTitle}>
-              {destination?.label ?? 'Choose a destination'}
+    const header = (
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          setSheetSnap((current) =>
+            current === 'collapsed' ? 'medium' : current)
+        }
+        style={styles.roomHeadline}>
+        <View style={[styles.liveBadge, roomActive && styles.liveBadgeActive]}>
+          <Ionicons
+            name={roomActive ? 'navigate' : 'time-outline'}
+            size={16}
+            color={roomActive ? colors.success : colors.primaryHover}
+          />
+        </View>
+        <View style={styles.flexCopy}>
+          <View style={styles.roomKickerRow}>
+            <Text style={styles.eyebrow}>
+              {roomActive
+                ? `DRIVE TOGETHER · ${connectionLabel(connection)}`
+                : 'DRIVE TOGETHER · WAITING'}
             </Text>
-            {roomActive && nextInstruction ? (
-              <Text numberOfLines={1} style={styles.nextTurn}>
-                {nextTurnDistance !== null
-                  ? `${formatQuickRemainingDistance(nextTurnDistance)} · `
-                  : ''}
-                {nextInstruction}
+            {roomActive && myDistance !== null ? (
+              <Text style={styles.myDistance}>
+                {formatQuickRemainingDistance(myDistance)}
               </Text>
-            ) : (
-              <Text numberOfLines={1} style={styles.destinationText}>
-                {roomActive
-                  ? `${activeParticipants.length}/8 drivers`
-                  : `${pendingInvitations.length} invitation${pendingInvitations.length === 1 ? '' : 's'} pending`}
-              </Text>
-            )}
+            ) : null}
           </View>
-        </Pressable>
+          <Text numberOfLines={1} style={styles.roomTitle}>
+            {destination?.label ?? 'Choose a destination'}
+          </Text>
+          {roomActive && nextInstruction ? (
+            <Text numberOfLines={1} style={styles.nextTurn}>
+              {nextTurnDistance !== null
+                ? `${formatQuickRemainingDistance(nextTurnDistance)} · `
+                : ''}
+              {nextInstruction}
+            </Text>
+          ) : (
+            <Text numberOfLines={1} style={styles.destinationText}>
+              {roomActive
+                ? `${activeParticipants.length}/8 drivers`
+                : `${pendingInvitations.length} invitation${pendingInvitations.length === 1 ? '' : 's'} pending`}
+            </Text>
+          )}
+        </View>
+        {collapsed ? (
+          <Ionicons name="chevron-up" size={18} color={colors.textMuted} />
+        ) : null}
+      </Pressable>
+    );
+
+    if (collapsed) {
+      return <View style={styles.roomShell}>{header}</View>;
+    }
+
+    return (
+      <View style={styles.roomShell}>
+        {header}
 
         {roomActive && !isSharingLocation ? (
           <View style={styles.noticeCard}>
@@ -1683,94 +1695,127 @@ export function DriveTogetherMapLayer({
           </View>
         ) : null}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Drivers</Text>
-            <Text style={styles.sectionMeta}>
-              {roomActive
-                ? `${activeParticipants.length}/8`
-                : `${occupiedSlots}/8`}
-            </Text>
-          </View>
-
-          {(details?.participants ?? []).map((participant) => {
-            const metric = participantMetrics.find(
-              (entry) => entry.userId === participant.userId,
-            );
-            return (
-              <View key={participant.userId} style={styles.participantRow}>
-                <View style={styles.participantAvatar}>
-                  {participant.profile?.avatarUrl ? (
-                    <Image
-                      cachePolicy="memory-disk"
-                      contentFit="cover"
-                      source={{ uri: participant.profile.avatarUrl }}
-                      style={styles.participantAvatarImage}
-                    />
-                  ) : (
-                    <Text style={styles.participantInitial}>
-                      {initials(profileName(participant.profile))}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.flexCopy}>
-                  <Text numberOfLines={1} style={styles.participantName}>
-                    {profileName(participant.profile)}
-                    {participant.role === 'host' ? ' · Host' : ''}
-                  </Text>
-                  <Text style={styles.participantMeta}>
-                    {participant.status === 'active'
-                      ? 'In drive'
-                      : participant.status}
+        {expanded ? (
+          <>
+            <ScrollView
+              contentContainerStyle={styles.roomScrollContent}
+              showsVerticalScrollIndicator={false}
+              style={styles.roomScroll}>
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Drivers</Text>
+                  <Text style={styles.sectionMeta}>
+                    {roomActive
+                      ? `${activeParticipants.length}/8`
+                      : `${occupiedSlots}/8`}
                   </Text>
                 </View>
-                {metric ? (
-                  <Text style={styles.participantDistance}>
-                    {metric.distanceLabel}
-                  </Text>
-                ) : null}
-              </View>
-            );
-          })}
 
-          {pendingInvitations.map((pending) => (
-            <View key={pending.id} style={styles.participantRow}>
-              <View style={[styles.participantAvatar, styles.pendingAvatar]}>
-                <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+                {(details?.participants ?? []).map((participant) => {
+                  const metric = participantMetrics.find(
+                    (entry) => entry.userId === participant.userId,
+                  );
+                  return (
+                    <View key={participant.userId} style={styles.participantRow}>
+                      <View style={styles.participantAvatar}>
+                        {participant.profile?.avatarUrl ? (
+                          <Image
+                            cachePolicy="memory-disk"
+                            contentFit="cover"
+                            source={{ uri: participant.profile.avatarUrl }}
+                            style={styles.participantAvatarImage}
+                          />
+                        ) : (
+                          <Text style={styles.participantInitial}>
+                            {initials(profileName(participant.profile))}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={styles.flexCopy}>
+                        <Text numberOfLines={1} style={styles.participantName}>
+                          {profileName(participant.profile)}
+                          {participant.role === 'host' ? ' · Host' : ''}
+                        </Text>
+                        <Text style={styles.participantMeta}>
+                          {participant.status === 'active'
+                            ? 'In drive'
+                            : participant.status}
+                        </Text>
+                      </View>
+                      {metric ? (
+                        <Text style={styles.participantDistance}>
+                          {metric.distanceLabel}
+                        </Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
+
+                {pendingInvitations.map((pending) => (
+                  <View key={pending.id} style={styles.participantRow}>
+                    <View style={[styles.participantAvatar, styles.pendingAvatar]}>
+                      <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+                    </View>
+                    <View style={styles.flexCopy}>
+                      <Text numberOfLines={1} style={styles.participantName}>
+                        {profileName(pending.profile)}
+                      </Text>
+                      <Text style={styles.participantMeta}>Invited</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
-              <View style={styles.flexCopy}>
-                <Text numberOfLines={1} style={styles.participantName}>
-                  {profileName(pending.profile)}
-                </Text>
-                <Text style={styles.participantMeta}>Invited</Text>
-              </View>
+            </ScrollView>
+
+            {error ? (
+              <Text accessibilityRole="alert" style={styles.error}>
+                {error}
+              </Text>
+            ) : null}
+
+            <View style={styles.roomFooter}>
+              <SecondaryAction
+                destructive
+                disabled={working}
+                icon={roomActive ? 'exit-outline' : 'trash-outline'}
+                onPress={() => {
+                  if (roomActive) finishActive();
+                  else cancelWaitingRoom();
+                }}
+                title={
+                  roomActive
+                    ? isHost
+                      ? 'End Drive Together'
+                      : 'Leave Drive Together'
+                    : 'Cancel room'
+                }
+              />
             </View>
-          ))}
-        </View>
-
-        {error ? (
-          <Text accessibilityRole="alert" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
-
-        <SecondaryAction
-          destructive
-          disabled={working}
-          icon={roomActive ? 'exit-outline' : 'trash-outline'}
-          onPress={() => {
-            if (roomActive) finishActive();
-            else void cancelWaitingRoom();
-          }}
-          title={
-            roomActive
-              ? isHost
-                ? 'End Drive Together'
-                : 'Leave Drive Together'
-              : 'Cancel room'
-          }
-        />
-      </ScrollView>
+          </>
+        ) : (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSheetSnap('expanded')}
+              style={styles.driversSummary}>
+              <View>
+                <Text style={styles.sectionTitle}>Drivers</Text>
+                <Text style={styles.driversSummaryMeta}>
+                  {roomActive
+                    ? `${activeParticipants.length} active · up to 8`
+                    : `${occupiedSlots}/8 in room · ${pendingInvitations.length} pending`}
+                </Text>
+              </View>
+              <Ionicons name="chevron-up" size={17} color={colors.textMuted} />
+            </Pressable>
+            {error ? (
+              <Text accessibilityRole="alert" numberOfLines={2} style={styles.error}>
+                {error}
+              </Text>
+            ) : null}
+          </>
+        )}
+      </View>
     );
   };
 
