@@ -1,5 +1,6 @@
 export * from './locationSharingControl';
 export * from './locationState';
+export * from './localNavigationLocation';
 export * from './nativeLocation';
 export * from './participantStack';
 export * from './participantStackPresentation';
