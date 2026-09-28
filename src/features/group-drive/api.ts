@@ -309,6 +309,21 @@ export async function getQuickDriveInvitation(
   };
 }
 
+export async function findMyHostedQuickDriveId() {
+  const userId = await currentUserId();
+  const { data, error } = await supabase
+    .from('drive_sessions')
+    .select('id,status,updated_at')
+    .eq('host_id', userId)
+    .eq('drive_mode', 'quick')
+    .in('status', ['draft', 'active'])
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error('Drive Together room could not be loaded.');
+  return data?.id ? String(data.id) : null;
+}
+
 export async function findMyActiveQuickDriveId() {
   const userId = await currentUserId();
   const participantsResult = await supabase
