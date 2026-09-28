@@ -48,6 +48,8 @@ export function createGroupDriveSimulation(
             longitude: point.longitude,
             heading: point.heading ?? null,
             status: simulatedStatus(index, participant.path.length - 1),
+            remainingDistanceMeters: null,
+            routeDestinationVersion: null,
             updatedAt: at.toISOString(),
           };
         });
