@@ -143,12 +143,14 @@ function PrimaryAction({
   disabled,
   working,
   icon,
+  grow = false,
   onPress,
 }: {
   title: string;
   disabled?: boolean;
   working?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
+  grow?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -158,6 +160,7 @@ function PrimaryAction({
       onPress={onPress}
       style={({ pressed }) => [
         styles.primaryAction,
+        grow && styles.actionGrow,
         (disabled || working) && styles.actionDisabled,
         pressed && !disabled && !working && styles.pressed,
       ]}>
@@ -178,12 +181,14 @@ function SecondaryAction({
   icon,
   destructive,
   disabled,
+  grow = false,
   onPress,
 }: {
   title: string;
   icon?: keyof typeof Ionicons.glyphMap;
   destructive?: boolean;
   disabled?: boolean;
+  grow?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -193,6 +198,7 @@ function SecondaryAction({
       onPress={onPress}
       style={({ pressed }) => [
         styles.secondaryAction,
+        grow && styles.actionGrow,
         destructive && styles.destructiveAction,
         disabled && styles.actionDisabled,
         pressed && !disabled && styles.pressed,
@@ -1449,11 +1455,13 @@ export function DriveTogetherMapLayer({
       <View style={styles.actionRow}>
         <SecondaryAction
           disabled={working}
+          grow
           onPress={() => void declineInvite()}
           title="Decline"
         />
         <PrimaryAction
           disabled={working}
+          grow
           icon="navigate"
           onPress={() => void joinInvite()}
           title="Join & share"
@@ -1809,6 +1817,9 @@ const styles = StyleSheet.create({
   actionDisabled: {
     opacity: 0.42,
   },
+  actionGrow: {
+    flex: 1,
+  },
   composer: {
     flex: 1,
     gap: spacing.md,
@@ -1939,7 +1950,6 @@ const styles = StyleSheet.create({
   },
   primaryAction: {
     minHeight: 46,
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1957,7 +1967,6 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     minHeight: 46,
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
