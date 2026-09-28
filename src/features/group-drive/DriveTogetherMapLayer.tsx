@@ -91,6 +91,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onDriversChange: (drivers: MapboxDriver[]) => void;
   onNavigationChange: (navigation: DriveTogetherNavigationOverlay | null) => void;
+  onPanelVisibilityChange: (visible: boolean) => void;
   onBeginMapPick: (handler: (point: LatLng) => void) => void;
   onEndMapPick: () => void;
 };
@@ -245,6 +246,7 @@ export function DriveTogetherMapLayer({
   onOpenChange,
   onDriversChange,
   onNavigationChange,
+  onPanelVisibilityChange,
   onBeginMapPick,
   onEndMapPick,
 }: Props) {
@@ -1220,6 +1222,15 @@ export function DriveTogetherMapLayer({
     || Boolean(roomId)
     || composerMode !== 'room';
 
+  useEffect(() => {
+    onPanelVisibilityChange(sheetVisible);
+  }, [onPanelVisibilityChange, sheetVisible]);
+
+  useEffect(
+    () => () => onPanelVisibilityChange(false),
+    [onPanelVisibilityChange],
+  );
+
   const renderDestinationComposer = () => (
     <View style={styles.composer}>
       <View style={styles.sheetHeader}>
@@ -1839,6 +1850,7 @@ export function DriveTogetherMapLayer({
         <DriveTogetherSheet
           bottomOffset={bottomOffset}
           onSnapChange={setSheetSnap}
+          topOffset={topOffset}
           snap={
             mapPicking
               ? 'collapsed'
@@ -1892,6 +1904,37 @@ const styles = StyleSheet.create({
   roomContent: {
     gap: spacing.md,
     paddingBottom: spacing.lg,
+  },
+  roomShell: {
+    flex: 1,
+    minHeight: 0,
+    gap: spacing.sm,
+  },
+  roomScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  roomScrollContent: {
+    paddingBottom: spacing.sm,
+  },
+  roomFooter: {
+    paddingTop: 2,
+  },
+  driversSummary: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+  },
+  driversSummaryMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 10.5,
   },
   emptyComposer: {
     gap: spacing.md,
@@ -2126,7 +2169,9 @@ const styles = StyleSheet.create({
   },
   stickyActions: {
     gap: spacing.sm,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   privacyNote: {
     color: colors.textMuted,
