@@ -1158,6 +1158,122 @@ revoke all on function public.noxa_respond_quick_drive_destination_proposal(uuid
 grant execute on function public.noxa_respond_quick_drive_destination_proposal(uuid, boolean)
   to authenticated;
 
+-- Preserve quick-drive arrival across background GPS writes until the shared
+-- destination version changes. Planned Group Drive behavior remains identical.
+create or replace function public.noxa_upsert_drive_location(
+  target_drive_session_id uuid,
+  location_latitude double precision,
+  location_longitude double precision,
+  location_heading double precision,
+  location_status text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  actor uuid := (select auth.uid());
+  session_status text;
+  session_active_expires_at timestamptz;
+  session_host_id uuid;
+  session_drive_mode text;
+  session_destination_version integer;
+  participant_status text;
+  location_state_id uuid;
+begin
+  if actor is null or target_drive_session_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  if location_latitude is null or location_latitude not between -90 and 90
+    or location_longitude is null or location_longitude not between -180 and 180
+    or location_heading is not null
+      and (location_heading < 0 or location_heading >= 360)
+    or location_status is null
+    or location_status not in ('moving', 'stopped', 'arrived', 'stale')
+  then
+    raise exception 'Invalid Group Drive location state';
+  end if;
+
+  select
+    drive_sessions.status,
+    drive_sessions.active_expires_at,
+    drive_sessions.host_id,
+    drive_sessions.drive_mode,
+    drive_sessions.destination_version
+  into
+    session_status,
+    session_active_expires_at,
+    session_host_id,
+    session_drive_mode,
+    session_destination_version
+  from public.drive_sessions
+  where drive_sessions.id = target_drive_session_id
+  for share;
+
+  if session_status is distinct from 'active'
+    or session_active_expires_at is null
+    or session_active_expires_at <= now()
+  then
+    raise exception 'Group Drive location is available only during an active session';
+  end if;
+
+  select drive_participants.status
+  into participant_status
+  from public.drive_participants
+  where drive_participants.drive_session_id = target_drive_session_id
+    and drive_participants.user_id = actor
+  for share;
+
+  if participant_status is distinct from 'active' then
+    raise exception 'Only an active Group Drive participant can publish location';
+  end if;
+
+  if private.noxa_users_blocked(actor, session_host_id) then
+    raise exception 'This Group Drive is unavailable';
+  end if;
+
+  insert into public.drive_location_state (
+    drive_session_id,
+    user_id,
+    latitude,
+    longitude,
+    heading,
+    status
+  ) values (
+    target_drive_session_id,
+    actor,
+    location_latitude,
+    location_longitude,
+    location_heading,
+    location_status
+  )
+  on conflict (drive_session_id, user_id) do update
+  set
+    latitude = excluded.latitude,
+    longitude = excluded.longitude,
+    heading = excluded.heading,
+    status = case
+      when session_drive_mode = 'quick'
+        and drive_location_state.status = 'arrived'
+        and drive_location_state.route_destination_version = session_destination_version
+      then 'arrived'
+      else excluded.status
+    end
+  returning id into location_state_id;
+
+  return location_state_id;
+end;
+$$;
+
+revoke all on function public.noxa_upsert_drive_location(
+  uuid, double precision, double precision, double precision, text
+) from public, anon, authenticated;
+grant execute on function public.noxa_upsert_drive_location(
+  uuid, double precision, double precision, double precision, text
+) to authenticated;
+
 -- Foreground navigation publishes only its own remaining distance for the
 -- current destination. The per-driver route geometry never leaves the device.
 create or replace function public.noxa_upsert_quick_drive_navigation_progress(
