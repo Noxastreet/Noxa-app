@@ -35,6 +35,7 @@ type Options = {
   driveSessionId: string | null;
   destination: DriveDestination | null;
   active: boolean;
+  publishProgressEnabled: boolean;
   onRoomEnded?: () => void;
 };
 
@@ -45,6 +46,7 @@ export function useQuickDriveNavigation({
   driveSessionId,
   destination,
   active,
+  publishProgressEnabled,
   onRoomEnded,
 }: Options) {
   const [route, setRoute] = useState<DriveRouteResult | null>(null);
@@ -131,7 +133,7 @@ export function useQuickDriveNavigation({
     currentProjection: QuickNavigationProjection,
   ) => {
     const target = destinationRef.current;
-    if (!active || !driveSessionId || !target) return;
+    if (!active || !publishProgressEnabled || !driveSessionId || !target) return;
 
     const now = Date.now();
     const distanceDelta =
@@ -176,7 +178,14 @@ export function useQuickDriveNavigation({
         if (latestLocation) void buildRoute(latestLocation, true);
       }
     }
-  }, [active, buildRoute, driveSessionId, onRoomEnded, resetRoute]);
+  }, [
+    active,
+    buildRoute,
+    driveSessionId,
+    onRoomEnded,
+    publishProgressEnabled,
+    resetRoute,
+  ]);
 
   const handleLocation = useCallback((nextLocation: LocalNavigationLocation) => {
     locationRef.current = nextLocation;
