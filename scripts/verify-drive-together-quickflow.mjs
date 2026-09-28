@@ -9,17 +9,37 @@ function assert(condition, message) {
   }
 }
 
-const migration = fs.readFileSync(
+const quickMigration = fs.readFileSync(
   'supabase/migrations/20260927120358_drive_together_quickflow.sql',
   'utf8',
 );
-const activeCancelGuard = fs.readFileSync(
-  'supabase/migrations/20260927174500_drive_together_active_cancel_guard.sql',
+const destinationMigration = fs.readFileSync(
+  'supabase/migrations/20260928130000_drive_together_shared_destination.sql',
   'utf8',
 );
 const api = fs.readFileSync('src/features/group-drive/api.ts', 'utf8');
 const layer = fs.readFileSync(
   'src/features/group-drive/DriveTogetherMapLayer.tsx',
+  'utf8',
+);
+const navigation = fs.readFileSync(
+  'src/features/group-drive/runtime/useQuickDriveNavigation.ts',
+  'utf8',
+);
+const quickRoomRealtime = fs.readFileSync(
+  'src/features/group-drive/runtime/quickRoomRealtime.ts',
+  'utf8',
+);
+const sheet = fs.readFileSync(
+  'src/features/group-drive/components/DriveTogetherSheet.tsx',
+  'utf8',
+);
+const participantRail = fs.readFileSync(
+  'src/features/group-drive/components/DriveTogetherParticipantRail.tsx',
+  'utf8',
+);
+const mapRuntime = fs.readFileSync(
+  'src/features/mapbox/MapboxLiveMap.tsx',
   'utf8',
 );
 const map = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
@@ -30,21 +50,57 @@ const bridge = fs.readFileSync(
 const notifications = fs.readFileSync('app/notifications.tsx', 'utf8');
 
 assert(
-  /add column if not exists drive_mode text not null default 'planned'/.test(migration)
-    && /drive_mode in \('planned', 'quick'\)/.test(migration),
-  'Quick Drive must be additive to the existing drive_sessions table.',
+  /add column if not exists drive_mode text not null default 'planned'/.test(quickMigration)
+    && /drive_mode in \('planned', 'quick'\)/.test(quickMigration),
+  'Quick Drive must remain additive to the existing drive_sessions table.',
 );
 assert(
-  !/^as \$$/m.test(migration) && !/^\$;$/m.test(migration),
-  'PL/pgSQL function dollar quotes must remain balanced.',
+  !/^as \$$/m.test(destinationMigration) && !/^\$;$/m.test(destinationMigration),
+  'Shared-destination PL/pgSQL dollar quotes must remain balanced.',
 );
 assert(
-  /function public\.noxa_create_quick_drive\([\s\S]*private\.noxa_users_blocked[\s\S]*public\.follows[\s\S]*drive_mode[\s\S]*'quick'/.test(migration),
-  'Quick creation must preserve blocking, mutual-friend privacy, and explicit quick mode.',
+  /destination_latitude/.test(destinationMigration)
+    && /destination_longitude/.test(destinationMigration)
+    && /destination_version/.test(destinationMigration)
+    && /proposed_destination_by/.test(destinationMigration),
+  'Quick rooms must persist one canonical shared destination and one pending proposal.',
 );
 assert(
-  /function public\.noxa_respond_to_drive_invitation\([\s\S]*current_session\.drive_mode = 'quick'[\s\S]*status = 'active'[\s\S]*active_expires_at = now\(\) \+ interval '8 hours'/.test(migration),
-  'Quick Join must atomically activate the existing Group Drive lifecycle.',
+  /function public\.noxa_create_quick_drive_with_destination/.test(destinationMigration)
+    && /target_count < 1 or target_count > 7/.test(destinationMigration)
+    && /Drive Together supports 2 to 8 drivers/.test(destinationMigration)
+    && /Drive Together requires mutual friends/.test(destinationMigration),
+  'Destination-first room creation must enforce mutual friends and the 2-8 driver limit.',
+);
+assert(
+  /function public\.noxa_invite_quick_drive_user/.test(destinationMigration)
+    && /current_session\.status not in \('draft', 'active'\)/.test(destinationMigration),
+  'Quick rooms must support host late-invite while waiting or active.',
+);
+assert(
+  /function public\.noxa_respond_to_drive_invitation/.test(destinationMigration)
+    && /current_session\.drive_mode = 'quick'/.test(destinationMigration)
+    && /current_session\.status not in \('draft', 'active'\)/.test(destinationMigration)
+    && /case when current_session\.status = 'active' then 'active' else 'accepted' end/.test(destinationMigration),
+  'Quick invitation acceptance must support first join and late join without a Start step.',
+);
+assert(
+  /function public\.noxa_propose_quick_drive_destination/.test(destinationMigration)
+    && /function public\.noxa_respond_quick_drive_destination_proposal/.test(destinationMigration)
+    && /Only the Drive Together host can approve a destination/.test(destinationMigration),
+  'Any active participant may request a destination and the host must own approval.',
+);
+assert(
+  /remaining_distance_meters/.test(destinationMigration)
+    && /route_destination_version/.test(destinationMigration)
+    && /function public\.noxa_upsert_quick_drive_navigation_progress/.test(destinationMigration),
+  'Each participant must publish only their own remaining distance for the current destination version.',
+);
+assert(
+  /all_arrived/.test(destinationMigration)
+    && /delete from public\.drive_sessions/.test(destinationMigration)
+    && /drive_mode = 'quick'/.test(destinationMigration),
+  'Quick rooms must auto-end ephemerally with no retained trip history.',
 );
 assert(
   /function public\.noxa_start_drive/.test(
@@ -53,17 +109,56 @@ assert(
   'The existing planned Group Drive start contract must remain present.',
 );
 assert(
-  /export async function listDriveTogetherFriends/.test(api)
-    && /export async function createQuickDrive/.test(api)
-    && /export async function findMyActiveQuickDriveId/.test(api)
-    && /export async function findMyWaitingQuickDrive/.test(api),
-  'Drive Together client recovery/create APIs are incomplete.',
+  /export async function createQuickDriveRoom/.test(api)
+    && /export async function inviteQuickDriveUser/.test(api)
+    && /export async function proposeQuickDriveDestination/.test(api)
+    && /export async function publishQuickDriveNavigationProgress/.test(api)
+    && /export async function findMyHostedQuickDriveId/.test(api),
+  'Shared-destination Drive Together client APIs are incomplete.',
 );
 assert(
-  /subscribeToActiveDriveRealtime/.test(layer)
+  /subscribeToQuickDriveRoomState/.test(layer)
+    && /subscribeToActiveDriveRealtime/.test(layer)
     && /startGroupDriveLocationSession/.test(layer)
-    && /groupDriveLocations/.test(layer),
-  'Map quick flow must reuse existing Group Drive realtime and location runtime.',
+    && /groupDriveLocations/.test(layer)
+    && /useQuickDriveNavigation/.test(layer),
+  'Home/Map must reuse the existing Group Drive room, realtime, and location runtimes.',
+);
+assert(
+  /DriveTogetherSheet/.test(layer)
+    && /DriveTogetherParticipantRail/.test(layer)
+    && /createQuickDriveRoom/.test(layer)
+    && /composerMode === 'create-destination'/.test(layer),
+  'Drive Together must be destination-first and controlled from one map bottom sheet.',
+);
+assert(
+  /PanResponder/.test(sheet)
+    && /'collapsed' \| 'medium' \| 'expanded'/.test(sheet),
+  'Drive Together sheet must expose collapsed, medium, and expanded interactive states.',
+);
+assert(
+  /distanceLabel/.test(participantRail)
+    && !/behind|ahead/i.test(participantRail),
+  'Participant rail must show destination distance, never inter-driver distance.',
+);
+assert(
+  /calculateDriveRoute/.test(navigation)
+    && /projectQuickNavigation/.test(navigation)
+    && /updateQuickRerouteState/.test(navigation)
+    && /nextManeuver/.test(
+      fs.readFileSync('src/features/group-drive/runtime/quickNavigation.ts', 'utf8'),
+    ),
+  'Each device must calculate its own route, maneuver progress, and reroute state.',
+);
+assert(
+  !/watchLocalNavigationLocation|readLocalNavigationLocation|watchPositionAsync|startLocationUpdatesAsync/.test(navigation),
+  'Quick navigation must not create a second GPS watcher or background location task.',
+);
+assert(
+  /postgres_changes/.test(quickRoomRealtime)
+    && /table: 'drive_sessions'/.test(quickRoomRealtime)
+    && /ROOM_RECONCILE_MS = 5_000/.test(quickRoomRealtime),
+  'Room destination/state sync must use Realtime with a reconciliation fallback.',
 );
 assert(
   !/MapboxLiveMapCompat/.test(layer)
@@ -72,15 +167,22 @@ assert(
   'Drive Together layer must not create a second MapView or GPS/background task.',
 );
 assert(
+  /routeDestination/.test(mapRuntime)
+    && /isDestinationPicking/.test(mapRuntime)
+    && /onMapPress/.test(mapRuntime),
+  'The existing Mapbox MapView must own destination rendering and map picking.',
+);
+assert(
   /DriveTogetherMapLayer/.test(map)
     && /accessibilityLabel="Drive Together"/.test(map)
     && /setDriveTogetherOpen\(true\)/.test(map)
-    && /for \(const driver of driveTogetherDrivers\) merged\.set\(driver\.user_id, driver\)/.test(map),
-  'Home/Map must own the Drive Together entry and merge private participant markers.',
+    && /for \(const driver of driveTogetherDrivers\) merged\.set\(driver\.user_id, driver\)/.test(map)
+    && /routeDestination=\{driveTogetherNavigation\?\.destination/.test(map),
+  'Home/Map must own the Drive Together entry, participant markers, route, and destination pin.',
 );
 assert(
   !/accessibilityLabel="Group Drives"[\s\S]{0,300}router\.push\("\/group-drives"\)/.test(map),
-  'Home/Map must not send the primary quick-drive action into the legacy wizard.',
+  'Home/Map must not send the primary Drive Together action into the legacy wizard.',
 );
 assert(
   /pathname: '\/\(tabs\)'[\s\S]*driveInvitationId/.test(bridge),
@@ -94,21 +196,14 @@ assert(
   /item\.kind === 'crew' \|\| item\.kind === 'drive'/.test(notifications)
     && /respondToDriveInvitation\(item\.sourceId, accept\)/.test(notifications)
     && /getDriveInvitationPreview\(item\.sourceId\)/.test(notifications),
-  'Drive Together invitations in Activity must perform a real backend Accept/Decline instead of navigation only.',
+  'Drive Together invitations in Activity must perform a real backend Accept/Decline.',
 );
 assert(
   /useFocusEffect/.test(layer)
     && /findMyActiveQuickDriveId\(\)/.test(layer)
+    && /findMyHostedQuickDriveId\(\)/.test(layer)
     && /getPendingQuickDriveInvitation\(\)/.test(layer),
-  'Home/Map must refresh Drive Together state whenever it regains focus.',
-);
-assert(
-  /setInterval\(\(\) =>[\s\S]*reconcileWaitingDrive\(\)[\s\S]*2000/.test(layer),
-  'Host waiting state must poll as a fallback when the activation realtime event is missed.',
-);
-assert(
-  /drive_mode = 'quick'[\s\S]*status = 'active'[\s\S]*must be ended, not cancelled/.test(activeCancelGuard),
-  'Backend must reject stale quick-drive cancellation after activation.',
+  'Home/Map must recover active, hosted-waiting, and invited quick rooms on focus.',
 );
 assert(
   fs.existsSync('app/group-drives/details.tsx')
@@ -118,5 +213,5 @@ assert(
 );
 
 if (!process.exitCode) {
-  console.log('Drive Together quick-flow static contract passed.');
+  console.log('Drive Together shared-destination static contract passed.');
 }
