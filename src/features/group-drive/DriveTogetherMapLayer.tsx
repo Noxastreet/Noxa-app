@@ -84,6 +84,7 @@ type Props = {
   open: boolean;
   invitationId?: string | null;
   bottomOffset: number;
+  bottomInset: number;
   topOffset: number;
   currentLocation: LatLng | null;
   following: boolean;
@@ -239,6 +240,7 @@ export function DriveTogetherMapLayer({
   open,
   invitationId,
   bottomOffset,
+  bottomInset,
   topOffset,
   currentLocation,
   following,
@@ -263,6 +265,7 @@ export function DriveTogetherMapLayer({
   const [connection, setConnection] = useState<ActiveDriveRealtimeConnection>('closed');
   const [invite, setInvite] = useState<PendingQuickDriveInvitation | null>(null);
 
+  const [panelOpen, setPanelOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<DriveTogetherSheetSnap>('medium');
   const [composerMode, setComposerMode] = useState<ComposerMode>('room');
   const [draftDestination, setDraftDestination] = useState<DriveDestination | null>(null);
@@ -315,6 +318,7 @@ export function DriveTogetherMapLayer({
     pendingHostConsentRef.current = null;
     previousDestinationVersionRef.current = null;
     autoFollowDestinationVersionRef.current = null;
+    setPanelOpen(false);
     setRoomId(null);
     setRoomState(null);
     setDetails(null);
@@ -413,6 +417,7 @@ export function DriveTogetherMapLayer({
           return;
         }
         setInvite(preview);
+        setPanelOpen(true);
         setSheetSnap('medium');
       })
       .catch(() => undefined);
@@ -709,17 +714,21 @@ export function DriveTogetherMapLayer({
 
   useEffect(() => {
     if (!open) return;
+
+    setPanelOpen(true);
+    setError(null);
+
     if (roomId || invite) {
-      setSheetSnap('expanded');
+      setSheetSnap('medium');
       setComposerMode('room');
       onOpenChange(false);
       return;
     }
+
     setComposerMode('create-destination');
     setDraftDestination(null);
     setSelectedFriendIds(new Set());
     setSheetSnap('medium');
-    setError(null);
     setSearchQuery('');
     setSearchResults([]);
     onOpenChange(false);
@@ -1025,6 +1034,7 @@ export function DriveTogetherMapLayer({
         throw new Error('This invitation is no longer available.');
       }
       setInvite(null);
+      setPanelOpen(false);
       setSheetSnap('medium');
     } catch (declineError) {
       setError(
@@ -1216,11 +1226,17 @@ export function DriveTogetherMapLayer({
       (participant) => participant.status === 'active',
     ) ?? [];
 
-  const sheetVisible =
-    open
-    || Boolean(invite)
-    || Boolean(roomId)
-    || composerMode !== 'room';
+  const closePanel = useCallback(() => {
+    setPanelOpen(false);
+    setComposerMode('room');
+    setSheetSnap('medium');
+    setMapPicking(false);
+    setError(null);
+    onEndMapPick();
+    onOpenChange(false);
+  }, [onEndMapPick, onOpenChange]);
+
+  const sheetVisible = panelOpen;
 
   useEffect(() => {
     onPanelVisibilityChange(sheetVisible);
@@ -1241,8 +1257,8 @@ export function DriveTogetherMapLayer({
               setComposerMode('room');
               setSheetSnap('medium');
             } else {
-              setComposerMode('room');
               setDraftDestination(null);
+              closePanel();
             }
           }}
           style={styles.iconButton}>
@@ -1525,55 +1541,68 @@ export function DriveTogetherMapLayer({
       navigation.projection?.nextManeuver?.instruction ?? null;
 
     const header = (
-      <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          setSheetSnap((current) =>
-            current === 'collapsed' ? 'medium' : current)
-        }
-        style={styles.roomHeadline}>
-        <View style={[styles.liveBadge, roomActive && styles.liveBadgeActive]}>
-          <Ionicons
-            name={roomActive ? 'navigate' : 'time-outline'}
-            size={16}
-            color={roomActive ? colors.success : colors.primaryHover}
-          />
-        </View>
-        <View style={styles.flexCopy}>
-          <View style={styles.roomKickerRow}>
-            <Text style={styles.eyebrow}>
-              {roomActive
-                ? `DRIVE TOGETHER · ${connectionLabel(connection)}`
-                : 'DRIVE TOGETHER · WAITING'}
-            </Text>
-            {roomActive && myDistance !== null ? (
-              <Text style={styles.myDistance}>
-                {formatQuickRemainingDistance(myDistance)}
-              </Text>
-            ) : null}
+      <View style={styles.roomHeadline}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            setSheetSnap((current) =>
+              current === 'collapsed' ? 'medium' : current)
+          }
+          style={styles.roomHeadlineMain}>
+          <View style={[styles.liveBadge, roomActive && styles.liveBadgeActive]}>
+            <Ionicons
+              name={roomActive ? 'navigate' : 'time-outline'}
+              size={16}
+              color={roomActive ? colors.success : colors.primaryHover}
+            />
           </View>
-          <Text numberOfLines={1} style={styles.roomTitle}>
-            {destination?.label ?? 'Choose a destination'}
-          </Text>
-          {roomActive && nextInstruction ? (
-            <Text numberOfLines={1} style={styles.nextTurn}>
-              {nextTurnDistance !== null
-                ? `${formatQuickRemainingDistance(nextTurnDistance)} · `
-                : ''}
-              {nextInstruction}
+          <View style={styles.flexCopy}>
+            <View style={styles.roomKickerRow}>
+              <Text style={styles.eyebrow}>
+                {roomActive
+                  ? `DRIVE TOGETHER · ${connectionLabel(connection)}`
+                  : 'DRIVE TOGETHER · WAITING'}
+              </Text>
+              {roomActive && myDistance !== null ? (
+                <Text style={styles.myDistance}>
+                  {formatQuickRemainingDistance(myDistance)}
+                </Text>
+              ) : null}
+            </View>
+            <Text numberOfLines={1} style={styles.roomTitle}>
+              {destination?.label ?? 'Choose a destination'}
             </Text>
-          ) : (
-            <Text numberOfLines={1} style={styles.destinationText}>
-              {roomActive
-                ? `${activeParticipants.length}/8 drivers`
-                : `${pendingInvitations.length} invitation${pendingInvitations.length === 1 ? '' : 's'} pending`}
-            </Text>
-          )}
-        </View>
-        {collapsed ? (
-          <Ionicons name="chevron-up" size={18} color={colors.textMuted} />
-        ) : null}
-      </Pressable>
+            {roomActive && nextInstruction ? (
+              <Text numberOfLines={1} style={styles.nextTurn}>
+                {nextTurnDistance !== null
+                  ? `${formatQuickRemainingDistance(nextTurnDistance)} · `
+                  : ''}
+                {nextInstruction}
+              </Text>
+            ) : (
+              <Text numberOfLines={1} style={styles.destinationText}>
+                {roomActive
+                  ? `${activeParticipants.length}/8 drivers`
+                  : `${pendingInvitations.length} invitation${pendingInvitations.length === 1 ? '' : 's'} pending`}
+              </Text>
+            )}
+          </View>
+          {collapsed ? (
+            <Ionicons name="chevron-up" size={18} color={colors.textMuted} />
+          ) : null}
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel="Hide Drive Together panel"
+          accessibilityRole="button"
+          onPress={closePanel}
+          style={({ pressed }) => [
+            styles.roomCloseButton,
+            pressed && styles.pressed,
+          ]}>
+          <Ionicons name="chevron-down" size={19} color={colors.textMuted} />
+        </Pressable>
+      </View>
     );
 
     if (collapsed) {
@@ -1848,6 +1877,7 @@ export function DriveTogetherMapLayer({
 
       {sheetVisible ? (
         <DriveTogetherSheet
+          bottomInset={bottomInset}
           bottomOffset={bottomOffset}
           onSnapChange={setSheetSnap}
           topOffset={topOffset}
@@ -2207,8 +2237,23 @@ const styles = StyleSheet.create({
   roomHeadline: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     minHeight: 68,
+  },
+  roomHeadlineMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  roomCloseButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.045)',
   },
   liveBadge: {
     width: 42,

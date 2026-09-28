@@ -1,7 +1,14 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/src/theme/colors';
@@ -22,6 +29,15 @@ export function NoxaBottomTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const activeRoute = state.routes[state.index];
+  const activeOptions = activeRoute ? descriptors[activeRoute.key]?.options : undefined;
+  const activeTabBarStyle = StyleSheet.flatten(
+    activeOptions?.tabBarStyle as StyleProp<ViewStyle>,
+  );
+
+  if (activeTabBarStyle?.display === 'none') {
+    return null;
+  }
 
   return (
     <View
