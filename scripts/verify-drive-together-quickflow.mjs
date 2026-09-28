@@ -149,15 +149,35 @@ assert(
   'Drive Together must suppress competing event/route cards while its panel is visible.',
 );
 assert(
+  /const \[panelOpen, setPanelOpen\] = useState\(false\)/.test(layer)
+    && /const sheetVisible = panelOpen/.test(layer)
+    && !/Boolean\(roomId\)[\s\S]{0,80}sheetVisible/.test(layer),
+  'Recovering an existing Drive Together room must not auto-open the bottom sheet.',
+);
+assert(
+  /setPanelOpen\(true\)[\s\S]{0,500}if \(roomId \|\| invite\)/.test(layer)
+    && /setPanelOpen\(false\)/.test(layer)
+    && /Hide Drive Together panel/.test(layer),
+  'Drive Together panel visibility must be an explicit user-controlled state.',
+);
+assert(
+  /useNavigation/.test(map)
+    && /tabBarStyle: driveTogetherPanelVisible \? \{ display: "none" \} : undefined/.test(map),
+  'Root navigation must hide while the Drive Together sheet owns the bottom of the map.',
+);
+assert(
   /PanResponder/.test(sheet)
     && /'collapsed' \| 'medium' \| 'expanded'/.test(sheet),
   'Drive Together sheet must expose collapsed, medium, and expanded interactive states.',
 );
 assert(
   /topOffset: number/.test(sheet)
+    && /bottomInset: number/.test(sheet)
     && /windowHeight - topOffset - bottomOffset/.test(sheet)
-    && /COLLAPSED_HEIGHT = 116/.test(sheet),
-  'Drive Together sheet sizing must respect the map header and persistent bottom chrome.',
+    && /COLLAPSED_HEIGHT = 108/.test(sheet)
+    && /left: 0/.test(sheet)
+    && /right: 0/.test(sheet),
+  'Drive Together must use a compact attached map sheet that respects safe-area chrome.',
 );
 assert(
   /distanceLabel/.test(participantRail)
