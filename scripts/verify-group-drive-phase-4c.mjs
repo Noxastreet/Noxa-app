@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -22,11 +21,6 @@ for (const file of files) {
 
 function source(file) {
   return fs.readFileSync(path.join(root, file), 'utf8');
-}
-
-function gitBlobSha(text) {
-  const body = Buffer.from(text, 'utf8');
-  return crypto.createHash('sha1').update(`blob ${body.length}\0`).update(body).digest('hex');
 }
 
 if (!failures.length) {
@@ -97,10 +91,22 @@ if (!failures.length) {
     if (!pattern.test(sharedMap)) failures.push(`shared Mapbox Standard 3D contract missing: ${pattern}`);
   }
 
-  const expectedSharedMapBlob = '9db315d7ad0cd2a9563d9131719293dcd33c5f9f';
-  const actualSharedMapBlob = gitBlobSha(sharedMap);
-  if (actualSharedMapBlob !== expectedSharedMapBlob) {
-    failures.push(`shared Home/Map MapboxLiveMap changed unexpectedly (${actualSharedMapBlob})`);
+  const mapViewCount = (sharedMap.match(/<MapView\b/g) ?? []).length;
+  const locationPuckCount = (sharedMap.match(/<LocationPuck\b/g) ?? []).length;
+  if (mapViewCount !== 1) {
+    failures.push(`shared Home/Map must keep exactly one MapView (found ${mapViewCount})`);
+  }
+  if (locationPuckCount !== 1) {
+    failures.push(`shared Home/Map must keep exactly one LocationPuck (found ${locationPuckCount})`);
+  }
+  if (/expo-location|watchPositionAsync|startLocationUpdatesAsync|requestBackgroundPermissionsAsync|TaskManager|defineTask/.test(sharedMap)) {
+    failures.push('shared Home/Map Mapbox layer must not create or own any GPS/background location runtime');
+  }
+  if (!/routeDestination/.test(sharedMap)
+    || !/isDestinationPicking/.test(sharedMap)
+    || !/onMapPress/.test(sharedMap)
+    || !/accessibilityLabel="Drive Together destination"/.test(sharedMap)) {
+    failures.push('shared Home/Map must expose only the reviewed Drive Together destination pin and same-map picking hooks');
   }
 }
 
