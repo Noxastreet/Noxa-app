@@ -342,10 +342,14 @@ begin
     raise exception 'Destination label is too long';
   end if;
 
-  select coalesce(array_agg(distinct target_id order by target_id), array[]::uuid[])
+  select coalesce(
+    array_agg(distinct candidate.target_user_id order by candidate.target_user_id),
+    array[]::uuid[]
+  )
   into normalized_targets
-  from unnest(coalesce(target_user_ids, array[]::uuid[])) as target_id
-  where target_id is not null;
+  from unnest(coalesce(target_user_ids, array[]::uuid[]))
+    as candidate(target_user_id)
+  where candidate.target_user_id is not null;
 
   target_count := cardinality(normalized_targets);
   if target_count < 1 or target_count > 7 then
@@ -481,8 +485,8 @@ begin
     source_crew_id,
     invited_by
   )
-  select created_drive_id, target_id, null, actor
-  from unnest(normalized_targets) as target_id;
+  select created_drive_id, invited.target_user_id, null, actor
+  from unnest(normalized_targets) as invited(target_user_id);
 
   select array_agg(id order by created_at, id)
   into invitation_ids
