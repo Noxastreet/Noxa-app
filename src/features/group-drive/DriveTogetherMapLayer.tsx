@@ -1120,23 +1120,41 @@ export function DriveTogetherMapLayer({
     }
   }, [roomId, working]);
 
-  const cancelWaitingRoom = useCallback(async () => {
+  const cancelWaitingRoom = useCallback(() => {
     if (!roomId || working) return;
-    setWorking(true);
-    setError(null);
-    try {
-      await cancelDrive(roomId);
-      clearRoom();
-    } catch (cancelError) {
-      setError(
-        cancelError instanceof Error
-          ? cancelError.message
-          : 'Drive Together could not be cancelled.',
-      );
-    } finally {
-      setWorking(false);
-    }
-  }, [clearRoom, roomId, working]);
+
+    Alert.alert(
+      'Cancel Drive Together?',
+      'The room and all pending invitations will be removed. No trip history will be saved.',
+      [
+        { text: 'Keep room', style: 'cancel' },
+        {
+          text: 'Cancel room',
+          style: 'destructive',
+          onPress: () => {
+            setWorking(true);
+            setError(null);
+            void cancelDrive(roomId)
+              .then((cancelled) => {
+                if (!cancelled) {
+                  throw new Error('The room is no longer cancellable. Refreshing its state.');
+                }
+                clearRoom();
+              })
+              .catch((cancelError) => {
+                setError(
+                  cancelError instanceof Error
+                    ? cancelError.message
+                    : 'Drive Together could not be cancelled.',
+                );
+                void refreshDetails(roomId);
+              })
+              .finally(() => setWorking(false));
+          },
+        },
+      ],
+    );
+  }, [clearRoom, refreshDetails, roomId, working]);
 
   const finishActive = useCallback(() => {
     if (!details || !roomId || working) return;
@@ -1282,7 +1300,8 @@ export function DriveTogetherMapLayer({
           <ScrollView
             contentContainerStyle={styles.searchResults}
             keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+            style={styles.searchResultsViewport}>
             {searchResults.map((place) => (
               <Pressable
                 key={place.id}
@@ -1364,7 +1383,8 @@ export function DriveTogetherMapLayer({
         ) : (
           <ScrollView
             contentContainerStyle={styles.friendList}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+            style={styles.friendListViewport}>
             {source.map((friend) => {
               const selected = selectedFriendIds.has(friend.id);
               return (
@@ -1885,9 +1905,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  searchResultsViewport: {
+    flex: 1,
+    minHeight: 0,
+  },
   searchResults: {
     gap: 6,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.md,
   },
   placeRow: {
     minHeight: 58,
@@ -1950,6 +1974,7 @@ const styles = StyleSheet.create({
   },
   primaryAction: {
     minHeight: 46,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1967,6 +1992,7 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     minHeight: 46,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1988,6 +2014,10 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: colors.primaryHover,
+  },
+  friendListViewport: {
+    flex: 1,
+    minHeight: 0,
   },
   friendList: {
     gap: 7,
