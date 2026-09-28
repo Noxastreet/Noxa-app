@@ -129,6 +129,9 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       activeDrivers,
       events,
       route,
+      routeDestination = null,
+      isDestinationPicking = false,
+      onMapPress,
       selectedEventId,
       mapFilter,
       isRouteMode,
@@ -306,6 +309,24 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           }}
           onMapLoadingError={() => {
             if (!isLoaded) setHasError(true);
+          }}
+          onPress={(event) => {
+            if (!isDestinationPicking || !onMapPress) return;
+            const coordinates = event.geometry?.coordinates;
+            if (!Array.isArray(coordinates) || coordinates.length < 2) return;
+            const longitude = Number(coordinates[0]);
+            const latitude = Number(coordinates[1]);
+            if (
+              !Number.isFinite(latitude)
+              || !Number.isFinite(longitude)
+              || latitude < -90
+              || latitude > 90
+              || longitude < -180
+              || longitude > 180
+            ) {
+              return;
+            }
+            onMapPress({ latitude, longitude });
           }}
           onCameraChanged={(state) => {
             if (state.gestures.isGestureActive) {
@@ -531,6 +552,22 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 </MarkerView>
               ))
             : null}
+          {routeDestination ? (
+            <MarkerView
+              allowOverlap
+              anchor={{ x: 0.5, y: 1 }}
+              coordinate={toPosition(routeDestination)}
+            >
+              <View
+                accessibilityLabel="Drive Together destination"
+                collapsable={false}
+                style={styles.destinationMarker}
+              >
+                <Ionicons name="flag" size={17} color={colors.text} />
+              </View>
+            </MarkerView>
+          ) : null}
+
           {routeShape && routeRenderKey ? (
             <ShapeSource
               id="noxa-route-source"
@@ -673,6 +710,21 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: radius.pill,
+  },
+  destinationMarker: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: colors.text,
+    backgroundColor: colors.primary,
+    shadowColor: colors.black,
+    shadowOpacity: 0.5,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   eventMarkerPressTarget: {
     width: 44,
