@@ -1026,9 +1026,32 @@ begin
 
   if current_session.id is null
     or current_session.drive_mode <> 'quick'
-    or current_session.status <> 'active'
+    or current_session.status not in ('draft', 'active')
   then
     raise exception 'Drive Together is unavailable';
+  end if;
+
+  if current_session.status = 'draft' then
+    if current_session.host_id <> actor then
+      raise exception 'Only the Drive Together host can change the destination before the drive starts';
+    end if;
+
+    update public.drive_sessions
+    set
+      destination_latitude = noxa_propose_quick_drive_destination.destination_latitude,
+      destination_longitude = noxa_propose_quick_drive_destination.destination_longitude,
+      destination_label = nullif(btrim(noxa_propose_quick_drive_destination.destination_label), ''),
+      destination_version = current_session.destination_version + 1,
+      destination_updated_by = actor,
+      destination_updated_at = now(),
+      proposed_destination_latitude = null,
+      proposed_destination_longitude = null,
+      proposed_destination_label = null,
+      proposed_destination_by = null,
+      proposed_destination_at = null
+    where id = current_session.id;
+
+    return true;
   end if;
 
   select role
