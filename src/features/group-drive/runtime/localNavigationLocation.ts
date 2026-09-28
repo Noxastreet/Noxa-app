@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 export type LocalNavigationLocation = {
   latitude: number;
   longitude: number;
+  heading: number | null;
 };
 
 function validCoordinate(latitude: number, longitude: number) {
@@ -16,7 +17,16 @@ function validCoordinate(latitude: number, longitude: number) {
 
 function mapLocation(location: Location.LocationObject): LocalNavigationLocation | null {
   const { latitude, longitude } = location.coords;
-  return validCoordinate(latitude, longitude) ? { latitude, longitude } : null;
+  if (!validCoordinate(latitude, longitude)) return null;
+  const rawHeading = location.coords.heading;
+  const heading =
+    typeof rawHeading === 'number'
+    && Number.isFinite(rawHeading)
+    && rawHeading >= 0
+    && rawHeading < 360
+      ? rawHeading
+      : null;
+  return { latitude, longitude, heading };
 }
 
 async function foregroundPermission(requestPermission: boolean) {
