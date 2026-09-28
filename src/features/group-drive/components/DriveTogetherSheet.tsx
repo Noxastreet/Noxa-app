@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   PanResponder,
@@ -46,8 +46,9 @@ export function DriveTogetherSheet({
     } satisfies Record<DriveTogetherSheetSnap, number>;
   }, [bottomOffset, topOffset, windowHeight]);
 
-  const translateForSnap = useCallbackLike((target: DriveTogetherSheetSnap) =>
-    heights.expanded - heights[target],
+  const translateForSnap = useCallback(
+    (target: DriveTogetherSheetSnap) => heights.expanded - heights[target],
+    [heights],
   );
 
   const translateY = useRef(
@@ -142,10 +143,6 @@ export function DriveTogetherSheet({
       <View style={styles.content}>{children}</View>
     </Animated.View>
   );
-}
-
-function useCallbackLike<T extends (...args: any[]) => any>(callback: T): T {
-  return callback;
 }
 
 const styles = StyleSheet.create({
