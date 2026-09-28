@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -457,11 +457,22 @@ export default function LiveMapScreen() {
     driveInvitationId?: string | string[];
   }>();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const mapRef = useRef<LiveMapHandle | null>(null);
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
   const [driveTogetherOpen, setDriveTogetherOpen] = useState(false);
   const [driveTogetherPanelVisible, setDriveTogetherPanelVisible] = useState(false);
   const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: driveTogetherPanelVisible ? { display: "none" } : undefined,
+    });
+
+    return () => {
+      navigation.setOptions({ tabBarStyle: undefined });
+    };
+  }, [driveTogetherPanelVisible, navigation]);
   const [driveTogetherNavigation, setDriveTogetherNavigation] =
     useState<DriveTogetherNavigationOverlay | null>(null);
   const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
@@ -2173,7 +2184,8 @@ export default function LiveMapScreen() {
       </View>
 
       <DriveTogetherMapLayer
-        bottomOffset={eventCardBottom + spacing.sm}
+        bottomInset={insets.bottom}
+        bottomOffset={driveTogetherPanelVisible ? 0 : eventCardBottom + spacing.sm}
         currentLocation={driverLocation}
         following={isDriveTogetherFollowing}
         invitationId={normalizedDriveInvitationId ?? null}
