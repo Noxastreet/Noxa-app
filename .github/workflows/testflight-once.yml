@@ -1,4 +1,4 @@
-name: NOXA TestFlight Build 53
+name: NOXA TestFlight Shared Destination
 
 on:
   push:
@@ -18,10 +18,10 @@ jobs:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
     steps:
-      - name: Check out Drive Together hotfix
+      - name: Check out shared-destination release
         uses: actions/checkout@v4
         with:
-          ref: 85e20276aeaf91914875e5f2c67aa84416a6acec
+          ref: f4902006bab76026324c178166e6237834a62bb4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
