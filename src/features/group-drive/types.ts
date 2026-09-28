@@ -71,6 +71,8 @@ export type DriveLocationState = {
   longitude: number;
   heading: number | null;
   status: DriveLocationStatus;
+  remainingDistanceMeters: number | null;
+  routeDestinationVersion: number | null;
   updatedAt: string;
 };
 
@@ -81,6 +83,23 @@ export type DriveInvitation = {
   status: DriveInvitationStatus;
   createdAt: string;
   profile: DriveProfile | null;
+};
+
+export type DriveDestination = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  version: number;
+  updatedByUserId: string | null;
+  updatedAt: string | null;
+};
+
+export type DriveDestinationProposal = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  proposedByUserId: string;
+  proposedAt: string;
 };
 
 export type GroupDriveDetails = {
@@ -101,6 +120,8 @@ export type GroupDriveDetails = {
   routeDurationSeconds: number | null;
   routeProvider: string | null;
   routeVersion: number;
+  destination: DriveDestination | null;
+  destinationProposal: DriveDestinationProposal | null;
   stops: DriveStop[];
   participants: DriveParticipant[];
   invitations: DriveInvitation[];
@@ -132,17 +153,33 @@ export type DriveRouteGeometry = {
   coordinates: [number, number][];
 };
 
+export type DriveRouteManeuver = {
+  instruction: string;
+  type: string;
+  modifier: string | null;
+  latitude: number;
+  longitude: number;
+  distanceMeters: number;
+  durationSeconds: number;
+};
+
 export type DriveRouteResult = {
   geometry: DriveRouteGeometry;
   coordinates: DriveRoutePoint[];
   distanceMeters: number;
   durationSeconds: number;
   provider: string;
+  maneuvers: DriveRouteManeuver[];
 };
 
 export type DriveTogetherCreateResult = {
   driveSessionId: string;
   invitationId: string;
+};
+
+export type DriveTogetherRoomCreateResult = {
+  driveSessionId: string;
+  invitationIds: string[];
 };
 
 export type PendingQuickDriveInvitation = {
@@ -152,4 +189,5 @@ export type PendingQuickDriveInvitation = {
   hostDisplayName: string;
   hostAvatarUrl: string | null;
   createdAt: string;
+  destination: DriveDestination | null;
 };
