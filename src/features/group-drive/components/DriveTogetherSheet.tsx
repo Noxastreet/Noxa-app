@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
-  Dimensions,
   PanResponder,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -13,61 +13,67 @@ export type DriveTogetherSheetSnap = 'collapsed' | 'medium' | 'expanded';
 
 type Props = {
   bottomOffset: number;
+  topOffset: number;
   snap: DriveTogetherSheetSnap;
   onSnapChange: (snap: DriveTogetherSheetSnap) => void;
   children: React.ReactNode;
 };
 
-const windowHeight = Dimensions.get('window').height;
-const EXPANDED_HEIGHT = Math.min(620, Math.max(500, windowHeight * 0.68));
-const MEDIUM_HEIGHT = Math.min(340, EXPANDED_HEIGHT - 120);
-const COLLAPSED_HEIGHT = 132;
-
-function heightForSnap(snap: DriveTogetherSheetSnap) {
-  if (snap === 'expanded') return EXPANDED_HEIGHT;
-  if (snap === 'medium') return MEDIUM_HEIGHT;
-  return COLLAPSED_HEIGHT;
-}
-
-function translateForSnap(snap: DriveTogetherSheetSnap) {
-  return EXPANDED_HEIGHT - heightForSnap(snap);
-}
-
-function closestSnap(translateY: number): DriveTogetherSheetSnap {
-  const snaps: DriveTogetherSheetSnap[] = ['expanded', 'medium', 'collapsed'];
-  return snaps.reduce((best, candidate) => {
-    const bestDistance = Math.abs(translateY - translateForSnap(best));
-    const nextDistance = Math.abs(translateY - translateForSnap(candidate));
-    return nextDistance < bestDistance ? candidate : best;
-  }, 'medium' as DriveTogetherSheetSnap);
-}
+const COLLAPSED_HEIGHT = 116;
 
 export function DriveTogetherSheet({
   bottomOffset,
+  topOffset,
   snap,
   onSnapChange,
   children,
 }: Props) {
-  const translateY = useRef(new Animated.Value(translateForSnap(snap))).current;
+  const { height: windowHeight } = useWindowDimensions();
+  const heights = useMemo(() => {
+    const available = Math.max(
+      COLLAPSED_HEIGHT + 180,
+      windowHeight - topOffset - bottomOffset - spacing.sm,
+    );
+    const expanded = Math.min(620, available);
+    const medium = Math.min(
+      308,
+      Math.max(238, expanded - 220),
+    );
+    return {
+      collapsed: COLLAPSED_HEIGHT,
+      medium,
+      expanded,
+    } satisfies Record<DriveTogetherSheetSnap, number>;
+  }, [bottomOffset, topOffset, windowHeight]);
+
+  const translateForSnap = useCallback(
+    (target: DriveTogetherSheetSnap) => heights.expanded - heights[target],
+    [heights],
+  );
+
+  const translateY = useRef(
+    new Animated.Value(translateForSnap(snap)),
+  ).current;
   const startTranslateRef = useRef(translateForSnap(snap));
 
   useEffect(() => {
-    startTranslateRef.current = translateForSnap(snap);
+    const next = translateForSnap(snap);
+    startTranslateRef.current = next;
     Animated.spring(translateY, {
-      toValue: startTranslateRef.current,
-      damping: 24,
-      stiffness: 260,
-      mass: 0.9,
+      toValue: next,
+      damping: 26,
+      stiffness: 280,
+      mass: 0.86,
       overshootClamping: true,
       useNativeDriver: true,
     }).start();
-  }, [snap, translateY]);
+  }, [snap, translateForSnap, translateY]);
 
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dy) > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+          Math.abs(gesture.dy) > 5 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
         onPanResponderGrant: () => {
           startTranslateRef.current = translateForSnap(snap);
         },
@@ -86,23 +92,35 @@ export function DriveTogetherSheet({
             0,
             Math.min(
               translateForSnap('collapsed'),
-              startTranslateRef.current + gesture.dy + gesture.vy * 80,
+              startTranslateRef.current + gesture.dy + gesture.vy * 72,
             ),
           );
-          onSnapChange(closestSnap(projected));
+          const candidates: DriveTogetherSheetSnap[] = [
+            'expanded',
+            'medium',
+            'collapsed',
+          ];
+          const closest = candidates.reduce((best, candidate) => {
+            const bestDistance = Math.abs(projected - translateForSnap(best));
+            const candidateDistance = Math.abs(
+              projected - translateForSnap(candidate),
+            );
+            return candidateDistance < bestDistance ? candidate : best;
+          }, 'medium' as DriveTogetherSheetSnap);
+          onSnapChange(closest);
         },
         onPanResponderTerminate: () => {
           Animated.spring(translateY, {
             toValue: translateForSnap(snap),
-            damping: 24,
-            stiffness: 260,
-            mass: 0.9,
+            damping: 26,
+            stiffness: 280,
+            mass: 0.86,
             overshootClamping: true,
             useNativeDriver: true,
           }).start();
         },
       }),
-    [onSnapChange, snap, translateY],
+    [onSnapChange, snap, translateForSnap, translateY],
   );
 
   return (
@@ -111,17 +129,15 @@ export function DriveTogetherSheet({
         styles.sheet,
         {
           bottom: bottomOffset,
-          height: EXPANDED_HEIGHT,
+          height: heights.expanded,
           transform: [{ translateY }],
         },
-      ]}
-    >
+      ]}>
       <View
         accessibilityLabel="Drive Together panel"
         accessibilityRole="adjustable"
         style={styles.handleArea}
-        {...panResponder.panHandlers}
-      >
+        {...panResponder.panHandlers}>
         <View style={styles.handle} />
       </View>
       <View style={styles.content}>{children}</View>
@@ -138,8 +154,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: radius.xl ?? radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    backgroundColor: 'rgba(10,10,14,0.975)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(8,8,12,0.985)',
     ...shadows.card,
   },
   handleArea: {
@@ -148,10 +164,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   handle: {
-    width: 38,
+    width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.30)',
   },
   content: {
     flex: 1,

@@ -460,6 +460,7 @@ export default function LiveMapScreen() {
   const mapRef = useRef<LiveMapHandle | null>(null);
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
   const [driveTogetherOpen, setDriveTogetherOpen] = useState(false);
+  const [driveTogetherPanelVisible, setDriveTogetherPanelVisible] = useState(false);
   const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
   const [driveTogetherNavigation, setDriveTogetherNavigation] =
     useState<DriveTogetherNavigationOverlay | null>(null);
@@ -1752,6 +1753,24 @@ export default function LiveMapScreen() {
     handler(point);
   }, []);
 
+  const handleDriveTogetherPanelVisibilityChange = useCallback(
+    (visible: boolean) => {
+      setDriveTogetherPanelVisible(visible);
+      if (!visible) return;
+
+      setSelectedEvent(null);
+      setIsRouteFollowing(false);
+      routeRequestIdRef.current += 1;
+      routeAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current = null;
+      routeRequestKeyRef.current = null;
+      setRoute(null);
+      setRouteStatus("idle");
+      setRouteMessage(null);
+    },
+    [],
+  );
+
   const handleDriveTogetherNavigationChange = useCallback(
     (next: DriveTogetherNavigationOverlay | null) => {
       setDriveTogetherNavigation(next);
@@ -1897,7 +1916,9 @@ export default function LiveMapScreen() {
         ? 196
         : spacing.sm);
   const showRecenter =
-    !effectiveFollowing && (!driverLocation || isCameraAwayFromUser);
+    !driveTogetherPanelVisible
+    && !effectiveFollowing
+    && (!driverLocation || isCameraAwayFromUser);
 
   return (
     <View style={styles.screen}>
@@ -2050,7 +2071,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!selectedEvent ? (
+        {!selectedEvent && !driveTogetherPanelVisible ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -2128,7 +2149,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!driveTogetherNavigation && selectedEvent && isRouteMode ? (
+        {!driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
           <RouteCard
             event={selectedEvent}
             route={route}
@@ -2141,7 +2162,7 @@ export default function LiveMapScreen() {
             onFollowToggle={toggleRouteFollow}
             onRetry={retryRoute}
           />
-        ) : !driveTogetherNavigation && selectedEvent ? (
+        ) : !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
           <EventCard
             event={selectedEvent}
             bottomOffset={eventCardBottom}
@@ -2162,6 +2183,7 @@ export default function LiveMapScreen() {
         onFollowingChange={setIsDriveTogetherFollowing}
         onNavigationChange={handleDriveTogetherNavigationChange}
         onOpenChange={setDriveTogetherOpen}
+        onPanelVisibilityChange={handleDriveTogetherPanelVisibilityChange}
         open={driveTogetherOpen}
         topOffset={headerBottom + spacing.md}
       />
