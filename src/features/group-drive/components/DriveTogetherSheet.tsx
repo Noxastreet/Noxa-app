@@ -7,22 +7,26 @@ import {
   View,
 } from 'react-native';
 
-import { colors, radius, shadows, spacing } from '@/src/theme';
+import { colors, spacing } from '@/src/theme';
 
 export type DriveTogetherSheetSnap = 'collapsed' | 'medium' | 'expanded';
 
 type Props = {
   bottomOffset: number;
+  bottomInset: number;
   topOffset: number;
   snap: DriveTogetherSheetSnap;
   onSnapChange: (snap: DriveTogetherSheetSnap) => void;
   children: React.ReactNode;
 };
 
-const COLLAPSED_HEIGHT = 116;
+const COLLAPSED_HEIGHT = 108;
+const MEDIUM_HEIGHT = 286;
+const EXPANDED_MAX_HEIGHT = 480;
 
 export function DriveTogetherSheet({
   bottomOffset,
+  bottomInset,
   topOffset,
   snap,
   onSnapChange,
@@ -31,14 +35,15 @@ export function DriveTogetherSheet({
   const { height: windowHeight } = useWindowDimensions();
   const heights = useMemo(() => {
     const available = Math.max(
-      COLLAPSED_HEIGHT + 180,
-      windowHeight - topOffset - bottomOffset - spacing.sm,
+      COLLAPSED_HEIGHT + 160,
+      windowHeight - topOffset - bottomOffset,
     );
-    const expanded = Math.min(620, available);
+    const expanded = Math.min(EXPANDED_MAX_HEIGHT, available);
     const medium = Math.min(
-      308,
-      Math.max(238, expanded - 220),
+      MEDIUM_HEIGHT,
+      Math.max(COLLAPSED_HEIGHT + 110, expanded - 140),
     );
+
     return {
       collapsed: COLLAPSED_HEIGHT,
       medium,
@@ -61,9 +66,9 @@ export function DriveTogetherSheet({
     startTranslateRef.current = next;
     Animated.spring(translateY, {
       toValue: next,
-      damping: 26,
-      stiffness: 280,
-      mass: 0.86,
+      damping: 28,
+      stiffness: 300,
+      mass: 0.82,
       overshootClamping: true,
       useNativeDriver: true,
     }).start();
@@ -92,7 +97,7 @@ export function DriveTogetherSheet({
             0,
             Math.min(
               translateForSnap('collapsed'),
-              startTranslateRef.current + gesture.dy + gesture.vy * 72,
+              startTranslateRef.current + gesture.dy + gesture.vy * 64,
             ),
           );
           const candidates: DriveTogetherSheetSnap[] = [
@@ -112,9 +117,9 @@ export function DriveTogetherSheet({
         onPanResponderTerminate: () => {
           Animated.spring(translateY, {
             toValue: translateForSnap(snap),
-            damping: 26,
-            stiffness: 280,
-            mass: 0.86,
+            damping: 28,
+            stiffness: 300,
+            mass: 0.82,
             overshootClamping: true,
             useNativeDriver: true,
           }).start();
@@ -140,7 +145,13 @@ export function DriveTogetherSheet({
         {...panResponder.panHandlers}>
         <View style={styles.handle} />
       </View>
-      <View style={styles.content}>{children}</View>
+      <View
+        style={[
+          styles.content,
+          { paddingBottom: Math.max(spacing.md, bottomInset + spacing.sm) },
+        ]}>
+        {children}
+      </View>
     </Animated.View>
   );
 }
@@ -148,18 +159,25 @@ export function DriveTogetherSheet({
 const styles = StyleSheet.create({
   sheet: {
     position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
+    left: 0,
+    right: 0,
     zIndex: 55,
     overflow: 'hidden',
-    borderRadius: radius.xl ?? radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(8,8,12,0.985)',
-    ...shadows.card,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    backgroundColor: '#0A0A0E',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.10)',
+    shadowColor: colors.black,
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: -8 },
+    elevation: 0,
   },
   handleArea: {
-    height: 28,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -167,11 +185,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.30)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
   content: {
     flex: 1,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
   },
 });
