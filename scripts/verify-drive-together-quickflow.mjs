@@ -132,9 +132,32 @@ assert(
   'Drive Together must be destination-first and controlled from one map bottom sheet.',
 );
 assert(
+  /sheetSnap === 'collapsed'/.test(layer)
+    && /sheetSnap === 'expanded'/.test(layer)
+    && /return <View style=\{styles\.roomShell\}>\{header\}<\/View>/.test(layer),
+  'Collapsed, medium, and expanded Drive Together states must render intentionally instead of clipping one oversized tree.',
+);
+assert(
+  /Cancel Drive Together\?/.test(layer)
+    && /cancelDrive\(roomId\)[\s\S]*then\(\(cancelled\)/.test(layer)
+    && /if \(!cancelled\)/.test(layer),
+  'Cancel room must confirm, validate the backend result, and fail visibly instead of clearing UI optimistically.',
+);
+assert(
+  /onPanelVisibilityChange\(sheetVisible\)/.test(layer)
+    && /!driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent/.test(map),
+  'Drive Together must suppress competing event/route cards while its panel is visible.',
+);
+assert(
   /PanResponder/.test(sheet)
     && /'collapsed' \| 'medium' \| 'expanded'/.test(sheet),
   'Drive Together sheet must expose collapsed, medium, and expanded interactive states.',
+);
+assert(
+  /topOffset: number/.test(sheet)
+    && /windowHeight - topOffset - bottomOffset/.test(sheet)
+    && /COLLAPSED_HEIGHT = 116/.test(sheet),
+  'Drive Together sheet sizing must respect the map header and persistent bottom chrome.',
 );
 assert(
   /distanceLabel/.test(participantRail)
