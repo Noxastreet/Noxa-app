@@ -25,6 +25,10 @@ const activeCancelGuardSql = fs.readFileSync(
   path.join(repoRoot, 'supabase/migrations/20260927174500_drive_together_active_cancel_guard.sql'),
   'utf8',
 );
+const sharedDestinationSql = fs.readFileSync(
+  path.join(repoRoot, 'supabase/migrations/20260928130000_drive_together_shared_destination.sql'),
+  'utf8',
+);
 
 const ids = {
   host: '11111111-1111-4111-8111-111111111111',
@@ -175,7 +179,8 @@ try {
   await db.exec(lobbySql);
   await db.exec(quickSql);
   await db.exec(activeCancelGuardSql);
-  pass('base, lobby-safety, quick-flow, and active-cancel guard migrations compile together');
+  await db.exec(sharedDestinationSql);
+  pass('base, quick-flow, cancel guard, and shared-destination migrations compile together');
 
   const driveMode = await db.query(`
     select data_type, is_nullable, column_default
@@ -338,6 +343,11 @@ try {
     scalar(db, 'select public.noxa_end_drive($1)', [driveId]),
   );
   assert.equal(ended, true);
+  assert.equal(
+    await scalar(db, 'select count(*)::integer from public.drive_sessions where id = $1', [driveId]),
+    0,
+  );
+  pass('ending a quick drive deletes it instead of retaining History');
 
   const secondCreated = await asRole(db, 'authenticated', ids.host, () =>
     scalar(db, 'select public.noxa_create_quick_drive($1)', [ids.secondFriend]),
@@ -352,9 +362,19 @@ try {
   assert.equal(declined, true);
   assert.equal(
     await scalar(db, 'select status from public.drive_sessions where id = $1', [secondCreated.drive_session_id]),
-    'cancelled',
+    'draft',
   );
-  pass('declining a pair invite closes the ephemeral quick session');
+  pass('declining one quick invitation does not destroy the room');
+
+  const cancelledDraft = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(db, 'select public.noxa_cancel_drive($1)', [secondCreated.drive_session_id]),
+  );
+  assert.equal(cancelledDraft, true);
+  assert.equal(
+    await scalar(db, 'select count(*)::integer from public.drive_sessions where id = $1', [secondCreated.drive_session_id]),
+    0,
+  );
+  pass('cancelling a waiting quick room deletes it instead of retaining History');
 
   const plannedId = await asRole(db, 'authenticated', ids.host, () =>
     scalar(
