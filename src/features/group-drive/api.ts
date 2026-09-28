@@ -10,11 +10,13 @@ import type {
   DriveInvitation,
   DriveInvitationPreview,
   DriveTogetherCreateResult,
+  DriveTogetherRoomCreateResult,
   DriveInviteOptions,
   PendingQuickDriveInvitation,
   DriveParticipant,
   DriveProfile,
   DriveRouteResult,
+  DriveDestination,
   GroupDriveDetails,
   GroupDriveListItem,
 } from './types';
@@ -35,8 +37,17 @@ function publicGroupDriveError(error: { code?: string; message?: string } | null
   if (/already active in another Group Drive|driver is already active/i.test(message)) {
     return 'One of you is already in another active Drive Together session.';
   }
-  if (/finish or cancel the current Drive Together invitation/i.test(message)) {
-    return 'Finish or cancel the current Drive Together invitation first.';
+  if (/finish or cancel the current Drive Together invitation|Finish the current Drive Together room/i.test(message)) {
+    return 'Finish the current Drive Together room first.';
+  }
+  if (/2 to 8 drivers|up to 8 drivers/i.test(message)) {
+    return 'Drive Together supports 2 to 8 drivers.';
+  }
+  if (/destination changed/i.test(message)) {
+    return 'The destination changed. Recalculating your route.';
+  }
+  if (/only the Drive Together host can approve/i.test(message)) {
+    return 'Only the host can approve a destination change.';
   }
   if (/Active Drive Together must be ended, not cancelled/i.test(message)) {
     return 'Drive Together already started. End it from the live drive card.';
@@ -84,6 +95,28 @@ function mapProfile(profile: {
     displayName: profileName(profile),
     username: profile.username,
     avatarUrl: profile.avatar_url,
+  };
+}
+
+function mapDestination(row: Record<string, unknown>): DriveDestination | null {
+  const latitude = Number(row.destination_latitude);
+  const longitude = Number(row.destination_longitude);
+  const version = Number(row.destination_version ?? 0);
+  if (
+    !Number.isFinite(latitude)
+    || !Number.isFinite(longitude)
+    || !Number.isInteger(version)
+    || version <= 0
+  ) {
+    return null;
+  }
+  return {
+    latitude,
+    longitude,
+    label: String(row.destination_label ?? 'Shared destination'),
+    version,
+    updatedByUserId: row.destination_updated_by ? String(row.destination_updated_by) : null,
+    updatedAt: row.destination_updated_at ? String(row.destination_updated_at) : null,
   };
 }
 
@@ -167,6 +200,80 @@ export async function createQuickDrive(targetUserId: string): Promise<DriveToget
   return { driveSessionId, invitationId };
 }
 
+export async function createQuickDriveRoom(
+  targetUserIds: string[],
+  destination: { latitude: number; longitude: number; label: string },
+): Promise<DriveTogetherRoomCreateResult> {
+  const result = await rpc<Record<string, unknown>>(
+    'noxa_create_quick_drive_with_destination',
+    {
+      target_user_ids: targetUserIds,
+      destination_latitude: destination.latitude,
+      destination_longitude: destination.longitude,
+      destination_label: destination.label.trim() || null,
+    },
+  );
+  const driveSessionId = String(result?.drive_session_id ?? '');
+  const invitationIds = Array.isArray(result?.invitation_ids)
+    ? result.invitation_ids.map((value) => String(value)).filter(Boolean)
+    : [];
+  if (!driveSessionId || invitationIds.length < 1) {
+    throw new Error('Drive Together could not be created.');
+  }
+  return { driveSessionId, invitationIds };
+}
+
+export async function inviteQuickDriveUser(driveSessionId: string, userId: string) {
+  return rpc<string>('noxa_invite_quick_drive_user', {
+    target_drive_session_id: driveSessionId,
+    target_user_id: userId,
+  });
+}
+
+export async function proposeQuickDriveDestination(
+  driveSessionId: string,
+  destination: { latitude: number; longitude: number; label: string },
+) {
+  return rpc<boolean>('noxa_propose_quick_drive_destination', {
+    target_drive_session_id: driveSessionId,
+    destination_latitude: destination.latitude,
+    destination_longitude: destination.longitude,
+    destination_label: destination.label.trim() || null,
+  });
+}
+
+export async function respondToQuickDriveDestinationProposal(
+  driveSessionId: string,
+  accept: boolean,
+) {
+  return rpc<boolean>('noxa_respond_quick_drive_destination_proposal', {
+    target_drive_session_id: driveSessionId,
+    accept_proposal: accept,
+  });
+}
+
+export async function publishQuickDriveNavigationProgress(
+  driveSessionId: string,
+  payload: {
+    latitude: number;
+    longitude: number;
+    heading: number | null;
+    destinationVersion: number;
+    remainingDistanceMeters: number;
+    status: 'moving' | 'arrived';
+  },
+) {
+  return rpc<{ ended: boolean }>('noxa_upsert_quick_drive_navigation_progress', {
+    target_drive_session_id: driveSessionId,
+    location_latitude: payload.latitude,
+    location_longitude: payload.longitude,
+    location_heading: payload.heading,
+    target_destination_version: payload.destinationVersion,
+    remaining_distance_meters: payload.remainingDistanceMeters,
+    navigation_status: payload.status,
+  });
+}
+
 export async function getPendingQuickDriveInvitation(): Promise<PendingQuickDriveInvitation | null> {
   const result = await rpc<Record<string, unknown> | null>(
     'noxa_get_my_pending_quick_drive_invitation',
@@ -179,6 +286,7 @@ export async function getPendingQuickDriveInvitation(): Promise<PendingQuickDriv
     hostDisplayName: String(result.host_display_name ?? 'NOXA driver'),
     hostAvatarUrl: result.host_avatar_url ? String(result.host_avatar_url) : null,
     createdAt: String(result.created_at),
+    destination: mapDestination(result),
   };
 }
 
@@ -197,7 +305,23 @@ export async function getQuickDriveInvitation(
     hostDisplayName: String(result.host_display_name ?? 'NOXA driver'),
     hostAvatarUrl: result.host_avatar_url ? String(result.host_avatar_url) : null,
     createdAt: String(result.created_at),
+    destination: mapDestination(result),
   };
+}
+
+export async function findMyHostedQuickDriveId() {
+  const userId = await currentUserId();
+  const { data, error } = await supabase
+    .from('drive_sessions')
+    .select('id,status,updated_at')
+    .eq('host_id', userId)
+    .eq('drive_mode', 'quick')
+    .in('status', ['draft', 'active'])
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error('Drive Together room could not be loaded.');
+  return data?.id ? String(data.id) : null;
 }
 
 export async function findMyActiveQuickDriveId() {
@@ -296,7 +420,8 @@ export async function calculateDriveRoute(
     data.geometry.coordinates.length < 2 ||
     !Number.isFinite(data.distanceMeters) ||
     !Number.isFinite(data.durationSeconds) ||
-    !data.provider
+    !data.provider ||
+    !Array.isArray(data.maneuvers)
   ) {
     throw new Error('The route response was invalid. Please retry.');
   }
@@ -472,7 +597,7 @@ export async function loadGroupDriveDetails(driveSessionId: string): Promise<Gro
   const { data: session, error: sessionError } = await supabase
     .from('drive_sessions')
     .select(
-      'id,host_id,title,description,crew_id,drive_mode,status,scheduled_start_at,started_at,completed_at,end_reason,route_geometry,route_distance_meters,route_duration_seconds,route_provider,route_version',
+      'id,host_id,title,description,crew_id,drive_mode,status,scheduled_start_at,started_at,completed_at,end_reason,route_geometry,route_distance_meters,route_duration_seconds,route_provider,route_version,destination_latitude,destination_longitude,destination_label,destination_version,destination_updated_by,destination_updated_at,proposed_destination_latitude,proposed_destination_longitude,proposed_destination_label,proposed_destination_by,proposed_destination_at',
     )
     .eq('id', driveSessionId)
     .maybeSingle();
@@ -552,6 +677,20 @@ export async function loadGroupDriveDetails(driveSessionId: string): Promise<Gro
       session.route_duration_seconds === null ? null : Number(session.route_duration_seconds),
     routeProvider: session.route_provider ? String(session.route_provider) : null,
     routeVersion: Number(session.route_version ?? 0),
+    destination: mapDestination(session as Record<string, unknown>),
+    destinationProposal:
+      session.proposed_destination_by
+      && Number.isFinite(Number(session.proposed_destination_latitude))
+      && Number.isFinite(Number(session.proposed_destination_longitude))
+      && session.proposed_destination_at
+        ? {
+            latitude: Number(session.proposed_destination_latitude),
+            longitude: Number(session.proposed_destination_longitude),
+            label: String(session.proposed_destination_label ?? 'Proposed destination'),
+            proposedByUserId: String(session.proposed_destination_by),
+            proposedAt: String(session.proposed_destination_at),
+          }
+        : null,
     stops: (stopsResult.data ?? []).map((row) => ({
       id: String(row.id),
       sequence: Number(row.sequence),

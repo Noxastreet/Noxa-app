@@ -25,6 +25,10 @@ const activeCancelGuardSql = fs.readFileSync(
   path.join(repoRoot, 'supabase/migrations/20260927174500_drive_together_active_cancel_guard.sql'),
   'utf8',
 );
+const sharedDestinationSql = fs.readFileSync(
+  path.join(repoRoot, 'supabase/migrations/20260928130000_drive_together_shared_destination.sql'),
+  'utf8',
+);
 
 const ids = {
   host: '11111111-1111-4111-8111-111111111111',
@@ -175,7 +179,8 @@ try {
   await db.exec(lobbySql);
   await db.exec(quickSql);
   await db.exec(activeCancelGuardSql);
-  pass('base, lobby-safety, quick-flow, and active-cancel guard migrations compile together');
+  await db.exec(sharedDestinationSql);
+  pass('base, quick-flow, cancel guard, and shared-destination migrations compile together');
 
   const driveMode = await db.query(`
     select data_type, is_nullable, column_default
@@ -338,6 +343,11 @@ try {
     scalar(db, 'select public.noxa_end_drive($1)', [driveId]),
   );
   assert.equal(ended, true);
+  assert.equal(
+    await scalar(db, 'select count(*)::integer from public.drive_sessions where id = $1', [driveId]),
+    0,
+  );
+  pass('ending a quick drive deletes it instead of retaining History');
 
   const secondCreated = await asRole(db, 'authenticated', ids.host, () =>
     scalar(db, 'select public.noxa_create_quick_drive($1)', [ids.secondFriend]),
@@ -352,9 +362,19 @@ try {
   assert.equal(declined, true);
   assert.equal(
     await scalar(db, 'select status from public.drive_sessions where id = $1', [secondCreated.drive_session_id]),
-    'cancelled',
+    'draft',
   );
-  pass('declining a pair invite closes the ephemeral quick session');
+  pass('declining one quick invitation does not destroy the room');
+
+  const cancelledDraft = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(db, 'select public.noxa_cancel_drive($1)', [secondCreated.drive_session_id]),
+  );
+  assert.equal(cancelledDraft, true);
+  assert.equal(
+    await scalar(db, 'select count(*)::integer from public.drive_sessions where id = $1', [secondCreated.drive_session_id]),
+    0,
+  );
+  pass('cancelling a waiting quick room deletes it instead of retaining History');
 
   const plannedId = await asRole(db, 'authenticated', ids.host, () =>
     scalar(
@@ -388,6 +408,209 @@ try {
     ),
     /calculated start-to-end route/i,
   );
+
+  await expectError(
+    'shared-destination room rejects more than seven invitees',
+    () => asRole(db, 'authenticated', ids.host, () =>
+      scalar(
+        db,
+        `select public.noxa_create_quick_drive_with_destination(
+          array[
+            '60000000-0000-4000-8000-000000000001'::uuid,
+            '60000000-0000-4000-8000-000000000002'::uuid,
+            '60000000-0000-4000-8000-000000000003'::uuid,
+            '60000000-0000-4000-8000-000000000004'::uuid,
+            '60000000-0000-4000-8000-000000000005'::uuid,
+            '60000000-0000-4000-8000-000000000006'::uuid,
+            '60000000-0000-4000-8000-000000000007'::uuid,
+            '60000000-0000-4000-8000-000000000008'::uuid
+          ],
+          40.6264,
+          22.9484,
+          'White Tower'
+        )`,
+      ),
+    ),
+    /2 to 8 drivers/i,
+  );
+
+  const sharedRoom = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      'select public.noxa_create_quick_drive_with_destination($1, $2, $3, $4)',
+      [[ids.friend, ids.secondFriend], 40.6264, 22.9484, 'White Tower'],
+    ),
+  );
+  const sharedDriveId = sharedRoom.drive_session_id;
+  assert.ok(sharedDriveId);
+  assert.equal(sharedRoom.invitation_ids.length, 2);
+
+  const destinationState = await db.query(
+    `select drive_mode, status, destination_label, destination_version, destination_updated_by
+     from public.drive_sessions where id = $1`,
+    [sharedDriveId],
+  );
+  assert.deepEqual(destinationState.rows, [{
+    drive_mode: 'quick',
+    status: 'draft',
+    destination_label: 'White Tower',
+    destination_version: 1,
+    destination_updated_by: ids.host,
+  }]);
+  pass('shared destination is committed before invitations are accepted');
+
+  const inviteRows = await db.query(
+    `select id, invited_user_id
+     from public.drive_invitations
+     where drive_session_id = $1 and status = 'invited'
+     order by invited_user_id`,
+    [sharedDriveId],
+  );
+  const inviteByUser = new Map(inviteRows.rows.map((row) => [row.invited_user_id, row.id]));
+
+  const declineOne = await asRole(db, 'authenticated', ids.secondFriend, () =>
+    scalar(
+      db,
+      'select public.noxa_respond_to_drive_invitation($1, false)',
+      [inviteByUser.get(ids.secondFriend)],
+    ),
+  );
+  assert.equal(declineOne, true);
+  assert.equal(
+    await scalar(db, 'select status from public.drive_sessions where id = $1', [sharedDriveId]),
+    'draft',
+  );
+  pass('one decline leaves a multi-driver room available');
+
+  const firstAccept = await asRole(db, 'authenticated', ids.friend, () =>
+    scalar(
+      db,
+      'select public.noxa_respond_to_drive_invitation($1, true)',
+      [inviteByUser.get(ids.friend)],
+    ),
+  );
+  assert.equal(firstAccept, true);
+  assert.equal(
+    await scalar(db, 'select status from public.drive_sessions where id = $1', [sharedDriveId]),
+    'active',
+  );
+  pass('first acceptance automatically activates the shared-destination room');
+
+  const lateInvitationId = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      'select public.noxa_invite_quick_drive_user($1, $2)',
+      [sharedDriveId, ids.secondFriend],
+    ),
+  );
+  assert.ok(lateInvitationId);
+
+  const lateAccept = await asRole(db, 'authenticated', ids.secondFriend, () =>
+    scalar(
+      db,
+      'select public.noxa_respond_to_drive_invitation($1, true)',
+      [lateInvitationId],
+    ),
+  );
+  assert.equal(lateAccept, true);
+  assert.equal(
+    await scalar(
+      db,
+      `select count(*)::integer from public.drive_participants
+       where drive_session_id = $1 and status = 'active'`,
+      [sharedDriveId],
+    ),
+    3,
+  );
+  pass('late join adds an active participant after the drive already started');
+
+  const proposal = await asRole(db, 'authenticated', ids.friend, () =>
+    scalar(
+      db,
+      'select public.noxa_propose_quick_drive_destination($1, $2, $3, $4)',
+      [sharedDriveId, 40.6401, 22.9444, 'Aristotelous Square'],
+    ),
+  );
+  assert.equal(proposal, true);
+  assert.equal(
+    await scalar(db, 'select destination_version from public.drive_sessions where id = $1', [sharedDriveId]),
+    1,
+  );
+  assert.equal(
+    await scalar(db, 'select proposed_destination_by from public.drive_sessions where id = $1', [sharedDriveId]),
+    ids.friend,
+  );
+  pass('participant proposal does not change the canonical destination before host approval');
+
+  const approved = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      'select public.noxa_respond_quick_drive_destination_proposal($1, true)',
+      [sharedDriveId],
+    ),
+  );
+  assert.equal(approved, true);
+
+  const approvedDestination = await db.query(
+    `select destination_label, destination_version, destination_updated_by, proposed_destination_by
+     from public.drive_sessions where id = $1`,
+    [sharedDriveId],
+  );
+  assert.deepEqual(approvedDestination.rows, [{
+    destination_label: 'Aristotelous Square',
+    destination_version: 2,
+    destination_updated_by: ids.friend,
+    proposed_destination_by: null,
+  }]);
+  pass('host approval atomically commits the latest proposal and increments destination version');
+
+  const hostProgress = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      'select public.noxa_upsert_quick_drive_navigation_progress($1,$2,$3,$4,$5,$6,$7)',
+      [sharedDriveId, 40.63, 22.95, 90, 2, 1450, 'moving'],
+    ),
+  );
+  assert.equal(hostProgress.ended, false);
+
+  for (const [userId, latitude, remaining] of [
+    [ids.friend, 40.6399, 35],
+    [ids.secondFriend, 40.6398, 28],
+  ]) {
+    const progress = await asRole(db, 'authenticated', userId, () =>
+      scalar(
+        db,
+        'select public.noxa_upsert_quick_drive_navigation_progress($1,$2,$3,$4,$5,$6,$7)',
+        [sharedDriveId, latitude, 22.9445, 180, 2, remaining, 'arrived'],
+      ),
+    );
+    assert.equal(progress.ended, false);
+  }
+
+  const participantMetrics = await db.query(
+    `select user_id, remaining_distance_meters::integer as remaining_distance_meters, route_destination_version
+     from public.drive_location_state
+     where drive_session_id = $1
+     order by user_id`,
+    [sharedDriveId],
+  );
+  assert.equal(participantMetrics.rows.length, 3);
+  assert.ok(participantMetrics.rows.every((row) => row.route_destination_version === 2));
+  pass('each participant publishes only their own remaining distance for the current destination version');
+
+  const finalArrival = await asRole(db, 'authenticated', ids.host, () =>
+    scalar(
+      db,
+      'select public.noxa_upsert_quick_drive_navigation_progress($1,$2,$3,$4,$5,$6,$7)',
+      [sharedDriveId, 40.64005, 22.94442, 0, 2, 20, 'arrived'],
+    ),
+  );
+  assert.equal(finalArrival.ended, true);
+  assert.equal(
+    await scalar(db, 'select count(*)::integer from public.drive_sessions where id = $1', [sharedDriveId]),
+    0,
+  );
+  pass('all participants arriving automatically ends and deletes the quick room without History');
 
   console.log(`\nDrive Together quick-flow local database smoke: PASS (${checks} checks)`);
   console.log('Production and hosted Supabase were not contacted.');

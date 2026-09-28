@@ -38,6 +38,9 @@ export type MapboxLiveMapProps = {
   activeDrivers: MapboxDriver[];
   events: MapboxEvent[];
   route: MapboxRoute | null;
+  routeDestination?: LatLng | null;
+  isDestinationPicking?: boolean;
+  onMapPress?: (point: LatLng) => void;
   selectedEventId: string | null;
   mapFilter: MapboxMapFilter;
   isRouteMode: boolean;

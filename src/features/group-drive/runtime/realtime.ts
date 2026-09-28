@@ -18,6 +18,8 @@ type LocationDatabaseRow = {
   longitude: number;
   heading: number | null;
   status: DriveLocationState['status'];
+  remaining_distance_meters: number | null;
+  route_destination_version: number | null;
   updated_at: string;
 };
 
@@ -72,6 +74,10 @@ function mapLocation(row: LocationDatabaseRow): DriveLocationState {
     longitude: Number(row.longitude),
     heading: row.heading === null ? null : Number(row.heading),
     status: row.status,
+    remainingDistanceMeters:
+      row.remaining_distance_meters === null ? null : Number(row.remaining_distance_meters),
+    routeDestinationVersion:
+      row.route_destination_version === null ? null : Number(row.route_destination_version),
     updatedAt: String(row.updated_at),
   };
 }
@@ -138,7 +144,7 @@ async function loadActiveDriveRealtimeSnapshotForUser(
     loadActiveDriveLifecycleSnapshotForUser(driveSessionId, currentUserId),
     supabase
       .from('drive_location_state')
-      .select('id,drive_session_id,user_id,latitude,longitude,heading,status,updated_at')
+      .select('id,drive_session_id,user_id,latitude,longitude,heading,status,remaining_distance_meters,route_destination_version,updated_at')
       .eq('drive_session_id', driveSessionId),
   ]);
   if (locationsResult.error) throw new Error('Active Drive state could not be synchronized.');

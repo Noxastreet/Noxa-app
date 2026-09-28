@@ -15,7 +15,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
-import { DriveTogetherMapLayer } from "@/src/features/group-drive/DriveTogetherMapLayer";
+import {
+  DriveTogetherMapLayer,
+  type DriveTogetherNavigationOverlay,
+} from "@/src/features/group-drive/DriveTogetherMapLayer";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -458,6 +461,12 @@ export default function LiveMapScreen() {
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
   const [driveTogetherOpen, setDriveTogetherOpen] = useState(false);
   const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
+  const [driveTogetherNavigation, setDriveTogetherNavigation] =
+    useState<DriveTogetherNavigationOverlay | null>(null);
+  const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
+  const [isDriveTogetherDestinationPicking, setIsDriveTogetherDestinationPicking] =
+    useState(false);
+  const driveTogetherMapPickHandlerRef = useRef<((point: LatLng) => void) | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -1641,11 +1650,12 @@ export default function LiveMapScreen() {
   }, [requestRoute]);
 
   const routeToEvent = useCallback((event: EventMarkerRow) => {
+    if (driveTogetherNavigation) return;
     setIsRouteFollowing(false);
     if (!hasValidCoordinates(event)) return;
     setSelectedEvent(event);
     router.setParams({ focusEventId: event.id, mapMode: "route" });
-  }, []);
+  }, [driveTogetherNavigation]);
 
   const selectEvent = useCallback(
     (event: EventMarkerRow) => {
@@ -1718,6 +1728,50 @@ export default function LiveMapScreen() {
     routeStatus,
     selectedEvent,
   ]);
+
+  const beginDriveTogetherMapPick = useCallback(
+    (handler: (point: LatLng) => void) => {
+      driveTogetherMapPickHandlerRef.current = handler;
+      setIsDriveTogetherDestinationPicking(true);
+      setIsDriveTogetherFollowing(false);
+      setIsRouteFollowing(false);
+    },
+    [],
+  );
+
+  const endDriveTogetherMapPick = useCallback(() => {
+    driveTogetherMapPickHandlerRef.current = null;
+    setIsDriveTogetherDestinationPicking(false);
+  }, []);
+
+  const handleDriveTogetherMapPress = useCallback((point: LatLng) => {
+    const handler = driveTogetherMapPickHandlerRef.current;
+    if (!handler) return;
+    driveTogetherMapPickHandlerRef.current = null;
+    setIsDriveTogetherDestinationPicking(false);
+    handler(point);
+  }, []);
+
+  const handleDriveTogetherNavigationChange = useCallback(
+    (next: DriveTogetherNavigationOverlay | null) => {
+      setDriveTogetherNavigation(next);
+      if (next) {
+        setSelectedEvent(null);
+        setIsRouteFollowing(false);
+        routeRequestIdRef.current += 1;
+        routeAbortControllerRef.current?.abort();
+        routeAbortControllerRef.current = null;
+        routeRequestKeyRef.current = null;
+        setRoute(null);
+        setRouteStatus("idle");
+        setRouteMessage(null);
+        router.setParams({ mapMode: undefined, focusEventId: undefined });
+      } else {
+        setIsDriveTogetherFollowing(false);
+      }
+    },
+    [],
+  );
 
   const nearbyDrivers = useMemo(
     () =>
@@ -1829,11 +1883,21 @@ export default function LiveMapScreen() {
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
+  const driveTogetherHasRoute = Boolean(driveTogetherNavigation?.route);
+  const effectiveRoute = driveTogetherNavigation?.route ?? route;
+  const effectiveRouteMode = driveTogetherHasRoute || isRouteMode;
+  const effectiveFollowing = driveTogetherHasRoute
+    ? isDriveTogetherFollowing
+    : isRouteFollowing;
   const controlBottom =
     eventCardBottom +
-    (isRouteMode && selectedEvent ? 276 : selectedEvent ? 196 : spacing.sm);
+    (isRouteMode && selectedEvent && !driveTogetherNavigation
+      ? 276
+      : selectedEvent && !driveTogetherNavigation
+        ? 196
+        : spacing.sm);
   const showRecenter =
-    !isRouteFollowing && (!driverLocation || isCameraAwayFromUser);
+    !effectiveFollowing && (!driverLocation || isCameraAwayFromUser);
 
   return (
     <View style={styles.screen}>
@@ -1843,14 +1907,21 @@ export default function LiveMapScreen() {
         driverLocation={driverLocation}
         events={mapboxEvents}
         initialRegion={initialRegion}
-        isRouteMode={isRouteMode}
-        followUserLocation={isRouteFollowing}
+        isDestinationPicking={isDriveTogetherDestinationPicking}
+        isRouteMode={effectiveRouteMode}
+        followUserLocation={effectiveFollowing}
         mapFilter="all"
-        onFollowUserLocationChange={setIsRouteFollowing}
+        onFollowUserLocationChange={
+          driveTogetherHasRoute
+            ? setIsDriveTogetherFollowing
+            : setIsRouteFollowing
+        }
+        onMapPress={handleDriveTogetherMapPress}
         onUserPan={() => setIsCameraAwayFromUser(true)}
         onDriverPress={openDriverProfile}
         onEventPress={selectMapboxEvent}
-        route={route}
+        route={effectiveRoute}
+        routeDestination={driveTogetherNavigation?.destination ?? null}
         selectedEventId={selectedEvent?.id ?? null}
       />
 
@@ -2057,7 +2128,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {selectedEvent && isRouteMode ? (
+        {!driveTogetherNavigation && selectedEvent && isRouteMode ? (
           <RouteCard
             event={selectedEvent}
             route={route}
@@ -2070,7 +2141,7 @@ export default function LiveMapScreen() {
             onFollowToggle={toggleRouteFollow}
             onRetry={retryRoute}
           />
-        ) : selectedEvent ? (
+        ) : !driveTogetherNavigation && selectedEvent ? (
           <EventCard
             event={selectedEvent}
             bottomOffset={eventCardBottom}
@@ -2082,10 +2153,17 @@ export default function LiveMapScreen() {
 
       <DriveTogetherMapLayer
         bottomOffset={eventCardBottom + spacing.sm}
+        currentLocation={driverLocation}
+        following={isDriveTogetherFollowing}
         invitationId={normalizedDriveInvitationId ?? null}
+        onBeginMapPick={beginDriveTogetherMapPick}
         onDriversChange={setDriveTogetherDrivers}
+        onEndMapPick={endDriveTogetherMapPick}
+        onFollowingChange={setIsDriveTogetherFollowing}
+        onNavigationChange={handleDriveTogetherNavigationChange}
         onOpenChange={setDriveTogetherOpen}
         open={driveTogetherOpen}
+        topOffset={headerBottom + spacing.md}
       />
 
       <Modal
