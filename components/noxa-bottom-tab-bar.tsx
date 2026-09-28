@@ -22,6 +22,13 @@ export function NoxaBottomTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const activeRoute = state.routes[state.index];
+  const activeOptions = activeRoute ? descriptors[activeRoute.key]?.options : undefined;
+  const activeTabBarStyle = StyleSheet.flatten(activeOptions?.tabBarStyle);
+
+  if (activeTabBarStyle?.display === 'none') {
+    return null;
+  }
 
   return (
     <View
