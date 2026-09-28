@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { animations, colors, radius, shadows, spacing } from '@/src/theme';
+import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 export type NoxaButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'overlay' | 'google';
 export type NoxaButtonSize = 'sm' | 'md' | 'lg';
@@ -63,19 +63,25 @@ export function NoxaButton({
         fullWidth && styles.fullWidth,
         style,
         pressed && !isDisabled && (reduceMotion ? styles.pressedReduced : styles.pressed),
-        isDisabled && styles.disabled,
+        disabled && !loading && styles.disabled,
       ]}>
-      <View style={styles.content}>
-        {loading ? (
-          <ActivityIndicator color={loadingColor} size="small" style={styles.leadingIcon} />
-        ) : leadingIcon ? (
+      <View
+        accessibilityElementsHidden={loading}
+        importantForAccessibility={loading ? 'no-hide-descendants' : 'auto'}
+        style={[styles.content, loading && styles.contentLoading]}>
+        {leadingIcon ? (
           <View style={styles.leadingIcon}>{leadingIcon}</View>
         ) : null}
         <Text style={[styles.text, styles[`${size}Text`], styles[`${variant}Text`], isDisabled && styles.disabledText]}>
           {title}
         </Text>
-        {!loading && trailingIcon ? <View style={styles.trailingIcon}>{trailingIcon}</View> : null}
+        {trailingIcon ? <View style={styles.trailingIcon}>{trailingIcon}</View> : null}
       </View>
+      {loading ? (
+        <View pointerEvents="none" style={styles.loadingOverlay}>
+          <ActivityIndicator color={loadingColor} size="small" />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -87,8 +93,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     borderWidth: 1,
     borderColor: 'transparent',
+    paddingVertical: spacing.xs,
   },
-  sm: { minHeight: 32, paddingHorizontal: spacing.sm },
+  sm: { minHeight: 44, paddingHorizontal: spacing.sm },
   md: { minHeight: 44, paddingHorizontal: spacing.lg },
   lg: { minHeight: 54, paddingHorizontal: spacing.xl },
   fullWidth: { width: '100%' },
@@ -96,7 +103,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    maxWidth: '100%',
   },
+  contentLoading: { opacity: 0 },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   leadingIcon: {
     marginRight: spacing.sm,
   },
@@ -113,12 +123,14 @@ const styles = StyleSheet.create({
   pressedReduced: { opacity: 0.82 },
   disabled: { opacity: 0.45 },
   text: {
-    fontWeight: '600',
-    letterSpacing: -0.2,
+    ...typography.roles.control,
+    fontFamily: typography.fontFamily.body,
+    flexShrink: 1,
+    textAlign: 'center',
   },
-  smText: { fontSize: 12, lineHeight: 16 },
+  smText: { fontSize: 14, lineHeight: 20 },
   mdText: { fontSize: 14, lineHeight: 20 },
-  lgText: { fontSize: 15, lineHeight: 22 },
+  lgText: { fontSize: 16, lineHeight: 22 },
   primaryText: { color: colors.text },
   secondaryText: { color: colors.text },
   ghostText: { color: colors.textMuted },

@@ -44,18 +44,13 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0 },
   copyCentered: { alignItems: 'center' },
   title: {
+    ...typography.roles.sectionTitle,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.sectionTitle,
-    fontWeight: '900',
-    letterSpacing: typography.letterSpacing.title,
-    lineHeight: typography.lineHeight.title,
+    fontFamily: typography.fontFamily.body,
   },
   subtitle: {
+    ...typography.roles.secondary,
     marginTop: spacing.xxs,
     color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: '600',
-    lineHeight: 17,
   },
 });

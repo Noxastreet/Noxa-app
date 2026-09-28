@@ -27,8 +27,8 @@ export function NoxaSheet({ children, style, subtitle, title }: NoxaSheetProps) 
 
 const styles = StyleSheet.create({
   sheet: {
-    gap: spacing.lg,
-    padding: spacing.lg,
+    gap: spacing.md,
+    padding: spacing.md,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     borderWidth: 1,
@@ -46,10 +46,9 @@ const styles = StyleSheet.create({
   },
   header: { gap: spacing.xs },
   title: {
+    ...typography.roles.sectionTitle,
     color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
-    fontWeight: '900',
+    fontFamily: typography.fontFamily.body,
   },
-  subtitle: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 18 },
+  subtitle: { ...typography.roles.secondary, color: colors.textMuted },
 });
