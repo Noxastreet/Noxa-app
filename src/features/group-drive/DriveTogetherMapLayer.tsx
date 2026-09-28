@@ -1541,55 +1541,68 @@ export function DriveTogetherMapLayer({
       navigation.projection?.nextManeuver?.instruction ?? null;
 
     const header = (
-      <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          setSheetSnap((current) =>
-            current === 'collapsed' ? 'medium' : current)
-        }
-        style={styles.roomHeadline}>
-        <View style={[styles.liveBadge, roomActive && styles.liveBadgeActive]}>
-          <Ionicons
-            name={roomActive ? 'navigate' : 'time-outline'}
-            size={16}
-            color={roomActive ? colors.success : colors.primaryHover}
-          />
-        </View>
-        <View style={styles.flexCopy}>
-          <View style={styles.roomKickerRow}>
-            <Text style={styles.eyebrow}>
-              {roomActive
-                ? `DRIVE TOGETHER · ${connectionLabel(connection)}`
-                : 'DRIVE TOGETHER · WAITING'}
-            </Text>
-            {roomActive && myDistance !== null ? (
-              <Text style={styles.myDistance}>
-                {formatQuickRemainingDistance(myDistance)}
-              </Text>
-            ) : null}
+      <View style={styles.roomHeadline}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            setSheetSnap((current) =>
+              current === 'collapsed' ? 'medium' : current)
+          }
+          style={styles.roomHeadlineMain}>
+          <View style={[styles.liveBadge, roomActive && styles.liveBadgeActive]}>
+            <Ionicons
+              name={roomActive ? 'navigate' : 'time-outline'}
+              size={16}
+              color={roomActive ? colors.success : colors.primaryHover}
+            />
           </View>
-          <Text numberOfLines={1} style={styles.roomTitle}>
-            {destination?.label ?? 'Choose a destination'}
-          </Text>
-          {roomActive && nextInstruction ? (
-            <Text numberOfLines={1} style={styles.nextTurn}>
-              {nextTurnDistance !== null
-                ? `${formatQuickRemainingDistance(nextTurnDistance)} · `
-                : ''}
-              {nextInstruction}
+          <View style={styles.flexCopy}>
+            <View style={styles.roomKickerRow}>
+              <Text style={styles.eyebrow}>
+                {roomActive
+                  ? `DRIVE TOGETHER · ${connectionLabel(connection)}`
+                  : 'DRIVE TOGETHER · WAITING'}
+              </Text>
+              {roomActive && myDistance !== null ? (
+                <Text style={styles.myDistance}>
+                  {formatQuickRemainingDistance(myDistance)}
+                </Text>
+              ) : null}
+            </View>
+            <Text numberOfLines={1} style={styles.roomTitle}>
+              {destination?.label ?? 'Choose a destination'}
             </Text>
-          ) : (
-            <Text numberOfLines={1} style={styles.destinationText}>
-              {roomActive
-                ? `${activeParticipants.length}/8 drivers`
-                : `${pendingInvitations.length} invitation${pendingInvitations.length === 1 ? '' : 's'} pending`}
-            </Text>
-          )}
-        </View>
-        {collapsed ? (
-          <Ionicons name="chevron-up" size={18} color={colors.textMuted} />
-        ) : null}
-      </Pressable>
+            {roomActive && nextInstruction ? (
+              <Text numberOfLines={1} style={styles.nextTurn}>
+                {nextTurnDistance !== null
+                  ? `${formatQuickRemainingDistance(nextTurnDistance)} · `
+                  : ''}
+                {nextInstruction}
+              </Text>
+            ) : (
+              <Text numberOfLines={1} style={styles.destinationText}>
+                {roomActive
+                  ? `${activeParticipants.length}/8 drivers`
+                  : `${pendingInvitations.length} invitation${pendingInvitations.length === 1 ? '' : 's'} pending`}
+              </Text>
+            )}
+          </View>
+          {collapsed ? (
+            <Ionicons name="chevron-up" size={18} color={colors.textMuted} />
+          ) : null}
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel="Hide Drive Together panel"
+          accessibilityRole="button"
+          onPress={closePanel}
+          style={({ pressed }) => [
+            styles.roomCloseButton,
+            pressed && styles.pressed,
+          ]}>
+          <Ionicons name="chevron-down" size={19} color={colors.textMuted} />
+        </Pressable>
+      </View>
     );
 
     if (collapsed) {
@@ -2224,8 +2237,23 @@ const styles = StyleSheet.create({
   roomHeadline: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     minHeight: 68,
+  },
+  roomHeadlineMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  roomCloseButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.045)',
   },
   liveBadge: {
     width: 42,
