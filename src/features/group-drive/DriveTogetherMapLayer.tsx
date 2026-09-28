@@ -1,64 +1,102 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
 import {
   acceptGroupDriveLocationDisclosure,
   cancelDrive,
-  createQuickDrive,
+  createQuickDriveRoom,
+  DriveTogetherParticipantRail,
+  DriveTogetherSheet,
   endGroupDrive,
   findMyActiveQuickDriveId,
-  findMyWaitingQuickDrive,
-  getQuickDriveInvitation,
+  findMyHostedQuickDriveId,
+  formatQuickRemainingDistance,
   getGroupDriveLocationSession,
   getPendingQuickDriveInvitation,
+  getQuickDriveInvitation,
   groupDriveLocations,
+  inviteQuickDriveUser,
   leaveGroupDriveAndStopLocation,
   listDriveTogetherFriends,
   loadActiveDriveRealtimeSnapshot,
   loadGroupDriveDetails,
+  loadQuickDriveRoomState,
+  proposeQuickDriveDestination,
   requestGroupDriveLocationPermissions,
   respondToDriveInvitation,
+  respondToQuickDriveDestinationProposal,
   startGroupDriveLocationSession,
+  stopGroupDriveLocationSession,
   subscribeToActiveDriveRealtime,
-  subscribeToDriveLobbyStatus,
+  subscribeToQuickDriveRoomState,
+  useQuickDriveNavigation,
   type ActiveDriveRealtimeConnection,
   type ActiveDriveRealtimeSnapshot,
+  type DriveDestination,
   type DriveProfile,
   type GroupDriveDetails,
+  type PendingQuickDriveInvitation,
+  type QuickDriveRoomState,
+  type DriveTogetherSheetSnap,
 } from '@/src/features/group-drive';
-import type { MapboxDriver } from '@/src/features/mapbox/types';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { driveTogetherRouteChangedMessage } from '@/src/features/group-drive/driveTogetherCopy';
+import {
+  searchMapboxPlaces,
+  type MapboxPlaceResult,
+} from '@/src/features/mapbox/placeSearch';
+import type {
+  LatLng,
+  MapboxDriver,
+  MapboxRoute,
+} from '@/src/features/mapbox/types';
+import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
-type WaitingDrive = {
-  driveSessionId: string;
-  invitationId: string;
-  friend: DriveProfile | null;
-};
+type ComposerMode =
+  | 'room'
+  | 'create-destination'
+  | 'create-friends'
+  | 'change-destination'
+  | 'invite-drivers';
 
-type InviteCard = {
-  invitationId: string;
-  driveSessionId: string;
-  hostDisplayName: string;
+export type DriveTogetherNavigationOverlay = {
+  route: MapboxRoute | null;
+  destination: LatLng | null;
+  remainingDistanceMeters: number | null;
+  nextInstruction: string | null;
+  distanceToNextManeuverMeters: number | null;
+  status: string;
 };
 
 type Props = {
   open: boolean;
   invitationId?: string | null;
   bottomOffset: number;
+  topOffset: number;
+  currentLocation: LatLng | null;
+  following: boolean;
+  onFollowingChange: (following: boolean) => void;
   onOpenChange: (open: boolean) => void;
   onDriversChange: (drivers: MapboxDriver[]) => void;
+  onNavigationChange: (navigation: DriveTogetherNavigationOverlay | null) => void;
+  onBeginMapPick: (handler: (point: LatLng) => void) => void;
+  onEndMapPick: () => void;
 };
+
+const ROOM_DETAILS_RECONCILE_MS = 5_000;
+const LOCATION_STALE_MS = 45_000;
 
 function initials(name: string) {
   return (
@@ -78,87 +116,268 @@ function connectionLabel(connection: ActiveDriveRealtimeConnection) {
   return 'CONNECTING';
 }
 
+function coordinateLabel(point: LatLng) {
+  return `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
+}
+
+async function resolveDestinationLabel(point: LatLng) {
+  try {
+    const address = (await Location.reverseGeocodeAsync(point))[0];
+    if (!address) return coordinateLabel(point);
+    const street = [address.name, address.street].filter(Boolean).join(' ').trim();
+    const parts = Array.from(
+      new Set([street, address.city, address.district, address.region].filter(Boolean)),
+    );
+    return parts.length ? parts.join(', ') : coordinateLabel(point);
+  } catch {
+    return coordinateLabel(point);
+  }
+}
+
+function profileName(profile: DriveProfile | null | undefined) {
+  return profile?.displayName?.trim() || profile?.username?.trim() || 'NOXA driver';
+}
+
+function PrimaryAction({
+  title,
+  disabled,
+  working,
+  icon,
+  onPress,
+}: {
+  title: string;
+  disabled?: boolean;
+  working?: boolean;
+  icon?: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled || working}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.primaryAction,
+        (disabled || working) && styles.actionDisabled,
+        pressed && !disabled && !working && styles.pressed,
+      ]}>
+      {working ? (
+        <ActivityIndicator color={colors.text} size="small" />
+      ) : (
+        <>
+          {icon ? <Ionicons name={icon} size={16} color={colors.text} /> : null}
+          <Text style={styles.primaryActionText}>{title}</Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+function SecondaryAction({
+  title,
+  icon,
+  destructive,
+  disabled,
+  onPress,
+}: {
+  title: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  destructive?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.secondaryAction,
+        destructive && styles.destructiveAction,
+        disabled && styles.actionDisabled,
+        pressed && !disabled && styles.pressed,
+      ]}>
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={16}
+          color={destructive ? colors.primaryHover : colors.text}
+        />
+      ) : null}
+      <Text style={[styles.secondaryActionText, destructive && styles.destructiveText]}>
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
+
+function FriendAvatar({ friend }: { friend: DriveProfile }) {
+  return (
+    <View style={styles.friendAvatar}>
+      {friend.avatarUrl ? (
+        <Image
+          cachePolicy="memory-disk"
+          contentFit="cover"
+          source={{ uri: friend.avatarUrl }}
+          style={styles.friendAvatarImage}
+        />
+      ) : (
+        <Text style={styles.friendAvatarText}>{initials(friend.displayName)}</Text>
+      )}
+    </View>
+  );
+}
+
 export function DriveTogetherMapLayer({
   open,
   invitationId,
   bottomOffset,
+  topOffset,
+  currentLocation,
+  following,
+  onFollowingChange,
   onOpenChange,
   onDriversChange,
+  onNavigationChange,
+  onBeginMapPick,
+  onEndMapPick,
 }: Props) {
   const [friends, setFriends] = useState<DriveProfile[]>([]);
-  const [friendsLoading, setFriendsLoading] = useState(false);
   const [friendsLoaded, setFriendsLoaded] = useState(false);
+  const [friendsLoading, setFriendsLoading] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [waiting, setWaiting] = useState<WaitingDrive | null>(null);
-  const [invite, setInvite] = useState<InviteCard | null>(null);
-  const [activeDriveId, setActiveDriveId] = useState<string | null>(null);
+
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [roomState, setRoomState] = useState<QuickDriveRoomState | null>(null);
   const [details, setDetails] = useState<GroupDriveDetails | null>(null);
   const [snapshot, setSnapshot] = useState<ActiveDriveRealtimeSnapshot | null>(null);
   const [connection, setConnection] = useState<ActiveDriveRealtimeConnection>('closed');
+  const [invite, setInvite] = useState<PendingQuickDriveInvitation | null>(null);
+
+  const [sheetSnap, setSheetSnap] = useState<DriveTogetherSheetSnap>('medium');
+  const [composerMode, setComposerMode] = useState<ComposerMode>('room');
+  const [draftDestination, setDraftDestination] = useState<DriveDestination | null>(null);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(() => new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<MapboxPlaceResult[]>([]);
+  const [searchingPlaces, setSearchingPlaces] = useState(false);
+  const [mapPicking, setMapPicking] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
   const [sharingLocation, setSharingLocation] = useState(false);
   const [isSharingLocation, setIsSharingLocation] = useState(false);
+
   const explicitInvitationRef = useRef<string | null>(null);
+  const pendingHostConsentRef = useRef<ReturnType<
+    typeof acceptGroupDriveLocationDisclosure
+  > | null>(null);
+  const previousDestinationVersionRef = useRef<number | null>(null);
+  const autoFollowDestinationVersionRef = useRef<number | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const roomActive =
+    roomState?.status === 'active' || details?.status === 'active';
+  const destination = roomState?.destination ?? details?.destination ?? null;
+  const destinationProposal =
+    roomState?.proposal ?? details?.destinationProposal ?? null;
+  const isHost = Boolean(
+    details && details.hostId === details.currentUserId,
+  );
 
   const loadFriends = useCallback(async () => {
+    if (friendsLoading) return;
     setFriendsLoading(true);
     setError(null);
     try {
       setFriends(await listDriveTogetherFriends());
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Friends could not be loaded.');
-    } finally {
       setFriendsLoaded(true);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Friends could not be loaded.',
+      );
+    } finally {
       setFriendsLoading(false);
     }
-  }, []);
+  }, [friendsLoading]);
 
-  useEffect(() => {
-    if (open && !friendsLoading && !friendsLoaded) void loadFriends();
-  }, [friendsLoaded, friendsLoading, loadFriends, open]);
+  const clearRoom = useCallback(() => {
+    pendingHostConsentRef.current = null;
+    previousDestinationVersionRef.current = null;
+    autoFollowDestinationVersionRef.current = null;
+    setRoomId(null);
+    setRoomState(null);
+    setDetails(null);
+    setSnapshot(null);
+    setInvite(null);
+    setConnection('closed');
+    setIsSharingLocation(false);
+    setComposerMode('room');
+    setSelectedFriendIds(new Set());
+    onDriversChange([]);
+    onNavigationChange(null);
+    onFollowingChange(false);
+    void stopGroupDriveLocationSession().catch(() => undefined);
+  }, [
+    onDriversChange,
+    onFollowingChange,
+    onNavigationChange,
+  ]);
+
+  const refreshDetails = useCallback(async (id: string) => {
+    try {
+      const next = await loadGroupDriveDetails(id);
+      setDetails(next);
+      return next;
+    } catch (loadError) {
+      const message =
+        loadError instanceof Error ? loadError.message : 'Drive Together could not be loaded.';
+      if (/unavailable/i.test(message)) {
+        clearRoom();
+        return null;
+      }
+      setError(message);
+      return null;
+    }
+  }, [clearRoom]);
 
   useFocusEffect(
     useCallback(() => {
       let disposed = false;
-
       void (async () => {
         try {
           const active = await findMyActiveQuickDriveId();
           if (disposed) return;
           if (active) {
-            setActiveDriveId(active);
-            setWaiting(null);
+            setRoomId(active);
             setInvite(null);
             return;
           }
 
-          const pendingHost = await findMyWaitingQuickDrive();
+          const hosted = await findMyHostedQuickDriveId();
           if (disposed) return;
-          if (pendingHost) {
-            setActiveDriveId(null);
-            setWaiting(pendingHost);
+          if (hosted) {
+            setRoomId(hosted);
             setInvite(null);
             return;
           }
 
-          const pendingInvite = await getPendingQuickDriveInvitation();
+          const pending = await getPendingQuickDriveInvitation();
           if (disposed) return;
-          setActiveDriveId(null);
-          setWaiting(null);
-          if (pendingInvite) {
-            setInvite({
-              invitationId: pendingInvite.invitationId,
-              driveSessionId: pendingInvite.driveSessionId,
-              hostDisplayName: pendingInvite.hostDisplayName,
-            });
-          } else {
-            setInvite(null);
-          }
+          setRoomId(null);
+          setRoomState(null);
+          setDetails(null);
+          setSnapshot(null);
+          setInvite(pending);
         } catch (stateError) {
           if (!disposed) {
-            setError(stateError instanceof Error
-              ? stateError.message
-              : 'Drive Together state could not be refreshed.');
+            setError(
+              stateError instanceof Error
+                ? stateError.message
+                : 'Drive Together state could not be refreshed.',
+            );
           }
         }
       })();
@@ -179,14 +398,14 @@ export function DriveTogetherMapLayer({
       .then((preview) => {
         if (disposed) return;
         if (!preview) {
-          router.push({ pathname: '/group-drives/invitation/[id]', params: { id } });
+          router.push({
+            pathname: '/group-drives/invitation/[id]',
+            params: { id },
+          });
           return;
         }
-        setInvite({
-          invitationId: id,
-          driveSessionId: preview.driveSessionId,
-          hostDisplayName: preview.hostDisplayName,
-        });
+        setInvite(preview);
+        setSheetSnap('medium');
       })
       .catch(() => undefined);
 
@@ -196,96 +415,28 @@ export function DriveTogetherMapLayer({
   }, [invitationId]);
 
   useEffect(() => {
-    if (!waiting?.driveSessionId) return undefined;
-    return subscribeToDriveLobbyStatus(waiting.driveSessionId, (status) => {
-      if (status === 'active') {
-        setActiveDriveId(waiting.driveSessionId);
-        setWaiting(null);
-        setInvite(null);
-      } else if (status === 'cancelled' || status === 'completed') {
-        setWaiting(null);
-      }
-    });
-  }, [waiting]);
-
-  useEffect(() => {
-    if (!waiting?.driveSessionId) return undefined;
-
-    let disposed = false;
-    let reconciling = false;
-
-    const reconcileWaitingDrive = async () => {
-      if (reconciling) return;
-      reconciling = true;
-      try {
-        const activeId = await findMyActiveQuickDriveId();
-        if (disposed) return;
-        if (activeId === waiting.driveSessionId) {
-          setActiveDriveId(activeId);
-          setWaiting(null);
-          setInvite(null);
-          return;
-        }
-
-        const stillWaiting = await findMyWaitingQuickDrive();
-        if (disposed) return;
-        if (!stillWaiting || stillWaiting.driveSessionId !== waiting.driveSessionId) {
-          setWaiting(null);
-        }
-      } catch {
-        // Realtime remains primary. Polling only closes missed-event gaps.
-      } finally {
-        reconciling = false;
-      }
-    };
-
-    void reconcileWaitingDrive();
-    const interval = setInterval(() => {
-      void reconcileWaitingDrive();
-    }, 2000);
-
-    return () => {
-      disposed = true;
-      clearInterval(interval);
-    };
-  }, [waiting?.driveSessionId]);
-
-  useEffect(() => {
-    let disposed = false;
-    let teardown: (() => Promise<void>) | null = null;
-
-    if (!activeDriveId) {
+    if (!roomId) {
+      setRoomState(null);
       setDetails(null);
-      setSnapshot(null);
-      setConnection('closed');
-      onDriversChange([]);
-      setIsSharingLocation(false);
-      return () => undefined;
+      return undefined;
     }
 
-    setConnection('connecting');
+    let disposed = false;
+    let teardown: (() => Promise<void>) | null = null;
     void Promise.all([
-      loadGroupDriveDetails(activeDriveId),
-      loadActiveDriveRealtimeSnapshot(activeDriveId),
+      refreshDetails(roomId),
+      loadQuickDriveRoomState(roomId),
     ])
-      .then(([nextDetails, nextSnapshot]) => {
+      .then(([nextDetails, nextRoom]) => {
         if (disposed) return;
-        setDetails(nextDetails);
-        setSnapshot(nextSnapshot);
-        setIsSharingLocation(getGroupDriveLocationSession()?.driveSessionId === activeDriveId);
-        return subscribeToActiveDriveRealtime(activeDriveId, {
-          onSnapshot: (next) => {
-            if (!disposed) setSnapshot(next);
+        if (nextDetails) setDetails(nextDetails);
+        if (nextRoom) setRoomState(nextRoom);
+        return subscribeToQuickDriveRoomState(roomId, {
+          onState: (state) => {
+            if (!disposed) setRoomState(state);
           },
-          onConnectionChange: (next) => {
-            if (!disposed) setConnection(next);
-          },
-          onAccessRevoked: () => {
-            if (disposed) return;
-            setActiveDriveId(null);
-            setDetails(null);
-            setSnapshot(null);
-            onDriversChange([]);
+          onEnded: () => {
+            if (!disposed) clearRoom();
           },
           onError: (syncError) => {
             if (!disposed) setError(syncError.message);
@@ -299,7 +450,72 @@ export function DriveTogetherMapLayer({
       })
       .catch((loadError) => {
         if (!disposed) {
-          setError(loadError instanceof Error ? loadError.message : 'Drive Together could not be opened.');
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Drive Together room could not be opened.',
+          );
+        }
+      });
+
+    const reconcile = setInterval(() => {
+      if (!disposed) void refreshDetails(roomId);
+    }, ROOM_DETAILS_RECONCILE_MS);
+
+    return () => {
+      disposed = true;
+      clearInterval(reconcile);
+      if (teardown) void teardown();
+    };
+  }, [clearRoom, refreshDetails, roomId]);
+
+  useEffect(() => {
+    if (!roomId || !roomActive) {
+      setSnapshot(null);
+      setConnection('closed');
+      setIsSharingLocation(false);
+      onDriversChange([]);
+      return undefined;
+    }
+
+    let disposed = false;
+    let teardown: (() => Promise<void>) | null = null;
+    setConnection('connecting');
+
+    void loadActiveDriveRealtimeSnapshot(roomId)
+      .then((initial) => {
+        if (disposed) return;
+        setSnapshot(initial);
+        setIsSharingLocation(
+          getGroupDriveLocationSession()?.driveSessionId === roomId,
+        );
+        return subscribeToActiveDriveRealtime(roomId, {
+          onSnapshot: (next) => {
+            if (!disposed) setSnapshot(next);
+          },
+          onConnectionChange: (next) => {
+            if (!disposed) setConnection(next);
+          },
+          onAccessRevoked: () => {
+            if (!disposed) clearRoom();
+          },
+          onError: (syncError) => {
+            if (!disposed) setError(syncError.message);
+          },
+        });
+      })
+      .then((nextTeardown) => {
+        if (!nextTeardown) return;
+        if (disposed) void nextTeardown();
+        else teardown = nextTeardown;
+      })
+      .catch((loadError) => {
+        if (!disposed) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Drive Together realtime could not be opened.',
+          );
         }
       });
 
@@ -307,11 +523,50 @@ export function DriveTogetherMapLayer({
       disposed = true;
       if (teardown) void teardown();
     };
-  }, [activeDriveId, onDriversChange]);
+  }, [clearRoom, onDriversChange, roomActive, roomId]);
+
+  useEffect(() => {
+    if (!roomId || !roomActive) return;
+    const consent = pendingHostConsentRef.current;
+    if (
+      !consent
+      || consent.driveSessionId !== roomId
+      || isSharingLocation
+      || sharingLocation
+    ) {
+      return;
+    }
+
+    setSharingLocation(true);
+    void startGroupDriveLocationSession(consent)
+      .then(() => {
+        pendingHostConsentRef.current = null;
+        setIsSharingLocation(true);
+      })
+      .catch((shareError) => {
+        pendingHostConsentRef.current = null;
+        setError(
+          shareError instanceof Error
+            ? shareError.message
+            : 'Location sharing could not be started.',
+        );
+      })
+      .finally(() => setSharingLocation(false));
+  }, [
+    isSharingLocation,
+    roomActive,
+    roomId,
+    sharingLocation,
+  ]);
 
   const driveDrivers = useMemo<MapboxDriver[]>(() => {
     if (!details || !snapshot) return [];
-    const profiles = new Map(details.participants.map((participant) => [participant.userId, participant.profile]));
+    const profiles = new Map(
+      details.participants.map((participant) => [
+        participant.userId,
+        participant.profile,
+      ]),
+    );
     return groupDriveLocations(snapshot.locations)
       .filter((location) => location.userId !== details.currentUserId)
       .map((location) => {
@@ -320,10 +575,12 @@ export function DriveTogetherMapLayer({
           user_id: location.userId,
           latitude: location.latitude,
           longitude: location.longitude,
-          label: profile?.displayName ?? 'Drive Together',
+          label: profileName(profile),
           avatar_url: profile?.avatarUrl ?? null,
           is_relevant: true,
-          is_dimmed: location.status === 'stale',
+          is_dimmed:
+            location.status === 'stale'
+            || Date.now() - Date.parse(location.updatedAt) > LOCATION_STALE_MS,
         };
       });
   }, [details, snapshot]);
@@ -332,489 +589,1740 @@ export function DriveTogetherMapLayer({
     onDriversChange(driveDrivers);
   }, [driveDrivers, onDriversChange]);
 
-  const createWithFriend = useCallback(
-    async (friend: DriveProfile) => {
-      if (working) return;
+  const ownNavigationLocation = useMemo(() => {
+    if (details && snapshot) {
+      const own = groupDriveLocations(snapshot.locations).find(
+        (location) => location.userId === details.currentUserId,
+      );
+      if (own) {
+        return {
+          latitude: own.latitude,
+          longitude: own.longitude,
+          heading: own.heading,
+        };
+      }
+    }
+
+    return currentLocation
+      ? {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          heading: null,
+        }
+      : null;
+  }, [currentLocation, details, snapshot]);
+
+  const navigation = useQuickDriveNavigation({
+    driveSessionId: roomActive ? roomId : null,
+    destination,
+    active: Boolean(roomId && roomActive && destination),
+    publishProgressEnabled: isSharingLocation,
+    location: ownNavigationLocation,
+    onRoomEnded: clearRoom,
+  });
+
+  useEffect(() => {
+    if (!roomActive || !destination) {
+      onNavigationChange(null);
+      return;
+    }
+    onNavigationChange({
+      route: navigation.route
+        ? { coordinates: navigation.route.coordinates }
+        : null,
+      destination: {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      },
+      remainingDistanceMeters:
+        navigation.projection?.remainingDistanceMeters ?? null,
+      nextInstruction:
+        navigation.projection?.nextManeuver?.instruction ?? null,
+      distanceToNextManeuverMeters:
+        navigation.projection?.distanceToNextManeuverMeters ?? null,
+      status: navigation.status,
+    });
+  }, [
+    destination,
+    navigation.projection,
+    navigation.route,
+    navigation.status,
+    onNavigationChange,
+    roomActive,
+  ]);
+
+  useEffect(() => {
+    if (!roomActive || !destination || !navigation.route) return;
+    if (autoFollowDestinationVersionRef.current === destination.version) return;
+    autoFollowDestinationVersionRef.current = destination.version;
+    onFollowingChange(true);
+  }, [
+    destination,
+    navigation.route,
+    onFollowingChange,
+    roomActive,
+  ]);
+
+  useEffect(() => {
+    const nextVersion = destination?.version ?? null;
+    const previousVersion = previousDestinationVersionRef.current;
+    if (
+      previousVersion !== null
+      && nextVersion !== null
+      && nextVersion !== previousVersion
+    ) {
+      const updater = details?.participants.find(
+        (participant) => participant.userId === destination?.updatedByUserId,
+      );
+      const message = driveTogetherRouteChangedMessage(
+        profileName(updater?.profile),
+      );
+      setToast(message);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        setToast(null);
+        toastTimerRef.current = null;
+      }, 3_000);
+    }
+    previousDestinationVersionRef.current = nextVersion;
+  }, [
+    destination?.updatedByUserId,
+    destination?.version,
+    details?.participants,
+  ]);
+
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      onEndMapPick();
+    },
+    [onEndMapPick],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    if (roomId || invite) {
+      setSheetSnap('expanded');
+      setComposerMode('room');
+      onOpenChange(false);
+      return;
+    }
+    setComposerMode('create-destination');
+    setDraftDestination(null);
+    setSelectedFriendIds(new Set());
+    setSheetSnap('medium');
+    setError(null);
+    setSearchQuery('');
+    setSearchResults([]);
+    onOpenChange(false);
+  }, [invite, onOpenChange, open, roomId]);
+
+  useEffect(() => {
+    const destinationComposer =
+      composerMode === 'create-destination'
+      || composerMode === 'change-destination';
+    const query = searchQuery.trim();
+    if (!destinationComposer || query.length < 2) {
+      setSearchResults([]);
+      setSearchingPlaces(false);
+      return undefined;
+    }
+
+    let disposed = false;
+    const timer = setTimeout(() => {
+      setSearchingPlaces(true);
+      void searchMapboxPlaces(query, currentLocation)
+        .then((results) => {
+          if (!disposed) setSearchResults(results);
+        })
+        .catch((searchError) => {
+          if (!disposed) {
+            setError(
+              searchError instanceof Error
+                ? searchError.message
+                : 'Place search is unavailable.',
+            );
+          }
+        })
+        .finally(() => {
+          if (!disposed) setSearchingPlaces(false);
+        });
+    }, 280);
+
+    return () => {
+      disposed = true;
+      clearTimeout(timer);
+    };
+  }, [composerMode, currentLocation, searchQuery]);
+
+  const participantMetrics = useMemo(() => {
+    if (!details || !roomActive || !destination) return [];
+    const locations = snapshot
+      ? groupDriveLocations(snapshot.locations)
+      : [];
+    const locationByUserId = new Map(
+      locations.map((location) => [location.userId, location]),
+    );
+
+    return details.participants
+      .filter((participant) => participant.status === 'active')
+      .slice(0, 8)
+      .map((participant) => {
+        const self = participant.userId === details.currentUserId;
+        const server = locationByUserId.get(participant.userId);
+        const serverMatchesDestination =
+          server?.routeDestinationVersion === destination.version;
+        const serverDistance =
+          serverMatchesDestination && server?.remainingDistanceMeters !== null
+            ? server?.remainingDistanceMeters ?? null
+            : null;
+        const ownDistance =
+          self
+            ? navigation.projection?.remainingDistanceMeters ?? serverDistance
+            : serverDistance;
+        const arrived =
+          self
+            ? navigation.projection?.arrived || server?.status === 'arrived'
+            : server?.status === 'arrived';
+        const stale =
+          !self
+          && (
+            !server
+            || !serverMatchesDestination
+            || Date.now() - Date.parse(server.updatedAt) > LOCATION_STALE_MS
+          );
+
+        return {
+          userId: participant.userId,
+          displayName: profileName(participant.profile),
+          avatarUrl: participant.profile?.avatarUrl ?? null,
+          distanceLabel: arrived
+            ? 'ARRIVED'
+            : formatQuickRemainingDistance(ownDistance),
+          stale,
+          self,
+        };
+      });
+  }, [
+    destination,
+    details,
+    navigation.projection,
+    roomActive,
+    snapshot,
+  ]);
+
+  const availableInviteFriends = useMemo(() => {
+    if (!details) return friends;
+    const unavailable = new Set<string>([
+      ...details.participants
+        .filter((participant) =>
+          participant.status === 'accepted' || participant.status === 'active')
+        .map((participant) => participant.userId),
+      ...details.invitations
+        .filter((invitation) => invitation.status === 'invited')
+        .map((invitation) => invitation.invitedUserId),
+    ]);
+    return friends.filter((friend) => !unavailable.has(friend.id));
+  }, [details, friends]);
+
+  const occupiedSlots = useMemo(() => {
+    if (!details) return 0;
+    const participants = details.participants.filter(
+      (participant) =>
+        participant.status === 'accepted' || participant.status === 'active',
+    ).length;
+    const pending = details.invitations.filter(
+      (invitation) => invitation.status === 'invited',
+    ).length;
+    return participants + pending;
+  }, [details]);
+
+  const maxSelectableFriends =
+    composerMode === 'invite-drivers'
+      ? Math.max(0, 8 - occupiedSlots)
+      : 7;
+
+  const toggleFriend = useCallback((friendId: string) => {
+    setSelectedFriendIds((current) => {
+      const next = new Set(current);
+      if (next.has(friendId)) {
+        next.delete(friendId);
+        return next;
+      }
+      if (next.size >= maxSelectableFriends) return current;
+      next.add(friendId);
+      return next;
+    });
+  }, [maxSelectableFriends]);
+
+  const selectDestination = useCallback(async (
+    point: LatLng,
+    label: string,
+  ) => {
+    const next: DriveDestination = {
+      latitude: point.latitude,
+      longitude: point.longitude,
+      label,
+      version: 1,
+      updatedByUserId: null,
+      updatedAt: null,
+    };
+
+    if (composerMode === 'create-destination') {
+      setDraftDestination(next);
+      setComposerMode('create-friends');
+      setSelectedFriendIds(new Set());
+      setSheetSnap('expanded');
+      if (!friendsLoaded) void loadFriends();
+      return;
+    }
+
+    if (composerMode === 'change-destination' && roomId) {
       setWorking(true);
       setError(null);
       try {
-        const created = await createQuickDrive(friend.id);
-        setWaiting({
-          driveSessionId: created.driveSessionId,
-          invitationId: created.invitationId,
-          friend,
-        });
-        setInvite(null);
-        onOpenChange(false);
-      } catch (createError) {
-        setError(createError instanceof Error ? createError.message : 'Drive Together could not be created.');
+        await proposeQuickDriveDestination(roomId, next);
+        setComposerMode('room');
+        setSheetSnap('medium');
+      } catch (changeError) {
+        setError(
+          changeError instanceof Error
+            ? changeError.message
+            : 'Destination could not be updated.',
+        );
       } finally {
         setWorking(false);
       }
-    },
-    [onOpenChange, working],
-  );
+    }
+  }, [
+    composerMode,
+    friendsLoaded,
+    loadFriends,
+    roomId,
+  ]);
+
+  const choosePlace = useCallback((place: MapboxPlaceResult) => {
+    void selectDestination(place.coordinate, place.label);
+  }, [selectDestination]);
+
+  const beginMapPick = useCallback(() => {
+    setMapPicking(true);
+    setSheetSnap('collapsed');
+    setError(null);
+    onBeginMapPick((point) => {
+      void (async () => {
+        const label = await resolveDestinationLabel(point);
+        setMapPicking(false);
+        onEndMapPick();
+        await selectDestination(point, label);
+      })();
+    });
+  }, [
+    onBeginMapPick,
+    onEndMapPick,
+    selectDestination,
+  ]);
+
+  const cancelMapPick = useCallback(() => {
+    setMapPicking(false);
+    onEndMapPick();
+    setSheetSnap('medium');
+  }, [onEndMapPick]);
+
+  const createRoom = useCallback(async () => {
+    if (
+      !draftDestination
+      || selectedFriendIds.size < 1
+      || working
+    ) {
+      return;
+    }
+
+    setWorking(true);
+    setError(null);
+    try {
+      await requestGroupDriveLocationPermissions();
+      const created = await createQuickDriveRoom(
+        [...selectedFriendIds],
+        draftDestination,
+      );
+      pendingHostConsentRef.current =
+        acceptGroupDriveLocationDisclosure(created.driveSessionId);
+      setRoomId(created.driveSessionId);
+      setInvite(null);
+      setComposerMode('room');
+      setSelectedFriendIds(new Set());
+      setSheetSnap('collapsed');
+      await refreshDetails(created.driveSessionId);
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : 'Drive Together could not be created.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }, [
+    draftDestination,
+    refreshDetails,
+    selectedFriendIds,
+    working,
+  ]);
 
   const joinInvite = useCallback(async () => {
     if (!invite || working) return;
     setWorking(true);
     setError(null);
     try {
-      const changed = await respondToDriveInvitation(invite.invitationId, true);
-      if (!changed) throw new Error('This invitation is no longer available.');
-      const nextDetails = await loadGroupDriveDetails(invite.driveSessionId);
-      setInvite(null);
-
-      if (nextDetails.driveMode !== 'quick' || nextDetails.status !== 'active') {
-        router.push({ pathname: '/group-drives/[id]', params: { id: invite.driveSessionId } });
-        return;
+      await requestGroupDriveLocationPermissions();
+      const changed = await respondToDriveInvitation(
+        invite.invitationId,
+        true,
+      );
+      if (!changed) {
+        throw new Error('This invitation is no longer available.');
       }
 
-      setActiveDriveId(invite.driveSessionId);
-      const consent = acceptGroupDriveLocationDisclosure(invite.driveSessionId);
-      await requestGroupDriveLocationPermissions();
+      const consent = acceptGroupDriveLocationDisclosure(
+        invite.driveSessionId,
+      );
+      setRoomId(invite.driveSessionId);
+      setInvite(null);
+      setSheetSnap('collapsed');
       await startGroupDriveLocationSession(consent);
       setIsSharingLocation(true);
+      await refreshDetails(invite.driveSessionId);
     } catch (joinError) {
-      setError(joinError instanceof Error ? joinError.message : 'Drive Together could not be joined.');
+      setError(
+        joinError instanceof Error
+          ? joinError.message
+          : 'Drive Together could not be joined.',
+      );
     } finally {
       setWorking(false);
     }
-  }, [invite, working]);
-
-  const dismissInvite = useCallback(() => {
-    setInvite(null);
-  }, []);
+  }, [invite, refreshDetails, working]);
 
   const declineInvite = useCallback(async () => {
     if (!invite || working) return;
     setWorking(true);
     setError(null);
     try {
-      const changed = await respondToDriveInvitation(invite.invitationId, false);
-      if (!changed) throw new Error('This invitation is no longer available.');
+      const changed = await respondToDriveInvitation(
+        invite.invitationId,
+        false,
+      );
+      if (!changed) {
+        throw new Error('This invitation is no longer available.');
+      }
       setInvite(null);
+      setSheetSnap('medium');
     } catch (declineError) {
-      setError(declineError instanceof Error ? declineError.message : 'Invitation could not be declined.');
+      setError(
+        declineError instanceof Error
+          ? declineError.message
+          : 'Invitation could not be declined.',
+      );
     } finally {
       setWorking(false);
     }
   }, [invite, working]);
 
-  const cancelWaiting = useCallback(async () => {
-    if (!waiting || working) return;
-    setWorking(true);
-    setError(null);
-    try {
-      await cancelDrive(waiting.driveSessionId);
-      setWaiting(null);
-    } catch (cancelError) {
-      setError(cancelError instanceof Error ? cancelError.message : 'Invitation could not be cancelled.');
-    } finally {
-      setWorking(false);
-    }
-  }, [waiting, working]);
-
   const enableSharing = useCallback(async () => {
-    if (!activeDriveId || sharingLocation || isSharingLocation) return;
+    if (!roomId || sharingLocation || isSharingLocation) return;
     setSharingLocation(true);
     setError(null);
     try {
-      const consent = acceptGroupDriveLocationDisclosure(activeDriveId);
+      const consent = acceptGroupDriveLocationDisclosure(roomId);
       await requestGroupDriveLocationPermissions();
       await startGroupDriveLocationSession(consent);
       setIsSharingLocation(true);
     } catch (shareError) {
-      setError(shareError instanceof Error ? shareError.message : 'Location sharing could not be started.');
+      setError(
+        shareError instanceof Error
+          ? shareError.message
+          : 'Location sharing could not be started.',
+      );
     } finally {
       setSharingLocation(false);
     }
-  }, [activeDriveId, isSharingLocation, sharingLocation]);
+  }, [
+    isSharingLocation,
+    roomId,
+    sharingLocation,
+  ]);
 
-  const finishActive = useCallback(async () => {
-    if (!details || working) return;
-    const isHost = details.hostId === details.currentUserId;
+  const openDestinationComposer = useCallback(() => {
+    setComposerMode('change-destination');
+    setSearchQuery('');
+    setSearchResults([]);
+    setSheetSnap('expanded');
+    setError(null);
+  }, []);
+
+  const openInviteComposer = useCallback(() => {
+    setComposerMode('invite-drivers');
+    setSelectedFriendIds(new Set());
+    setSheetSnap('expanded');
+    setError(null);
+    if (!friendsLoaded) void loadFriends();
+  }, [friendsLoaded, loadFriends]);
+
+  const inviteSelectedDrivers = useCallback(async () => {
+    if (!roomId || selectedFriendIds.size < 1 || working) return;
+    setWorking(true);
+    setError(null);
+    try {
+      for (const userId of selectedFriendIds) {
+        await inviteQuickDriveUser(roomId, userId);
+      }
+      setSelectedFriendIds(new Set());
+      setComposerMode('room');
+      setSheetSnap('medium');
+      await refreshDetails(roomId);
+    } catch (inviteError) {
+      setError(
+        inviteError instanceof Error
+          ? inviteError.message
+          : 'Drivers could not be invited.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }, [
+    refreshDetails,
+    roomId,
+    selectedFriendIds,
+    working,
+  ]);
+
+  const respondToProposal = useCallback(async (accept: boolean) => {
+    if (!roomId || working) return;
+    setWorking(true);
+    setError(null);
+    try {
+      await respondToQuickDriveDestinationProposal(roomId, accept);
+    } catch (proposalError) {
+      setError(
+        proposalError instanceof Error
+          ? proposalError.message
+          : 'Destination request could not be updated.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }, [roomId, working]);
+
+  const cancelWaitingRoom = useCallback(async () => {
+    if (!roomId || working) return;
+    setWorking(true);
+    setError(null);
+    try {
+      await cancelDrive(roomId);
+      clearRoom();
+    } catch (cancelError) {
+      setError(
+        cancelError instanceof Error
+          ? cancelError.message
+          : 'Drive Together could not be cancelled.',
+      );
+    } finally {
+      setWorking(false);
+    }
+  }, [clearRoom, roomId, working]);
+
+  const finishActive = useCallback(() => {
+    if (!details || !roomId || working) return;
+    const host = details.hostId === details.currentUserId;
+
     Alert.alert(
-      isHost ? 'End Drive Together?' : 'Leave Drive Together?',
-      isHost
-        ? 'This ends the shared drive for both drivers.'
-        : 'You will stop sharing your Group Drive location immediately.',
+      host ? 'End Drive Together?' : 'Leave Drive Together?',
+      host
+        ? 'This ends the shared drive for everyone. No trip history will be saved.'
+        : 'You will leave the room and stop sharing your Drive Together location.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: isHost ? 'End' : 'Leave',
+          text: host ? 'End' : 'Leave',
           style: 'destructive',
           onPress: () => {
             setWorking(true);
             setError(null);
-            void (isHost
-              ? endGroupDrive(details.id)
-              : leaveGroupDriveAndStopLocation(details.id)
+            void (host
+              ? endGroupDrive(roomId)
+              : leaveGroupDriveAndStopLocation(roomId)
             )
-              .then(() => {
-                setActiveDriveId(null);
-                setDetails(null);
-                setSnapshot(null);
-                setIsSharingLocation(false);
-                onDriversChange([]);
-              })
+              .then(() => clearRoom())
               .catch((finishError) => {
-                setError(finishError instanceof Error ? finishError.message : 'Drive Together could not be ended.');
+                setError(
+                  finishError instanceof Error
+                    ? finishError.message
+                    : 'Drive Together could not be ended.',
+                );
               })
               .finally(() => setWorking(false));
           },
         },
       ],
     );
-  }, [details, onDriversChange, working]);
+  }, [
+    clearRoom,
+    details,
+    roomId,
+    working,
+  ]);
 
-  const otherParticipant = details?.participants.find(
-    (participant) => participant.userId !== details.currentUserId && participant.status === 'active',
+  const proposalAuthor = destinationProposal
+    ? details?.participants.find(
+        (participant) =>
+          participant.userId === destinationProposal.proposedByUserId,
+      )
+    : null;
+
+  const pendingInvitations =
+    details?.invitations.filter(
+      (invitation) => invitation.status === 'invited',
+    ) ?? [];
+
+  const activeParticipants =
+    details?.participants.filter(
+      (participant) => participant.status === 'active',
+    ) ?? [];
+
+  const sheetVisible =
+    open
+    || Boolean(invite)
+    || Boolean(roomId)
+    || composerMode !== 'room';
+
+  const renderDestinationComposer = () => (
+    <View style={styles.composer}>
+      <View style={styles.sheetHeader}>
+        <Pressable
+          accessibilityLabel="Back"
+          onPress={() => {
+            if (composerMode === 'change-destination') {
+              setComposerMode('room');
+              setSheetSnap('medium');
+            } else {
+              setComposerMode('room');
+              setDraftDestination(null);
+            }
+          }}
+          style={styles.iconButton}>
+          <Ionicons name="chevron-back" size={19} color={colors.text} />
+        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>
+            {composerMode === 'change-destination'
+              ? isHost
+                ? 'CHANGE DESTINATION'
+                : 'REQUEST DESTINATION'
+              : 'DRIVE TOGETHER'}
+          </Text>
+          <Text style={styles.sheetTitle}>
+            {composerMode === 'change-destination'
+              ? 'Where should the room go next?'
+              : 'Choose the destination first.'}
+          </Text>
+        </View>
+      </View>
+
+      {mapPicking ? (
+        <View style={styles.mapPickNotice}>
+          <Ionicons name="location-outline" size={20} color={colors.primaryHover} />
+          <View style={styles.flexCopy}>
+            <Text style={styles.mapPickTitle}>Tap anywhere on the map</Text>
+            <Text style={styles.mapPickBody}>
+              That point becomes the shared destination.
+            </Text>
+          </View>
+          <Pressable onPress={cancelMapPick} style={styles.smallGhostButton}>
+            <Text style={styles.smallGhostText}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              autoCapitalize="words"
+              autoCorrect={false}
+              onChangeText={setSearchQuery}
+              placeholder="Address, place or destination"
+              placeholderTextColor={colors.textSubtle}
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={searchQuery}
+            />
+            {searchingPlaces ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : searchQuery ? (
+              <Pressable
+                accessibilityLabel="Clear destination search"
+                onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <SecondaryAction
+            icon="map-outline"
+            onPress={beginMapPick}
+            title="Pick on map"
+          />
+
+          <ScrollView
+            contentContainerStyle={styles.searchResults}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+            {searchResults.map((place) => (
+              <Pressable
+                key={place.id}
+                onPress={() => choosePlace(place)}
+                style={({ pressed }) => [
+                  styles.placeRow,
+                  pressed && styles.pressed,
+                ]}>
+                <View style={styles.placeIcon}>
+                  <Ionicons name="location" size={16} color={colors.primaryHover} />
+                </View>
+                <View style={styles.flexCopy}>
+                  <Text numberOfLines={2} style={styles.placeTitle}>
+                    {place.label}
+                  </Text>
+                  {place.subtitle ? (
+                    <Text numberOfLines={1} style={styles.placeSubtitle}>
+                      {place.subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+              </Pressable>
+            ))}
+            {searchQuery.trim().length >= 2
+              && !searchingPlaces
+              && searchResults.length === 0 ? (
+              <Text style={styles.emptyText}>No matching destination found.</Text>
+            ) : null}
+          </ScrollView>
+        </>
+      )}
+    </View>
   );
-  const otherName = otherParticipant?.profile?.displayName ?? 'your friend';
+
+  const renderFriendComposer = () => {
+    const source =
+      composerMode === 'invite-drivers'
+        ? availableInviteFriends
+        : friends;
+    const title =
+      composerMode === 'invite-drivers'
+        ? 'Add drivers'
+        : 'Who is going?';
+
+    return (
+      <View style={styles.composer}>
+        <View style={styles.sheetHeader}>
+          <Pressable
+            accessibilityLabel="Back"
+            onPress={() => {
+              if (composerMode === 'invite-drivers') {
+                setComposerMode('room');
+                setSheetSnap('medium');
+              } else {
+                setComposerMode('create-destination');
+                setSheetSnap('medium');
+              }
+            }}
+            style={styles.iconButton}>
+            <Ionicons name="chevron-back" size={19} color={colors.text} />
+          </Pressable>
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
+            <Text style={styles.sheetTitle}>{title}</Text>
+            <Text style={styles.sheetSubtitle}>
+              {composerMode === 'invite-drivers'
+                ? `${occupiedSlots}/8 places occupied`
+                : draftDestination?.label ?? 'Shared destination'}
+            </Text>
+          </View>
+        </View>
+
+        {friendsLoading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.muted}>Loading friends…</Text>
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.friendList}
+            showsVerticalScrollIndicator={false}>
+            {source.map((friend) => {
+              const selected = selectedFriendIds.has(friend.id);
+              return (
+                <Pressable
+                  key={friend.id}
+                  onPress={() => toggleFriend(friend.id)}
+                  style={({ pressed }) => [
+                    styles.friendRow,
+                    selected && styles.friendRowSelected,
+                    pressed && styles.pressed,
+                  ]}>
+                  <FriendAvatar friend={friend} />
+                  <View style={styles.flexCopy}>
+                    <Text numberOfLines={1} style={styles.friendName}>
+                      {friend.displayName}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.friendMeta}>
+                      {friend.username
+                        ? `@${friend.username}`
+                        : 'Mutual friend'}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.checkCircle,
+                      selected && styles.checkCircleSelected,
+                    ]}>
+                    {selected ? (
+                      <Ionicons name="checkmark" size={15} color={colors.text} />
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+            {!source.length ? (
+              <Text style={styles.emptyText}>
+                No available mutual friends right now.
+              </Text>
+            ) : null}
+          </ScrollView>
+        )}
+
+        <View style={styles.stickyActions}>
+          {composerMode === 'create-friends' ? (
+            <Text style={styles.privacyNote}>
+              When the first driver joins, NOXA starts your private Drive Together location session so everyone can follow the shared route.
+            </Text>
+          ) : null}
+          <PrimaryAction
+            disabled={selectedFriendIds.size < 1}
+            icon="paper-plane-outline"
+            onPress={() => {
+              if (composerMode === 'invite-drivers') {
+                void inviteSelectedDrivers();
+              } else {
+                void createRoom();
+              }
+            }}
+            title={
+              composerMode === 'invite-drivers'
+                ? `Invite ${selectedFriendIds.size || ''} driver${selectedFriendIds.size === 1 ? '' : 's'}`
+                : `Invite ${selectedFriendIds.size || ''} driver${selectedFriendIds.size === 1 ? '' : 's'}`
+            }
+            working={working}
+          />
+        </View>
+      </View>
+    );
+  };
+
+  const renderInvite = () => (
+    <View style={styles.roomContent}>
+      <View style={styles.roomHeadline}>
+        <View style={styles.liveBadge}>
+          <Ionicons name="navigate" size={15} color={colors.primaryHover} />
+        </View>
+        <View style={styles.flexCopy}>
+          <Text style={styles.eyebrow}>DRIVE TOGETHER INVITE</Text>
+          <Text numberOfLines={1} style={styles.roomTitle}>
+            {invite?.hostDisplayName} invited you
+          </Text>
+          <Text numberOfLines={2} style={styles.destinationText}>
+            {invite?.destination?.label ?? 'Shared destination'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.actionRow}>
+        <SecondaryAction
+          disabled={working}
+          onPress={() => void declineInvite()}
+          title="Decline"
+        />
+        <PrimaryAction
+          disabled={working}
+          icon="navigate"
+          onPress={() => void joinInvite()}
+          title="Join & share"
+          working={working}
+        />
+      </View>
+
+      <Text style={styles.privacyNote}>
+        Each driver gets their own route from their current position to the same destination.
+      </Text>
+    </View>
+  );
+
+  const renderRoom = () => {
+    if (!details && roomId) {
+      return (
+        <View style={styles.loadingRoom}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.muted}>Opening Drive Together…</Text>
+        </View>
+      );
+    }
+
+    const myDistance = navigation.projection?.remainingDistanceMeters ?? null;
+    const nextTurnDistance =
+      navigation.projection?.distanceToNextManeuverMeters ?? null;
+    const nextInstruction =
+      navigation.projection?.nextManeuver?.instruction ?? null;
+
+    return (
+      <ScrollView
+        contentContainerStyle={styles.roomContent}
+        showsVerticalScrollIndicator={false}>
+        <Pressable
+          onPress={() =>
+            setSheetSnap((current) =>
+              current === 'collapsed' ? 'medium' : current)
+          }
+          style={styles.roomHeadline}>
+          <View style={[styles.liveBadge, roomActive && styles.liveBadgeActive]}>
+            <Ionicons
+              name={roomActive ? 'navigate' : 'time-outline'}
+              size={16}
+              color={roomActive ? colors.success : colors.primaryHover}
+            />
+          </View>
+          <View style={styles.flexCopy}>
+            <View style={styles.roomKickerRow}>
+              <Text style={styles.eyebrow}>
+                {roomActive
+                  ? `DRIVE TOGETHER · ${connectionLabel(connection)}`
+                  : 'DRIVE TOGETHER · WAITING'}
+              </Text>
+              {roomActive && myDistance !== null ? (
+                <Text style={styles.myDistance}>
+                  {formatQuickRemainingDistance(myDistance)}
+                </Text>
+              ) : null}
+            </View>
+            <Text numberOfLines={1} style={styles.roomTitle}>
+              {destination?.label ?? 'Choose a destination'}
+            </Text>
+            {roomActive && nextInstruction ? (
+              <Text numberOfLines={1} style={styles.nextTurn}>
+                {nextTurnDistance !== null
+                  ? `${formatQuickRemainingDistance(nextTurnDistance)} · `
+                  : ''}
+                {nextInstruction}
+              </Text>
+            ) : (
+              <Text numberOfLines={1} style={styles.destinationText}>
+                {roomActive
+                  ? `${activeParticipants.length}/8 drivers`
+                  : `${pendingInvitations.length} invitation${pendingInvitations.length === 1 ? '' : 's'} pending`}
+              </Text>
+            )}
+          </View>
+        </Pressable>
+
+        {roomActive && !isSharingLocation ? (
+          <View style={styles.noticeCard}>
+            <Ionicons name="location-outline" size={18} color={colors.primaryHover} />
+            <View style={styles.flexCopy}>
+              <Text style={styles.noticeTitle}>Resume route sharing</Text>
+              <Text style={styles.noticeBody}>
+                Your room is live, but this device is not publishing its Drive Together position.
+              </Text>
+            </View>
+            <Pressable
+              disabled={sharingLocation}
+              onPress={() => void enableSharing()}
+              style={styles.inlineButton}>
+              {sharingLocation ? (
+                <ActivityIndicator color={colors.text} size="small" />
+              ) : (
+                <Text style={styles.inlineButtonText}>Resume</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+
+        {navigation.status === 'error' && navigation.error ? (
+          <View style={styles.noticeCard}>
+            <Ionicons name="warning-outline" size={18} color={colors.primaryHover} />
+            <View style={styles.flexCopy}>
+              <Text style={styles.noticeTitle}>Route unavailable</Text>
+              <Text style={styles.noticeBody}>{navigation.error}</Text>
+            </View>
+            <Pressable onPress={navigation.retry} style={styles.inlineButton}>
+              <Text style={styles.inlineButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {roomActive ? (
+          <View style={styles.quickActions}>
+            <Pressable
+              onPress={() => onFollowingChange(!following)}
+              style={styles.quickAction}>
+              <Ionicons
+                name={following ? 'navigate' : 'navigate-outline'}
+                size={18}
+                color={following ? colors.primaryHover : colors.text}
+              />
+              <Text style={styles.quickActionText}>
+                {following ? 'Following' : 'Follow'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={openDestinationComposer}
+              style={styles.quickAction}>
+              <Ionicons name="flag-outline" size={18} color={colors.text} />
+              <Text style={styles.quickActionText}>
+                {isHost ? 'Destination' : 'Request'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              disabled={occupiedSlots >= 8 || !isHost}
+              onPress={openInviteComposer}
+              style={[
+                styles.quickAction,
+                (occupiedSlots >= 8 || !isHost) && styles.actionDisabled,
+              ]}>
+              <Ionicons name="person-add-outline" size={18} color={colors.text} />
+              <Text style={styles.quickActionText}>Driver</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.quickActions}>
+            <Pressable
+              onPress={openInviteComposer}
+              style={styles.quickAction}>
+              <Ionicons name="person-add-outline" size={18} color={colors.text} />
+              <Text style={styles.quickActionText}>Add driver</Text>
+            </Pressable>
+            <Pressable
+              onPress={openDestinationComposer}
+              style={styles.quickAction}>
+              <Ionicons name="flag-outline" size={18} color={colors.text} />
+              <Text style={styles.quickActionText}>Destination</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {destinationProposal ? (
+          <View style={styles.proposalCard}>
+            <View style={styles.proposalIcon}>
+              <Ionicons name="swap-horizontal" size={17} color={colors.primaryHover} />
+            </View>
+            <View style={styles.flexCopy}>
+              <Text style={styles.proposalLabel}>
+                {isHost ? 'DESTINATION REQUEST' : 'ROUTE CHANGE REQUESTED'}
+              </Text>
+              <Text numberOfLines={2} style={styles.proposalTitle}>
+                {destinationProposal.label}
+              </Text>
+              <Text style={styles.proposalMeta}>
+                {profileName(proposalAuthor?.profile)}
+              </Text>
+            </View>
+            {isHost ? (
+              <View style={styles.proposalActions}>
+                <Pressable
+                  disabled={working}
+                  onPress={() => void respondToProposal(false)}
+                  style={styles.proposalButton}>
+                  <Ionicons name="close" size={17} color={colors.textMuted} />
+                </Pressable>
+                <Pressable
+                  disabled={working}
+                  onPress={() => void respondToProposal(true)}
+                  style={[styles.proposalButton, styles.proposalButtonAccept]}>
+                  <Ionicons name="checkmark" size={17} color={colors.text} />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Drivers</Text>
+            <Text style={styles.sectionMeta}>
+              {roomActive
+                ? `${activeParticipants.length}/8`
+                : `${occupiedSlots}/8`}
+            </Text>
+          </View>
+
+          {(details?.participants ?? []).map((participant) => {
+            const metric = participantMetrics.find(
+              (entry) => entry.userId === participant.userId,
+            );
+            return (
+              <View key={participant.userId} style={styles.participantRow}>
+                <View style={styles.participantAvatar}>
+                  {participant.profile?.avatarUrl ? (
+                    <Image
+                      cachePolicy="memory-disk"
+                      contentFit="cover"
+                      source={{ uri: participant.profile.avatarUrl }}
+                      style={styles.participantAvatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.participantInitial}>
+                      {initials(profileName(participant.profile))}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.flexCopy}>
+                  <Text numberOfLines={1} style={styles.participantName}>
+                    {profileName(participant.profile)}
+                    {participant.role === 'host' ? ' · Host' : ''}
+                  </Text>
+                  <Text style={styles.participantMeta}>
+                    {participant.status === 'active'
+                      ? 'In drive'
+                      : participant.status}
+                  </Text>
+                </View>
+                {metric ? (
+                  <Text style={styles.participantDistance}>
+                    {metric.distanceLabel}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })}
+
+          {pendingInvitations.map((pending) => (
+            <View key={pending.id} style={styles.participantRow}>
+              <View style={[styles.participantAvatar, styles.pendingAvatar]}>
+                <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+              </View>
+              <View style={styles.flexCopy}>
+                <Text numberOfLines={1} style={styles.participantName}>
+                  {profileName(pending.profile)}
+                </Text>
+                <Text style={styles.participantMeta}>Invited</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {error ? (
+          <Text accessibilityRole="alert" style={styles.error}>
+            {error}
+          </Text>
+        ) : null}
+
+        <SecondaryAction
+          destructive
+          disabled={working}
+          icon={roomActive ? 'exit-outline' : 'trash-outline'}
+          onPress={() => {
+            if (roomActive) finishActive();
+            else void cancelWaitingRoom();
+          }}
+          title={
+            roomActive
+              ? isHost
+                ? 'End Drive Together'
+                : 'Leave Drive Together'
+              : 'Cancel room'
+          }
+        />
+      </ScrollView>
+    );
+  };
 
   return (
     <>
-      <Modal
-        animationType="slide"
-        onRequestClose={() => onOpenChange(false)}
-        presentationStyle="pageSheet"
-        visible={open}>
-        <View style={styles.sheet}>
-          <View style={styles.sheetHeader}>
-            <View>
-              <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
-              <Text style={styles.sheetTitle}>Choose a friend</Text>
-              <Text style={styles.sheetBody}>Tap once to send a private driving invitation.</Text>
-            </View>
-            <Pressable
-              accessibilityLabel="Close Drive Together"
-              onPress={() => onOpenChange(false)}
-              style={styles.closeButton}>
-              <Ionicons name="close" size={20} color={colors.text} />
-            </Pressable>
-          </View>
+      {roomActive && participantMetrics.length ? (
+        <DriveTogetherParticipantRail
+          entries={participantMetrics}
+          top={topOffset}
+        />
+      ) : null}
 
-          {friendsLoading ? (
-            <View style={styles.loading}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={styles.muted}>Loading friends…</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={friends}
-              keyExtractor={(friend) => friend.id}
-              contentContainerStyle={styles.friendList}
-              ListEmptyComponent={
-                <Text style={styles.empty}>No mutual friends available yet.</Text>
-              }
-              renderItem={({ item }) => (
-                <Pressable
-                  disabled={working}
-                  onPress={() => void createWithFriend(item)}
-                  style={({ pressed }) => [styles.friendRow, pressed && styles.pressed]}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{initials(item.displayName)}</Text>
-                  </View>
-                  <View style={styles.friendCopy}>
-                    <Text numberOfLines={1} style={styles.friendName}>{item.displayName}</Text>
-                    <Text numberOfLines={1} style={styles.friendMeta}>
-                      {item.username ? `@${item.username}` : 'Mutual friend'}
-                    </Text>
-                  </View>
-                  <Ionicons name="navigate" size={19} color={colors.primaryHover} />
-                </Pressable>
-              )}
-            />
-          )}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+      {toast ? (
+        <View pointerEvents="none" style={[styles.toast, { top: topOffset }]}>
+          <Ionicons name="git-compare-outline" size={15} color={colors.text} />
+          <Text numberOfLines={1} style={styles.toastText}>{toast}</Text>
         </View>
-      </Modal>
+      ) : null}
 
-      {invite ? (
-        <View style={[styles.card, { bottom: bottomOffset }]}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Ionicons name="navigate" size={18} color={colors.primaryHover} />
-            </View>
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardEyebrow}>DRIVE TOGETHER</Text>
-              <Text numberOfLines={1} style={styles.cardTitle}>{invite.hostDisplayName} invited you</Text>
-              <Text style={styles.cardBody}>
-                Join and share your precise location only with this drive while it is active.
-              </Text>
-            </View>
-            <Pressable
-              accessibilityLabel="Dismiss Drive Together invitation"
-              disabled={working}
-              onPress={dismissInvite}
-              style={styles.cardCloseButton}>
-              <Ionicons name="close" size={17} color={colors.textMuted} />
-            </Pressable>
-          </View>
-          <View style={styles.cardActions}>
-            <Pressable disabled={working} onPress={() => void declineInvite()} style={styles.secondaryButton}>
-              <Text style={styles.secondaryText}>Decline</Text>
-            </Pressable>
-            <Pressable disabled={working} onPress={() => void joinInvite()} style={styles.primaryButton}>
-              {working ? <ActivityIndicator color={colors.text} size="small" /> : (
-                <Text style={styles.primaryText}>JOIN & SHARE</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      ) : waiting ? (
-        <View style={[styles.card, { bottom: bottomOffset }]}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardIcon}>
-              <Ionicons name="time-outline" size={18} color={colors.primaryHover} />
-            </View>
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardEyebrow}>INVITE SENT</Text>
-              <Text numberOfLines={1} style={styles.cardTitle}>
-                Waiting for {waiting.friend?.displayName ?? 'your friend'}
-              </Text>
-              <Text style={styles.cardBody}>The drive starts automatically when they join.</Text>
-            </View>
-          </View>
-          <Pressable disabled={working} onPress={() => void cancelWaiting()} style={styles.secondaryFullButton}>
-            <Text style={styles.secondaryText}>Cancel invitation</Text>
-          </Pressable>
-        </View>
-      ) : activeDriveId && details ? (
-        <View style={[styles.card, { bottom: bottomOffset }]}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardIcon, styles.liveIcon]}>
-              <View style={styles.liveDot} />
-            </View>
-            <View style={styles.cardCopy}>
-              <Text style={styles.cardEyebrow}>DRIVE TOGETHER · {connectionLabel(connection)}</Text>
-              <Text numberOfLines={1} style={styles.cardTitle}>Driving with {otherName}</Text>
-              <Text style={styles.cardBody}>
-                {isSharingLocation
-                  ? 'Your live position is shared only with this drive.'
-                  : 'Share your position so both drivers can see each other on the map.'}
-              </Text>
-            </View>
-          </View>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <View style={styles.cardActions}>
-            {!isSharingLocation ? (
-              <Pressable
-                disabled={sharingLocation}
-                onPress={() => void enableSharing()}
-                style={styles.primaryButton}>
-                {sharingLocation ? <ActivityIndicator color={colors.text} size="small" /> : (
-                  <Text style={styles.primaryText}>SHARE LOCATION</Text>
-                )}
-              </Pressable>
-            ) : null}
-            <Pressable
-              disabled={working}
-              onPress={() => void finishActive()}
-              style={[styles.secondaryButton, isSharingLocation && styles.secondaryGrow]}>
-              <Text style={styles.secondaryText}>
-                {details.hostId === details.currentUserId ? 'End' : 'Leave'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : error && !open ? (
-        <View style={[styles.errorCard, { bottom: bottomOffset }]}>
-          <Text numberOfLines={2} style={styles.error}>{error}</Text>
-          <Pressable onPress={() => setError(null)}>
-            <Ionicons name="close" size={18} color={colors.textMuted} />
-          </Pressable>
-        </View>
+      {sheetVisible ? (
+        <DriveTogetherSheet
+          bottomOffset={bottomOffset}
+          onSnapChange={setSheetSnap}
+          snap={
+            mapPicking
+              ? 'collapsed'
+              : sheetSnap
+          }>
+          {composerMode === 'create-destination'
+            || composerMode === 'change-destination'
+            ? renderDestinationComposer()
+            : composerMode === 'create-friends'
+              || composerMode === 'invite-drivers'
+              ? renderFriendComposer()
+              : invite
+                ? renderInvite()
+                : roomId
+                  ? renderRoom()
+                  : (
+                    <View style={styles.emptyComposer}>
+                      <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
+                      <Text style={styles.sheetTitle}>Choose a destination.</Text>
+                      <PrimaryAction
+                        icon="flag-outline"
+                        onPress={() => setComposerMode('create-destination')}
+                        title="Set destination"
+                      />
+                    </View>
+                  )}
+        </DriveTogetherSheet>
       ) : null}
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: {
+  flexCopy: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: spacing.xl,
+    minWidth: 0,
+  },
+  pressed: {
+    opacity: 0.78,
+  },
+  actionDisabled: {
+    opacity: 0.42,
+  },
+  composer: {
+    flex: 1,
+    gap: spacing.md,
+  },
+  roomContent: {
+    gap: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  emptyComposer: {
+    gap: spacing.md,
   },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  eyebrow: {
-    color: colors.primaryHover,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.4,
-  },
-  sheetTitle: {
-    marginTop: 4,
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  sheetBody: {
-    marginTop: 5,
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  closeButton: {
-    marginLeft: 'auto',
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-  },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.sm,
   },
-  muted: { color: colors.textMuted, fontSize: 13 },
-  friendList: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  friendRow: {
-    minHeight: 70,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
   },
-  pressed: { opacity: 0.76 },
-  avatar: {
-    width: 44,
-    height: 44,
+  iconButton: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceSoft,
   },
-  avatarText: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  friendCopy: { flex: 1, minWidth: 0 },
-  friendName: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  friendMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11 },
-  empty: {
-    paddingVertical: spacing.xxl,
+  eyebrow: {
+    color: colors.primaryHover,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  sheetTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 21,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  sheetSubtitle: {
     color: colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 17,
   },
-  card: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    zIndex: 40,
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: 'rgba(12,12,16,0.97)',
-  },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
-  cardIcon: {
-    width: 38,
-    height: 38,
+  searchBox: {
+    minHeight: 48,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySubtle,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
-  liveIcon: { backgroundColor: colors.surfaceSoft },
-  liveDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.success,
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
   },
-  cardCopy: { flex: 1, minWidth: 0 },
-  cardCloseButton: {
+  searchResults: {
+    gap: 6,
+    paddingBottom: spacing.xl,
+  },
+  placeRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+  },
+  placeIcon: {
     width: 34,
     height: 34,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
   },
-  cardEyebrow: {
+  placeTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  placeSubtitle: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  mapPickNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+  },
+  mapPickTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  mapPickBody: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  smallGhostButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+  },
+  smallGhostText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  primaryAction: {
+    minHeight: 46,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primary,
+  },
+  primaryActionText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  secondaryAction: {
+    minHeight: 46,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+  },
+  secondaryActionText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  destructiveAction: {
+    borderColor: 'rgba(200,16,46,0.40)',
+    backgroundColor: 'rgba(200,16,46,0.10)',
+  },
+  destructiveText: {
+    color: colors.primaryHover,
+  },
+  friendList: {
+    gap: 7,
+    paddingBottom: spacing.sm,
+  },
+  friendRow: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'transparent',
+  },
+  friendRowSelected: {
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: colors.surfaceSoft,
+  },
+  friendAvatar: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+  },
+  friendAvatarImage: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+  },
+  friendAvatarText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  friendName: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  friendMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  checkCircleSelected: {
+    borderColor: colors.primaryHover,
+    backgroundColor: colors.primary,
+  },
+  stickyActions: {
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  privacyNote: {
+    color: colors.textMuted,
+    fontSize: 10.5,
+    lineHeight: 15,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  loadingRow: {
+    minHeight: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  loadingRoom: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  muted: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  emptyText: {
+    paddingVertical: spacing.lg,
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  roomHeadline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 68,
+  },
+  liveBadge: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(200,16,46,0.10)',
+  },
+  liveBadgeActive: {
+    backgroundColor: 'rgba(34,197,94,0.10)',
+  },
+  roomKickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  roomTitle: {
+    marginTop: 3,
+    color: colors.text,
+    fontFamily: typography.fontFamily.display,
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '900',
+  },
+  destinationText: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  nextTurn: {
+    marginTop: 3,
+    color: colors.textMuted,
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  myDistance: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  noticeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+  },
+  noticeTitle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  noticeBody: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 10.5,
+    lineHeight: 15,
+  },
+  inlineButton: {
+    minWidth: 64,
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  inlineButtonText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 7,
+  },
+  quickAction: {
+    flex: 1,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceSoft,
+  },
+  quickActionText: {
+    color: colors.text,
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  proposalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(200,16,46,0.34)',
+    backgroundColor: 'rgba(200,16,46,0.08)',
+  },
+  proposalIcon: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(200,16,46,0.12)',
+  },
+  proposalLabel: {
     color: colors.primaryHover,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
   },
-  cardTitle: {
-    marginTop: 3,
+  proposalTitle: {
+    marginTop: 2,
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 12.5,
+    fontWeight: '800',
   },
-  cardBody: {
-    marginTop: 4,
+  proposalMeta: {
+    marginTop: 2,
     color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 10.5,
   },
-  cardActions: { flexDirection: 'row', gap: spacing.xs },
-  primaryButton: {
-    flex: 1,
-    minHeight: 42,
+  proposalActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  proposalButton: {
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+  },
+  proposalButtonAccept: {
     backgroundColor: colors.primary,
   },
-  primaryText: {
+  section: {
+    gap: 4,
+    paddingTop: spacing.xs,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    paddingBottom: 4,
+  },
+  sectionTitle: {
     color: colors.text,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0.6,
   },
-  secondaryButton: {
-    minWidth: 92,
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceBase,
+  sectionMeta: {
+    color: colors.textMuted,
+    fontSize: 10.5,
+    fontWeight: '800',
   },
-  secondaryGrow: { flex: 1 },
-  secondaryFullButton: {
-    minHeight: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceBase,
-  },
-  secondaryText: { color: colors.textMuted, fontSize: 11, fontWeight: '800' },
-  error: { color: colors.primaryHover, fontSize: 11, lineHeight: 16 },
-  errorCard: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    zIndex: 40,
-    minHeight: 46,
+  participantRow: {
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    paddingHorizontal: 4,
+  },
+  participantAvatar: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSoft,
+  },
+  participantAvatarImage: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+  },
+  participantInitial: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  pendingAvatar: {
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+  },
+  participantName: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  participantMeta: {
+    marginTop: 1,
+    color: colors.textMuted,
+    fontSize: 10,
+    textTransform: 'capitalize',
+  },
+  participantDistance: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  error: {
+    color: colors.primaryHover,
+    fontSize: 11.5,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  toast: {
+    position: 'absolute',
+    alignSelf: 'center',
+    zIndex: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    maxWidth: '78%',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(10,10,14,0.96)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    ...shadows.card,
+  },
+  toastText: {
+    flexShrink: 1,
+    color: colors.text,
+    fontSize: 11.5,
+    fontWeight: '800',
   },
 });
