@@ -9,3 +9,5 @@ export * from './quickNavigation';
 export * from './realtime';
 export * from './routeProgress';
 export * from './simulation';
+export * from './quickRoomRealtime';
+export * from './useQuickDriveNavigation';
