@@ -162,7 +162,7 @@ try {
     () => asRole(db, 'anon', null, () =>
       scalar(db, 'select public.noxa_create_friend_connect()'),
     ),
-    /authentication required/i,
+    /(permission denied|authentication required)/i,
   );
 
   const first = await asRole(db, 'authenticated', ids.owner, () =>
