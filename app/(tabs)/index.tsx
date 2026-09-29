@@ -14,7 +14,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
+import {
+  NoxaButton,
+  NoxaIconButton,
+  NoxaPressableSurface,
+  NoxaSurface,
+} from "@/src/components/ui";
 import { MapDriverCard } from "@/src/features/map/MapDriverCard";
 import {
   DriveTogetherMapLayer,
@@ -367,7 +372,10 @@ function EventCard({
 }) {
   const canRoute = hasValidCoordinates(event);
   return (
-    <View style={[styles.eventCard, { bottom: bottomOffset }]}>
+    <NoxaSurface
+      corners="top"
+      level="sheet"
+      style={[styles.eventCard, { bottom: bottomOffset }]}>
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
           <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
@@ -418,7 +426,7 @@ function EventCard({
           title="Route"
         />
       </View>
-    </View>
+    </NoxaSurface>
   );
 }
 
@@ -451,7 +459,10 @@ function RouteCard({
 }) {
   const loading = status === "loading";
   return (
-    <View style={[styles.routeCard, { bottom: bottomOffset }]}>
+    <NoxaSurface
+      corners="top"
+      level="sheet"
+      style={[styles.routeCard, { bottom: bottomOffset }]}>
       <View style={styles.routeHeader}>
         <View style={styles.routeTitleWrap}>
           <Text style={styles.cardKicker}>NOXA route</Text>
@@ -489,39 +500,34 @@ function RouteCard({
         </Text>
       )}
       {route && canFollow ? (
-        <TouchableOpacity
+        <NoxaButton
           accessibilityLabel={
             following ? "Stop following current location" : "Follow route"
           }
-          accessibilityRole="button"
-          accessibilityState={{ selected: following }}
-          activeOpacity={0.82}
+          leadingIcon={
+            <Ionicons
+              name={following ? "navigate" : "navigate-outline"}
+              size={16}
+              color={colors.text}
+            />
+          }
           onPress={onFollowToggle}
-          style={[
-            styles.routeFollowButton,
-            following && styles.routeFollowButtonActive,
-          ]}
-        >
-          <Ionicons
-            name={following ? "navigate" : "navigate-outline"}
-            size={16}
-            color={following ? colors.text : colors.primaryHover}
-          />
-          <Text style={styles.routeFollowText}>
-            {following ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
+          size="md"
+          style={styles.routeFollowButton}
+          title={following ? "Following" : "Follow"}
+          variant={following ? "primary" : "secondary"}
+        />
       ) : null}
       {status === "error" ? (
-        <TouchableOpacity
-          activeOpacity={0.82}
+        <NoxaButton
           onPress={onRetry}
+          size="sm"
           style={styles.routeRetryButton}
-        >
-          <Text style={styles.routeRetryText}>Retry route</Text>
-        </TouchableOpacity>
+          title="Retry route"
+          variant="secondary"
+        />
       ) : null}
-    </View>
+    </NoxaSurface>
   );
 }
 
@@ -579,7 +585,7 @@ function RouteFocusOverlay({
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
       <View style={[styles.routeFocusTop, { top: topInset + spacing.sm }]}>
-        <View style={styles.routeFocusInstruction}>
+        <NoxaSurface level="overlay" style={styles.routeFocusInstruction}>
           <View style={styles.routeFocusTurnIcon}>
             <Ionicons
               name={
@@ -599,20 +605,20 @@ function RouteFocusOverlay({
               {instruction}
             </Text>
           </View>
-        </View>
+        </NoxaSurface>
 
-        <TouchableOpacity
+        <NoxaIconButton
           accessibilityLabel="End route navigation"
-          accessibilityRole="button"
-          activeOpacity={0.82}
+          icon="close"
+          iconSize={20}
           onPress={onExit}
-          style={styles.routeFocusClose}>
-          <Ionicons name="close" size={20} color={colors.text} />
-        </TouchableOpacity>
+          size={44}
+          variant="overlay"
+        />
       </View>
 
       <View style={[styles.routeFocusBottom, { bottom: bottomInset + spacing.md }]}>
-        <View style={styles.routeFocusMetrics}>
+        <NoxaSurface level="overlay" style={styles.routeFocusMetrics}>
           <Text numberOfLines={1} style={styles.routeFocusDestination}>
             {event.title}
           </Text>
@@ -630,17 +636,17 @@ function RouteFocusOverlay({
                 : `ETA ${formatArrivalTime(remainingDurationSeconds)}`}
             </Text>
           </View>
-        </View>
+        </NoxaSurface>
 
         {!following ? (
-          <TouchableOpacity
+          <NoxaIconButton
             accessibilityLabel="Resume route following"
-            accessibilityRole="button"
-            activeOpacity={0.82}
+            icon="locate"
+            iconSize={20}
             onPress={onRecenter}
-            style={styles.routeFocusRecenter}>
-            <Ionicons name="locate" size={20} color={colors.text} />
-          </TouchableOpacity>
+            size={50}
+            variant="overlay"
+          />
         ) : null}
       </View>
     </View>
