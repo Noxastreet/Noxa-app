@@ -12,6 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  FadeInDown,
+  FadeOutDown,
+  ReduceMotion,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -53,7 +58,7 @@ import {
   refreshSupabaseSessionOnce,
   supabase,
 } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { animations, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type ProfileMarkerRow = {
   id: string;
@@ -359,6 +364,13 @@ function nextEventManeuver(
   return candidate;
 }
 
+const MAP_CONTEXT_ENTER = FadeInDown
+  .duration(animations.step)
+  .reduceMotion(ReduceMotion.System);
+const MAP_CONTEXT_EXIT = FadeOutDown
+  .duration(animations.fast)
+  .reduceMotion(ReduceMotion.System);
+
 function EventCard({
   event,
   bottomOffset,
@@ -372,10 +384,14 @@ function EventCard({
 }) {
   const canRoute = hasValidCoordinates(event);
   return (
-    <NoxaSurface
-      corners="top"
-      level="sheet"
-      style={[styles.eventCard, { bottom: bottomOffset }]}>
+    <Animated.View
+      entering={MAP_CONTEXT_ENTER}
+      exiting={MAP_CONTEXT_EXIT}
+      style={[styles.contextualSheetPosition, { bottom: bottomOffset }]}>
+      <NoxaSurface
+        corners="top"
+        level="sheet"
+        style={styles.eventCard}>
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
           <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
@@ -426,7 +442,8 @@ function EventCard({
           title="Route"
         />
       </View>
-    </NoxaSurface>
+      </NoxaSurface>
+    </Animated.View>
   );
 }
 
@@ -459,10 +476,14 @@ function RouteCard({
 }) {
   const loading = status === "loading";
   return (
-    <NoxaSurface
-      corners="top"
-      level="sheet"
-      style={[styles.routeCard, { bottom: bottomOffset }]}>
+    <Animated.View
+      entering={MAP_CONTEXT_ENTER}
+      exiting={MAP_CONTEXT_EXIT}
+      style={[styles.contextualSheetPosition, { bottom: bottomOffset }]}>
+      <NoxaSurface
+        corners="top"
+        level="sheet"
+        style={styles.routeCard}>
       <View style={styles.routeHeader}>
         <View style={styles.routeTitleWrap}>
           <Text style={styles.cardKicker}>NOXA route</Text>
@@ -527,7 +548,8 @@ function RouteCard({
           variant="secondary"
         />
       ) : null}
-    </NoxaSurface>
+      </NoxaSurface>
+    </Animated.View>
   );
 }
 
@@ -3012,10 +3034,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.7,
   },
-  eventCard: {
+  contextualSheetPosition: {
     position: "absolute",
     left: 0,
     right: 0,
+  },
+  eventCard: {
     padding: spacing.lg,
     backgroundColor: "transparent",
   },
@@ -3188,9 +3212,6 @@ const styles = StyleSheet.create({
     ...shadows.control,
   },
   routeCard: {
-    position: "absolute",
-    left: 0,
-    right: 0,
     padding: spacing.lg,
     backgroundColor: "transparent",
   },
