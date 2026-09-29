@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 
-import { NoxaScreen } from "@/src/components/ui";
+import { NoxaButton, NoxaRootHeader, NoxaScreen } from "@/src/components/ui";
 import {
   CanonicalArtwork,
   CanonicalAvatarStack,
@@ -556,24 +556,20 @@ export default function CanonicalEventsScreen() {
           />
         }
       >
-        <View style={styles.topBar}>
-          <View style={styles.heading}>
-            <Text style={styles.pageTitle}>EVENTS</Text>
-            <Text style={styles.pageSubtitle}>What is happening around you.</Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Create event"
-            accessibilityRole="button"
-            onPress={() => router.push("/event-editor")}
-            style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="add" size={17} color={colors.text} />
-            <Text style={styles.createText}>CREATE</Text>
-          </Pressable>
-        </View>
+        <NoxaRootHeader
+          actions={
+            <NoxaButton
+              accessibilityLabel="Create event"
+              leadingIcon={<Ionicons name="add" size={16} color={colors.text} />}
+              onPress={() => router.push("/event-editor")}
+              size="sm"
+              title="CREATE"
+              variant="secondary"
+            />
+          }
+          subtitle="What is happening around you."
+          title="EVENTS"
+        />
 
         {error && hero ? (
           <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
