@@ -43,6 +43,12 @@
       "expo-router",
       "expo-apple-authentication",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow NOXA to scan Quick Connect QR codes."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#C8102E",
