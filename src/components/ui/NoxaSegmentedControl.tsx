@@ -45,9 +45,13 @@ export function NoxaSegmentedControl<T extends string>({
             onPress={() => onChange(option.value)}
             style={({ pressed }) => [
               styles.segment,
-              selected && styles.segmentSelected,
               pressed && (reduceMotion ? styles.pressedReduced : styles.pressed),
             ]}>
+            <NoxaCutBackground
+              borderColor={selected ? colors.borderStrong : 'transparent'}
+              cut={geometry.cut.sm}
+              fill={selected ? colors.surfaceRaised : 'transparent'}
+            />
             <Text style={[styles.label, selected && styles.labelSelected]}>
               {option.label}
             </Text>
@@ -74,6 +78,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   segment: {
+    position: 'relative',
     minHeight: 44,
     flex: 1,
     flexDirection: 'row',
@@ -81,9 +86,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-  },
-  segmentSelected: {
-    backgroundColor: colors.surfaceRaised,
   },
   label: {
     color: colors.textMuted,
