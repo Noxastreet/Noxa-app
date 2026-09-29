@@ -400,6 +400,42 @@ export function DriveTogetherMapLayer({
     }, []),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        !panelOpen
+        || (composerMode !== 'create-friends' && composerMode !== 'invite-drivers')
+      ) {
+        return undefined;
+      }
+
+      let disposed = false;
+      setFriendsLoading(true);
+      void listDriveTogetherFriends()
+        .then((nextFriends) => {
+          if (disposed) return;
+          setFriends(nextFriends);
+          setFriendsLoaded(true);
+        })
+        .catch((loadError) => {
+          if (!disposed) {
+            setError(
+              loadError instanceof Error
+                ? loadError.message
+                : 'Friends could not be refreshed.',
+            );
+          }
+        })
+        .finally(() => {
+          if (!disposed) setFriendsLoading(false);
+        });
+
+      return () => {
+        disposed = true;
+      };
+    }, [composerMode, panelOpen]),
+  );
+
   useEffect(() => {
     const id = invitationId?.trim() || null;
     if (!id || explicitInvitationRef.current === id) return;
@@ -1402,6 +1438,34 @@ export function DriveTogetherMapLayer({
           </View>
         </View>
 
+        <Pressable
+          accessibilityLabel="Quick add a driver"
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: '/quick-connect',
+              params: {
+                mode: 'connect',
+                returnTo: 'drive-together',
+              },
+            })
+          }
+          style={({ pressed }) => [
+            styles.quickConnectFriendAction,
+            pressed && styles.pressed,
+          ]}>
+          <View style={styles.quickConnectFriendIcon}>
+            <Ionicons name="scan-outline" size={19} color={colors.text} />
+          </View>
+          <View style={styles.flexCopy}>
+            <Text style={styles.quickConnectFriendTitle}>Quick add someone nearby</Text>
+            <Text style={styles.quickConnectFriendMeta}>
+              Scan their temporary NOXA code
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+        </Pressable>
+
         {friendsLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.primary} />
@@ -2132,6 +2196,35 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: colors.primaryHover,
+  },
+  quickConnectFriendAction: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+  },
+  quickConnectFriendIcon: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+  },
+  quickConnectFriendTitle: {
+    color: colors.text,
+    fontSize: 12.5,
+    fontWeight: '900',
+  },
+  quickConnectFriendMeta: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 10.5,
   },
   friendListViewport: {
     flex: 1,
