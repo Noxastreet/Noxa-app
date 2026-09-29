@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -65,17 +65,32 @@ export function NoxaCutBackground({
   cut = geometry.cut.md,
   corners = 'signature',
 }: BackgroundProps) {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-      <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" width="100%">
-        <Path
-          d={pathFor(100, 100, cut, corners)}
-          fill={fill}
-          stroke={borderColor}
-          strokeWidth={Math.max(borderWidth, 0.6)}
-          vectorEffect="non-scaling-stroke"
-        />
-      </Svg>
+    <View
+      onLayout={(event) => {
+        const { width, height } = event.nativeEvent.layout;
+        if (width !== size.width || height !== size.height) {
+          setSize({ width, height });
+        }
+      }}
+      pointerEvents="none"
+      style={StyleSheet.absoluteFillObject}>
+      {size.width > 0 && size.height > 0 ? (
+        <Svg
+          height={size.height}
+          viewBox={`0 0 ${size.width} ${size.height}`}
+          width={size.width}>
+          <Path
+            d={pathFor(size.width, size.height, cut, corners)}
+            fill={fill}
+            stroke={borderColor}
+            strokeWidth={Math.max(borderWidth, 0.6)}
+            vectorEffect="non-scaling-stroke"
+          />
+        </Svg>
+      ) : null}
     </View>
   );
 }
