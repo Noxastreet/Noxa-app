@@ -51,6 +51,9 @@ jobs:
       - name: Interaction wiring audit
         run: npm run verify:interactions
 
+      - name: NOXA UI foundation contract
+        run: npm run verify:ui-foundation
+
       - name: Chat latest-window contract
         run: node ./scripts/verify-chat-window.mjs
 
