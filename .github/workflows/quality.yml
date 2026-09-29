@@ -69,6 +69,9 @@ jobs:
       - name: Navigation focus and live route progress contract
         run: npm run verify:navigation-focus
 
+      - name: Map driver contextual card contract
+        run: npm run verify:map-driver-card
+
       - name: Home / Map F12 performance contract
         run: npm run verify:home-map-performance
 

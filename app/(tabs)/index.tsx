@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
+import { MapDriverCard } from "@/src/features/map/MapDriverCard";
 import {
   DriveTogetherMapLayer,
   type DriveTogetherNavigationOverlay,
@@ -659,6 +660,9 @@ export default function LiveMapScreen() {
   const [driveTogetherOpen, setDriveTogetherOpen] = useState(false);
   const [driveTogetherPanelVisible, setDriveTogetherPanelVisible] = useState(false);
   const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
+  const [driveTogetherQuickStartFriendId, setDriveTogetherQuickStartFriendId] =
+    useState<string | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [isRouteFocusMode, setIsRouteFocusMode] = useState(false);
 
   useEffect(() => {
@@ -2037,8 +2041,12 @@ export default function LiveMapScreen() {
   const handleDriveTogetherPanelVisibilityChange = useCallback(
     (visible: boolean) => {
       setDriveTogetherPanelVisible(visible);
-      if (!visible) return;
+      if (!visible) {
+        setDriveTogetherQuickStartFriendId(null);
+        return;
+      }
 
+      setSelectedDriverId(null);
       setSelectedEvent(null);
       setIsRouteFollowing(false);
       setIsRouteFocusMode(false);
@@ -2114,6 +2122,39 @@ export default function LiveMapScreen() {
     myDriverIds,
     primaryVehicleByUserId,
   ]);
+  const selectedDriver = useMemo(
+    () => (selectedDriverId
+      ? mapboxDrivers.find((driver) => driver.user_id === selectedDriverId) ?? null
+      : null),
+    [mapboxDrivers, selectedDriverId],
+  );
+  const selectedDriverProfile = useMemo(
+    () => {
+      if (!selectedDriverId) return null;
+      const driver = activeDrivers.find((candidate) => candidate.user_id === selectedDriverId);
+      if (driver?.profile) {
+        return {
+          displayName: driver.profile.display_name,
+          username: driver.profile.username,
+          avatarUrl: driver.profile.avatar_url,
+        };
+      }
+      if (selectedDriver) {
+        return {
+          displayName: selectedDriver.label,
+          username: null,
+          avatarUrl: selectedDriver.avatar_url,
+        };
+      }
+      return null;
+    },
+    [activeDrivers, selectedDriver, selectedDriverId],
+  );
+  const selectedDriverIsInDrive = Boolean(
+    selectedDriverId
+    && driveTogetherDrivers.some((driver) => driver.user_id === selectedDriverId),
+  );
+
   const mapboxEvents = useMemo<MapboxEvent[]>(
     () =>
       events.map((event) => ({
@@ -2125,11 +2166,33 @@ export default function LiveMapScreen() {
       })),
     [events],
   );
-  const openDriverProfile = useCallback((driverId: string) => {
-    router.push({
-      pathname: "/driver-profile/[id]",
-      params: { id: driverId },
-    });
+  const openDriverCard = useCallback((driverId: string) => {
+    if (isRouteFocusMode || driveTogetherPanelVisible) return;
+
+    setVisibilityMenuOpen(false);
+    setSelectedEvent(null);
+    setSelectedDriverId(driverId);
+
+    const driver = mapboxDrivers.find((candidate) => candidate.user_id === driverId);
+    if (driver) {
+      mapRef.current?.animateToRegion(
+        {
+          ...pointRegion({
+            latitude: driver.latitude,
+            longitude: driver.longitude,
+          }),
+          latitudeDelta: 0.035,
+          longitudeDelta: 0.035,
+        },
+        260,
+      );
+    }
+  }, [driveTogetherPanelVisible, isRouteFocusMode, mapboxDrivers]);
+
+  const inviteDriverToDriveTogether = useCallback((driverId: string) => {
+    setSelectedDriverId(null);
+    setDriveTogetherQuickStartFriendId(driverId);
+    setDriveTogetherOpen(true);
   }, []);
   const selectMapboxEvent = useCallback(
     (event: MapboxEvent) => {
@@ -2199,7 +2262,8 @@ export default function LiveMapScreen() {
         ? 196
         : spacing.sm);
   const showRecenter =
-    !isRouteFocusMode
+    !selectedDriverId
+    && !isRouteFocusMode
     && !driveTogetherPanelVisible
     && !effectiveFollowing
     && (!driverLocation || isCameraAwayFromUser);
@@ -2224,7 +2288,7 @@ export default function LiveMapScreen() {
         onMapPress={handleDriveTogetherMapPress}
         onUserLocationChange={handleMapboxUserLocation}
         onUserPan={() => setIsCameraAwayFromUser(true)}
-        onDriverPress={openDriverProfile}
+        onDriverPress={openDriverCard}
         onEventPress={selectMapboxEvent}
         route={effectiveRoute}
         routeDestination={driveTogetherNavigation?.destination ?? null}
@@ -2358,7 +2422,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
+        {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -2436,7 +2500,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
+        {!selectedDriverId && !isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
           <RouteCard
             event={selectedEvent}
             route={route}
@@ -2451,12 +2515,23 @@ export default function LiveMapScreen() {
             remainingDistanceMeters={routeRemainingDistanceMeters}
             remainingDurationSeconds={routeRemainingDurationSeconds}
           />
-        ) : !isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
+        ) : !selectedDriverId && !isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
           <EventCard
             event={selectedEvent}
             bottomOffset={eventCardBottom}
             onClose={() => setSelectedEvent(null)}
             onRoute={() => routeToEvent(selectedEvent)}
+          />
+        ) : null}
+
+        {selectedDriverId && selectedDriver ? (
+          <MapDriverCard
+            bottomOffset={eventCardBottom}
+            driverId={selectedDriverId}
+            fallbackProfile={selectedDriverProfile}
+            isInDrive={selectedDriverIsInDrive}
+            onClose={() => setSelectedDriverId(null)}
+            onInviteToDrive={inviteDriverToDriveTogether}
           />
         ) : null}
 
@@ -2478,6 +2553,7 @@ export default function LiveMapScreen() {
 
       <DriveTogetherMapLayer
         bottomInset={insets.bottom}
+        initialFriendId={driveTogetherQuickStartFriendId}
         bottomOffset={driveTogetherPanelVisible ? 0 : eventCardBottom + spacing.sm}
         currentLocation={driverLocation}
         following={isDriveTogetherFollowing}

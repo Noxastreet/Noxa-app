@@ -82,6 +82,7 @@ export type DriveTogetherNavigationOverlay = {
 
 type Props = {
   open: boolean;
+  initialFriendId?: string | null;
   invitationId?: string | null;
   bottomOffset: number;
   bottomInset: number;
@@ -238,6 +239,7 @@ function FriendAvatar({ friend }: { friend: DriveProfile }) {
 
 export function DriveTogetherMapLayer({
   open,
+  initialFriendId,
   invitationId,
   bottomOffset,
   bottomInset,
@@ -763,12 +765,12 @@ export function DriveTogetherMapLayer({
 
     setComposerMode('create-destination');
     setDraftDestination(null);
-    setSelectedFriendIds(new Set());
+    setSelectedFriendIds(initialFriendId ? new Set([initialFriendId]) : new Set());
     setSheetSnap('medium');
     setSearchQuery('');
     setSearchResults([]);
     onOpenChange(false);
-  }, [invite, onOpenChange, open, roomId]);
+  }, [initialFriendId, invite, onOpenChange, open, roomId]);
 
   useEffect(() => {
     const destinationComposer =
@@ -924,7 +926,13 @@ export function DriveTogetherMapLayer({
     if (composerMode === 'create-destination') {
       setDraftDestination(next);
       setComposerMode('create-friends');
-      setSelectedFriendIds(new Set());
+      setSelectedFriendIds((current) =>
+        current.size > 0
+          ? current
+          : initialFriendId
+            ? new Set([initialFriendId])
+            : new Set(),
+      );
       setSheetSnap('expanded');
       if (!friendsLoaded) void loadFriends();
       return;
@@ -950,6 +958,7 @@ export function DriveTogetherMapLayer({
   }, [
     composerMode,
     friendsLoaded,
+    initialFriendId,
     loadFriends,
     roomId,
   ]);
