@@ -8,6 +8,11 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, {
+  FadeInDown,
+  FadeOutDown,
+  ReduceMotion,
+} from 'react-native-reanimated';
 
 import {
   NoxaButton,
@@ -16,7 +21,14 @@ import {
   NoxaSurface,
 } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { animations, colors, radius, spacing, typography } from '@/src/theme';
+
+const DRIVER_CARD_ENTER = FadeInDown
+  .duration(animations.step)
+  .reduceMotion(ReduceMotion.System);
+const DRIVER_CARD_EXIT = FadeOutDown
+  .duration(animations.fast)
+  .reduceMotion(ReduceMotion.System);
 
 type Relationship = 'self' | 'none' | 'outgoing' | 'incoming' | 'mutual';
 
@@ -293,7 +305,11 @@ export function MapDriverCard({
   }, [connect, driverId, isInDrive, onInviteToDrive, relationship]);
 
   return (
-    <NoxaSurface level="overlay" style={[styles.card, { bottom: bottomOffset }]}>
+    <Animated.View
+      entering={DRIVER_CARD_ENTER}
+      exiting={DRIVER_CARD_EXIT}
+      style={[styles.cardPosition, { bottom: bottomOffset }]}>
+      <NoxaSurface level="overlay" style={styles.card}>
       <View style={styles.handle} />
 
       <View style={styles.header}>
@@ -404,16 +420,19 @@ export function MapDriverCard({
           </View>
         </>
       )}
-    </NoxaSurface>
+      </NoxaSurface>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  cardPosition: {
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
     zIndex: 52,
+  },
+  card: {
     gap: spacing.md,
     paddingHorizontal: spacing.md,
     paddingTop: 8,
