@@ -22,7 +22,7 @@ jobs:
       - name: Check out canonical NOXA main
         uses: actions/checkout@v4
         with:
-          ref: d57f3b8c3c75e6c2faf81958009ac81d27ced633
+          ref: 7fea90f0e1037787871ea1830a8375aebfbee4fd
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
