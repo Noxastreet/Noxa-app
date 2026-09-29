@@ -13,11 +13,21 @@ const corsHeaders = {
 const PROVIDER_TIMEOUT_MS = 5500;
 
 type RoutePoint = { latitude: number; longitude: number };
+type RouteManeuver = {
+  instruction: string;
+  type: string;
+  modifier: string | null;
+  latitude: number;
+  longitude: number;
+  distanceMeters: number;
+  durationSeconds: number;
+};
 type RouteResult = {
   coordinates: RoutePoint[];
   distanceMeters: number;
   durationSeconds: number;
   provider: "mapbox-driving-traffic" | "openrouteservice-fastest";
+  maneuvers: RouteManeuver[];
 };
 
 type MapboxDirectionsResponse = {
@@ -26,13 +36,36 @@ type MapboxDirectionsResponse = {
     geometry?: { type?: unknown; coordinates?: unknown };
     distance?: unknown;
     duration?: unknown;
+    legs?: Array<{
+      steps?: Array<{
+        distance?: unknown;
+        duration?: unknown;
+        maneuver?: {
+          instruction?: unknown;
+          type?: unknown;
+          modifier?: unknown;
+          location?: unknown;
+        };
+      }>;
+    }>;
   }>;
 };
 
 type OpenRouteServiceResponse = {
   features?: Array<{
     geometry?: { type?: unknown; coordinates?: unknown };
-    properties?: { summary?: { distance?: unknown; duration?: unknown } };
+    properties?: {
+      summary?: { distance?: unknown; duration?: unknown };
+      segments?: Array<{
+        steps?: Array<{
+          distance?: unknown;
+          duration?: unknown;
+          instruction?: unknown;
+          type?: unknown;
+          way_points?: unknown;
+        }>;
+      }>;
+    };
   }>;
 };
 
@@ -92,7 +125,7 @@ async function requestMapbox(
       alternatives: "true",
       geometries: "geojson",
       overview: "full",
-      steps: "false",
+      steps: "true",
       access_token: accessToken,
     }).toString();
 
@@ -121,11 +154,52 @@ async function requestMapbox(
       ) {
         continue;
       }
+
+      const maneuvers: RouteManeuver[] = [];
+      for (const leg of candidate.legs ?? []) {
+        for (const step of leg.steps ?? []) {
+          const location = step.maneuver?.location;
+          if (!Array.isArray(location) || location.length < 2) continue;
+          const longitude = Number(location[0]);
+          const latitude = Number(location[1]);
+          const stepDistance = Number(step.distance);
+          const stepDuration = Number(step.duration);
+          const instruction =
+            typeof step.maneuver?.instruction === "string"
+              ? step.maneuver.instruction.trim()
+              : "";
+          if (
+            !instruction ||
+            !isValidPoint({ latitude, longitude }) ||
+            !Number.isFinite(stepDistance) ||
+            !Number.isFinite(stepDuration)
+          ) {
+            continue;
+          }
+          maneuvers.push({
+            instruction,
+            type:
+              typeof step.maneuver?.type === "string"
+                ? step.maneuver.type
+                : "turn",
+            modifier:
+              typeof step.maneuver?.modifier === "string"
+                ? step.maneuver.modifier
+                : null,
+            latitude,
+            longitude,
+            distanceMeters: Math.max(0, stepDistance),
+            durationSeconds: Math.max(0, stepDuration),
+          });
+        }
+      }
+
       candidates.push({
         coordinates: routePoints,
         distanceMeters: distance,
         durationSeconds: duration,
         provider: "mapbox-driving-traffic",
+        maneuvers,
       });
     }
     candidates.sort(
@@ -165,6 +239,7 @@ async function requestOpenRouteService(
         body: JSON.stringify({
           coordinates: points.map((point) => [point.longitude, point.latitude]),
           preference: "fastest",
+          instructions: true,
         }),
         signal: controller.signal,
       },
@@ -187,12 +262,45 @@ async function requestOpenRouteService(
       return { route: null, status: 404 };
     }
 
+    const maneuvers: RouteManeuver[] = [];
+    for (const segment of feature?.properties?.segments ?? []) {
+      for (const step of segment.steps ?? []) {
+        const wayPoints = Array.isArray(step.way_points) ? step.way_points : [];
+        const geometryIndex = Number(wayPoints[0]);
+        const coordinate = Number.isInteger(geometryIndex)
+          ? routePoints[geometryIndex]
+          : null;
+        const instruction =
+          typeof step.instruction === "string" ? step.instruction.trim() : "";
+        const stepDistance = Number(step.distance);
+        const stepDuration = Number(step.duration);
+        if (
+          !coordinate ||
+          !instruction ||
+          !Number.isFinite(stepDistance) ||
+          !Number.isFinite(stepDuration)
+        ) {
+          continue;
+        }
+        maneuvers.push({
+          instruction,
+          type: typeof step.type === "number" ? String(step.type) : "turn",
+          modifier: null,
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+          distanceMeters: Math.max(0, stepDistance),
+          durationSeconds: Math.max(0, stepDuration),
+        });
+      }
+    }
+
     return {
       route: {
         coordinates: routePoints,
         distanceMeters: distance,
         durationSeconds: duration,
         provider: "openrouteservice-fastest",
+        maneuvers,
       },
       status: 200,
     };
