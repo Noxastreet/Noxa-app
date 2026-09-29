@@ -3006,12 +3006,6 @@ const styles = StyleSheet.create({
   },
   liveDriveStartButton: {
     flex: 1,
-    height: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
   },
   liveDriveStartText: {
     color: colors.text,
@@ -3256,13 +3250,7 @@ const styles = StyleSheet.create({
   },
   routeRetryButton: {
     marginTop: spacing.md,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    alignSelf: "flex-start",
   },
   routeRetryText: {
     color: colors.text,
