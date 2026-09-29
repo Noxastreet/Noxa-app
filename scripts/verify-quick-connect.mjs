@@ -21,6 +21,7 @@ const crews = fs.readFileSync(
   'src/features/crews-events/CanonicalCrewsScreen.tsx',
   'utf8',
 );
+const profile = fs.readFileSync('app/(tabs)/profile.tsx', 'utf8');
 const driveTogether = fs.readFileSync(
   'src/features/group-drive/DriveTogetherMapLayer.tsx',
   'utf8',
@@ -75,9 +76,15 @@ assert(
   'Camera permission must be scoped to Quick Connect scanning.',
 );
 assert(
-  /accessibilityLabel="Quick Connect"/.test(crews)
-    && /pathname: "\/quick-connect"/.test(crews),
-  'Crew must expose a native Quick Connect entry point.',
+  !/accessibilityLabel="Quick Connect"/.test(crews)
+    && !/pathname: "\/quick-connect"/.test(crews),
+  'Crew chrome must stay Crew-specific and must not own the global Quick Connect action.',
+);
+assert(
+  /accessibilityLabel="Quick Connect"/.test(profile)
+    && /pathname: '\/quick-connect'/.test(profile)
+    && /mode: 'share'/.test(profile),
+  'Profile must expose Quick Connect as a global social identity action.',
 );
 assert(
   /Quick add someone nearby/.test(driveTogether)

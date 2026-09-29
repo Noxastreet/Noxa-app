@@ -138,6 +138,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       followUserLocation,
       onFollowUserLocationChange,
       onUserPan,
+      onUserLocationChange,
       onDriverPress,
       onEventPress,
     },
@@ -327,6 +328,22 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               return;
             }
             onMapPress({ latitude, longitude });
+          }}
+          onUserLocationUpdate={(location) => {
+            const latitude = Number(location.coords.latitude);
+            const longitude = Number(location.coords.longitude);
+            if (
+              !onUserLocationChange
+              || !Number.isFinite(latitude)
+              || !Number.isFinite(longitude)
+              || latitude < -90
+              || latitude > 90
+              || longitude < -180
+              || longitude > 180
+            ) {
+              return;
+            }
+            onUserLocationChange({ latitude, longitude });
           }}
           onCameraChanged={(state) => {
             if (state.gestures.isGestureActive) {

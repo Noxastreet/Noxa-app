@@ -19,6 +19,11 @@ import {
   DriveTogetherMapLayer,
   type DriveTogetherNavigationOverlay,
 } from "@/src/features/group-drive/DriveTogetherMapLayer";
+import {
+  prepareDriveRoute,
+  projectDriveLocation,
+  type PreparedDriveRoute,
+} from "@/src/features/group-drive/runtime/routeProgress";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -91,10 +96,20 @@ type PresenceLocationPayload = {
   visibility_mode: LocationVisibilityMode;
   share_expires_at: string;
 };
+type RouteManeuver = {
+  instruction: string;
+  type: string;
+  modifier: string | null;
+  latitude: number;
+  longitude: number;
+  distanceMeters: number;
+  durationSeconds: number;
+};
 type RouteResult = {
   coordinates: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  maneuvers?: RouteManeuver[];
 };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
 type MapDataRequestState = "loading" | "ready" | "error";
@@ -107,6 +122,8 @@ const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
 const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
 const DRIVER_LIST_REFRESH_MS = 30 * 1000;
 const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
+const MAPBOX_LOCATION_STATE_MIN_MS = 750;
+const ROUTE_ARRIVAL_METERS = 45;
 const NEARBY_RADIUS_METERS = 25_000;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -283,6 +300,59 @@ function formatDuration(seconds: number) {
   return `${hours} hr ${String(minutes).padStart(2, "0")} min`;
 }
 
+function formatArrivalTime(seconds: number) {
+  if (!Number.isFinite(seconds)) return "—";
+  const arrival = new Date(Date.now() + Math.max(0, seconds) * 1000);
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(arrival);
+}
+
+function prepareEventRoute(route: RouteResult | null): PreparedDriveRoute | null {
+  if (!route) return null;
+  return prepareDriveRoute(
+    {
+      type: "LineString",
+      coordinates: route.coordinates.map(
+        (point) => [point.longitude, point.latitude] as [number, number],
+      ),
+    },
+    route.distanceMeters,
+  );
+}
+
+function nextEventManeuver(
+  route: RouteResult | null,
+  prepared: PreparedDriveRoute | null,
+  progressFraction: number | null,
+) {
+  if (!route || !prepared || progressFraction === null) return null;
+  let candidate:
+    | { maneuver: RouteManeuver; progress: number; distanceMeters: number }
+    | null = null;
+  for (const maneuver of route.maneuvers ?? []) {
+    const projection = projectDriveLocation(
+      prepared,
+      maneuver.latitude,
+      maneuver.longitude,
+    );
+    if (!projection || projection.progressFraction + 0.002 < progressFraction) continue;
+    const distanceMeters = Math.max(
+      0,
+      route.distanceMeters * (projection.progressFraction - progressFraction),
+    );
+    if (!candidate || projection.progressFraction < candidate.progress) {
+      candidate = {
+        maneuver,
+        progress: projection.progressFraction,
+        distanceMeters,
+      };
+    }
+  }
+  return candidate;
+}
+
 function EventCard({
   event,
   bottomOffset,
@@ -362,6 +432,8 @@ function RouteCard({
   onClose,
   onFollowToggle,
   onRetry,
+  remainingDistanceMeters,
+  remainingDurationSeconds,
 }: {
   event: EventMarkerRow;
   route: RouteResult | null;
@@ -370,6 +442,8 @@ function RouteCard({
   bottomOffset: number;
   following: boolean;
   canFollow: boolean;
+  remainingDistanceMeters: number | null;
+  remainingDurationSeconds: number | null;
   onClose: () => void;
   onFollowToggle: () => void;
   onRetry: () => void;
@@ -401,11 +475,11 @@ function RouteCard({
       ) : route ? (
         <View style={styles.routeMetrics}>
           <Text style={styles.routeMetric}>
-            {formatDistance(route.distanceMeters)}
+            {formatDistance(remainingDistanceMeters ?? route.distanceMeters)}
           </Text>
           <Text style={styles.routeMetricMuted}>•</Text>
           <Text style={styles.routeMetric}>
-            ~{formatDuration(route.durationSeconds)}
+            ~{formatDuration(remainingDurationSeconds ?? route.durationSeconds)}
           </Text>
         </View>
       ) : (
@@ -450,6 +524,128 @@ function RouteCard({
   );
 }
 
+function routeManeuverIcon(modifier: string | null | undefined): keyof typeof Ionicons.glyphMap {
+  switch (modifier) {
+    case "left":
+    case "slight left":
+      return "return-up-back";
+    case "right":
+    case "slight right":
+      return "return-up-forward";
+    case "uturn":
+      return "return-down-back";
+    case "straight":
+      return "arrow-up";
+    default:
+      return "navigate";
+  }
+}
+
+function RouteFocusOverlay({
+  event,
+  remainingDistanceMeters,
+  remainingDurationSeconds,
+  nextManeuver,
+  following,
+  arrived,
+  topInset,
+  bottomInset,
+  onRecenter,
+  onExit,
+}: {
+  event: EventMarkerRow;
+  remainingDistanceMeters: number | null;
+  remainingDurationSeconds: number | null;
+  nextManeuver:
+    | { maneuver: RouteManeuver; progress: number; distanceMeters: number }
+    | null;
+  following: boolean;
+  arrived: boolean;
+  topInset: number;
+  bottomInset: number;
+  onRecenter: () => void;
+  onExit: () => void;
+}) {
+  const instruction = arrived
+    ? "You have arrived"
+    : nextManeuver?.maneuver.instruction || `Continue to ${event.title}`;
+  const instructionDistance = arrived
+    ? "ARRIVED"
+    : nextManeuver
+      ? formatDistance(nextManeuver.distanceMeters)
+      : null;
+
+  return (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
+      <View style={[styles.routeFocusTop, { top: topInset + spacing.sm }]}>
+        <View style={styles.routeFocusInstruction}>
+          <View style={styles.routeFocusTurnIcon}>
+            <Ionicons
+              name={
+                arrived
+                  ? "checkmark"
+                  : routeManeuverIcon(nextManeuver?.maneuver.modifier)
+              }
+              size={24}
+              color={arrived ? colors.success : colors.text}
+            />
+          </View>
+          <View style={styles.routeFocusInstructionCopy}>
+            {instructionDistance ? (
+              <Text style={styles.routeFocusDistance}>{instructionDistance}</Text>
+            ) : null}
+            <Text numberOfLines={2} style={styles.routeFocusInstructionText}>
+              {instruction}
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          accessibilityLabel="End route navigation"
+          accessibilityRole="button"
+          activeOpacity={0.82}
+          onPress={onExit}
+          style={styles.routeFocusClose}>
+          <Ionicons name="close" size={20} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.routeFocusBottom, { bottom: bottomInset + spacing.md }]}>
+        <View style={styles.routeFocusMetrics}>
+          <Text numberOfLines={1} style={styles.routeFocusDestination}>
+            {event.title}
+          </Text>
+          <View style={styles.routeFocusMetricRow}>
+            <Text style={styles.routeFocusMetricStrong}>
+              {formatDistance(remainingDistanceMeters ?? 0)}
+            </Text>
+            <View style={styles.routeFocusDot} />
+            <Text style={styles.routeFocusMetricStrong}>
+              {formatDuration(remainingDurationSeconds ?? 0)}
+            </Text>
+            <Text style={styles.routeFocusArrival}>
+              {remainingDurationSeconds === null
+                ? ""
+                : `ETA ${formatArrivalTime(remainingDurationSeconds)}`}
+            </Text>
+          </View>
+        </View>
+
+        {!following ? (
+          <TouchableOpacity
+            accessibilityLabel="Resume route following"
+            accessibilityRole="button"
+            activeOpacity={0.82}
+            onPress={onRecenter}
+            style={styles.routeFocusRecenter}>
+            <Ionicons name="locate" size={20} color={colors.text} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
@@ -463,16 +659,18 @@ export default function LiveMapScreen() {
   const [driveTogetherOpen, setDriveTogetherOpen] = useState(false);
   const [driveTogetherPanelVisible, setDriveTogetherPanelVisible] = useState(false);
   const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
+  const [isRouteFocusMode, setIsRouteFocusMode] = useState(false);
 
   useEffect(() => {
+    const hideRootTabs = driveTogetherPanelVisible || isRouteFocusMode;
     navigation.setOptions({
-      tabBarStyle: driveTogetherPanelVisible ? { display: "none" } : undefined,
+      tabBarStyle: hideRootTabs ? { display: "none" } : undefined,
     });
 
     return () => {
       navigation.setOptions({ tabBarStyle: undefined });
     };
-  }, [driveTogetherPanelVisible, navigation]);
+  }, [driveTogetherPanelVisible, isRouteFocusMode, navigation]);
   const [driveTogetherNavigation, setDriveTogetherNavigation] =
     useState<DriveTogetherNavigationOverlay | null>(null);
   const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
@@ -497,6 +695,7 @@ export default function LiveMapScreen() {
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
   const driverLocationRef = useRef<LatLng | null>(null);
+  const lastMapboxLocationCommitRef = useRef(0);
   const eventsRef = useRef<EventMarkerRow[]>([]);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
@@ -554,6 +753,43 @@ export default function LiveMapScreen() {
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
 
+  const preparedEventRoute = useMemo(
+    () => prepareEventRoute(route),
+    [route],
+  );
+  const eventRouteProjection = useMemo(
+    () =>
+      preparedEventRoute && driverLocation
+        ? projectDriveLocation(
+            preparedEventRoute,
+            driverLocation.latitude,
+            driverLocation.longitude,
+          )
+        : null,
+    [driverLocation, preparedEventRoute],
+  );
+  const routeRemainingDistanceMeters =
+    eventRouteProjection?.remainingMeters ?? route?.distanceMeters ?? null;
+  const routeRemainingDurationSeconds =
+    route && eventRouteProjection
+      ? Math.max(
+          0,
+          route.durationSeconds * (1 - eventRouteProjection.progressFraction),
+        )
+      : route?.durationSeconds ?? null;
+  const routeNextManeuver = useMemo(
+    () =>
+      nextEventManeuver(
+        route,
+        preparedEventRoute,
+        eventRouteProjection?.progressFraction ?? null,
+      ),
+    [eventRouteProjection?.progressFraction, preparedEventRoute, route],
+  );
+  const routeArrived =
+    routeRemainingDistanceMeters !== null
+    && routeRemainingDistanceMeters <= ROUTE_ARRIVAL_METERS;
+
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
   const animateTo = useCallback(
@@ -578,7 +814,27 @@ export default function LiveMapScreen() {
     [insets.bottom, insets.top],
   );
 
-  const invalidateDriverLocation = useCallback(
+  const handleMapboxUserLocation = useCallback((point: LatLng) => {
+    const now = Date.now();
+    const previous = driverLocationRef.current;
+    driverLocationRef.current = point;
+
+    const movedMeters = previous
+      ? distanceBetweenMeters(previous, point)
+      : Infinity;
+    if (
+      previous
+      && now - lastMapboxLocationCommitRef.current < MAPBOX_LOCATION_STATE_MIN_MS
+      && movedMeters < 2
+    ) {
+      return;
+    }
+
+    lastMapboxLocationCommitRef.current = now;
+    if (isMountedRef.current) setDriverLocation(point);
+  }, []);
+
+    const invalidateDriverLocation = useCallback(
     (message: string) => {
       driverLocationRef.current = null;
       routeRequestIdRef.current += 1;
@@ -1467,6 +1723,7 @@ export default function LiveMapScreen() {
 
   useEffect(() => {
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
     routeRequestIdRef.current += 1;
@@ -1643,6 +1900,7 @@ export default function LiveMapScreen() {
 
   const closeRouteMode = useCallback(() => {
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1655,6 +1913,7 @@ export default function LiveMapScreen() {
 
   const retryRoute = useCallback(() => {
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1664,6 +1923,7 @@ export default function LiveMapScreen() {
   const routeToEvent = useCallback((event: EventMarkerRow) => {
     if (driveTogetherNavigation) return;
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     if (!hasValidCoordinates(event)) return;
     setSelectedEvent(event);
     router.setParams({ focusEventId: event.id, mapMode: "route" });
@@ -1731,6 +1991,8 @@ export default function LiveMapScreen() {
     }
 
     mapRef.current?.animateToRegion(pointRegion(point), 250);
+    setIsCameraAwayFromUser(false);
+    setIsRouteFocusMode(true);
     setIsRouteFollowing(true);
   }, [
     fitRouteToMap,
@@ -1740,6 +2002,14 @@ export default function LiveMapScreen() {
     routeStatus,
     selectedEvent,
   ]);
+
+  const recenterRouteFocus = useCallback(() => {
+    const point = driverLocationRef.current;
+    if (!point || !hasValidLatLng(point.latitude, point.longitude)) return;
+    setIsCameraAwayFromUser(false);
+    mapRef.current?.animateToRegion(pointRegion(point), 220);
+    setIsRouteFollowing(true);
+  }, []);
 
   const beginDriveTogetherMapPick = useCallback(
     (handler: (point: LatLng) => void) => {
@@ -1771,6 +2041,7 @@ export default function LiveMapScreen() {
 
       setSelectedEvent(null);
       setIsRouteFollowing(false);
+      setIsRouteFocusMode(false);
       routeRequestIdRef.current += 1;
       routeAbortControllerRef.current?.abort();
       routeAbortControllerRef.current = null;
@@ -1788,6 +2059,7 @@ export default function LiveMapScreen() {
       if (next) {
         setSelectedEvent(null);
         setIsRouteFollowing(false);
+        setIsRouteFocusMode(false);
         routeRequestIdRef.current += 1;
         routeAbortControllerRef.current?.abort();
         routeAbortControllerRef.current = null;
@@ -1927,7 +2199,8 @@ export default function LiveMapScreen() {
         ? 196
         : spacing.sm);
   const showRecenter =
-    !driveTogetherPanelVisible
+    !isRouteFocusMode
+    && !driveTogetherPanelVisible
     && !effectiveFollowing
     && (!driverLocation || isCameraAwayFromUser);
 
@@ -1949,6 +2222,7 @@ export default function LiveMapScreen() {
             : setIsRouteFollowing
         }
         onMapPress={handleDriveTogetherMapPress}
+        onUserLocationChange={handleMapboxUserLocation}
         onUserPan={() => setIsCameraAwayFromUser(true)}
         onDriverPress={openDriverProfile}
         onEventPress={selectMapboxEvent}
@@ -1958,7 +2232,8 @@ export default function LiveMapScreen() {
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
-        <View style={[styles.header, { top: headerTop }]}>
+        {!isRouteFocusMode ? (
+          <View style={[styles.header, { top: headerTop }]}>
           <TouchableOpacity
             accessibilityLabel={`${
               currentProfile?.display_name?.trim() ||
@@ -2025,8 +2300,9 @@ export default function LiveMapScreen() {
             />
           </View>
         </View>
+        ) : null}
 
-        {visibilityMenuOpen ? (
+        {!isRouteFocusMode && visibilityMenuOpen ? (
           <View style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
             <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
             {VISIBILITY_MODES.map((mode) => {
@@ -2082,7 +2358,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!selectedEvent && !driveTogetherPanelVisible ? (
+        {!isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -2118,7 +2394,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {activeNotice ? (
+        {!isRouteFocusMode && activeNotice ? (
           <View
             accessibilityLiveRegion="polite"
             pointerEvents="none"
@@ -2133,7 +2409,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {mapDataHasError ? (
+        {!isRouteFocusMode && mapDataHasError ? (
           <View
             accessibilityLiveRegion="polite"
             style={[styles.mapDataNotice, { top: mapDataNoticeTop }]}
@@ -2160,7 +2436,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
+        {!isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
           <RouteCard
             event={selectedEvent}
             route={route}
@@ -2172,13 +2448,30 @@ export default function LiveMapScreen() {
             onClose={closeRouteMode}
             onFollowToggle={toggleRouteFollow}
             onRetry={retryRoute}
+            remainingDistanceMeters={routeRemainingDistanceMeters}
+            remainingDurationSeconds={routeRemainingDurationSeconds}
           />
-        ) : !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
+        ) : !isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
           <EventCard
             event={selectedEvent}
             bottomOffset={eventCardBottom}
             onClose={() => setSelectedEvent(null)}
             onRoute={() => routeToEvent(selectedEvent)}
+          />
+        ) : null}
+
+        {isRouteFocusMode && selectedEvent && route ? (
+          <RouteFocusOverlay
+            arrived={routeArrived}
+            bottomInset={insets.bottom}
+            event={selectedEvent}
+            following={isRouteFollowing}
+            nextManeuver={routeNextManeuver}
+            onExit={closeRouteMode}
+            onRecenter={recenterRouteFocus}
+            remainingDistanceMeters={routeRemainingDistanceMeters}
+            remainingDurationSeconds={routeRemainingDurationSeconds}
+            topInset={insets.top}
           />
         ) : null}
       </View>
@@ -2746,6 +3039,123 @@ const styles = StyleSheet.create({
   },
   eventPrimaryButton: {
     flex: 1.35,
+  },
+  routeFocusTop: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  routeFocusInstruction: {
+    flex: 1,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    backgroundColor: "rgba(9,9,13,0.94)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.12)",
+    ...shadows.card,
+  },
+  routeFocusTurnIcon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    backgroundColor: "rgba(200,16,46,0.18)",
+  },
+  routeFocusInstructionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  routeFocusDistance: {
+    color: colors.primaryHover,
+    fontSize: 12,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"],
+  },
+  routeFocusInstructionText: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+  routeFocusClose: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(9,9,13,0.94)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.12)",
+    ...shadows.control,
+  },
+  routeFocusBottom: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  routeFocusMetrics: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    backgroundColor: "rgba(9,9,13,0.94)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.12)",
+    ...shadows.card,
+  },
+  routeFocusDestination: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  routeFocusMetricRow: {
+    marginTop: 3,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.xs,
+  },
+  routeFocusMetricStrong: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"],
+  },
+  routeFocusDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.textSubtle,
+  },
+  routeFocusArrival: {
+    marginLeft: "auto",
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  routeFocusRecenter: {
+    width: 50,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    ...shadows.control,
   },
   routeCard: {
     position: "absolute",

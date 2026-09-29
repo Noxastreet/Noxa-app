@@ -921,22 +921,6 @@ export default function CanonicalCrewsScreen() {
           </View>
           <View style={styles.topActions}>
             <Pressable
-              accessibilityLabel="Quick Connect"
-              accessibilityRole="button"
-              onPress={() =>
-                router.push({
-                  pathname: "/quick-connect",
-                  params: { mode: "share" },
-                })
-              }
-              style={({ pressed }) => [
-                styles.quickConnectButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons name="qr-code-outline" size={18} color={colors.text} />
-            </Pressable>
-            <Pressable
               accessibilityLabel="Create crew"
               accessibilityRole="button"
               onPress={() => setCreateVisible(true)}

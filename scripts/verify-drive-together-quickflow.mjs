@@ -162,8 +162,9 @@ assert(
 );
 assert(
   /useNavigation/.test(map)
-    && /tabBarStyle: driveTogetherPanelVisible \? \{ display: "none" \} : undefined/.test(map),
-  'Root navigation must hide while the Drive Together sheet owns the bottom of the map.',
+    && /const hideRootTabs = driveTogetherPanelVisible \|\| isRouteFocusMode/.test(map)
+    && /tabBarStyle: hideRootTabs \? \{ display: "none" \} : undefined/.test(map),
+  'Root navigation must hide while Drive Together or focused navigation owns the bottom chrome.',
 );
 assert(
   /PanResponder/.test(sheet)

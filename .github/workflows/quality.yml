@@ -66,6 +66,9 @@ jobs:
       - name: Home / Map progressive disclosure contract
         run: npm run verify:home-map-disclosure
 
+      - name: Navigation focus and live route progress contract
+        run: npm run verify:navigation-focus
+
       - name: Home / Map F12 performance contract
         run: npm run verify:home-map-performance
 
