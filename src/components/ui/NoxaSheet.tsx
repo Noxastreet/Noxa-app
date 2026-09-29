@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { NoxaSurface } from './NoxaSurface';
+import { colors, geometry, spacing, typography } from '@/src/theme';
 
 type NoxaSheetProps = {
   children: ReactNode;
@@ -12,7 +13,11 @@ type NoxaSheetProps = {
 
 export function NoxaSheet({ children, style, subtitle, title }: NoxaSheetProps) {
   return (
-    <View style={[styles.sheet, style]}>
+    <NoxaSurface
+      corners="top"
+      cut={geometry.cut.lg}
+      level="sheet"
+      style={[styles.sheet, style]}>
       <View accessible={false} style={styles.handle} />
       {title || subtitle ? (
         <View style={styles.header}>
@@ -21,35 +26,35 @@ export function NoxaSheet({ children, style, subtitle, title }: NoxaSheetProps) 
         </View>
       ) : null}
       {children}
-    </View>
+    </NoxaSurface>
   );
 }
 
 const styles = StyleSheet.create({
   sheet: {
     gap: spacing.lg,
-    padding: spacing.lg,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: 38,
+    height: 3,
     alignSelf: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.borderStrong,
+    backgroundColor: colors.neutralStrong,
   },
   header: { gap: spacing.xs },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.title,
+    fontSize: typography.v2.section.fontSize,
+    lineHeight: typography.v2.section.lineHeight,
+    letterSpacing: typography.v2.section.letterSpacing,
     fontWeight: '900',
   },
-  subtitle: { color: colors.textMuted, fontSize: typography.caption, lineHeight: 18 },
+  subtitle: {
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    lineHeight: 18,
+  },
 });

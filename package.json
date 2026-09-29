@@ -34,7 +34,8 @@
     "verify:quick-connect": "node ./scripts/verify-quick-connect.mjs",
     "test:quick-connect": "node ./scripts/test-quick-connect.mjs",
     "verify:navigation-focus": "node ./scripts/verify-navigation-focus.mjs",
-    "verify:map-driver-card": "node ./scripts/verify-map-driver-card.mjs"
+    "verify:map-driver-card": "node ./scripts/verify-map-driver-card.mjs",
+    "verify:ui-foundation": "node ./scripts/verify-ui-foundation.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

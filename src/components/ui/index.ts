@@ -16,3 +16,5 @@ export { NoxaTopBar } from './NoxaTopBar';
 export { NoxaDivider } from './NoxaDivider';
 export { NoxaEmptyState } from './NoxaEmptyState';
 export { NoxaIconButton } from './NoxaIconButton';
+export { NoxaCutBackground, NoxaSurface } from './NoxaSurface';
+export type { NoxaCutCorners, NoxaSurfaceLevel } from './NoxaSurface';

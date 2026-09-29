@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { animations, colors, radius, spacing } from '@/src/theme';
+import { NoxaCutBackground } from './NoxaSurface';
+import { animations, colors, geometry, spacing, typography } from '@/src/theme';
 
 type NoxaListRowProps = {
   caption?: string;
@@ -39,7 +40,12 @@ export function NoxaListRow({
         pressed && onPress && (reduceMotion ? styles.pressedReduced : styles.pressed),
         disabled && styles.disabled,
       ]}>
-      <View style={[styles.icon, destructive && styles.iconDestructive]}>
+      <View style={styles.icon}>
+        <NoxaCutBackground
+          borderColor={destructive ? colors.borderAccent : colors.border}
+          cut={geometry.cut.sm}
+          fill={destructive ? colors.primarySubtle : colors.surfaceSoft}
+        />
         <Ionicons name={icon} size={20} color={destructive ? colors.primaryHover : colors.text} />
       </View>
       <View style={styles.copy}>
@@ -54,28 +60,31 @@ export function NoxaListRow({
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 66,
+    minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  divider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  divider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   icon: {
-    width: 38,
-    height: 38,
+    position: 'relative',
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceSoft,
   },
-  iconDestructive: { backgroundColor: colors.primarySubtle },
   copy: { flex: 1, minWidth: 0 },
-  label: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  label: {
+    color: colors.text,
+    fontSize: typography.v2.row.fontSize,
+    lineHeight: typography.v2.row.lineHeight,
+    fontWeight: '800',
+  },
   labelDestructive: { color: colors.primaryHover },
-  caption: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '600' },
+  caption: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   value: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
-  pressed: { backgroundColor: colors.surfacePressed, transform: [{ scale: animations.pressedScale }] },
-  pressedReduced: { backgroundColor: colors.surfacePressed },
+  pressed: { opacity: 0.8, transform: [{ scale: animations.pressedScale }] },
+  pressedReduced: { opacity: 0.72 },
   disabled: { opacity: 0.5 },
 });
