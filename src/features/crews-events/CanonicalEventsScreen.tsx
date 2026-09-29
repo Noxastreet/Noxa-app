@@ -3,7 +3,6 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -428,16 +427,16 @@ export default function CanonicalEventsScreen() {
   const content = useMemo(() => {
     if (loading) {
       return (
-        <View style={styles.stateCard}>
+        <NoxaSurface style={styles.stateCard}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.stateText}>Loading events…</Text>
-        </View>
+        </NoxaSurface>
       );
     }
 
     if (error && !hero) {
       return (
-        <View style={styles.stateCard}>
+        <NoxaSurface style={styles.stateCard}>
           <Ionicons name="cloud-offline-outline" size={38} color={colors.primary} />
           <Text style={styles.stateTitle}>Events unavailable</Text>
           <Text style={styles.stateText}>NOXA could not load the event feed.</Text>
@@ -445,13 +444,13 @@ export default function CanonicalEventsScreen() {
             label="TRY AGAIN"
             onPress={() => void load()}
           />
-        </View>
+        </NoxaSurface>
       );
     }
 
     if (!hero) {
       return (
-        <View style={styles.stateCard}>
+        <NoxaSurface style={styles.stateCard}>
           <Ionicons name="calendar-outline" size={38} color={colors.primary} />
           <Text style={styles.stateTitle}>Nothing scheduled yet</Text>
           <Text style={styles.stateText}>
@@ -461,7 +460,7 @@ export default function CanonicalEventsScreen() {
             label="CREATE EVENT"
             onPress={() => router.push("/event-editor")}
           />
-        </View>
+        </NoxaSurface>
       );
     }
 
@@ -496,20 +495,18 @@ export default function CanonicalEventsScreen() {
               contentContainerStyle={styles.picksList}
             >
               {events.slice(5, 9).map((event) => (
-                <Pressable
+                <NoxaPressableSurface
                   key={event.id}
                   accessibilityRole="button"
+                  contentStyle={styles.pickCard}
+                  maskChildren
                   onPress={() =>
                     router.push({
                       pathname: "/event-details",
                       params: { id: event.id },
                     })
                   }
-                  style={({ pressed }) => [
-                    styles.pickCard,
-                    pressed && styles.pressed,
-                  ]}
-                >
+                  outsideFill={colors.background}>
                   <CanonicalArtwork
                     uri={event.cover_image_url}
                     style={styles.pickArtwork}
@@ -528,7 +525,7 @@ export default function CanonicalEventsScreen() {
                       </Text>
                     </View>
                   </CanonicalArtwork>
-                </Pressable>
+                </NoxaPressableSurface>
               ))}
             </ScrollView>
           </>
@@ -580,7 +577,10 @@ export default function CanonicalEventsScreen() {
         />
 
         {error && hero ? (
-          <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
+          <NoxaPressableSurface
+            accessibilityRole="button"
+            contentStyle={styles.errorBanner}
+            onPress={() => setError(null)}>
             <Ionicons
               name="alert-circle-outline"
               size={16}
@@ -589,7 +589,7 @@ export default function CanonicalEventsScreen() {
             <Text numberOfLines={2} style={styles.errorText}>
               {error}
             </Text>
-          </Pressable>
+          </NoxaPressableSurface>
         ) : null}
 
         {content}
@@ -653,10 +653,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    backgroundColor: "transparent",
   },
   errorText: {
     flex: 1,
@@ -670,10 +667,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.md,
     padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: "transparent",
   },
   stateTitle: {
     color: colors.text,
@@ -798,10 +792,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     padding: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+    backgroundColor: "transparent",
   },
   dateTile: {
     width: 50,
@@ -864,10 +855,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     padding: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: "transparent",
   },
   nearbyAccent: {
     width: 3,
@@ -897,16 +885,14 @@ const styles = StyleSheet.create({
     width: 238,
     height: 170,
     overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    backgroundColor: "transparent",
   },
   pickArtwork: {
     flex: 1,
     justifyContent: "space-between",
     padding: spacing.sm,
   },
-  pickArtworkImage: { borderRadius: radius.lg - 1 },
+  pickArtworkImage: {},
   pickShade: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.48)",
