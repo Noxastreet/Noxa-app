@@ -16,7 +16,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { NoxaScreen } from "@/src/components/ui";
+import {
+  NoxaButton,
+  NoxaRootHeader,
+  NoxaScreen,
+  NoxaSegmentedControl,
+} from "@/src/components/ui";
 import {
   CanonicalArtwork,
   CanonicalAvatarStack,
@@ -136,41 +141,15 @@ function CrewFilterControl({
   onChange: (value: CrewFilter) => void;
 }) {
   return (
-    <View style={styles.filterControl}>
-      {[
-        { value: "mine" as const, label: "YOUR CREWS", count: myCount },
-        { value: "discover" as const, label: "DISCOVER", count: discoverCount },
-      ].map((item) => {
-        const active = item.value === value;
-        return (
-          <Pressable
-            key={item.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(item.value)}
-            style={({ pressed }) => [
-              styles.filterButton,
-              active && styles.filterButtonActive,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={[styles.filterText, active && styles.filterTextActive]}>
-              {item.label}
-            </Text>
-            <View style={[styles.filterCount, active && styles.filterCountActive]}>
-              <Text
-                style={[
-                  styles.filterCountText,
-                  active && styles.filterCountTextActive,
-                ]}
-              >
-                {item.count}
-              </Text>
-            </View>
-          </Pressable>
-        );
-      })}
-    </View>
+    <NoxaSegmentedControl
+      accessibilityLabel="Crew view"
+      onChange={onChange}
+      options={[
+        { value: "mine", label: "YOUR CREWS", count: myCount },
+        { value: "discover", label: "DISCOVER", count: discoverCount },
+      ]}
+      value={value}
+    />
   );
 }
 
@@ -914,26 +893,20 @@ export default function CanonicalCrewsScreen() {
           />
         }
       >
-        <View style={styles.topBar}>
-          <View style={styles.heading}>
-            <Text style={styles.pageTitle}>CREWS</Text>
-            <Text style={styles.pageSubtitle}>Find your people. Drive together.</Text>
-          </View>
-          <View style={styles.topActions}>
-            <Pressable
+        <NoxaRootHeader
+          actions={
+            <NoxaButton
               accessibilityLabel="Create crew"
-              accessibilityRole="button"
+              leadingIcon={<Ionicons name="add" size={16} color={colors.text} />}
               onPress={() => setCreateVisible(true)}
-              style={({ pressed }) => [
-                styles.createButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons name="add" size={17} color={colors.text} />
-              <Text style={styles.createText}>CREATE</Text>
-            </Pressable>
-          </View>
-        </View>
+              size="sm"
+              title="CREATE"
+              variant="secondary"
+            />
+          }
+          subtitle="Find your people. Drive together."
+          title="CREWS"
+        />
 
         <CrewFilterControl
           discoverCount={discovery.length}
