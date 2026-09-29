@@ -14,6 +14,8 @@ function assert(condition, message) {
 const animations = read('src/theme/animations.ts');
 const surface = read('src/components/ui/NoxaPressableSurface.tsx');
 const button = read('src/components/ui/NoxaButton.tsx');
+const iconButton = read('src/components/ui/NoxaIconButton.tsx');
+const segmented = read('src/components/ui/NoxaSegmentedControl.tsx');
 const tabs = read('components/noxa-bottom-tab-bar.tsx');
 const layout = read('app/(tabs)/_layout.tsx');
 
@@ -41,6 +43,21 @@ assert(
     && /useReducedMotion/.test(button)
     && /animations\.spring\.press/.test(button),
   'NoxaButton must use shared spring press physics with Reduce Motion support.',
+);
+
+assert(
+  /useSharedValue/.test(iconButton)
+    && /animations\.spring\.press/.test(iconButton)
+    && /useReducedMotion/.test(iconButton),
+  'NoxaIconButton must use the canonical press spring with Reduce Motion support.',
+);
+
+assert(
+  /function SegmentItem/.test(segmented)
+    && /selectedProgress/.test(segmented)
+    && /animations\.spring\.surface/.test(segmented)
+    && /useReducedMotion/.test(segmented),
+  'NoxaSegmentedControl must animate selection through shared motion tokens.',
 );
 
 assert(

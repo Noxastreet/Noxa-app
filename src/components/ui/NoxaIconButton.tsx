@@ -1,6 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { animations, colors, radius, shadows, spacing } from '@/src/theme';
 
@@ -30,6 +36,33 @@ export function NoxaIconButton({
   const reduceMotion = useReducedMotion();
   const isDisabled = disabled || loading;
   const iconColor = variant === 'danger' ? colors.primaryHover : colors.text;
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const motionStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    if (isDisabled) return;
+    opacity.value = withTiming(
+      reduceMotion ? 0.72 : animations.pressOpacity,
+      { duration: animations.press },
+    );
+    scale.value = reduceMotion
+      ? 1
+      : withSpring(animations.iconPressedScale, animations.spring.press);
+  };
+
+  const handlePressOut = () => {
+    opacity.value = withTiming(1, { duration: animations.press });
+    scale.value = reduceMotion
+      ? 1
+      : withSpring(1, animations.spring.press);
+  };
+
+  const resolvedSize = Math.max(size, 44);
 
   return (
     <Pressable
@@ -39,23 +72,37 @@ export function NoxaIconButton({
       accessibilityState={{ busy: loading, disabled: isDisabled }}
       disabled={isDisabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        styles[variant],
-        { width: Math.max(size, 44), height: Math.max(size, 44) },
-        pressed && !isDisabled && (reduceMotion ? styles.pressedReduced : styles.pressed),
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[
+        styles.hitTarget,
+        { width: resolvedSize, height: resolvedSize },
         isDisabled && styles.disabled,
       ]}>
-      {loading ? (
-        <ActivityIndicator color={iconColor} size="small" />
-      ) : (
-        <Ionicons name={icon} size={iconSize} color={iconColor} />
-      )}
+      <Animated.View
+        style={[
+          styles.button,
+          styles[variant],
+          { width: resolvedSize, height: resolvedSize },
+          motionStyle,
+        ]}>
+        <View style={styles.content}>
+          {loading ? (
+            <ActivityIndicator color={iconColor} size="small" />
+          ) : (
+            <Ionicons name={icon} size={iconSize} color={iconColor} />
+          )}
+        </View>
+      </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  hitTarget: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   button: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -63,15 +110,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.xs,
   },
+  content: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   surface: { backgroundColor: colors.surface, borderColor: colors.border, ...shadows.control },
   ghost: { backgroundColor: 'transparent', borderColor: 'transparent' },
   overlay: { backgroundColor: colors.glass, borderColor: colors.borderStrong, ...shadows.control },
   danger: { backgroundColor: colors.primarySubtle, borderColor: colors.borderAccent },
-  pressed: {
-    opacity: 0.86,
-    transform: [{ scale: animations.iconPressedScale }],
-    backgroundColor: colors.surfacePressed,
-  },
-  pressedReduced: { opacity: 0.72 },
   disabled: { opacity: 0.44 },
 });

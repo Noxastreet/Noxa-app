@@ -1,5 +1,12 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { NoxaCutBackground } from './NoxaSurface';
 import { animations, colors, geometry, spacing, typography } from '@/src/theme';
@@ -17,14 +24,96 @@ type NoxaSegmentedControlProps<T extends string> = {
   value: T;
 };
 
+type SegmentItemProps<T extends string> = {
+  onChange: (value: T) => void;
+  option: SegmentOption<T>;
+  selected: boolean;
+};
+
+function SegmentItem<T extends string>({
+  onChange,
+  option,
+  selected,
+}: SegmentItemProps<T>) {
+  const reduceMotion = useReducedMotion();
+  const selectedProgress = useSharedValue(selected ? 1 : 0);
+  const pressProgress = useSharedValue(0);
+
+  useEffect(() => {
+    selectedProgress.value = reduceMotion
+      ? selected ? 1 : 0
+      : withSpring(selected ? 1 : 0, animations.spring.surface);
+  }, [reduceMotion, selected, selectedProgress]);
+
+  const selectionMotion = useAnimatedStyle(() => ({
+    opacity: selectedProgress.value,
+    transform: [
+      { scale: interpolate(selectedProgress.value, [0, 1], [0.965, 1]) },
+    ],
+  }));
+
+  const contentMotion = useAnimatedStyle(() => ({
+    transform: [
+      {
+        scale: interpolate(
+          pressProgress.value,
+          [0, 1],
+          [1, animations.pressedScale],
+        ),
+      },
+    ],
+  }));
+
+  const handlePressIn = () => {
+    pressProgress.value = reduceMotion
+      ? 1
+      : withSpring(1, animations.spring.press);
+  };
+
+  const handlePressOut = () => {
+    pressProgress.value = reduceMotion
+      ? 0
+      : withSpring(0, animations.spring.press);
+  };
+
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected }}
+      onPress={() => onChange(option.value)}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={styles.segment}>
+      <Animated.View pointerEvents="none" style={[styles.selectionLayer, selectionMotion]}>
+        <NoxaCutBackground
+          borderColor={colors.borderStrong}
+          cut={geometry.cut.sm}
+          fill={colors.surfaceRaised}
+        />
+      </Animated.View>
+
+      <Animated.View style={[styles.segmentContent, contentMotion]}>
+        <Text style={[styles.label, selected && styles.labelSelected]}>
+          {option.label}
+        </Text>
+        {typeof option.count === 'number' ? (
+          <View style={[styles.count, selected && styles.countSelected]}>
+            <Text style={[styles.countText, selected && styles.countTextSelected]}>
+              {option.count}
+            </Text>
+          </View>
+        ) : null}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export function NoxaSegmentedControl<T extends string>({
   accessibilityLabel,
   onChange,
   options,
   value,
 }: NoxaSegmentedControlProps<T>) {
-  const reduceMotion = useReducedMotion();
-
   return (
     <View
       accessibilityLabel={accessibilityLabel}
@@ -35,36 +124,14 @@ export function NoxaSegmentedControl<T extends string>({
         cut={geometry.cut.md}
         fill={colors.surfaceBase}
       />
-      {options.map((option) => {
-        const selected = option.value === value;
-        return (
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected }}
-            key={option.value}
-            onPress={() => onChange(option.value)}
-            style={({ pressed }) => [
-              styles.segment,
-              pressed && (reduceMotion ? styles.pressedReduced : styles.pressed),
-            ]}>
-            <NoxaCutBackground
-              borderColor={selected ? colors.borderStrong : 'transparent'}
-              cut={geometry.cut.sm}
-              fill={selected ? colors.surfaceRaised : 'transparent'}
-            />
-            <Text style={[styles.label, selected && styles.labelSelected]}>
-              {option.label}
-            </Text>
-            {typeof option.count === 'number' ? (
-              <View style={[styles.count, selected && styles.countSelected]}>
-                <Text style={[styles.countText, selected && styles.countTextSelected]}>
-                  {option.count}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
-        );
-      })}
+      {options.map((option) => (
+        <SegmentItem
+          key={option.value}
+          onChange={onChange}
+          option={option}
+          selected={option.value === value}
+        />
+      ))}
     </View>
   );
 }
@@ -81,11 +148,19 @@ const styles = StyleSheet.create({
     position: 'relative',
     minHeight: 44,
     flex: 1,
+    alignItems: 'stretch',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
+  selectionLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  segmentContent: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
   },
   label: {
     color: colors.textMuted,
@@ -107,6 +182,4 @@ const styles = StyleSheet.create({
   countSelected: { backgroundColor: colors.primaryMuted },
   countText: { color: colors.textSubtle, fontSize: 9, fontWeight: '900' },
   countTextSelected: { color: colors.text },
-  pressed: { opacity: 0.82, transform: [{ scale: animations.pressedScale }] },
-  pressedReduced: { opacity: 0.68 },
 });
