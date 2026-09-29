@@ -122,6 +122,8 @@ const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
 const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
 const DRIVER_LIST_REFRESH_MS = 30 * 1000;
 const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
+const MAPBOX_LOCATION_STATE_MIN_MS = 750;
+const ROUTE_ARRIVAL_METERS = 45;
 const NEARBY_RADIUS_METERS = 25_000;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -535,16 +537,18 @@ export default function LiveMapScreen() {
   const [driveTogetherOpen, setDriveTogetherOpen] = useState(false);
   const [driveTogetherPanelVisible, setDriveTogetherPanelVisible] = useState(false);
   const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
+  const [isRouteFocusMode, setIsRouteFocusMode] = useState(false);
 
   useEffect(() => {
+    const hideRootTabs = driveTogetherPanelVisible || isRouteFocusMode;
     navigation.setOptions({
-      tabBarStyle: driveTogetherPanelVisible ? { display: "none" } : undefined,
+      tabBarStyle: hideRootTabs ? { display: "none" } : undefined,
     });
 
     return () => {
       navigation.setOptions({ tabBarStyle: undefined });
     };
-  }, [driveTogetherPanelVisible, navigation]);
+  }, [driveTogetherPanelVisible, isRouteFocusMode, navigation]);
   const [driveTogetherNavigation, setDriveTogetherNavigation] =
     useState<DriveTogetherNavigationOverlay | null>(null);
   const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
@@ -569,6 +573,7 @@ export default function LiveMapScreen() {
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
   const driverLocationRef = useRef<LatLng | null>(null);
+  const lastMapboxLocationCommitRef = useRef(0);
   const eventsRef = useRef<EventMarkerRow[]>([]);
   const isMountedRef = useRef(true);
   const locationRequestInFlightRef = useRef(false);
@@ -626,6 +631,43 @@ export default function LiveMapScreen() {
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
 
+  const preparedEventRoute = useMemo(
+    () => prepareEventRoute(route),
+    [route],
+  );
+  const eventRouteProjection = useMemo(
+    () =>
+      preparedEventRoute && driverLocation
+        ? projectDriveLocation(
+            preparedEventRoute,
+            driverLocation.latitude,
+            driverLocation.longitude,
+          )
+        : null,
+    [driverLocation, preparedEventRoute],
+  );
+  const routeRemainingDistanceMeters =
+    eventRouteProjection?.remainingMeters ?? route?.distanceMeters ?? null;
+  const routeRemainingDurationSeconds =
+    route && eventRouteProjection
+      ? Math.max(
+          0,
+          route.durationSeconds * (1 - eventRouteProjection.progressFraction),
+        )
+      : route?.durationSeconds ?? null;
+  const routeNextManeuver = useMemo(
+    () =>
+      nextEventManeuver(
+        route,
+        preparedEventRoute,
+        eventRouteProjection?.progressFraction ?? null,
+      ),
+    [eventRouteProjection?.progressFraction, preparedEventRoute, route],
+  );
+  const routeArrived =
+    routeRemainingDistanceMeters !== null
+    && routeRemainingDistanceMeters <= ROUTE_ARRIVAL_METERS;
+
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
   const animateTo = useCallback(
@@ -650,7 +692,27 @@ export default function LiveMapScreen() {
     [insets.bottom, insets.top],
   );
 
-  const invalidateDriverLocation = useCallback(
+  const handleMapboxUserLocation = useCallback((point: LatLng) => {
+    const now = Date.now();
+    const previous = driverLocationRef.current;
+    driverLocationRef.current = point;
+
+    const movedMeters = previous
+      ? distanceBetweenMeters(previous, point)
+      : Infinity;
+    if (
+      previous
+      && now - lastMapboxLocationCommitRef.current < MAPBOX_LOCATION_STATE_MIN_MS
+      && movedMeters < 2
+    ) {
+      return;
+    }
+
+    lastMapboxLocationCommitRef.current = now;
+    if (isMountedRef.current) setDriverLocation(point);
+  }, []);
+
+    const invalidateDriverLocation = useCallback(
     (message: string) => {
       driverLocationRef.current = null;
       routeRequestIdRef.current += 1;
@@ -1539,6 +1601,7 @@ export default function LiveMapScreen() {
 
   useEffect(() => {
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
     routeRequestIdRef.current += 1;
@@ -1715,6 +1778,7 @@ export default function LiveMapScreen() {
 
   const closeRouteMode = useCallback(() => {
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1727,6 +1791,7 @@ export default function LiveMapScreen() {
 
   const retryRoute = useCallback(() => {
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     routeRequestIdRef.current += 1;
     routeAbortControllerRef.current?.abort();
     routeAbortControllerRef.current = null;
@@ -1736,6 +1801,7 @@ export default function LiveMapScreen() {
   const routeToEvent = useCallback((event: EventMarkerRow) => {
     if (driveTogetherNavigation) return;
     setIsRouteFollowing(false);
+    setIsRouteFocusMode(false);
     if (!hasValidCoordinates(event)) return;
     setSelectedEvent(event);
     router.setParams({ focusEventId: event.id, mapMode: "route" });
@@ -1803,6 +1869,7 @@ export default function LiveMapScreen() {
     }
 
     mapRef.current?.animateToRegion(pointRegion(point), 250);
+    setIsRouteFocusMode(true);
     setIsRouteFollowing(true);
   }, [
     fitRouteToMap,
@@ -1843,6 +1910,7 @@ export default function LiveMapScreen() {
 
       setSelectedEvent(null);
       setIsRouteFollowing(false);
+      setIsRouteFocusMode(false);
       routeRequestIdRef.current += 1;
       routeAbortControllerRef.current?.abort();
       routeAbortControllerRef.current = null;
@@ -1860,6 +1928,7 @@ export default function LiveMapScreen() {
       if (next) {
         setSelectedEvent(null);
         setIsRouteFollowing(false);
+        setIsRouteFocusMode(false);
         routeRequestIdRef.current += 1;
         routeAbortControllerRef.current?.abort();
         routeAbortControllerRef.current = null;
@@ -2021,6 +2090,7 @@ export default function LiveMapScreen() {
             : setIsRouteFollowing
         }
         onMapPress={handleDriveTogetherMapPress}
+        onUserLocationChange={handleMapboxUserLocation}
         onUserPan={() => setIsCameraAwayFromUser(true)}
         onDriverPress={openDriverProfile}
         onEventPress={selectMapboxEvent}
@@ -2244,6 +2314,8 @@ export default function LiveMapScreen() {
             onClose={closeRouteMode}
             onFollowToggle={toggleRouteFollow}
             onRetry={retryRoute}
+            remainingDistanceMeters={routeRemainingDistanceMeters}
+            remainingDurationSeconds={routeRemainingDurationSeconds}
           />
         ) : !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
           <EventCard
