@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
 
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { NoxaCutBackground } from './NoxaSurface';
+import { colors, geometry, spacing, typography } from '@/src/theme';
 
 type NoxaInputProps = TextInputProps & {
   error?: string;
@@ -27,7 +28,12 @@ export function NoxaInput({
   return (
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <View style={[styles.shell, focused && styles.shellFocused, error && styles.shellError]}>
+      <View style={styles.shell}>
+        <NoxaCutBackground
+          borderColor={error ? colors.borderAccent : focused ? colors.borderStrong : colors.border}
+          cut={geometry.cut.sm}
+          fill={focused ? colors.surfaceRaised : colors.surfaceSoft}
+        />
         <TextInput
           {...props}
           accessibilityLabel={props.accessibilityLabel ?? label}
@@ -45,34 +51,32 @@ export function NoxaInput({
         />
         {trailing}
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      {error ? (
+        <Text style={styles.error}>{error}</Text>
+      ) : hint ? (
+        <Text style={styles.hint}>{hint}</Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    gap: spacing.xs,
-  },
+  wrap: { gap: spacing.xs },
   label: {
-    color: colors.textSubtle,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    lineHeight: 14,
+    color: colors.textTertiary,
+    fontSize: typography.v2.label.fontSize,
+    lineHeight: typography.v2.label.lineHeight,
+    letterSpacing: typography.v2.label.letterSpacing,
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   shell: {
+    position: 'relative',
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: 'transparent',
   },
-  shellFocused: { borderColor: colors.borderStrong, backgroundColor: colors.surfaceRaised },
-  shellError: { borderColor: colors.borderAccent },
   input: {
     flex: 1,
     minHeight: 54,
@@ -80,6 +84,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: typography.body,
   },
-  error: { color: colors.primaryHover, fontSize: typography.caption, fontWeight: '600' },
+  error: { color: colors.primaryHover, fontSize: typography.caption, fontWeight: '700' },
   hint: { color: colors.textMuted, fontSize: typography.caption },
 });
