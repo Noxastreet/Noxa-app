@@ -1991,6 +1991,7 @@ export default function LiveMapScreen() {
     }
 
     mapRef.current?.animateToRegion(pointRegion(point), 250);
+    setIsCameraAwayFromUser(false);
     setIsRouteFocusMode(true);
     setIsRouteFollowing(true);
   }, [
@@ -2001,6 +2002,14 @@ export default function LiveMapScreen() {
     routeStatus,
     selectedEvent,
   ]);
+
+  const recenterRouteFocus = useCallback(() => {
+    const point = driverLocationRef.current;
+    if (!point || !hasValidLatLng(point.latitude, point.longitude)) return;
+    setIsCameraAwayFromUser(false);
+    mapRef.current?.animateToRegion(pointRegion(point), 220);
+    setIsRouteFollowing(true);
+  }, []);
 
   const beginDriveTogetherMapPick = useCallback(
     (handler: (point: LatLng) => void) => {
@@ -2190,7 +2199,8 @@ export default function LiveMapScreen() {
         ? 196
         : spacing.sm);
   const showRecenter =
-    !driveTogetherPanelVisible
+    !isRouteFocusMode
+    && !driveTogetherPanelVisible
     && !effectiveFollowing
     && (!driverLocation || isCameraAwayFromUser);
 
@@ -2222,7 +2232,8 @@ export default function LiveMapScreen() {
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
-        <View style={[styles.header, { top: headerTop }]}>
+        {!isRouteFocusMode ? (
+          <View style={[styles.header, { top: headerTop }]}>
           <TouchableOpacity
             accessibilityLabel={`${
               currentProfile?.display_name?.trim() ||
@@ -2289,8 +2300,9 @@ export default function LiveMapScreen() {
             />
           </View>
         </View>
+        ) : null}
 
-        {visibilityMenuOpen ? (
+        {!isRouteFocusMode && visibilityMenuOpen ? (
           <View style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
             <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
             {VISIBILITY_MODES.map((mode) => {
@@ -2346,7 +2358,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!selectedEvent && !driveTogetherPanelVisible ? (
+        {!isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -2382,7 +2394,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {activeNotice ? (
+        {!isRouteFocusMode && activeNotice ? (
           <View
             accessibilityLiveRegion="polite"
             pointerEvents="none"
@@ -2397,7 +2409,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {mapDataHasError ? (
+        {!isRouteFocusMode && mapDataHasError ? (
           <View
             accessibilityLiveRegion="polite"
             style={[styles.mapDataNotice, { top: mapDataNoticeTop }]}
@@ -2424,7 +2436,7 @@ export default function LiveMapScreen() {
           </View>
         ) : null}
 
-        {!driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
+        {!isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
           <RouteCard
             event={selectedEvent}
             route={route}
@@ -2439,12 +2451,27 @@ export default function LiveMapScreen() {
             remainingDistanceMeters={routeRemainingDistanceMeters}
             remainingDurationSeconds={routeRemainingDurationSeconds}
           />
-        ) : !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
+        ) : !isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent ? (
           <EventCard
             event={selectedEvent}
             bottomOffset={eventCardBottom}
             onClose={() => setSelectedEvent(null)}
             onRoute={() => routeToEvent(selectedEvent)}
+          />
+        ) : null}
+
+        {isRouteFocusMode && selectedEvent && route ? (
+          <RouteFocusOverlay
+            arrived={routeArrived}
+            bottomInset={insets.bottom}
+            event={selectedEvent}
+            following={isRouteFollowing}
+            nextManeuver={routeNextManeuver}
+            onExit={closeRouteMode}
+            onRecenter={recenterRouteFocus}
+            remainingDistanceMeters={routeRemainingDistanceMeters}
+            remainingDurationSeconds={routeRemainingDurationSeconds}
+            topInset={insets.top}
           />
         ) : null}
       </View>
@@ -3012,6 +3039,123 @@ const styles = StyleSheet.create({
   },
   eventPrimaryButton: {
     flex: 1.35,
+  },
+  routeFocusTop: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  routeFocusInstruction: {
+    flex: 1,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    backgroundColor: "rgba(9,9,13,0.94)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.12)",
+    ...shadows.card,
+  },
+  routeFocusTurnIcon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.md,
+    backgroundColor: "rgba(200,16,46,0.18)",
+  },
+  routeFocusInstructionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  routeFocusDistance: {
+    color: colors.primaryHover,
+    fontSize: 12,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"],
+  },
+  routeFocusInstructionText: {
+    marginTop: 2,
+    color: colors.text,
+    fontSize: 17,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+  routeFocusClose: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(9,9,13,0.94)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.12)",
+    ...shadows.control,
+  },
+  routeFocusBottom: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  routeFocusMetrics: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    backgroundColor: "rgba(9,9,13,0.94)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.12)",
+    ...shadows.card,
+  },
+  routeFocusDestination: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  routeFocusMetricRow: {
+    marginTop: 3,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.xs,
+  },
+  routeFocusMetricStrong: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"],
+  },
+  routeFocusDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: colors.textSubtle,
+  },
+  routeFocusArrival: {
+    marginLeft: "auto",
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  routeFocusRecenter: {
+    width: 50,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    ...shadows.control,
   },
   routeCard: {
     position: "absolute",
