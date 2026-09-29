@@ -21,7 +21,6 @@ import {
   NoxaPressableSurface,
   NoxaRootHeader,
   NoxaScreen,
-  NoxaSurface,
 } from '@/src/components/ui';
 import { useResponsive } from '@/src/hooks/useResponsive';
 import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
@@ -30,7 +29,7 @@ import { formatProfileLocation } from '@/src/features/profile/formatProfileLocat
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
-import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { animations, colors, radius, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
   id: string;
@@ -180,9 +179,12 @@ function Identity({
       {errorMessage ? (
         <View style={styles.inlineErrorRow}>
           <Text style={styles.inlineError}>{errorMessage}</Text>
-          <Pressable accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-            <Text style={styles.retryText}>RETRY</Text>
-          </Pressable>
+          <NoxaButton
+            onPress={onRetry}
+            size="sm"
+            title="RETRY"
+            variant="secondary"
+          />
         </View>
       ) : null}
     </Animated.View>
