@@ -22,7 +22,7 @@ import {
 } from '@/src/components/ui';
 import { useResponsive } from '@/src/hooks/useResponsive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type GarageVehicle = {
   id: string;
@@ -196,35 +196,31 @@ function VehicleCard({
 function GarageState({ error, isLoading, onRetry }: { error: boolean; isLoading: boolean; onRetry: () => void }) {
   if (isLoading) {
     return (
-      <View style={styles.collectionState}>
+      <NoxaSurface style={styles.collectionState}>
         <ActivityIndicator color={colors.primary} />
         <Text style={styles.stateText}>Loading your garage…</Text>
-      </View>
+      </NoxaSurface>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.collectionState}>
+      <NoxaSurface style={styles.collectionState}>
         <View style={styles.stateIcon}><Ionicons name="cloud-offline-outline" size={28} color={colors.primary} /></View>
         <Text style={styles.stateTitle}>Garage unavailable</Text>
         <Text style={styles.stateText}>Your vehicles could not be loaded.</Text>
-        <Pressable accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-          <Text style={styles.retryText}>TRY AGAIN</Text>
-        </Pressable>
-      </View>
+        <NoxaButton onPress={onRetry} size="md" title="TRY AGAIN" />
+      </NoxaSurface>
     );
   }
 
   return (
-    <View style={styles.collectionState}>
+    <NoxaSurface style={styles.collectionState}>
       <View style={styles.stateIcon}><Ionicons name="car-sport-outline" size={30} color={colors.primary} /></View>
       <Text style={styles.stateTitle}>Your garage is empty</Text>
       <Text style={styles.stateText}>Add a car or motorcycle and start building your NOXA identity.</Text>
-      <Pressable accessibilityRole="button" onPress={() => router.push('/vehicle-picker')} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-        <Text style={styles.retryText}>ADD FIRST VEHICLE</Text>
-      </Pressable>
-    </View>
+      <NoxaButton onPress={() => router.push('/vehicle-picker')} size="md" title="ADD FIRST VEHICLE" />
+    </NoxaSurface>
   );
 }
 
@@ -466,11 +462,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.md,
     padding: spacing.xl,
-    borderRadius: radius.hero,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
+    backgroundColor: 'transparent',
   },
   stateIcon: {
     width: 62,
