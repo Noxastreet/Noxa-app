@@ -84,6 +84,12 @@ jobs:
       - name: Social list stale-response contract
         run: node ./scripts/verify-social-list-race.mjs
 
+      - name: Quick Connect static contract
+        run: npm run verify:quick-connect
+
+      - name: Quick Connect database smoke
+        run: npm run test:quick-connect
+
       - name: Owned media cleanup contract
         run: node ./scripts/verify-media-cleanup.mjs
 
