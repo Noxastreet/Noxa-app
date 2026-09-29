@@ -29,7 +29,7 @@ jobs:
           node-version: 20
 
       - name: View EAS submission
-        run: npx --yes eas-cli@latest submit:view 9eef596e-df78-4bdd-9e13-7a4590ded910 --platform ios --json
+        run: npx --yes eas-cli@latest submit:view 9eef596e-df78-4bdd-9e13-7a4590ded910 --json
 
       - name: View TestFlight status
         run: npx --yes eas-cli@latest submit:status --platform ios --profile production --json --non-interactive
