@@ -1,5 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewProps,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { colors, geometry, shadows } from '@/src/theme';
@@ -15,13 +21,14 @@ type BackgroundProps = {
   corners?: NoxaCutCorners;
 };
 
-type SurfaceProps = BackgroundProps & {
-  children: ReactNode;
-  level?: NoxaSurfaceLevel;
-  maskChildren?: boolean;
-  outsideFill?: string;
-  style?: StyleProp<ViewStyle>;
-};
+type SurfaceProps = BackgroundProps &
+  Omit<ViewProps, 'children' | 'style'> & {
+    children: ReactNode;
+    level?: NoxaSurfaceLevel;
+    maskChildren?: boolean;
+    outsideFill?: string;
+    style?: StyleProp<ViewStyle>;
+  };
 
 function pathFor(width: number, height: number, cut: number, corners: NoxaCutCorners) {
   const c = Math.max(0, Math.min(cut, width / 3, height / 3));
@@ -173,6 +180,7 @@ export function NoxaSurface({
   maskChildren = false,
   outsideFill = colors.background,
   style,
+  ...viewProps
 }: SurfaceProps) {
   const resolvedFill =
     fill ??
@@ -184,6 +192,7 @@ export function NoxaSurface({
 
   return (
     <View
+      {...viewProps}
       style={[
         styles.base,
         level === 'sheet' && styles.sheet,
