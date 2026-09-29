@@ -11,7 +11,14 @@ import {
   View,
 } from "react-native";
 
-import { NoxaScreen } from "@/src/components/ui";
+import {
+  NoxaButton,
+  NoxaPressableSurface,
+  NoxaRootHeader,
+  NoxaScreen,
+  NoxaSurface,
+} from "@/src/components/ui";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import {
   CanonicalArtwork,
   CanonicalAvatarStack,
@@ -120,14 +127,15 @@ function HeroEvent({
   const responseLabel = event.myResponse === "going" ? "GOING ✓" : "I'M GOING";
 
   return (
-    <Pressable
+    <NoxaPressableSurface
       accessibilityLabel={`Open ${event.title}`}
       accessibilityRole="button"
+      contentStyle={styles.heroCard}
+      maskChildren
       onPress={() =>
         router.push({ pathname: "/event-details", params: { id: event.id } })
       }
-      style={({ pressed }) => [styles.heroCard, pressed && styles.pressed]}
-    >
+      outsideFill={colors.background}>
       <CanonicalArtwork
         uri={event.cover_image_url}
         style={styles.heroArtwork}
@@ -187,20 +195,19 @@ function HeroEvent({
           </View>
         </View>
       </CanonicalArtwork>
-    </Pressable>
+    </NoxaPressableSurface>
   );
 }
 
 function EventListCard({ event }: { event: EventCardModel }) {
   return (
-    <Pressable
+    <NoxaPressableSurface
       accessibilityLabel={`Open ${event.title}`}
       accessibilityRole="button"
+      contentStyle={styles.eventCard}
       onPress={() =>
         router.push({ pathname: "/event-details", params: { id: event.id } })
-      }
-      style={({ pressed }) => [styles.eventCard, pressed && styles.pressed]}
-    >
+      }>
       <View style={styles.dateTile}>
         <Text style={styles.dateDay}>{formatDay(event.starts_at)}</Text>
         <Text style={styles.dateMonth}>{formatMonth(event.starts_at)}</Text>
@@ -226,13 +233,13 @@ function EventListCard({ event }: { event: EventCardModel }) {
         </View>
       </View>
       <Ionicons name="chevron-forward" size={19} color={colors.textSubtle} />
-    </Pressable>
+    </NoxaPressableSurface>
   );
 }
 
 function NearbyStrip({ count }: { count: number }) {
   return (
-    <View style={styles.nearbyStrip}>
+    <NoxaSurface style={styles.nearbyStrip}>
       <View style={styles.nearbyAccent} />
       <View style={styles.nearbyCopy}>
         <Text style={styles.nearbyEyebrow}>NEARBY NOW</Text>
@@ -243,11 +250,12 @@ function NearbyStrip({ count }: { count: number }) {
         </Text>
       </View>
       <Ionicons name="navigate-outline" size={20} color={colors.textMuted} />
-    </View>
+    </NoxaSurface>
   );
 }
 
 export default function CanonicalEventsScreen() {
+  const { gutter } = useResponsive();
   const [events, setEvents] = useState<EventCardModel[]>([]);
   const [heroAttendees, setHeroAttendees] = useState<CanonicalProfile[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -544,7 +552,7 @@ export default function CanonicalEventsScreen() {
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -556,24 +564,20 @@ export default function CanonicalEventsScreen() {
           />
         }
       >
-        <View style={styles.topBar}>
-          <View style={styles.heading}>
-            <Text style={styles.pageTitle}>EVENTS</Text>
-            <Text style={styles.pageSubtitle}>What is happening around you.</Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Create event"
-            accessibilityRole="button"
-            onPress={() => router.push("/event-editor")}
-            style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="add" size={17} color={colors.text} />
-            <Text style={styles.createText}>CREATE</Text>
-          </Pressable>
-        </View>
+        <NoxaRootHeader
+          actions={
+            <NoxaButton
+              accessibilityLabel="Create event"
+              leadingIcon={<Ionicons name="add" size={16} color={colors.text} />}
+              onPress={() => router.push("/event-editor")}
+              size="sm"
+              title="CREATE"
+              variant="secondary"
+            />
+          }
+          subtitle="What is happening around you."
+          title="EVENTS"
+        />
 
         {error && hero ? (
           <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
@@ -596,7 +600,7 @@ export default function CanonicalEventsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 0,
     paddingTop: spacing.lg,
     paddingBottom: 136,
     gap: spacing.lg,
@@ -687,10 +691,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     overflow: "hidden",
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.background,
+    backgroundColor: "transparent",
   },
   heroArtwork: {
     minHeight: 286,
@@ -698,7 +699,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingTop: 84,
   },
-  heroArtworkImage: { borderRadius: radius.hero - 1 },
+  heroArtworkImage: {},
   heroShadeTop: {
     ...StyleSheet.absoluteFillObject,
     bottom: "48%",
