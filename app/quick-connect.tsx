@@ -101,10 +101,13 @@ export default function QuickConnectScreen() {
   const params = useLocalSearchParams<{
     mode?: string | string[];
     value?: string | string[];
+    returnTo?: string | string[];
   }>();
 
   const initialMode = normalizeParam(params.mode) === 'connect' ? 'connect' : 'share';
   const incomingValue = normalizeParam(params.value)?.trim() || null;
+  const returnToDriveTogether =
+    normalizeParam(params.returnTo) === 'drive-together';
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [profile, setProfile] = useState<CurrentProfile | null>(null);
@@ -454,15 +457,25 @@ export default function QuickConnectScreen() {
                   </View>
                 </View>
                 <Pressable
-                  onPress={() =>
+                  onPress={() => {
+                    if (returnToDriveTogether) {
+                      router.back();
+                      return;
+                    }
                     router.replace({
                       pathname: '/driver-profile/[id]',
                       params: { id: friend.userId },
-                    })
-                  }
+                    });
+                  }}
                   style={({ pressed }) => [styles.primaryWideButton, pressed && styles.pressed]}>
-                  <Text style={styles.primaryButtonText}>OPEN PROFILE</Text>
-                  <Ionicons name="arrow-forward" size={18} color={colors.text} />
+                  <Text style={styles.primaryButtonText}>
+                    {returnToDriveTogether ? 'BACK TO DRIVE TOGETHER' : 'OPEN PROFILE'}
+                  </Text>
+                  <Ionicons
+                    name={returnToDriveTogether ? 'car-sport-outline' : 'arrow-forward'}
+                    size={18}
+                    color={colors.text}
+                  />
                 </Pressable>
                 <Pressable
                   onPress={resetConnect}
