@@ -66,7 +66,7 @@ assert(
 
 assert(
   /<NoxaSurface/.test(tab)
-    && /styles\.indicatorActive/.test(tab)
+    && /styles\.indicator/.test(tab)
     && !/borderRadius:\s*26/.test(tab)
     && !/segmentActive/.test(tab),
   'Root navigation must use the same angular surface instead of a separate pill language.',
