@@ -85,13 +85,28 @@ function TopBar() {
   return (
     <View style={styles.topBar}>
       <Text style={styles.pageTitle}>PROFILE</Text>
-      <Pressable
-        accessibilityLabel="Profile settings"
-        accessibilityRole="button"
-        onPress={() => router.push('/settings')}
-        style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-        <Ionicons name="settings-outline" size={21} color={colors.text} />
-      </Pressable>
+      <View style={styles.topActions}>
+        <Pressable
+          accessibilityLabel="Quick Connect"
+          accessibilityHint="Show or scan a one-time code to add a driver"
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: '/quick-connect',
+              params: { mode: 'share' },
+            })
+          }
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+          <Ionicons name="qr-code-outline" size={20} color={colors.text} />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Profile settings"
+          accessibilityRole="button"
+          onPress={() => router.push('/settings')}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+          <Ionicons name="settings-outline" size={21} color={colors.text} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -549,6 +564,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   pageTitle: {
     color: colors.text,
