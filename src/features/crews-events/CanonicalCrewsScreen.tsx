@@ -22,6 +22,7 @@ import {
   NoxaRootHeader,
   NoxaScreen,
   NoxaSegmentedControl,
+  NoxaSurface,
 } from "@/src/components/ui";
 import { useResponsive } from "@/src/hooks/useResponsive";
 import {
@@ -781,16 +782,16 @@ export default function CanonicalCrewsScreen() {
   const content = useMemo(() => {
     if (loading) {
       return (
-        <View style={styles.stateCard}>
+        <NoxaSurface style={styles.stateCard}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.stateText}>Loading crews…</Text>
-        </View>
+        </NoxaSurface>
       );
     }
 
     if (!hero) {
       return (
-        <View style={styles.stateCard}>
+        <NoxaSurface style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
           <Text style={styles.stateTitle}>
             {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
@@ -807,7 +808,7 @@ export default function CanonicalCrewsScreen() {
               filter === "mine" ? setCreateVisible(true) : void load(false)
             }
           />
-        </View>
+        </NoxaSurface>
       );
     }
 
@@ -920,7 +921,10 @@ export default function CanonicalCrewsScreen() {
         />
 
         {error ? (
-          <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
+          <NoxaPressableSurface
+            accessibilityRole="button"
+            contentStyle={styles.errorBanner}
+            onPress={() => setError(null)}>
             <Ionicons
               name="alert-circle-outline"
               size={16}
@@ -929,7 +933,7 @@ export default function CanonicalCrewsScreen() {
             <Text numberOfLines={2} style={styles.errorText}>
               {error}
             </Text>
-          </Pressable>
+          </NoxaPressableSurface>
         ) : null}
 
         {content}
@@ -1054,10 +1058,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    backgroundColor: "transparent",
   },
   errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
   stateCard: {
@@ -1066,10 +1067,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.md,
     padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: "transparent",
   },
   stateTitle: {
     color: colors.text,
@@ -1184,9 +1182,7 @@ const styles = StyleSheet.create({
     width: 190,
     height: 158,
     overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    backgroundColor: "transparent",
   },
   compactArtwork: {
     flex: 1,
@@ -1226,10 +1222,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: "transparent",
   },
   dateTile: {
     width: 50,
