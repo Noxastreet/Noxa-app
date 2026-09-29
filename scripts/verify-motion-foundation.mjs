@@ -20,6 +20,7 @@ const tabs = read('components/noxa-bottom-tab-bar.tsx');
 const layout = read('app/(tabs)/_layout.tsx');
 const map = read('app/(tabs)/index.tsx');
 const driverCard = read('src/features/map/MapDriverCard.tsx');
+const driveSheet = read('src/features/group-drive/components/DriveTogetherSheet.tsx');
 
 assert(
   /rootTab:\s*160/.test(animations)
@@ -93,6 +94,17 @@ assert(
     && /ReduceMotion\.System/.test(driverCard)
     && /styles\.cardPosition/.test(driverCard),
   'Map driver card must use the same restrained system-aware contextual motion.',
+);
+
+assert(
+  /sheet:\s*\{/.test(animations)
+    && /animations\.spring\.sheet/.test(driveSheet)
+    && /useReducedMotion/.test(driveSheet)
+    && /translateForSnap\(reduceMotion \? snap : 'collapsed'\)/.test(driveSheet)
+    && /translateY\.stopAnimation/.test(driveSheet)
+    && /Haptics\.selectionAsync/.test(driveSheet)
+    && /settleTo\(closest\)/.test(driveSheet),
+  'Drive Together sheet must use canonical interruptible snap physics, Reduce Motion and restrained detent haptics.',
 );
 
 assert(

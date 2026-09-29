@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   Animated,
   PanResponder,
+  Platform,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
-import { colors, spacing } from '@/src/theme';
+import { animations, colors, spacing } from '@/src/theme';
 
 export type DriveTogetherSheetSnap = 'collapsed' | 'medium' | 'expanded';
 
@@ -32,6 +35,7 @@ export function DriveTogetherSheet({
   onSnapChange,
   children,
 }: Props) {
+  const reduceMotion = useReducedMotion();
   const { height: windowHeight } = useWindowDimensions();
   const heights = useMemo(() => {
     const available = Math.max(
@@ -57,22 +61,37 @@ export function DriveTogetherSheet({
   );
 
   const translateY = useRef(
-    new Animated.Value(translateForSnap(snap)),
+    new Animated.Value(
+      translateForSnap(reduceMotion ? snap : 'collapsed'),
+    ),
   ).current;
-  const startTranslateRef = useRef(translateForSnap(snap));
+  const startTranslateRef = useRef(
+    translateForSnap(reduceMotion ? snap : 'collapsed'),
+  );
+
+  const settleTo = useCallback(
+    (target: DriveTogetherSheetSnap) => {
+      const next = translateForSnap(target);
+      startTranslateRef.current = next;
+      translateY.stopAnimation();
+
+      if (reduceMotion) {
+        translateY.setValue(next);
+        return;
+      }
+
+      Animated.spring(translateY, {
+        toValue: next,
+        ...animations.spring.sheet,
+        useNativeDriver: true,
+      }).start();
+    },
+    [reduceMotion, translateForSnap, translateY],
+  );
 
   useEffect(() => {
-    const next = translateForSnap(snap);
-    startTranslateRef.current = next;
-    Animated.spring(translateY, {
-      toValue: next,
-      damping: 28,
-      stiffness: 300,
-      mass: 0.82,
-      overshootClamping: true,
-      useNativeDriver: true,
-    }).start();
-  }, [snap, translateForSnap, translateY]);
+    settleTo(snap);
+  }, [settleTo, snap]);
 
   const panResponder = useMemo(
     () =>
@@ -81,6 +100,9 @@ export function DriveTogetherSheet({
           Math.abs(gesture.dy) > 5 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
         onPanResponderGrant: () => {
           startTranslateRef.current = translateForSnap(snap);
+          translateY.stopAnimation((value) => {
+            startTranslateRef.current = value;
+          });
         },
         onPanResponderMove: (_, gesture) => {
           const next = Math.max(
@@ -112,20 +134,19 @@ export function DriveTogetherSheet({
             );
             return candidateDistance < bestDistance ? candidate : best;
           }, 'medium' as DriveTogetherSheetSnap);
-          onSnapChange(closest);
+          settleTo(closest);
+          if (closest !== snap) {
+            if (Platform.OS === 'ios') {
+              void Haptics.selectionAsync().catch(() => undefined);
+            }
+            onSnapChange(closest);
+          }
         },
         onPanResponderTerminate: () => {
-          Animated.spring(translateY, {
-            toValue: translateForSnap(snap),
-            damping: 28,
-            stiffness: 300,
-            mass: 0.82,
-            overshootClamping: true,
-            useNativeDriver: true,
-          }).start();
+          settleTo(snap);
         },
       }),
-    [onSnapChange, snap, translateForSnap, translateY],
+    [onSnapChange, settleTo, snap, translateForSnap, translateY],
   );
 
   return (
