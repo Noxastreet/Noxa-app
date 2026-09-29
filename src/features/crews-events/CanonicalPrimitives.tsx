@@ -3,7 +3,8 @@ import { Image as ExpoImage } from "expo-image";
 import type { ReactNode } from "react";
 import { ImageBackground, Pressable, StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { NoxaButton, NoxaCutBackground } from "@/src/components/ui";
+import { colors, geometry, radius, spacing, typography } from "@/src/theme";
 
 export type CanonicalProfile = {
   id: string;
@@ -36,22 +37,32 @@ export function CanonicalPill({
   label: string;
   tone?: "neutral" | "default" | "accent" | "success";
 }) {
+  const fill =
+    tone === "accent"
+      ? colors.primary
+      : tone === "success"
+        ? colors.successMuted
+        : "rgba(6,6,10,0.72)";
+  const border =
+    tone === "accent"
+      ? colors.primary
+      : tone === "success"
+        ? colors.success
+        : colors.borderStrong;
+
   return (
-    <View
-      style={[
-        styles.pill,
-        tone === "accent" && styles.pillAccent,
-        tone === "success" && styles.pillSuccess,
-      ]}
-    >
+    <View style={styles.pill}>
+      <NoxaCutBackground
+        borderColor={border}
+        cut={geometry.cut.sm}
+        fill={fill}
+      />
       <Text
         numberOfLines={1}
         style={[
           styles.pillText,
-          tone === "accent" && styles.pillTextStrong,
-          tone === "success" && styles.pillTextStrong,
-        ]}
-      >
+          (tone === "accent" || tone === "success") && styles.pillTextStrong,
+        ]}>
         {label}
       </Text>
     </View>
@@ -253,37 +264,34 @@ export function CanonicalPrimaryButton({
   if (disabled && label === "OWNER") {
     return (
       <View accessibilityLabel="Crew owner" style={styles.ownerStatus}>
+        <NoxaCutBackground
+          borderColor={colors.border}
+          cut={geometry.cut.sm}
+          fill="rgba(18,18,24,0.78)"
+        />
         <Ionicons name={icon || "shield-checkmark-outline"} size={14} color={colors.textMuted} />
         <Text numberOfLines={1} style={styles.ownerStatusText}>OWNER</Text>
       </View>
     );
   }
 
+  const noxaVariant =
+    variant === "surface"
+      ? "secondary"
+      : variant === "danger"
+        ? "danger"
+        : "primary";
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled || loading}
+    <NoxaButton
+      disabled={disabled}
+      leadingIcon={icon ? <Ionicons name={icon} size={compact ? 15 : 17} color={colors.text} /> : undefined}
+      loading={loading}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.primaryButton,
-        compact && styles.primaryButtonCompact,
-        variant === "surface" && styles.primaryButtonSurface,
-        variant === "danger" && styles.primaryButtonDanger,
-        (disabled || loading) && styles.disabled,
-        pressed && !disabled && !loading && styles.pressed,
-      ]}
-    >
-      {icon ? (
-        <Ionicons
-          name={icon}
-          size={compact ? 15 : 17}
-          color={colors.text}
-        />
-      ) : null}
-      <Text numberOfLines={1} style={[styles.primaryButtonText, compact && styles.primaryButtonTextCompact]}>
-        {loading ? "PLEASE WAIT…" : label}
-      </Text>
-    </Pressable>
+      size={compact ? "sm" : "md"}
+      title={loading ? "PLEASE WAIT…" : label}
+      variant={noxaVariant}
+    />
   );
 }
 
@@ -291,23 +299,13 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
   disabled: { opacity: 0.42 },
   pill: {
-    minHeight: 24,
+    position: "relative",
+    minHeight: 26,
     alignSelf: "flex-start",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(6,6,10,0.62)",
-  },
-  pillAccent: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  pillSuccess: {
-    borderColor: colors.success,
-    backgroundColor: colors.successMuted,
+    backgroundColor: "transparent",
   },
   pillText: {
     color: colors.text,
@@ -322,7 +320,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   artworkImage: {
-    borderRadius: radius.hero,
+    borderRadius: 0,
   },
   fallback: {
     position: "relative",
@@ -408,52 +406,22 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 18,
-    fontWeight: "800",
-    letterSpacing: 0.2,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.v2.section.fontSize,
+    lineHeight: typography.v2.section.lineHeight,
+    letterSpacing: typography.v2.section.letterSpacing,
+    fontWeight: "900",
   },
   sectionAction: {
     color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-  },
-  primaryButton: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.button,
-    backgroundColor: colors.primary,
-  },
-  primaryButtonCompact: {
-    minHeight: 40,
-    paddingHorizontal: spacing.md,
-  },
-  primaryButtonSurface: {
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceRaised,
-  },
-  primaryButtonDanger: {
-    backgroundColor: colors.primary,
-  },
-  primaryButtonText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.body,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "900",
-    letterSpacing: 0.4,
-  },
-  primaryButtonTextCompact: {
-    fontSize: 11,
+    fontSize: typography.v2.label.fontSize,
+    lineHeight: typography.v2.label.lineHeight,
+    fontWeight: "800",
+    letterSpacing: typography.v2.label.letterSpacing,
+    textTransform: "uppercase",
   },
   ownerStatus: {
+    position: "relative",
     minHeight: 30,
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -461,10 +429,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.xxs,
     paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "rgba(18,18,24,0.72)",
+    backgroundColor: "transparent",
   },
   ownerStatusText: {
     color: colors.textMuted,

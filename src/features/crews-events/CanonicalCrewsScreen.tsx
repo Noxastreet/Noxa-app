@@ -16,7 +16,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { NoxaScreen } from "@/src/components/ui";
+import {
+  NoxaButton,
+  NoxaPressableSurface,
+  NoxaRootHeader,
+  NoxaScreen,
+  NoxaSegmentedControl,
+  NoxaSurface,
+} from "@/src/components/ui";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import {
   CanonicalArtwork,
   CanonicalAvatarStack,
@@ -136,41 +144,15 @@ function CrewFilterControl({
   onChange: (value: CrewFilter) => void;
 }) {
   return (
-    <View style={styles.filterControl}>
-      {[
-        { value: "mine" as const, label: "YOUR CREWS", count: myCount },
-        { value: "discover" as const, label: "DISCOVER", count: discoverCount },
-      ].map((item) => {
-        const active = item.value === value;
-        return (
-          <Pressable
-            key={item.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(item.value)}
-            style={({ pressed }) => [
-              styles.filterButton,
-              active && styles.filterButtonActive,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={[styles.filterText, active && styles.filterTextActive]}>
-              {item.label}
-            </Text>
-            <View style={[styles.filterCount, active && styles.filterCountActive]}>
-              <Text
-                style={[
-                  styles.filterCountText,
-                  active && styles.filterCountTextActive,
-                ]}
-              >
-                {item.count}
-              </Text>
-            </View>
-          </Pressable>
-        );
-      })}
-    </View>
+    <NoxaSegmentedControl
+      accessibilityLabel="Crew view"
+      onChange={onChange}
+      options={[
+        { value: "mine", label: "YOUR CREWS", count: myCount },
+        { value: "discover", label: "DISCOVER", count: discoverCount },
+      ]}
+      value={value}
+    />
   );
 }
 
@@ -190,14 +172,15 @@ function HeroCrew({
   const artworkUri = crew.cover_image_url || event?.cover_image_url || null;
 
   return (
-    <Pressable
+    <NoxaPressableSurface
       accessibilityLabel={`Open ${crew.name}`}
       accessibilityRole="button"
+      contentStyle={styles.heroCard}
+      maskChildren
       onPress={() =>
         router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
       }
-      style={({ pressed }) => [styles.heroCard, pressed && styles.pressed]}
-    >
+      outsideFill={colors.background}>
       <CanonicalArtwork
         uri={artworkUri}
         style={styles.heroArtwork}
@@ -257,20 +240,21 @@ function HeroCrew({
           </View>
         </View>
       </CanonicalArtwork>
-    </Pressable>
+    </NoxaPressableSurface>
   );
 }
 
 function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
   return (
-    <Pressable
+    <NoxaPressableSurface
       accessibilityLabel={`Open ${crew.name}`}
       accessibilityRole="button"
+      contentStyle={styles.compactCard}
+      maskChildren
       onPress={() =>
         router.push({ pathname: "/crew/[id]", params: { id: crew.id } })
       }
-      style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}
-    >
+      outsideFill={colors.background}>
       <CanonicalArtwork
         uri={crew.cover_image_url || event?.cover_image_url}
         style={styles.compactArtwork}
@@ -296,7 +280,7 @@ function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
           </View>
         </View>
       </CanonicalArtwork>
-    </Pressable>
+    </NoxaPressableSurface>
   );
 }
 
@@ -309,14 +293,13 @@ function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
     .toUpperCase();
 
   return (
-    <Pressable
+    <NoxaPressableSurface
       accessibilityLabel={`Open ${event.title}`}
       accessibilityRole="button"
+      contentStyle={styles.driveCard}
       onPress={() =>
         router.push({ pathname: "/event-details", params: { id: event.id } })
-      }
-      style={({ pressed }) => [styles.driveCard, pressed && styles.pressed]}
-    >
+      }>
       <View style={styles.dateTile}>
         <Text style={styles.dateDay}>{day}</Text>
         <Text style={styles.dateMonth}>{month}</Text>
@@ -334,7 +317,7 @@ function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
-    </Pressable>
+    </NoxaPressableSurface>
   );
 }
 
@@ -556,6 +539,7 @@ function CreateCrewModal({
 }
 
 export default function CanonicalCrewsScreen() {
+  const { gutter } = useResponsive();
   const [crews, setCrews] = useState<Crew[]>([]);
   const [events, setEvents] = useState<CrewEvent[]>([]);
   const [profiles, setProfiles] = useState<CanonicalProfile[]>([]);
@@ -798,16 +782,16 @@ export default function CanonicalCrewsScreen() {
   const content = useMemo(() => {
     if (loading) {
       return (
-        <View style={styles.stateCard}>
+        <NoxaSurface style={styles.stateCard}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.stateText}>Loading crews…</Text>
-        </View>
+        </NoxaSurface>
       );
     }
 
     if (!hero) {
       return (
-        <View style={styles.stateCard}>
+        <NoxaSurface style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
           <Text style={styles.stateTitle}>
             {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
@@ -824,7 +808,7 @@ export default function CanonicalCrewsScreen() {
               filter === "mine" ? setCreateVisible(true) : void load(false)
             }
           />
-        </View>
+        </NoxaSurface>
       );
     }
 
@@ -902,7 +886,7 @@ export default function CanonicalCrewsScreen() {
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -914,26 +898,20 @@ export default function CanonicalCrewsScreen() {
           />
         }
       >
-        <View style={styles.topBar}>
-          <View style={styles.heading}>
-            <Text style={styles.pageTitle}>CREWS</Text>
-            <Text style={styles.pageSubtitle}>Find your people. Drive together.</Text>
-          </View>
-          <View style={styles.topActions}>
-            <Pressable
+        <NoxaRootHeader
+          actions={
+            <NoxaButton
               accessibilityLabel="Create crew"
-              accessibilityRole="button"
+              leadingIcon={<Ionicons name="add" size={16} color={colors.text} />}
               onPress={() => setCreateVisible(true)}
-              style={({ pressed }) => [
-                styles.createButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons name="add" size={17} color={colors.text} />
-              <Text style={styles.createText}>CREATE</Text>
-            </Pressable>
-          </View>
-        </View>
+              size="sm"
+              title="CREATE"
+              variant="secondary"
+            />
+          }
+          subtitle="Find your people. Drive together."
+          title="CREWS"
+        />
 
         <CrewFilterControl
           discoverCount={discovery.length}
@@ -943,7 +921,10 @@ export default function CanonicalCrewsScreen() {
         />
 
         {error ? (
-          <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
+          <NoxaPressableSurface
+            accessibilityRole="button"
+            contentStyle={styles.errorBanner}
+            onPress={() => setError(null)}>
             <Ionicons
               name="alert-circle-outline"
               size={16}
@@ -952,7 +933,7 @@ export default function CanonicalCrewsScreen() {
             <Text numberOfLines={2} style={styles.errorText}>
               {error}
             </Text>
-          </Pressable>
+          </NoxaPressableSurface>
         ) : null}
 
         {content}
@@ -970,7 +951,7 @@ export default function CanonicalCrewsScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 0,
     paddingTop: spacing.lg,
     paddingBottom: 136,
     gap: spacing.lg,
@@ -1077,10 +1058,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primarySubtle,
+    backgroundColor: "transparent",
   },
   errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
   stateCard: {
@@ -1089,10 +1067,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.md,
     padding: spacing.xl,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: "transparent",
   },
   stateTitle: {
     color: colors.text,
@@ -1110,10 +1085,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.hero,
-    backgroundColor: colors.background,
+    backgroundColor: "transparent",
   },
   heroArtwork: {
     minHeight: 278,
@@ -1121,7 +1093,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingTop: 80,
   },
-  heroArtworkImage: { borderRadius: radius.hero - 1 },
+  heroArtworkImage: {},
   heroShadeTop: {
     ...StyleSheet.absoluteFillObject,
     bottom: "48%",
@@ -1210,16 +1182,14 @@ const styles = StyleSheet.create({
     width: 190,
     height: 158,
     overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    backgroundColor: "transparent",
   },
   compactArtwork: {
     flex: 1,
     justifyContent: "space-between",
     padding: spacing.sm,
   },
-  compactArtworkImage: { borderRadius: radius.lg - 1 },
+  compactArtworkImage: {},
   compactShade: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.55)",
@@ -1252,10 +1222,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: "transparent",
   },
   dateTile: {
     width: 50,

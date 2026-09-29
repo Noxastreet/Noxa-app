@@ -14,14 +14,22 @@ import {
   type ImageStyle,
 } from 'react-native';
 
-import { NoxaAvatar, NoxaScreen } from '@/src/components/ui';
+import {
+  NoxaAvatar,
+  NoxaButton,
+  NoxaIconButton,
+  NoxaPressableSurface,
+  NoxaRootHeader,
+  NoxaScreen,
+} from '@/src/components/ui';
+import { useResponsive } from '@/src/hooks/useResponsive';
 import { clearGroupDriveLocationBeforeSignOut } from '@/src/features/group-drive/runtime/nativeLocation';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { formatProfileLocation } from '@/src/features/profile/formatProfileLocation';
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
-import { animations, colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { animations, colors, radius, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
   id: string;
@@ -83,31 +91,33 @@ function formatUsername(username: string | null) {
 
 function TopBar() {
   return (
-    <View style={styles.topBar}>
-      <Text style={styles.pageTitle}>PROFILE</Text>
-      <View style={styles.topActions}>
-        <Pressable
-          accessibilityLabel="Quick Connect"
-          accessibilityHint="Show or scan a one-time code to add a driver"
-          accessibilityRole="button"
-          onPress={() =>
-            router.push({
-              pathname: '/quick-connect',
-              params: { mode: 'share' },
-            })
-          }
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-          <Ionicons name="qr-code-outline" size={20} color={colors.text} />
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Profile settings"
-          accessibilityRole="button"
-          onPress={() => router.push('/settings')}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-          <Ionicons name="settings-outline" size={21} color={colors.text} />
-        </Pressable>
-      </View>
-    </View>
+    <NoxaRootHeader
+      actions={
+        <>
+          <NoxaIconButton
+            accessibilityHint="Show or scan a one-time code to add a driver"
+            accessibilityLabel="Quick Connect"
+            icon="qr-code-outline"
+            onPress={() =>
+              router.push({
+                pathname: '/quick-connect',
+                params: { mode: 'share' },
+              })
+            }
+            size={44}
+            variant="surface"
+          />
+          <NoxaIconButton
+            accessibilityLabel="Profile settings"
+            icon="settings-outline"
+            onPress={() => router.push('/settings')}
+            size={44}
+            variant="surface"
+          />
+        </>
+      }
+      title="PROFILE"
+    />
   );
 }
 
@@ -157,20 +167,24 @@ function Identity({
 
       <Text style={styles.bio}>{bio}</Text>
 
-      <Pressable
+      <NoxaButton
         accessibilityLabel="Edit Profile"
-        accessibilityRole="button"
+        fullWidth
         onPress={() => router.push('/edit-profile')}
-        style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}>
-        <Text style={styles.editButtonText}>EDIT PROFILE</Text>
-      </Pressable>
+        size="md"
+        title="EDIT PROFILE"
+        variant="secondary"
+      />
 
       {errorMessage ? (
         <View style={styles.inlineErrorRow}>
           <Text style={styles.inlineError}>{errorMessage}</Text>
-          <Pressable accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-            <Text style={styles.retryText}>RETRY</Text>
-          </Pressable>
+          <NoxaButton
+            onPress={onRetry}
+            size="sm"
+            title="RETRY"
+            variant="secondary"
+          />
         </View>
       ) : null}
     </Animated.View>
@@ -233,15 +247,16 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
           <Text style={styles.sectionLink}>VIEW ALL</Text>
         </Pressable>
       </View>
-      <Pressable
+      <NoxaPressableSurface
         accessibilityLabel={`Open ${vehicle.brand} ${vehicle.model || ''}`.trim()}
         accessibilityRole="button"
-        onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
-        style={({ pressed }) => [
+        contentStyle={[
           styles.vehicleCard,
           !vehicle.cover_image_url && styles.vehicleCardNoImage,
-          pressed && styles.pressed,
-        ]}>
+        ]}
+        maskChildren
+        onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
+        outsideFill={colors.background}>
         {vehicle.cover_image_url ? (
           <ImageBackground
             source={{ uri: vehicle.cover_image_url }}
@@ -259,7 +274,7 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
             {content}
           </View>
         )}
-      </Pressable>
+      </NoxaPressableSurface>
     </Animated.View>
   );
 }
@@ -415,6 +430,7 @@ function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; on
 }
 
 export default function ProfileScreen() {
+  const { gutter } = useResponsive();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [profileData, setProfileData] = useState<CurrentUserProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -537,7 +553,9 @@ export default function ProfileScreen() {
 
   return (
     <NoxaScreen padded={false}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}>
         <TopBar />
         <Identity profile={profileData} isLoading={isProfileLoading} errorMessage={profileError} onRetry={loadProfile} />
         <GarageFeature vehicle={featuredVehicle} vehiclesCount={vehiclesCount} />
@@ -552,7 +570,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 0,
     paddingTop: spacing.lg,
     paddingBottom: 144,
     gap: spacing.xl,
@@ -633,20 +651,15 @@ const styles = StyleSheet.create({
   vehicleCard: {
     height: 224,
     overflow: 'hidden',
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    backgroundColor: 'transparent',
   },
   vehicleCardNoImage: {
     height: 166,
-    borderRadius: radius.xl,
     shadowOpacity: 0,
     elevation: 0,
   },
   vehicleArtwork: { flex: 1, justifyContent: 'flex-end' },
-  vehicleArtworkRadius: { borderRadius: radius.hero },
+  vehicleArtworkRadius: {},
   vehicleFallback: { backgroundColor: colors.surfaceSoft },
   vehicleFallbackVisual: {
     position: 'absolute',

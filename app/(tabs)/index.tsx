@@ -14,7 +14,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { NoxaButton, NoxaIconButton } from "@/src/components/ui";
+import {
+  NoxaButton,
+  NoxaIconButton,
+  NoxaPressableSurface,
+  NoxaSurface,
+} from "@/src/components/ui";
 import { MapDriverCard } from "@/src/features/map/MapDriverCard";
 import {
   DriveTogetherMapLayer,
@@ -367,7 +372,10 @@ function EventCard({
 }) {
   const canRoute = hasValidCoordinates(event);
   return (
-    <View style={[styles.eventCard, { bottom: bottomOffset }]}>
+    <NoxaSurface
+      corners="top"
+      level="sheet"
+      style={[styles.eventCard, { bottom: bottomOffset }]}>
       <View style={styles.eventCardHeader}>
         <View style={styles.eventCardCopy}>
           <Text style={styles.cardKicker}>{getEventLifecycle(event) === "live" ? "Live event" : "Upcoming event"}</Text>
@@ -418,7 +426,7 @@ function EventCard({
           title="Route"
         />
       </View>
-    </View>
+    </NoxaSurface>
   );
 }
 
@@ -451,7 +459,10 @@ function RouteCard({
 }) {
   const loading = status === "loading";
   return (
-    <View style={[styles.routeCard, { bottom: bottomOffset }]}>
+    <NoxaSurface
+      corners="top"
+      level="sheet"
+      style={[styles.routeCard, { bottom: bottomOffset }]}>
       <View style={styles.routeHeader}>
         <View style={styles.routeTitleWrap}>
           <Text style={styles.cardKicker}>NOXA route</Text>
@@ -489,39 +500,34 @@ function RouteCard({
         </Text>
       )}
       {route && canFollow ? (
-        <TouchableOpacity
+        <NoxaButton
           accessibilityLabel={
             following ? "Stop following current location" : "Follow route"
           }
-          accessibilityRole="button"
-          accessibilityState={{ selected: following }}
-          activeOpacity={0.82}
+          leadingIcon={
+            <Ionicons
+              name={following ? "navigate" : "navigate-outline"}
+              size={16}
+              color={colors.text}
+            />
+          }
           onPress={onFollowToggle}
-          style={[
-            styles.routeFollowButton,
-            following && styles.routeFollowButtonActive,
-          ]}
-        >
-          <Ionicons
-            name={following ? "navigate" : "navigate-outline"}
-            size={16}
-            color={following ? colors.text : colors.primaryHover}
-          />
-          <Text style={styles.routeFollowText}>
-            {following ? "Following" : "Follow"}
-          </Text>
-        </TouchableOpacity>
+          size="md"
+          style={styles.routeFollowButton}
+          title={following ? "Following" : "Follow"}
+          variant={following ? "primary" : "secondary"}
+        />
       ) : null}
       {status === "error" ? (
-        <TouchableOpacity
-          activeOpacity={0.82}
+        <NoxaButton
           onPress={onRetry}
+          size="sm"
           style={styles.routeRetryButton}
-        >
-          <Text style={styles.routeRetryText}>Retry route</Text>
-        </TouchableOpacity>
+          title="Retry route"
+          variant="secondary"
+        />
       ) : null}
-    </View>
+    </NoxaSurface>
   );
 }
 
@@ -579,7 +585,7 @@ function RouteFocusOverlay({
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
       <View style={[styles.routeFocusTop, { top: topInset + spacing.sm }]}>
-        <View style={styles.routeFocusInstruction}>
+        <NoxaSurface level="overlay" style={styles.routeFocusInstruction}>
           <View style={styles.routeFocusTurnIcon}>
             <Ionicons
               name={
@@ -599,20 +605,20 @@ function RouteFocusOverlay({
               {instruction}
             </Text>
           </View>
-        </View>
+        </NoxaSurface>
 
-        <TouchableOpacity
+        <NoxaIconButton
           accessibilityLabel="End route navigation"
-          accessibilityRole="button"
-          activeOpacity={0.82}
+          icon="close"
+          iconSize={20}
           onPress={onExit}
-          style={styles.routeFocusClose}>
-          <Ionicons name="close" size={20} color={colors.text} />
-        </TouchableOpacity>
+          size={44}
+          variant="overlay"
+        />
       </View>
 
       <View style={[styles.routeFocusBottom, { bottom: bottomInset + spacing.md }]}>
-        <View style={styles.routeFocusMetrics}>
+        <NoxaSurface level="overlay" style={styles.routeFocusMetrics}>
           <Text numberOfLines={1} style={styles.routeFocusDestination}>
             {event.title}
           </Text>
@@ -630,17 +636,17 @@ function RouteFocusOverlay({
                 : `ETA ${formatArrivalTime(remainingDurationSeconds)}`}
             </Text>
           </View>
-        </View>
+        </NoxaSurface>
 
         {!following ? (
-          <TouchableOpacity
+          <NoxaIconButton
             accessibilityLabel="Resume route following"
-            accessibilityRole="button"
-            activeOpacity={0.82}
+            icon="locate"
+            iconSize={20}
             onPress={onRecenter}
-            style={styles.routeFocusRecenter}>
-            <Ionicons name="locate" size={20} color={colors.text} />
-          </TouchableOpacity>
+            size={50}
+            variant="overlay"
+          />
         ) : null}
       </View>
     </View>
@@ -2367,7 +2373,7 @@ export default function LiveMapScreen() {
         ) : null}
 
         {!isRouteFocusMode && visibilityMenuOpen ? (
-          <View style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
+          <NoxaSurface level="overlay" style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
             <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
             {VISIBILITY_MODES.map((mode) => {
               const selected = visibilityMode === mode.id;
@@ -2419,7 +2425,7 @@ export default function LiveMapScreen() {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </NoxaSurface>
         ) : null}
 
         {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
@@ -2459,25 +2465,25 @@ export default function LiveMapScreen() {
         ) : null}
 
         {!isRouteFocusMode && activeNotice ? (
-          <View
+          <NoxaSurface
             accessibilityLiveRegion="polite"
+            level="overlay"
             pointerEvents="none"
-            style={[styles.mapNotice, { top: noticesTop }]}
-          >
+            style={[styles.mapNotice, { top: noticesTop }]}>
             <Ionicons
               name={activeNotice.icon}
               size={15}
               color={colors.primaryHover}
             />
             <Text style={styles.mapNoticeText}>{activeNotice.message}</Text>
-          </View>
+          </NoxaSurface>
         ) : null}
 
         {!isRouteFocusMode && mapDataHasError ? (
-          <View
+          <NoxaSurface
             accessibilityLiveRegion="polite"
-            style={[styles.mapDataNotice, { top: mapDataNoticeTop }]}
-          >
+            level="overlay"
+            style={[styles.mapDataNotice, { top: mapDataNoticeTop }]}>
             <View style={styles.mapDataNoticeCopy}>
               <Ionicons
                 name="cloud-offline-outline"
@@ -2488,16 +2494,15 @@ export default function LiveMapScreen() {
                 {mapDataNoticeMessage}
               </Text>
             </View>
-            <TouchableOpacity
+            <NoxaButton
               accessibilityLabel="Retry map data"
-              accessibilityRole="button"
-              activeOpacity={0.78}
               onPress={retryMapData}
+              size="sm"
               style={styles.mapDataRetryButton}
-            >
-              <Text style={styles.mapDataRetryText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
+              title="Retry"
+              variant="secondary"
+            />
+          </NoxaSurface>
         ) : null}
 
         {!selectedDriverId && !isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
@@ -2578,7 +2583,7 @@ export default function LiveMapScreen() {
         visible={pendingVisibilityMode !== null}
       >
         <View style={styles.liveDriveModalBackdrop}>
-          <View style={styles.liveDriveModalCard}>
+          <NoxaSurface level="sheet" style={styles.liveDriveModalCard}>
             <View style={styles.liveDriveModalIcon}>
               <Ionicons name="navigate" size={22} color={colors.primaryHover} />
             </View>
@@ -2593,28 +2598,26 @@ export default function LiveMapScreen() {
               Sharing stops after 4 hours, when you select Ghost, or when you sign out.
             </Text>
             <View style={styles.liveDriveModalActions}>
-              <TouchableOpacity
+              <NoxaButton
                 disabled={isStartingLiveDrive}
                 onPress={() => setPendingVisibilityMode(null)}
+                size="md"
                 style={styles.liveDriveCancelButton}
-              >
-                <Text style={styles.liveDriveCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                title="Cancel"
+                variant="secondary"
+              />
+              <NoxaButton
                 disabled={isStartingLiveDrive || !pendingVisibilityMode}
+                loading={isStartingLiveDrive}
                 onPress={() => {
                   if (pendingVisibilityMode) void startSharing(pendingVisibilityMode);
                 }}
+                size="md"
                 style={styles.liveDriveStartButton}
-              >
-                {isStartingLiveDrive ? (
-                  <ActivityIndicator color={colors.text} size="small" />
-                ) : (
-                  <Text style={styles.liveDriveStartText}>START 4-HOUR SESSION</Text>
-                )}
-              </TouchableOpacity>
+                title="Start 4-hour session"
+              />
             </View>
-          </View>
+          </NoxaSurface>
         </View>
       </Modal>
 
@@ -2628,7 +2631,7 @@ export default function LiveMapScreen() {
         visible={pendingAudienceChange !== null}
       >
         <View style={styles.liveDriveModalBackdrop}>
-          <View style={styles.liveDriveModalCard}>
+          <NoxaSurface level="sheet" style={styles.liveDriveModalCard}>
             <View style={styles.liveDriveModalIcon}>
               <Ionicons name="eye-outline" size={22} color={colors.primaryHover} />
             </View>
@@ -2645,33 +2648,31 @@ export default function LiveMapScreen() {
               earlier if you select Ghost or sign out.
             </Text>
             <View style={styles.liveDriveModalActions}>
-              <TouchableOpacity
+              <NoxaButton
                 disabled={isChangingAudience}
                 onPress={() => setPendingAudienceChange(null)}
+                size="md"
                 style={styles.liveDriveCancelButton}
-              >
-                <Text style={styles.liveDriveCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                title="Cancel"
+                variant="secondary"
+              />
+              <NoxaButton
                 disabled={isChangingAudience || !pendingAudienceChange}
+                loading={isChangingAudience}
                 onPress={() => {
                   if (pendingAudienceChange)
                     void applyAudienceChange(pendingAudienceChange.to);
                 }}
+                size="md"
                 style={styles.liveDriveStartButton}
-              >
-                {isChangingAudience ? (
-                  <ActivityIndicator color={colors.text} size="small" />
-                ) : (
-                  <Text style={styles.liveDriveStartText}>
-                    {pendingAudienceToLabel
-                      ? `CHANGE TO ${pendingAudienceToLabel.toUpperCase()}`
-                      : "CHANGE AUDIENCE"}
-                  </Text>
-                )}
-              </TouchableOpacity>
+                title={
+                  pendingAudienceToLabel
+                    ? `Change to ${pendingAudienceToLabel}`
+                    : "Change audience"
+                }
+              />
             </View>
-          </View>
+          </NoxaSurface>
         </View>
       </Modal>
     </View>
@@ -2846,11 +2847,7 @@ const styles = StyleSheet.create({
     width: 264,
     overflow: "hidden",
     padding: spacing.xs,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.97)",
-    ...shadows.card,
+    backgroundColor: "transparent",
   },
   visibilityMenuEyebrow: {
     paddingHorizontal: spacing.sm,
@@ -2867,7 +2864,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
   },
   visibilityOptionSelected: {
     backgroundColor: colors.primarySubtle,
@@ -2907,10 +2903,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: 9,
     paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primaryMuted,
-    backgroundColor: "rgba(12,12,16,0.94)",
+    backgroundColor: "transparent",
   },
   mapNoticeText: {
     flexShrink: 1,
@@ -2930,10 +2923,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingLeft: spacing.sm,
     paddingRight: 7,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.primaryMuted,
-    backgroundColor: "rgba(12,12,16,0.96)",
+    backgroundColor: "transparent",
   },
   mapDataNoticeCopy: {
     flex: 1,
@@ -2950,15 +2940,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   mapDataRetryButton: {
-    minWidth: 52,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    minWidth: 64,
   },
   mapDataRetryText: {
     color: colors.text,
@@ -2973,11 +2955,7 @@ const styles = StyleSheet.create({
   },
   liveDriveModalCard: {
     padding: spacing.xl,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    backgroundColor: "transparent",
   },
   liveDriveModalIcon: {
     width: 44,
@@ -3018,13 +2996,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   liveDriveCancelButton: {
-    height: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    minWidth: 96,
   },
   liveDriveCancelText: {
     color: colors.textMuted,
@@ -3033,12 +3005,6 @@ const styles = StyleSheet.create({
   },
   liveDriveStartButton: {
     flex: 1,
-    height: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
   },
   liveDriveStartText: {
     color: colors.text,
@@ -3051,11 +3017,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing.lg,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-    backgroundColor: colors.surface,
+    backgroundColor: "transparent",
   },
   eventCardHeader: {
     flexDirection: "row",
@@ -3132,11 +3094,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-    backgroundColor: "rgba(9,9,13,0.94)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.12)",
-    ...shadows.card,
+    backgroundColor: "transparent",
   },
   routeFocusTurnIcon: {
     width: 44,
@@ -3187,11 +3145,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
-    backgroundColor: "rgba(9,9,13,0.94)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.12)",
-    ...shadows.card,
+    backgroundColor: "transparent",
   },
   routeFocusDestination: {
     color: colors.textMuted,
@@ -3238,11 +3192,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing.lg,
-    borderTopLeftRadius: radius.sheet,
-    borderTopRightRadius: radius.sheet,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-    backgroundColor: colors.surface,
+    backgroundColor: "transparent",
   },
   routeHeader: {
     flexDirection: "row",
@@ -3288,15 +3238,6 @@ const styles = StyleSheet.create({
   },
   routeFollowButton: {
     marginTop: spacing.md,
-    height: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
   },
   routeFollowButtonActive: {
     backgroundColor: colors.primary,
@@ -3308,13 +3249,7 @@ const styles = StyleSheet.create({
   },
   routeRetryButton: {
     marginTop: spacing.md,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
+    alignSelf: "flex-start",
   },
   routeRetryText: {
     color: colors.text,

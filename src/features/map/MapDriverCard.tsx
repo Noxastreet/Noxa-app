@@ -4,14 +4,19 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
+import {
+  NoxaButton,
+  NoxaIconButton,
+  NoxaPressableSurface,
+  NoxaSurface,
+} from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type Relationship = 'self' | 'none' | 'outgoing' | 'incoming' | 'mutual';
 
@@ -288,7 +293,7 @@ export function MapDriverCard({
   }, [connect, driverId, isInDrive, onInviteToDrive, relationship]);
 
   return (
-    <View style={[styles.card, { bottom: bottomOffset }]}>
+    <NoxaSurface level="overlay" style={[styles.card, { bottom: bottomOffset }]}>
       <View style={styles.handle} />
 
       <View style={styles.header}>
@@ -321,13 +326,14 @@ export function MapDriverCard({
           </View>
         </View>
 
-        <Pressable
+        <NoxaIconButton
           accessibilityLabel="Close driver card"
-          accessibilityRole="button"
+          icon="close"
+          iconSize={18}
           onPress={onClose}
-          style={({ pressed }) => [styles.close, pressed && styles.pressed]}>
-          <Ionicons name="close" size={18} color={colors.textMuted} />
-        </Pressable>
+          size={40}
+          variant="ghost"
+        />
       </View>
 
       {loading ? (
@@ -338,13 +344,13 @@ export function MapDriverCard({
       ) : (
         <>
           {vehicle ? (
-            <Pressable
+            <NoxaPressableSurface
               accessibilityLabel={car ? `Open ${car}` : 'Open vehicle'}
               accessibilityRole="button"
+              contentStyle={styles.vehicle}
               onPress={() =>
                 router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })
-              }
-              style={({ pressed }) => [styles.vehicle, pressed && styles.pressed]}>
+              }>
               {vehicle.coverImageUrl ? (
                 <Image
                   cachePolicy="memory-disk"
@@ -364,49 +370,41 @@ export function MapDriverCard({
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
-            </Pressable>
+            </NoxaPressableSurface>
           ) : null}
 
           {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
 
           <View style={styles.actions}>
-            <Pressable
-              accessibilityRole="button"
-              disabled={primaryAction.disabled || relationshipLoading}
+            <NoxaButton
+              disabled={primaryAction.disabled}
+              leadingIcon={<Ionicons name={primaryAction.icon} size={16} color={colors.text} />}
+              loading={relationshipLoading}
               onPress={primaryAction.onPress}
-              style={({ pressed }) => [
-                styles.primaryAction,
-                (primaryAction.disabled || relationshipLoading) && styles.disabled,
-                pressed && !primaryAction.disabled && styles.pressed,
-              ]}>
-              {relationshipLoading ? (
-                <ActivityIndicator color={colors.text} size="small" />
-              ) : (
-                <>
-                  <Ionicons name={primaryAction.icon} size={16} color={colors.text} />
-                  <Text style={styles.primaryActionText}>{primaryAction.title}</Text>
-                </>
-              )}
-            </Pressable>
+              size="md"
+              style={styles.primaryAction}
+              title={primaryAction.title}
+            />
 
             {relationship !== 'self' ? (
-              <Pressable
-                accessibilityRole="button"
+              <NoxaButton
+                leadingIcon={<Ionicons name="person-outline" size={16} color={colors.text} />}
                 onPress={() =>
                   router.push({
                     pathname: '/driver-profile/[id]',
                     params: { id: driverId },
                   })
                 }
-                style={({ pressed }) => [styles.secondaryAction, pressed && styles.pressed]}>
-                <Ionicons name="person-outline" size={16} color={colors.text} />
-                <Text style={styles.secondaryActionText}>Profile</Text>
-              </Pressable>
+                size="md"
+                style={styles.secondaryAction}
+                title="Profile"
+                variant="secondary"
+              />
             ) : null}
           </View>
         </>
       )}
-    </View>
+    </NoxaSurface>
   );
 }
 
@@ -420,11 +418,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: 8,
     paddingBottom: spacing.md,
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(9,9,13,0.985)',
-    ...shadows.card,
+    backgroundColor: 'transparent',
   },
   handle: {
     width: 36,
@@ -540,10 +534,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     padding: 6,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    backgroundColor: 'rgba(255,255,255,0.035)',
+    backgroundColor: 'transparent',
   },
   vehicleImage: {
     width: 58,
@@ -586,14 +577,6 @@ const styles = StyleSheet.create({
   },
   primaryAction: {
     flex: 1,
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primary,
   },
   primaryActionText: {
     color: colors.text,
@@ -604,16 +587,6 @@ const styles = StyleSheet.create({
   },
   secondaryAction: {
     minWidth: 104,
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
   },
   secondaryActionText: {
     color: colors.text,

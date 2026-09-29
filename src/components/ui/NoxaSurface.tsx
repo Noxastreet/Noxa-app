@@ -1,5 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewProps,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { colors, geometry, shadows } from '@/src/theme';
@@ -15,11 +21,14 @@ type BackgroundProps = {
   corners?: NoxaCutCorners;
 };
 
-type SurfaceProps = BackgroundProps & {
-  children: ReactNode;
-  level?: NoxaSurfaceLevel;
-  style?: StyleProp<ViewStyle>;
-};
+type SurfaceProps = BackgroundProps &
+  Omit<ViewProps, 'children' | 'style'> & {
+    children: ReactNode;
+    level?: NoxaSurfaceLevel;
+    maskChildren?: boolean;
+    outsideFill?: string;
+    style?: StyleProp<ViewStyle>;
+  };
 
 function pathFor(width: number, height: number, cut: number, corners: NoxaCutCorners) {
   const c = Math.max(0, Math.min(cut, width / 3, height / 3));
@@ -95,6 +104,71 @@ export function NoxaCutBackground({
   );
 }
 
+function NoxaCornerMask({
+  cut,
+  corners,
+  fill,
+}: {
+  cut: number;
+  corners: NoxaCutCorners;
+  fill: string;
+}) {
+  if (corners === 'none' || cut <= 0) return null;
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+      {(corners === 'signature' || corners === 'top' || corners === 'all') ? (
+        <View
+          style={[
+            styles.maskTopRight,
+            {
+              borderLeftWidth: cut,
+              borderTopWidth: cut,
+              borderTopColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+      {(corners === 'top' || corners === 'all') ? (
+        <View
+          style={[
+            styles.maskTopLeft,
+            {
+              borderRightWidth: cut,
+              borderTopWidth: cut,
+              borderTopColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+      {(corners === 'signature' || corners === 'all') ? (
+        <View
+          style={[
+            styles.maskBottomLeft,
+            {
+              borderRightWidth: cut,
+              borderBottomWidth: cut,
+              borderBottomColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+      {corners === 'all' ? (
+        <View
+          style={[
+            styles.maskBottomRight,
+            {
+              borderLeftWidth: cut,
+              borderBottomWidth: cut,
+              borderBottomColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function NoxaSurface({
   children,
   fill,
@@ -103,7 +177,10 @@ export function NoxaSurface({
   cut,
   corners = 'signature',
   level = 'content',
+  maskChildren = false,
+  outsideFill = colors.background,
   style,
+  ...viewProps
 }: SurfaceProps) {
   const resolvedFill =
     fill ??
@@ -115,6 +192,7 @@ export function NoxaSurface({
 
   return (
     <View
+      {...viewProps}
       style={[
         styles.base,
         level === 'sheet' && styles.sheet,
@@ -129,6 +207,22 @@ export function NoxaSurface({
         fill={resolvedFill}
       />
       {children}
+      {maskChildren ? (
+        <>
+          <NoxaCornerMask
+            corners={corners}
+            cut={cut ?? geometry.cut.md}
+            fill={outsideFill}
+          />
+          <NoxaCutBackground
+            borderColor={borderColor}
+            borderWidth={borderWidth}
+            corners={corners}
+            cut={cut}
+            fill="transparent"
+          />
+        </>
+      ) : null}
     </View>
   );
 }
@@ -143,5 +237,37 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...shadows.control,
+  },
+  maskTopRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    borderLeftColor: 'transparent',
+  },
+  maskTopLeft: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+    borderRightColor: 'transparent',
+  },
+  maskBottomLeft: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+    borderRightColor: 'transparent',
+  },
+  maskBottomRight: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 0,
+    height: 0,
+    borderLeftColor: 'transparent',
   },
 });
