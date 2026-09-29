@@ -233,7 +233,12 @@ export function MapDriverCard({
   const avatarUrl = profile?.avatarUrl ?? fallbackProfile?.avatarUrl ?? null;
   const car = vehicleLabel(vehicle);
 
-  const primaryAction = useMemo(() => {
+  const primaryAction = useMemo<{
+    title: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    disabled: boolean;
+    onPress: () => void;
+  }>(() => {
     if (relationship === 'self') {
       return {
         title: 'Your profile',
