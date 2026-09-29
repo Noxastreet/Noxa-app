@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '@/src/theme/colors';
+import { NoxaSurface } from '@/src/components/ui';
+import { colors, geometry, spacing } from '@/src/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -45,10 +46,13 @@ export function NoxaBottomTabBar({
       style={[
         styles.positioner,
         {
-          bottom: insets.bottom + 6,
+          bottom: insets.bottom + spacing.xs,
         },
       ]}>
-      <View style={styles.bar}>
+      <NoxaSurface
+        cut={geometry.cut.lg}
+        level="overlay"
+        style={styles.bar}>
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const options = descriptors[route.key]?.options ?? {};
@@ -78,34 +82,28 @@ export function NoxaBottomTabBar({
             }
           };
 
-          const onLongPress = () => {
-            navigation.emit({
-              type: 'tabLongPress',
-              target: route.key,
-            });
-          };
-
           return (
             <Pressable
-              accessibilityRole="button"
               accessibilityLabel={label}
+              accessibilityRole="button"
               accessibilityState={focused ? { selected: true } : {}}
               key={route.key}
-              onLongPress={onLongPress}
+              onLongPress={() =>
+                navigation.emit({ type: 'tabLongPress', target: route.key })
+              }
               onPress={onPress}
               onPressIn={onPressIn}
-              style={styles.item}>
-              <View style={[styles.segment, focused && styles.segmentActive]}>
-                <Ionicons
-                  color={focused ? colors.white : colors.text}
-                  name={focused ? icons.active : icons.inactive}
-                  size={focused ? 24 : 23}
-                />
-              </View>
+              style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
+              <Ionicons
+                color={focused ? colors.text : colors.textMuted}
+                name={focused ? icons.active : icons.inactive}
+                size={focused ? 24 : 22}
+              />
+              <View style={[styles.indicator, focused && styles.indicatorActive]} />
             </Pressable>
           );
         })}
-      </View>
+      </NoxaSurface>
     </View>
   );
 }
@@ -113,39 +111,32 @@ export function NoxaBottomTabBar({
 const styles = StyleSheet.create({
   positioner: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    height: 52,
+    left: spacing.md,
+    right: spacing.md,
+    height: 58,
   },
   bar: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 4,
-    backgroundColor: 'rgba(24,24,28,0.94)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 26,
-    shadowColor: colors.black,
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 0,
+    paddingHorizontal: 6,
   },
   item: {
     flex: 1,
-    height: 44,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 5,
   },
-  segment: {
-    width: '92%',
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
+  indicator: {
+    width: 16,
+    height: 2,
+    backgroundColor: 'transparent',
   },
-  segmentActive: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+  indicatorActive: {
+    backgroundColor: colors.primary,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });
