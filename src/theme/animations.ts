@@ -32,6 +32,12 @@ export const animations = {
       mass: 0.72,
       overshootClamping: true,
     },
+    sheet: {
+      damping: 28,
+      stiffness: 300,
+      mass: 0.82,
+      overshootClamping: true,
+    },
   },
   // Visual Architecture V2 semantic durations, in milliseconds
   // (docs/VISUAL_ARCHITECTURE_V2.md §7). Additive: the timings above keep their
