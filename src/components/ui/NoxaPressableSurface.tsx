@@ -1,12 +1,17 @@
-import type { ReactNode } from 'react';
+import type { GestureResponderEvent, ReactNode } from 'react';
 import {
   Pressable,
-  StyleSheet,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { NoxaSurface, type NoxaCutCorners, type NoxaSurfaceLevel } from './NoxaSurface';
 import { animations, geometry } from '@/src/theme';
@@ -31,36 +36,55 @@ export function NoxaPressableSurface({
   outsideFill,
   style,
   contentStyle,
+  onPressIn,
+  onPressOut,
   ...pressableProps
 }: Props) {
   const reduceMotion = useReducedMotion();
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = (event: GestureResponderEvent) => {
+    onPressIn?.(event);
+    opacity.value = withTiming(
+      reduceMotion ? 0.78 : animations.pressOpacity,
+      { duration: animations.press },
+    );
+    scale.value = reduceMotion
+      ? 1
+      : withSpring(animations.pressedScale, animations.spring.press);
+  };
+
+  const handlePressOut = (event: GestureResponderEvent) => {
+    onPressOut?.(event);
+    opacity.value = withTiming(1, { duration: animations.press });
+    scale.value = reduceMotion
+      ? 1
+      : withSpring(1, animations.spring.press);
+  };
 
   return (
     <Pressable
       {...pressableProps}
-      style={({ pressed }) => [
-        style,
-        pressed && (reduceMotion ? styles.pressedReduced : styles.pressed),
-      ]}>
-      <NoxaSurface
-        corners={corners}
-        cut={cut}
-        level={level}
-        maskChildren={maskChildren}
-        outsideFill={outsideFill}
-        style={contentStyle}>
-        {children}
-      </NoxaSurface>
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={style}>
+      <Animated.View style={animatedStyle}>
+        <NoxaSurface
+          corners={corners}
+          cut={cut}
+          level={level}
+          maskChildren={maskChildren}
+          outsideFill={outsideFill}
+          style={contentStyle}>
+          {children}
+        </NoxaSurface>
+      </Animated.View>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.86,
-    transform: [{ scale: animations.pressedScale }],
-  },
-  pressedReduced: {
-    opacity: 0.74,
-  },
-});
