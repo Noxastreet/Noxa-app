@@ -26,8 +26,9 @@ assert(
 assert(
   /react-native-svg/.test(surface)
     && /NoxaCutBackground/.test(surface)
-    && /corners === 'signature'/.test(surface)
-    && /topRight|signature/.test(surface),
+    && /corners = 'signature'/.test(surface)
+    && /'M 0 0'/.test(surface)
+    && /'V 0'/.test(surface),
   'Shared surfaces must own the signature cut-corner geometry.',
 );
 
