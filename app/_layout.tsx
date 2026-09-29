@@ -1,6 +1,6 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -67,12 +67,33 @@ function AuthDeepLinkBridge() {
   return null;
 }
 
+function QuickConnectDeepLinkBridge() {
+  const url = Linking.useLinkingURL();
+
+  useEffect(() => {
+    if (!url) return;
+    const match = url.match(
+      /^noxa:\/\/quick-connect\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i,
+    );
+    const token = match?.[1];
+    if (!token) return;
+
+    router.push({
+      pathname: '/quick-connect',
+      params: { mode: 'connect', value: token },
+    });
+  }, [url]);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={noxaTheme}>
         <SupabaseAuthLifecycle />
         <AuthDeepLinkBridge />
+        <QuickConnectDeepLinkBridge />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="welcome" />
@@ -88,6 +109,7 @@ export default function RootLayout() {
           <Stack.Screen name="privacy-policy" />
           <Stack.Screen name="terms-of-service" />
           <Stack.Screen name="search" />
+          <Stack.Screen name="quick-connect" />
           <Stack.Screen name="group-drives" />
           <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
           <Stack.Screen name="event-details" />
