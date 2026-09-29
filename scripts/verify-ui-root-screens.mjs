@@ -121,6 +121,30 @@ assert(
   'Crew/Event shared status chips and artwork must align with the angular surface geometry.',
 );
 
+assert(
+  (crews.match(/<NoxaSurface style={styles\.stateCard}>/g) ?? []).length >= 2
+    && /NoxaPressableSurface[\s\S]*contentStyle={styles\.errorBanner}/.test(crews)
+    && !/compactCard:\s*\{[^}]*borderRadius/.test(crews)
+    && !/driveCard:\s*\{[^}]*borderRadius/.test(crews),
+  'Crew root loading, error and content cards must not fall back to bespoke rounded shells.',
+);
+
+assert(
+  (events.match(/<NoxaSurface style={styles\.stateCard}>/g) ?? []).length >= 3
+    && /NoxaPressableSurface[\s\S]*contentStyle={styles\.pickCard}/.test(events)
+    && !/eventCard:\s*\{[^}]*borderRadius/.test(events)
+    && !/nearbyStrip:\s*\{[^}]*borderRadius/.test(events)
+    && !/pickCard:\s*\{[^}]*borderRadius/.test(events),
+  'Events root states, list cards and horizontal picks must use the canonical surface geometry.',
+);
+
+assert(
+  (garage.match(/<NoxaSurface style={styles\.collectionState}>/g) ?? []).length >= 3
+    && !/collectionState:\s*\{[^}]*borderRadius/.test(garage)
+    && !/styles\.retryButton/.test(garage),
+  'Garage root states and retry actions must use shared NOXA surfaces and buttons.',
+);
+
 if (!process.exitCode) {
   console.log('NOXA root-screen visual system contract passed.');
 }
