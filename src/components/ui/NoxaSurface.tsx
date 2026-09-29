@@ -18,6 +18,8 @@ type BackgroundProps = {
 type SurfaceProps = BackgroundProps & {
   children: ReactNode;
   level?: NoxaSurfaceLevel;
+  maskChildren?: boolean;
+  outsideFill?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -95,6 +97,71 @@ export function NoxaCutBackground({
   );
 }
 
+function NoxaCornerMask({
+  cut,
+  corners,
+  fill,
+}: {
+  cut: number;
+  corners: NoxaCutCorners;
+  fill: string;
+}) {
+  if (corners === 'none' || cut <= 0) return null;
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+      {(corners === 'signature' || corners === 'top' || corners === 'all') ? (
+        <View
+          style={[
+            styles.maskTopRight,
+            {
+              borderLeftWidth: cut,
+              borderTopWidth: cut,
+              borderTopColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+      {(corners === 'top' || corners === 'all') ? (
+        <View
+          style={[
+            styles.maskTopLeft,
+            {
+              borderRightWidth: cut,
+              borderTopWidth: cut,
+              borderTopColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+      {(corners === 'signature' || corners === 'all') ? (
+        <View
+          style={[
+            styles.maskBottomLeft,
+            {
+              borderRightWidth: cut,
+              borderBottomWidth: cut,
+              borderBottomColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+      {corners === 'all' ? (
+        <View
+          style={[
+            styles.maskBottomRight,
+            {
+              borderLeftWidth: cut,
+              borderBottomWidth: cut,
+              borderBottomColor: fill,
+            },
+          ]}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function NoxaSurface({
   children,
   fill,
@@ -103,6 +170,8 @@ export function NoxaSurface({
   cut,
   corners = 'signature',
   level = 'content',
+  maskChildren = false,
+  outsideFill = colors.background,
   style,
 }: SurfaceProps) {
   const resolvedFill =
@@ -129,6 +198,22 @@ export function NoxaSurface({
         fill={resolvedFill}
       />
       {children}
+      {maskChildren ? (
+        <>
+          <NoxaCornerMask
+            corners={corners}
+            cut={cut ?? geometry.cut.md}
+            fill={outsideFill}
+          />
+          <NoxaCutBackground
+            borderColor={borderColor}
+            borderWidth={borderWidth}
+            corners={corners}
+            cut={cut}
+            fill="transparent"
+          />
+        </>
+      ) : null}
     </View>
   );
 }
@@ -143,5 +228,37 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...shadows.control,
+  },
+  maskTopRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    borderLeftColor: 'transparent',
+  },
+  maskTopLeft: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+    borderRightColor: 'transparent',
+  },
+  maskBottomLeft: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+    borderRightColor: 'transparent',
+  },
+  maskBottomRight: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 0,
+    height: 0,
+    borderLeftColor: 'transparent',
   },
 });
