@@ -1,3 +1,4 @@
+export { geometry } from './geometry';
 export { animations } from './animations';
 export { colors } from './colors';
 export { radius } from './radius';
