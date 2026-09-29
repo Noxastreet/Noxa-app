@@ -524,6 +524,128 @@ function RouteCard({
   );
 }
 
+function routeManeuverIcon(modifier: string | null | undefined): keyof typeof Ionicons.glyphMap {
+  switch (modifier) {
+    case "left":
+    case "slight left":
+      return "return-up-back";
+    case "right":
+    case "slight right":
+      return "return-up-forward";
+    case "uturn":
+      return "return-down-back";
+    case "straight":
+      return "arrow-up";
+    default:
+      return "navigate";
+  }
+}
+
+function RouteFocusOverlay({
+  event,
+  remainingDistanceMeters,
+  remainingDurationSeconds,
+  nextManeuver,
+  following,
+  arrived,
+  topInset,
+  bottomInset,
+  onRecenter,
+  onExit,
+}: {
+  event: EventMarkerRow;
+  remainingDistanceMeters: number | null;
+  remainingDurationSeconds: number | null;
+  nextManeuver:
+    | { maneuver: RouteManeuver; progress: number; distanceMeters: number }
+    | null;
+  following: boolean;
+  arrived: boolean;
+  topInset: number;
+  bottomInset: number;
+  onRecenter: () => void;
+  onExit: () => void;
+}) {
+  const instruction = arrived
+    ? "You have arrived"
+    : nextManeuver?.maneuver.instruction || `Continue to ${event.title}`;
+  const instructionDistance = arrived
+    ? "ARRIVED"
+    : nextManeuver
+      ? formatDistance(nextManeuver.distanceMeters)
+      : null;
+
+  return (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
+      <View style={[styles.routeFocusTop, { top: topInset + spacing.sm }]}>
+        <View style={styles.routeFocusInstruction}>
+          <View style={styles.routeFocusTurnIcon}>
+            <Ionicons
+              name={
+                arrived
+                  ? "checkmark"
+                  : routeManeuverIcon(nextManeuver?.maneuver.modifier)
+              }
+              size={24}
+              color={arrived ? colors.success : colors.text}
+            />
+          </View>
+          <View style={styles.routeFocusInstructionCopy}>
+            {instructionDistance ? (
+              <Text style={styles.routeFocusDistance}>{instructionDistance}</Text>
+            ) : null}
+            <Text numberOfLines={2} style={styles.routeFocusInstructionText}>
+              {instruction}
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          accessibilityLabel="End route navigation"
+          accessibilityRole="button"
+          activeOpacity={0.82}
+          onPress={onExit}
+          style={styles.routeFocusClose}>
+          <Ionicons name="close" size={20} color={colors.text} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.routeFocusBottom, { bottom: bottomInset + spacing.md }]}>
+        <View style={styles.routeFocusMetrics}>
+          <Text numberOfLines={1} style={styles.routeFocusDestination}>
+            {event.title}
+          </Text>
+          <View style={styles.routeFocusMetricRow}>
+            <Text style={styles.routeFocusMetricStrong}>
+              {formatDistance(remainingDistanceMeters ?? 0)}
+            </Text>
+            <View style={styles.routeFocusDot} />
+            <Text style={styles.routeFocusMetricStrong}>
+              {formatDuration(remainingDurationSeconds ?? 0)}
+            </Text>
+            <Text style={styles.routeFocusArrival}>
+              {remainingDurationSeconds === null
+                ? ""
+                : `ETA ${formatArrivalTime(remainingDurationSeconds)}`}
+            </Text>
+          </View>
+        </View>
+
+        {!following ? (
+          <TouchableOpacity
+            accessibilityLabel="Resume route following"
+            accessibilityRole="button"
+            activeOpacity={0.82}
+            onPress={onRecenter}
+            style={styles.routeFocusRecenter}>
+            <Ionicons name="locate" size={20} color={colors.text} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
