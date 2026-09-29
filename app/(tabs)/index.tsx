@@ -2864,7 +2864,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
-    borderRadius: radius.md,
   },
   visibilityOptionSelected: {
     backgroundColor: colors.primarySubtle,
