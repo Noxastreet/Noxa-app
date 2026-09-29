@@ -18,3 +18,5 @@ export { NoxaEmptyState } from './NoxaEmptyState';
 export { NoxaIconButton } from './NoxaIconButton';
 export { NoxaCutBackground, NoxaSurface } from './NoxaSurface';
 export type { NoxaCutCorners, NoxaSurfaceLevel } from './NoxaSurface';
+export { NoxaRootHeader } from './NoxaRootHeader';
+export { NoxaPressableSurface } from './NoxaPressableSurface';
