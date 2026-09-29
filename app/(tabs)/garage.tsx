@@ -13,7 +13,14 @@ import {
   type ImageStyle,
 } from 'react-native';
 
-import { NoxaBadge, NoxaScreen } from '@/src/components/ui';
+import {
+  NoxaBadge,
+  NoxaButton,
+  NoxaRootHeader,
+  NoxaScreen,
+  NoxaSurface,
+} from '@/src/components/ui';
+import { useResponsive } from '@/src/hooks/useResponsive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { colors, radius, shadows, spacing, typography } from '@/src/theme';
 
@@ -140,7 +147,11 @@ function VehicleCard({
 
   return (
     <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-      <View style={styles.vehicleCard}>
+      <NoxaSurface
+        level="content"
+        maskChildren
+        outsideFill={colors.background}
+        style={styles.vehicleCard}>
         <Pressable
           accessibilityLabel={`Open ${modelName} details`}
           accessibilityRole="button"
@@ -177,7 +188,7 @@ function VehicleCard({
             <Text style={styles.primaryLockedText}>PRIMARY VEHICLE</Text>
           </View>
         )}
-      </View>
+      </NoxaSurface>
     </Animated.View>
   );
 }
@@ -218,6 +229,7 @@ function GarageState({ error, isLoading, onRetry }: { error: boolean; isLoading:
 }
 
 export default function GarageScreen() {
+  const { gutter } = useResponsive();
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
   const [hasVehicleError, setHasVehicleError] = useState(false);
@@ -280,23 +292,27 @@ export default function GarageScreen() {
 
   return (
     <NoxaScreen padded={false}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.topBar}>
-          <View style={styles.headingBlock}>
-            <Text style={styles.pageTitle}>GARAGE</Text>
-            <Text style={styles.pageSubtitle}>
-              {isLoadingVehicles ? 'Loading vehicles…' : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle' : 'vehicles'}`}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel="Add Vehicle"
-            accessibilityRole="button"
-            onPress={() => router.push('/vehicle-picker')}
-            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
-            <Ionicons name="add" size={17} color={colors.text} />
-            <Text style={styles.addText}>ADD</Text>
-          </Pressable>
-        </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}>
+        <NoxaRootHeader
+          actions={
+            <NoxaButton
+              accessibilityLabel="Add Vehicle"
+              leadingIcon={<Ionicons name="add" size={16} color={colors.text} />}
+              onPress={() => router.push('/vehicle-picker')}
+              size="sm"
+              title="ADD"
+              variant="secondary"
+            />
+          }
+          subtitle={
+            isLoadingVehicles
+              ? 'Loading vehicles…'
+              : `${vehicles.length} ${vehicles.length === 1 ? 'vehicle' : 'vehicles'}`
+          }
+          title="GARAGE"
+        />
 
         {isLoadingVehicles || hasVehicleError || vehicles.length === 0 ? (
           <GarageState error={hasVehicleError} isLoading={isLoadingVehicles} onRetry={loadVehicles} />
@@ -315,14 +331,15 @@ export default function GarageScreen() {
         )}
 
         {!isLoadingVehicles && !hasVehicleError && vehicles.length > 0 ? (
-          <Pressable
+          <NoxaButton
             accessibilityLabel="Add another vehicle"
-            accessibilityRole="button"
+            fullWidth
+            leadingIcon={<Ionicons name="add" size={16} color={colors.textMuted} />}
             onPress={() => router.push('/vehicle-picker')}
-            style={({ pressed }) => [styles.addSlot, pressed && styles.pressed]}>
-            <Ionicons name="add" size={17} color={colors.textMuted} />
-            <Text style={styles.addSlotText}>Add another vehicle</Text>
-          </Pressable>
+            size="md"
+            title="Add another vehicle"
+            variant="secondary"
+          />
         ) : null}
       </ScrollView>
     </NoxaScreen>
@@ -331,7 +348,7 @@ export default function GarageScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 0,
     paddingTop: spacing.xl,
     paddingBottom: 144,
     gap: spacing.lg,
@@ -375,14 +392,10 @@ const styles = StyleSheet.create({
   vehicleList: { gap: spacing.md },
   vehicleCard: {
     overflow: 'hidden',
-    borderRadius: radius.hero,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
+    backgroundColor: 'transparent',
   },
   heroImage: { height: 228, justifyContent: 'flex-end', backgroundColor: colors.surfaceSoft },
-  heroImageRadius: { borderTopLeftRadius: radius.hero, borderTopRightRadius: radius.hero },
+  heroImageRadius: {},
   vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center' },
   heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.30)' },
   vehicleBadges: { position: 'absolute', top: spacing.sm, left: spacing.sm, flexDirection: 'row', gap: spacing.xs },
