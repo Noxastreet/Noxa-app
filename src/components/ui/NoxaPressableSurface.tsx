@@ -1,6 +1,7 @@
-import type { GestureResponderEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   Pressable,
+  type GestureResponderEvent,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
