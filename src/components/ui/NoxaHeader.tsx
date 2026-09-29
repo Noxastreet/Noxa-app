@@ -25,10 +25,10 @@ export function NoxaHeader({ title, subtitle, left, right }: NoxaHeaderProps) {
 
 const styles = StyleSheet.create({
   header: {
-    minHeight: 58,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.md,
   },
   side: {
     minWidth: 44,
@@ -38,16 +38,18 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
     color: colors.text,
-    fontSize: typography.sectionTitle,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.v2.section.fontSize,
+    lineHeight: typography.v2.section.lineHeight,
+    letterSpacing: typography.v2.section.letterSpacing,
     fontWeight: '900',
-    letterSpacing: -0.3,
-    lineHeight: 28,
   },
   subtitle: {
-    marginTop: spacing.xxs,
+    marginTop: 2,
     color: colors.textMuted,
     fontSize: typography.caption,
     fontWeight: '700',
