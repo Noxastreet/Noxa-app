@@ -13,7 +13,7 @@ export function NoxaEmptyState({ icon, title, body }: NoxaEmptyStateProps) {
   return (
     <View style={styles.emptyState}>
       <View style={styles.iconWrap}>
-        <Ionicons name={icon} size={28} color={colors.primary} />
+        <Ionicons name={icon} size={26} color={colors.primaryHover} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
@@ -26,35 +26,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    padding: spacing.xl,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxxl,
   },
   iconWrap: {
-    width: 58,
-    height: 58,
+    width: 54,
+    height: 54,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
-    borderWidth: 1,
+    backgroundColor: colors.primarySubtle,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderAccent,
   },
   title: {
     color: colors.text,
-    fontSize: typography.title,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.v2.section.fontSize,
+    lineHeight: typography.v2.section.lineHeight,
+    letterSpacing: typography.v2.section.letterSpacing,
     fontWeight: '900',
-    letterSpacing: typography.letterSpacing.title,
-    lineHeight: typography.lineHeight.title,
     textAlign: 'center',
   },
   body: {
+    maxWidth: 300,
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.v2.body.fontSize,
+    lineHeight: typography.v2.body.lineHeight,
     fontWeight: '600',
-    lineHeight: typography.lineHeight.body,
     textAlign: 'center',
   },
 });
