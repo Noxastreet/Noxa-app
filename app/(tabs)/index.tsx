@@ -2373,7 +2373,7 @@ export default function LiveMapScreen() {
         ) : null}
 
         {!isRouteFocusMode && visibilityMenuOpen ? (
-          <View style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
+          <NoxaSurface level="overlay" style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
             <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
             {VISIBILITY_MODES.map((mode) => {
               const selected = visibilityMode === mode.id;
@@ -2425,7 +2425,7 @@ export default function LiveMapScreen() {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </NoxaSurface>
         ) : null}
 
         {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
@@ -2465,25 +2465,25 @@ export default function LiveMapScreen() {
         ) : null}
 
         {!isRouteFocusMode && activeNotice ? (
-          <View
+          <NoxaSurface
             accessibilityLiveRegion="polite"
+            level="overlay"
             pointerEvents="none"
-            style={[styles.mapNotice, { top: noticesTop }]}
-          >
+            style={[styles.mapNotice, { top: noticesTop }]}>
             <Ionicons
               name={activeNotice.icon}
               size={15}
               color={colors.primaryHover}
             />
             <Text style={styles.mapNoticeText}>{activeNotice.message}</Text>
-          </View>
+          </NoxaSurface>
         ) : null}
 
         {!isRouteFocusMode && mapDataHasError ? (
-          <View
+          <NoxaSurface
             accessibilityLiveRegion="polite"
-            style={[styles.mapDataNotice, { top: mapDataNoticeTop }]}
-          >
+            level="overlay"
+            style={[styles.mapDataNotice, { top: mapDataNoticeTop }]}>
             <View style={styles.mapDataNoticeCopy}>
               <Ionicons
                 name="cloud-offline-outline"
@@ -2494,16 +2494,15 @@ export default function LiveMapScreen() {
                 {mapDataNoticeMessage}
               </Text>
             </View>
-            <TouchableOpacity
+            <NoxaButton
               accessibilityLabel="Retry map data"
-              accessibilityRole="button"
-              activeOpacity={0.78}
               onPress={retryMapData}
+              size="sm"
               style={styles.mapDataRetryButton}
-            >
-              <Text style={styles.mapDataRetryText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
+              title="Retry"
+              variant="secondary"
+            />
+          </NoxaSurface>
         ) : null}
 
         {!selectedDriverId && !isRouteFocusMode && !driveTogetherPanelVisible && !driveTogetherNavigation && selectedEvent && isRouteMode ? (
@@ -2584,7 +2583,7 @@ export default function LiveMapScreen() {
         visible={pendingVisibilityMode !== null}
       >
         <View style={styles.liveDriveModalBackdrop}>
-          <View style={styles.liveDriveModalCard}>
+          <NoxaSurface level="sheet" style={styles.liveDriveModalCard}>
             <View style={styles.liveDriveModalIcon}>
               <Ionicons name="navigate" size={22} color={colors.primaryHover} />
             </View>
@@ -2599,28 +2598,26 @@ export default function LiveMapScreen() {
               Sharing stops after 4 hours, when you select Ghost, or when you sign out.
             </Text>
             <View style={styles.liveDriveModalActions}>
-              <TouchableOpacity
+              <NoxaButton
                 disabled={isStartingLiveDrive}
                 onPress={() => setPendingVisibilityMode(null)}
+                size="md"
                 style={styles.liveDriveCancelButton}
-              >
-                <Text style={styles.liveDriveCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                title="Cancel"
+                variant="secondary"
+              />
+              <NoxaButton
                 disabled={isStartingLiveDrive || !pendingVisibilityMode}
+                loading={isStartingLiveDrive}
                 onPress={() => {
                   if (pendingVisibilityMode) void startSharing(pendingVisibilityMode);
                 }}
+                size="md"
                 style={styles.liveDriveStartButton}
-              >
-                {isStartingLiveDrive ? (
-                  <ActivityIndicator color={colors.text} size="small" />
-                ) : (
-                  <Text style={styles.liveDriveStartText}>START 4-HOUR SESSION</Text>
-                )}
-              </TouchableOpacity>
+                title="Start 4-hour session"
+              />
             </View>
-          </View>
+          </NoxaSurface>
         </View>
       </Modal>
 
@@ -2634,7 +2631,7 @@ export default function LiveMapScreen() {
         visible={pendingAudienceChange !== null}
       >
         <View style={styles.liveDriveModalBackdrop}>
-          <View style={styles.liveDriveModalCard}>
+          <NoxaSurface level="sheet" style={styles.liveDriveModalCard}>
             <View style={styles.liveDriveModalIcon}>
               <Ionicons name="eye-outline" size={22} color={colors.primaryHover} />
             </View>
@@ -2651,33 +2648,31 @@ export default function LiveMapScreen() {
               earlier if you select Ghost or sign out.
             </Text>
             <View style={styles.liveDriveModalActions}>
-              <TouchableOpacity
+              <NoxaButton
                 disabled={isChangingAudience}
                 onPress={() => setPendingAudienceChange(null)}
+                size="md"
                 style={styles.liveDriveCancelButton}
-              >
-                <Text style={styles.liveDriveCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+                title="Cancel"
+                variant="secondary"
+              />
+              <NoxaButton
                 disabled={isChangingAudience || !pendingAudienceChange}
+                loading={isChangingAudience}
                 onPress={() => {
                   if (pendingAudienceChange)
                     void applyAudienceChange(pendingAudienceChange.to);
                 }}
+                size="md"
                 style={styles.liveDriveStartButton}
-              >
-                {isChangingAudience ? (
-                  <ActivityIndicator color={colors.text} size="small" />
-                ) : (
-                  <Text style={styles.liveDriveStartText}>
-                    {pendingAudienceToLabel
-                      ? `CHANGE TO ${pendingAudienceToLabel.toUpperCase()}`
-                      : "CHANGE AUDIENCE"}
-                  </Text>
-                )}
-              </TouchableOpacity>
+                title={
+                  pendingAudienceToLabel
+                    ? `Change to ${pendingAudienceToLabel}`
+                    : "Change audience"
+                }
+              />
             </View>
-          </View>
+          </NoxaSurface>
         </View>
       </Modal>
     </View>
