@@ -919,18 +919,36 @@ export default function CanonicalCrewsScreen() {
             <Text style={styles.pageTitle}>CREWS</Text>
             <Text style={styles.pageSubtitle}>Find your people. Drive together.</Text>
           </View>
-          <Pressable
-            accessibilityLabel="Create crew"
-            accessibilityRole="button"
-            onPress={() => setCreateVisible(true)}
-            style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="add" size={17} color={colors.text} />
-            <Text style={styles.createText}>CREATE</Text>
-          </Pressable>
+          <View style={styles.topActions}>
+            <Pressable
+              accessibilityLabel="Quick Connect"
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: "/quick-connect",
+                  params: { mode: "share" },
+                })
+              }
+              style={({ pressed }) => [
+                styles.quickConnectButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons name="qr-code-outline" size={18} color={colors.text} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Create crew"
+              accessibilityRole="button"
+              onPress={() => setCreateVisible(true)}
+              style={({ pressed }) => [
+                styles.createButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons name="add" size={17} color={colors.text} />
+              <Text style={styles.createText}>CREATE</Text>
+            </Pressable>
+          </View>
         </View>
 
         <CrewFilterControl
@@ -982,6 +1000,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   heading: { flex: 1 },
+  topActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  quickConnectButton: {
+    width: 36,
+    height: 36,
+    marginTop: spacing.xxs,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.button,
+    backgroundColor: colors.surface,
+  },
   pageTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
