@@ -67,9 +67,9 @@ assert(
 );
 
 assert(
-  /NoxaSurface/.test(profile)
-    && /NoxaPressableSurface/.test(profile)
-    && /NoxaButton/.test(profile),
+  /NoxaPressableSurface/.test(profile)
+    && /NoxaButton/.test(profile)
+    && /NoxaRootHeader/.test(profile),
   'Profile must use the shared NOXA surface hierarchy and actions.',
 );
 
