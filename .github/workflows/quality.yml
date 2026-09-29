@@ -57,6 +57,9 @@ jobs:
       - name: NOXA root-screen visual system contract
         run: npm run verify:ui-root-screens
 
+      - name: NOXA motion foundation contract
+        run: npm run verify:motion-foundation
+
       - name: Chat latest-window contract
         run: node ./scripts/verify-chat-window.mjs
 
