@@ -19,6 +19,11 @@ import {
   DriveTogetherMapLayer,
   type DriveTogetherNavigationOverlay,
 } from "@/src/features/group-drive/DriveTogetherMapLayer";
+import {
+  prepareDriveRoute,
+  projectDriveLocation,
+  type PreparedDriveRoute,
+} from "@/src/features/group-drive/runtime/routeProgress";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -91,10 +96,20 @@ type PresenceLocationPayload = {
   visibility_mode: LocationVisibilityMode;
   share_expires_at: string;
 };
+type RouteManeuver = {
+  instruction: string;
+  type: string;
+  modifier: string | null;
+  latitude: number;
+  longitude: number;
+  distanceMeters: number;
+  durationSeconds: number;
+};
 type RouteResult = {
   coordinates: LatLng[];
   distanceMeters: number;
   durationSeconds: number;
+  maneuvers?: RouteManeuver[];
 };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
 type MapDataRequestState = "loading" | "ready" | "error";
@@ -283,6 +298,59 @@ function formatDuration(seconds: number) {
   return `${hours} hr ${String(minutes).padStart(2, "0")} min`;
 }
 
+function formatArrivalTime(seconds: number) {
+  if (!Number.isFinite(seconds)) return "—";
+  const arrival = new Date(Date.now() + Math.max(0, seconds) * 1000);
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(arrival);
+}
+
+function prepareEventRoute(route: RouteResult | null): PreparedDriveRoute | null {
+  if (!route) return null;
+  return prepareDriveRoute(
+    {
+      type: "LineString",
+      coordinates: route.coordinates.map(
+        (point) => [point.longitude, point.latitude] as [number, number],
+      ),
+    },
+    route.distanceMeters,
+  );
+}
+
+function nextEventManeuver(
+  route: RouteResult | null,
+  prepared: PreparedDriveRoute | null,
+  progressFraction: number | null,
+) {
+  if (!route || !prepared || progressFraction === null) return null;
+  let candidate:
+    | { maneuver: RouteManeuver; progress: number; distanceMeters: number }
+    | null = null;
+  for (const maneuver of route.maneuvers ?? []) {
+    const projection = projectDriveLocation(
+      prepared,
+      maneuver.latitude,
+      maneuver.longitude,
+    );
+    if (!projection || projection.progressFraction + 0.002 < progressFraction) continue;
+    const distanceMeters = Math.max(
+      0,
+      route.distanceMeters * (projection.progressFraction - progressFraction),
+    );
+    if (!candidate || projection.progressFraction < candidate.progress) {
+      candidate = {
+        maneuver,
+        progress: projection.progressFraction,
+        distanceMeters,
+      };
+    }
+  }
+  return candidate;
+}
+
 function EventCard({
   event,
   bottomOffset,
@@ -362,6 +430,8 @@ function RouteCard({
   onClose,
   onFollowToggle,
   onRetry,
+  remainingDistanceMeters,
+  remainingDurationSeconds,
 }: {
   event: EventMarkerRow;
   route: RouteResult | null;
@@ -370,6 +440,8 @@ function RouteCard({
   bottomOffset: number;
   following: boolean;
   canFollow: boolean;
+  remainingDistanceMeters: number | null;
+  remainingDurationSeconds: number | null;
   onClose: () => void;
   onFollowToggle: () => void;
   onRetry: () => void;
@@ -401,11 +473,11 @@ function RouteCard({
       ) : route ? (
         <View style={styles.routeMetrics}>
           <Text style={styles.routeMetric}>
-            {formatDistance(route.distanceMeters)}
+            {formatDistance(remainingDistanceMeters ?? route.distanceMeters)}
           </Text>
           <Text style={styles.routeMetricMuted}>•</Text>
           <Text style={styles.routeMetric}>
-            ~{formatDuration(route.durationSeconds)}
+            ~{formatDuration(remainingDurationSeconds ?? route.durationSeconds)}
           </Text>
         </View>
       ) : (
