@@ -66,7 +66,7 @@ assert(
 assert(
   /QuickConnectDeepLinkBridge/.test(root)
     && /pathname: '\/quick-connect'/.test(root)
-    && /noxa:\/\/quick-connect/.test(root),
+    && root.includes('^noxa:\\/\\/quick-connect\\/'),
   'Quick Connect QR deep links must route into the authenticated app flow.',
 );
 assert(
