@@ -34,7 +34,7 @@ export function NoxaTopBar({ centered = false, left, right, subtitle, title }: N
 
 const styles = StyleSheet.create({
   bar: {
-    minHeight: 58,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -46,13 +46,13 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.display,
-    fontSize: typography.sectionTitle,
+    fontSize: typography.v2.section.fontSize,
+    lineHeight: typography.v2.section.lineHeight,
+    letterSpacing: typography.v2.section.letterSpacing,
     fontWeight: '900',
-    letterSpacing: typography.letterSpacing.title,
-    lineHeight: typography.lineHeight.title,
   },
   subtitle: {
-    marginTop: spacing.xxs,
+    marginTop: 2,
     color: colors.textMuted,
     fontSize: typography.caption,
     fontWeight: '600',
