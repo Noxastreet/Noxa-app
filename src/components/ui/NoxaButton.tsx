@@ -8,7 +8,13 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { NoxaCutBackground } from './NoxaSurface';
 import { animations, colors, geometry, spacing } from '@/src/theme';
@@ -73,6 +79,31 @@ export function NoxaButton({
   const reduceMotion = useReducedMotion();
   const palette = backgroundFor(variant);
   const loadingColor = variant === 'google' ? '#1F1F1F' : colors.text;
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    if (isDisabled) return;
+    opacity.value = withTiming(
+      reduceMotion ? 0.78 : animations.pressOpacity,
+      { duration: animations.press },
+    );
+    scale.value = reduceMotion
+      ? 1
+      : withSpring(animations.pressedScale, animations.spring.press);
+  };
+
+  const handlePressOut = () => {
+    opacity.value = withTiming(1, { duration: animations.press });
+    scale.value = reduceMotion
+      ? 1
+      : withSpring(1, animations.spring.press);
+  };
 
   return (
     <Pressable
@@ -82,36 +113,44 @@ export function NoxaButton({
       accessibilityState={{ busy: loading, disabled: isDisabled }}
       disabled={isDisabled}
       onPress={onPress}
-      style={({ pressed }) => [
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[
         styles.base,
         styles[size],
         fullWidth && styles.fullWidth,
         style,
-        pressed && !isDisabled && (reduceMotion ? styles.pressedReduced : styles.pressed),
         isDisabled && styles.disabled,
       ]}>
-      <NoxaCutBackground
-        borderColor={palette.border}
-        cut={geometry.cut.sm}
-        fill={palette.fill}
-      />
-      <View style={styles.content}>
-        {loading ? (
-          <ActivityIndicator color={loadingColor} size="small" style={styles.leadingIcon} />
-        ) : leadingIcon ? (
-          <View style={styles.leadingIcon}>{leadingIcon}</View>
-        ) : null}
-        <Text
-          style={[
-            styles.text,
-            styles[`${size}Text`],
-            styles[`${variant}Text`],
-            isDisabled && styles.disabledText,
-          ]}>
-          {title}
-        </Text>
-        {!loading && trailingIcon ? <View style={styles.trailingIcon}>{trailingIcon}</View> : null}
-      </View>
+      <Animated.View
+        style={[
+          styles.motionLayer,
+          styles[`${size}Motion`],
+          animatedStyle,
+        ]}>
+        <NoxaCutBackground
+          borderColor={palette.border}
+          cut={geometry.cut.sm}
+          fill={palette.fill}
+        />
+        <View style={styles.content}>
+          {loading ? (
+            <ActivityIndicator color={loadingColor} size="small" style={styles.leadingIcon} />
+          ) : leadingIcon ? (
+            <View style={styles.leadingIcon}>{leadingIcon}</View>
+          ) : null}
+          <Text
+            style={[
+              styles.text,
+              styles[`${size}Text`],
+              styles[`${variant}Text`],
+              isDisabled && styles.disabledText,
+            ]}>
+            {title}
+          </Text>
+          {!loading && trailingIcon ? <View style={styles.trailingIcon}>{trailingIcon}</View> : null}
+        </View>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -119,14 +158,22 @@ export function NoxaButton({
 const styles = StyleSheet.create({
   base: {
     position: 'relative',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
-  sm: { minHeight: geometry.controlHeight.compact, paddingHorizontal: spacing.sm },
-  md: { minHeight: geometry.controlHeight.standard, paddingHorizontal: spacing.lg },
-  lg: { minHeight: geometry.controlHeight.primary, paddingHorizontal: spacing.xl },
+  sm: { minHeight: geometry.controlHeight.compact },
+  md: { minHeight: geometry.controlHeight.standard },
+  lg: { minHeight: geometry.controlHeight.primary },
+  smMotion: { minHeight: geometry.controlHeight.compact, paddingHorizontal: spacing.sm },
+  mdMotion: { minHeight: geometry.controlHeight.standard, paddingHorizontal: spacing.lg },
+  lgMotion: { minHeight: geometry.controlHeight.primary, paddingHorizontal: spacing.xl },
   fullWidth: { width: '100%' },
+  motionLayer: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -134,11 +181,6 @@ const styles = StyleSheet.create({
   },
   leadingIcon: { marginRight: spacing.sm },
   trailingIcon: { marginLeft: spacing.sm },
-  pressed: {
-    opacity: 0.9,
-    transform: [{ translateY: 1 }, { scale: animations.pressedScale }],
-  },
-  pressedReduced: { opacity: 0.78 },
   disabled: { opacity: 0.42 },
   text: {
     fontWeight: '800',

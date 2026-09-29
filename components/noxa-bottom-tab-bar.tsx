@@ -1,6 +1,7 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useEffect } from 'react';
 import {
   Platform,
   Pressable,
@@ -9,10 +10,18 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NoxaSurface } from '@/src/components/ui';
-import { colors, geometry, spacing } from '@/src/theme';
+import { animations, colors, geometry, spacing } from '@/src/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -23,6 +32,82 @@ const TAB_ICONS: Record<string, { active: IconName; inactive: IconName }> = {
   garage: { active: 'car-sport', inactive: 'car-sport-outline' },
   profile: { active: 'person', inactive: 'person-outline' },
 };
+
+type MotionTabItemProps = {
+  focused: boolean;
+  icons: { active: IconName; inactive: IconName };
+  label: string;
+  onLongPress: () => void;
+  onPress: () => void;
+};
+
+function MotionTabItem({
+  focused,
+  icons,
+  label,
+  onLongPress,
+  onPress,
+}: MotionTabItemProps) {
+  const reduceMotion = useReducedMotion();
+  const focus = useSharedValue(focused ? 1 : 0);
+  const press = useSharedValue(0);
+
+  useEffect(() => {
+    focus.value = reduceMotion
+      ? focused ? 1 : 0
+      : withSpring(focused ? 1 : 0, animations.spring.tab);
+  }, [focus, focused, reduceMotion]);
+
+  const iconMotion = useAnimatedStyle(() => {
+    const focusScale = interpolate(focus.value, [0, 1], [1, 1.08]);
+    const pressScale = interpolate(press.value, [0, 1], [1, animations.iconPressedScale]);
+    return {
+      opacity: interpolate(focus.value, [0, 1], [0.68, 1]),
+      transform: [
+        { translateY: interpolate(focus.value, [0, 1], [0, -1.5]) },
+        { scale: focusScale * pressScale },
+      ],
+    };
+  });
+
+  const indicatorMotion = useAnimatedStyle(() => ({
+    opacity: focus.value,
+    transform: [{ scaleX: Math.max(0.001, focus.value) }],
+  }));
+
+  const handlePressIn = () => {
+    press.value = reduceMotion
+      ? 1
+      : withSpring(1, animations.spring.press);
+  };
+
+  const handlePressOut = () => {
+    press.value = reduceMotion
+      ? 0
+      : withSpring(0, animations.spring.press);
+  };
+
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityState={focused ? { selected: true } : {}}
+      onLongPress={onLongPress}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={styles.item}>
+      <Animated.View style={iconMotion}>
+        <Ionicons
+          color={focused ? colors.text : colors.textMuted}
+          name={focused ? icons.active : icons.inactive}
+          size={23}
+        />
+      </Animated.View>
+      <Animated.View style={[styles.indicator, indicatorMotion]} />
+    </Pressable>
+  );
+}
 
 export function NoxaBottomTabBar({
   state,
@@ -72,35 +157,24 @@ export function NoxaBottomTabBar({
             });
 
             if (!focused && !event.defaultPrevented) {
+              if (Platform.OS === 'ios') {
+                void Haptics.selectionAsync().catch(() => undefined);
+              }
               navigation.navigate(route.name, route.params);
             }
           };
 
-          const onPressIn = () => {
-            if (Platform.OS === 'ios') {
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-          };
-
           return (
-            <Pressable
-              accessibilityLabel={label}
-              accessibilityRole="button"
-              accessibilityState={focused ? { selected: true } : {}}
+            <MotionTabItem
+              focused={focused}
+              icons={icons}
               key={route.key}
+              label={label}
               onLongPress={() =>
                 navigation.emit({ type: 'tabLongPress', target: route.key })
               }
               onPress={onPress}
-              onPressIn={onPressIn}
-              style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
-              <Ionicons
-                color={focused ? colors.text : colors.textMuted}
-                name={focused ? icons.active : icons.inactive}
-                size={focused ? 24 : 22}
-              />
-              <View style={[styles.indicator, focused && styles.indicatorActive]} />
-            </Pressable>
+            />
           );
         })}
       </NoxaSurface>
@@ -129,14 +203,8 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   indicator: {
-    width: 16,
+    width: 18,
     height: 2,
-    backgroundColor: 'transparent',
-  },
-  indicatorActive: {
     backgroundColor: colors.primary,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

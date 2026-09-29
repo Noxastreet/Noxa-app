@@ -10,7 +10,7 @@ import {
   hasCompletedVisibilitySetup,
   markVisibilitySetupComplete,
 } from '@/src/lib/visibilitySetup';
-import { colors } from '@/src/theme/colors';
+import { animations, colors } from '@/src/theme';
 
 type TabDestination =
   | 'ready'
@@ -113,6 +113,11 @@ export default function TabLayout() {
           headerShown: false,
           tabBarShowLabel: false,
           tabBarHideOnKeyboard: true,
+          animation: 'fade',
+          transitionSpec: {
+            animation: 'timing',
+            config: { duration: animations.rootTab },
+          },
         }}>
         <Tabs.Screen
           name="index"
