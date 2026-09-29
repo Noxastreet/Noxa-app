@@ -17,20 +17,21 @@ export function NoxaSectionTitle({ label, title }: NoxaSectionTitleProps) {
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    gap: spacing.xxs,
-  },
+  wrap: { gap: spacing.xxs },
   label: {
-    color: colors.primary,
-    fontSize: typography.caption,
+    color: colors.primaryHover,
+    fontSize: typography.v2.label.fontSize,
+    lineHeight: typography.v2.label.lineHeight,
+    letterSpacing: typography.v2.label.letterSpacing,
     fontWeight: '900',
-    letterSpacing: 2.2,
     textTransform: 'uppercase',
   },
   title: {
     color: colors.text,
-    fontSize: typography.h2,
+    fontFamily: typography.fontFamily.display,
+    fontSize: typography.v2.section.fontSize,
+    lineHeight: typography.v2.section.lineHeight,
+    letterSpacing: typography.v2.section.letterSpacing,
     fontWeight: '900',
-    letterSpacing: -0.7,
   },
 });
