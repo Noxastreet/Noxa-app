@@ -149,7 +149,7 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
     <NoxaSurface maskChildren style={styles.heroCard}>
       {vehicle.cover_image_url && vehicle.cover_image_url !== failedCoverUrl ? (
         <ImageBackground
-        onError={() => setFailedCoverUrl(vehicle.cover_image_url)} source={{ uri: vehicle.cover_image_url }} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius as ImageStyle}>
+          onError={() => setFailedCoverUrl(vehicle.cover_image_url)} source={{ uri: vehicle.cover_image_url }} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius as ImageStyle}>
           {content}
         </ImageBackground>
       ) : (

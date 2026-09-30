@@ -229,7 +229,7 @@ function FeaturedVehicle({ vehicle }: { vehicle: PublicVehicle }) {
       <NoxaSurface maskChildren style={styles.vehicleArtwork}>
       {vehicle.cover_image_url && vehicle.cover_image_url !== failedCoverUrl ? (
         <ImageBackground
-        onError={() => setFailedCoverUrl(vehicle.cover_image_url)}
+          onError={() => setFailedCoverUrl(vehicle.cover_image_url)}
           source={{ uri: vehicle.cover_image_url }}
           resizeMode="cover"
           style={styles.vehicleArtwork}

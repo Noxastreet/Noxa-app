@@ -67,7 +67,8 @@ import type {
   MapboxRoute,
 } from '@/src/features/mapbox/types';
 import { NoxaConfirmationSheet } from '@/src/components/ui';
-import { geometry,
+import {
+  geometry,
   animations,
   colors,
   radius,

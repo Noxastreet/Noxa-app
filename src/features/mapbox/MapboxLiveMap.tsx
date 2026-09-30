@@ -33,7 +33,7 @@ import {
 } from "react-native";
 import Svg, { Path as SvgPath } from "react-native-svg";
 
-import { colors, radius, spacing } from "@/src/theme";
+import { geometry, colors, radius, spacing } from "@/src/theme";
 
 import {
   createDriverFeatureCollection,
@@ -665,7 +665,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 MapboxLiveMap.displayName = "MapboxLiveMap";
 
 const styles = StyleSheet.create({
-  driverHitTarget: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  driverHitTarget: { width: geometry.controlHeight.compact, height: geometry.controlHeight.compact, alignItems: 'center', justifyContent: 'center' },
   stateView: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",

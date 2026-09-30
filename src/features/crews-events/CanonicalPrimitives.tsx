@@ -153,7 +153,7 @@ export function CanonicalAvatarStack({
               width: size,
               height: size,
               borderRadius: size / 2,
-              marginLeft: -8,
+              marginLeft: visible.length ? -8 : 0,
             },
           ]}
         >
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: "800",
   },
-  sectionActionTarget: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
+  sectionActionTarget: { minWidth: geometry.controlHeight.compact, minHeight: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center" },
   sectionHeader: {
     minHeight: 28,
     flexDirection: "row",
