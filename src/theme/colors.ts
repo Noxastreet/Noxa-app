@@ -15,6 +15,10 @@ export const colors = {
   primarySubtle: 'rgba(200,16,46,0.10)',
   text: '#F0F0F4',
   textMuted: '#8E8E98',
+  // Readable supporting copy on every solid NOXA surface (WCAG AA).
+  textQuiet: '#92929C',
+  textAccent: '#FF6B7D',
+  textCritical: '#FF6B7D',
   textSubtle: '#4C4C56',
   textDisabled: '#2C2C34',
   textSecondary: '#8E8E98',

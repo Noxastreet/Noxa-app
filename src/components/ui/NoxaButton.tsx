@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -9,6 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -82,16 +83,28 @@ export function NoxaButton({
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
+  // An async action or interrupted gesture can disable the control before press-out.
+  useEffect(() => {
+    cancelAnimation(scale);
+    cancelAnimation(opacity);
+    scale.value = 1;
+    opacity.value = 1;
+    return () => {
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+    };
+  }, [isDisabled, opacity, reduceMotion, scale]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: reduceMotion ? 1 : scale.value }],
   }));
 
   const handlePressIn = () => {
     if (isDisabled) return;
     opacity.value = withTiming(
       reduceMotion ? 0.78 : animations.pressOpacity,
-      { duration: animations.press },
+      { duration: reduceMotion ? 0 : animations.press },
     );
     scale.value = reduceMotion
       ? 1
@@ -99,7 +112,7 @@ export function NoxaButton({
   };
 
   const handlePressOut = () => {
-    opacity.value = withTiming(1, { duration: animations.press });
+    opacity.value = withTiming(1, { duration: reduceMotion ? 0 : animations.press });
     scale.value = reduceMotion
       ? 1
       : withSpring(1, animations.spring.press);
@@ -171,6 +184,7 @@ const styles = StyleSheet.create({
   lgMotion: { minHeight: geometry.controlHeight.primary, paddingHorizontal: spacing.xl },
   fullWidth: { width: '100%' },
   motionLayer: {
+    paddingVertical: spacing.sm,
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
@@ -196,7 +210,7 @@ const styles = StyleSheet.create({
   primaryText: { color: colors.text },
   secondaryText: { color: colors.text },
   ghostText: { color: colors.textMuted },
-  dangerText: { color: colors.primaryHover },
+  dangerText: { color: colors.textCritical },
   overlayText: { color: colors.text },
   googleText: { color: '#1F1F1F', fontSize: 14, lineHeight: 20, letterSpacing: 0 },
   disabledText: { color: colors.textMuted },

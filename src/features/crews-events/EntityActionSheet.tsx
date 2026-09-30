@@ -216,12 +216,14 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
       statusBarTranslucent
       transparent
       visible={rendered}>
-      <View style={styles.root}>
+      <View accessibilityViewIsModal onAccessibilityEscape={() => requestClose()} style={styles.root}>
         <Animated.View
           pointerEvents="none"
           style={[styles.backdrop, { opacity: backdropOpacity }]}
         />
         <Pressable
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
           accessibilityLabel="Close actions"
           accessibilityRole="button"
           onPress={() => requestClose()}
@@ -242,7 +244,7 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
             style={[styles.sheet, { paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.sm) }]}>
             <View {...panResponder.panHandlers} style={styles.dragArea}>
               <View style={styles.handle} />
-              <Text numberOfLines={1} style={styles.title}>
+              <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>
                 {title}
               </Text>
             </View>
@@ -369,7 +371,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   destructiveDivider: { marginTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderStrong },
-  destructiveLabel: { color: colors.primaryHover },
+  destructiveLabel: { color: colors.textCritical },
   pressed: { opacity: animations.pressOpacity },
   disabled: { opacity: 0.4 },
 });

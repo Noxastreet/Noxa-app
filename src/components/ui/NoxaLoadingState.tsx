@@ -9,8 +9,8 @@ type NoxaLoadingStateProps = {
 
 export function NoxaLoadingState({ compact = false, label = 'Loading…' }: NoxaLoadingStateProps) {
   return (
-    <View accessibilityLabel={label} accessibilityRole="progressbar" style={[styles.state, compact && styles.compact]}>
-      <ActivityIndicator color={colors.primary} />
+    <View accessible accessibilityLabel={label} accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLiveRegion="polite" style={[styles.state, compact && styles.compact]}>
+      <ActivityIndicator accessible={false} color={colors.primary} />
       <Text style={styles.label}>{label}</Text>
     </View>
   );

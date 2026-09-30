@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   interpolate,
   useAnimatedStyle,
   useReducedMotion,
@@ -40,15 +41,22 @@ function SegmentItem<T extends string>({
   const pressProgress = useSharedValue(0);
 
   useEffect(() => {
+    cancelAnimation(selectedProgress);
+    cancelAnimation(pressProgress);
+    pressProgress.value = 0;
     selectedProgress.value = reduceMotion
       ? selected ? 1 : 0
       : withSpring(selected ? 1 : 0, animations.spring.surface);
-  }, [reduceMotion, selected, selectedProgress]);
+    return () => {
+      cancelAnimation(selectedProgress);
+      cancelAnimation(pressProgress);
+    };
+  }, [pressProgress, reduceMotion, selected, selectedProgress]);
 
   const selectionMotion = useAnimatedStyle(() => ({
     opacity: selectedProgress.value,
     transform: [
-      { scale: interpolate(selectedProgress.value, [0, 1], [0.965, 1]) },
+      { scale: reduceMotion ? 1 : interpolate(selectedProgress.value, [0, 1], [0.965, 1]) },
     ],
   }));
 
@@ -78,6 +86,7 @@ function SegmentItem<T extends string>({
 
   return (
     <Pressable
+      accessibilityLabel={typeof option.count === 'number' ? `${option.label}, ${option.count}` : option.label}
       accessibilityRole="tab"
       accessibilityState={{ selected }}
       onPress={() => onChange(option.value)}
@@ -163,6 +172,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
+    flexShrink: 1,
     color: colors.textMuted,
     fontSize: typography.v2.label.fontSize,
     lineHeight: typography.v2.label.lineHeight,
@@ -172,7 +182,8 @@ const styles = StyleSheet.create({
   labelSelected: { color: colors.text },
   count: {
     minWidth: 22,
-    height: 22,
+    minHeight: 22,
+    paddingVertical: spacing.xxs,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xxs,
@@ -180,6 +191,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfacePressed,
   },
   countSelected: { backgroundColor: colors.primaryMuted },
-  countText: { color: colors.textSubtle, fontSize: 9, fontWeight: '900' },
+  countText: { color: colors.textQuiet, fontSize: 9, fontWeight: '900' },
   countTextSelected: { color: colors.text },
 });

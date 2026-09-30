@@ -17,12 +17,12 @@ export function NoxaTopBar({ centered = false, left, right, subtitle, title }: N
       <View style={styles.side}>{left}</View>
       <View style={[styles.copy, centered && styles.copyCentered]}>
         {title ? (
-          <Text numberOfLines={1} style={styles.title}>
+          <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>
             {title}
           </Text>
         ) : null}
         {subtitle ? (
-          <Text numberOfLines={1} style={styles.subtitle}>
+          <Text numberOfLines={2} style={styles.subtitle}>
             {subtitle}
           </Text>
         ) : null}

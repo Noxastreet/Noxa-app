@@ -5,9 +5,11 @@ import {
   Animated,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,6 +54,7 @@ export function NoxaConfirmationSheet({
 }: Props) {
   const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [rendered, setRendered] = useState(visible);
   const translateY = useRef(new Animated.Value(visible ? 0 : 44)).current;
   const backdropOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
@@ -192,12 +195,14 @@ export function NoxaConfirmationSheet({
       statusBarTranslucent
       transparent
       visible={rendered}>
-      <View style={styles.root}>
+      <View accessibilityViewIsModal onAccessibilityEscape={requestCancel} style={styles.root}>
         <Animated.View
           pointerEvents="none"
           style={[styles.backdrop, { opacity: backdropOpacity }]}
         />
         <Pressable
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
           accessibilityLabel="Cancel confirmation"
           accessibilityRole="button"
           disabled={busy}
@@ -216,43 +221,48 @@ export function NoxaConfirmationSheet({
             corners="top"
             cut={geometry.cut.lg}
             level="sheet"
-            style={[styles.sheet, { paddingBottom: Math.max(spacing.lg, insets.bottom + spacing.md) }]}>
-            <View style={styles.iconWrap}>
-              <Ionicons
-                name={content.icon}
-                size={21}
-                color={
-                  content.confirmVariant === 'danger'
-                    ? colors.primaryHover
-                    : colors.text
-                }
-              />
-            </View>
+            style={styles.shell}>
+            <ScrollView
+              style={{ maxHeight: Math.max(44, windowHeight - insets.top - spacing.lg) }}
+              contentContainerStyle={[styles.sheet, { paddingBottom: Math.max(spacing.lg, insets.bottom + spacing.md) }]}
+              keyboardShouldPersistTaps="handled">
+              <View style={styles.iconWrap}>
+                <Ionicons
+                  name={content.icon}
+                  size={21}
+                  color={
+                    content.confirmVariant === 'danger'
+                      ? colors.textCritical
+                      : colors.text
+                  }
+                />
+              </View>
 
-            {content.eyebrow ? <Text style={styles.eyebrow}>{content.eyebrow}</Text> : null}
-            <Text style={styles.title}>{content.title}</Text>
-            <Text style={styles.body}>{content.body}</Text>
-            {content.footnote ? <Text style={styles.footnote}>{content.footnote}</Text> : null}
+              {content.eyebrow ? <Text style={styles.eyebrow}>{content.eyebrow}</Text> : null}
+              <Text accessibilityRole="header" style={styles.title}>{content.title}</Text>
+              <Text style={styles.body}>{content.body}</Text>
+              {content.footnote ? <Text style={styles.footnote}>{content.footnote}</Text> : null}
 
-            <View style={styles.actions}>
-              <NoxaButton
-                disabled={busy}
-                fullWidth
-                onPress={requestCancel}
-                size="md"
-                title={content.cancelTitle}
-                variant="secondary"
-              />
-              <NoxaButton
-                disabled={confirmDisabled}
-                fullWidth
-                loading={busy}
-                onPress={onConfirm}
-                size="md"
-                title={content.confirmTitle}
-                variant={content.confirmVariant}
-              />
-            </View>
+              <View style={styles.actions}>
+                <NoxaButton
+                  disabled={busy}
+                  fullWidth
+                  onPress={requestCancel}
+                  size="md"
+                  title={content.cancelTitle}
+                  variant="secondary"
+                />
+                <NoxaButton
+                  disabled={confirmDisabled}
+                  fullWidth
+                  loading={busy}
+                  onPress={onConfirm}
+                  size="md"
+                  title={content.confirmTitle}
+                  variant={content.confirmVariant}
+                />
+              </View>
+            </ScrollView>
           </NoxaSurface>
         </Animated.View>
       </View>
@@ -272,6 +282,7 @@ const styles = StyleSheet.create({
   motionLayer: {
     width: '100%',
   },
+  shell: { overflow: 'hidden' },
   sheet: {
     gap: spacing.sm,
     paddingHorizontal: geometry.sheet.gutter,
@@ -290,7 +301,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     marginTop: spacing.xs,
-    color: colors.primaryHover,
+    color: colors.textCritical,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.4,

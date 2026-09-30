@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
   interpolate,
   useAnimatedStyle,
   useReducedMotion,
@@ -53,10 +54,17 @@ function MotionTabItem({
   const press = useSharedValue(0);
 
   useEffect(() => {
+    cancelAnimation(focus);
+    cancelAnimation(press);
+    press.value = 0;
     focus.value = reduceMotion
       ? focused ? 1 : 0
       : withSpring(focused ? 1 : 0, animations.spring.tab);
-  }, [focus, focused, reduceMotion]);
+    return () => {
+      cancelAnimation(focus);
+      cancelAnimation(press);
+    };
+  }, [focus, focused, press, reduceMotion]);
 
   const iconMotion = useAnimatedStyle(() => {
     const focusScale = interpolate(focus.value, [0, 1], [1, 1.08]);
@@ -64,15 +72,15 @@ function MotionTabItem({
     return {
       opacity: interpolate(focus.value, [0, 1], [0.68, 1]),
       transform: [
-        { translateY: interpolate(focus.value, [0, 1], [0, -1.5]) },
-        { scale: focusScale * pressScale },
+        { translateY: reduceMotion ? 0 : interpolate(focus.value, [0, 1], [0, -1.5]) },
+        { scale: reduceMotion ? 1 : focusScale * pressScale },
       ],
     };
   });
 
   const indicatorMotion = useAnimatedStyle(() => ({
     opacity: focus.value,
-    transform: [{ scaleX: Math.max(0.001, focus.value) }],
+    transform: [{ scaleX: reduceMotion ? 1 : Math.max(0.001, focus.value) }],
   }));
 
   const handlePressIn = () => {
@@ -90,8 +98,8 @@ function MotionTabItem({
   return (
     <Pressable
       accessibilityLabel={label}
-      accessibilityRole="button"
-      accessibilityState={focused ? { selected: true } : {}}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: focused }}
       onLongPress={onLongPress}
       onPress={onPress}
       onPressIn={handlePressIn}

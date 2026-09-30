@@ -54,6 +54,9 @@ jobs:
       - name: NOXA UI foundation contract
         run: npm run verify:ui-foundation
 
+      - name: NOXA accessibility and interrupted-control smoke
+        run: node ./scripts/test-ui-accessibility-interruption.mjs
+
       - name: NOXA root-screen visual system contract
         run: npm run verify:ui-root-screens
 

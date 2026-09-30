@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
+  cancelAnimation,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -39,16 +41,28 @@ export function NoxaIconButton({
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
+  // An async action or interrupted gesture can disable the control before press-out.
+  useEffect(() => {
+    cancelAnimation(scale);
+    cancelAnimation(opacity);
+    scale.value = 1;
+    opacity.value = 1;
+    return () => {
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+    };
+  }, [isDisabled, opacity, reduceMotion, scale]);
+
   const motionStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: reduceMotion ? 1 : scale.value }],
   }));
 
   const handlePressIn = () => {
     if (isDisabled) return;
     opacity.value = withTiming(
       reduceMotion ? 0.72 : animations.pressOpacity,
-      { duration: animations.press },
+      { duration: reduceMotion ? 0 : animations.press },
     );
     scale.value = reduceMotion
       ? 1
@@ -56,7 +70,7 @@ export function NoxaIconButton({
   };
 
   const handlePressOut = () => {
-    opacity.value = withTiming(1, { duration: animations.press });
+    opacity.value = withTiming(1, { duration: reduceMotion ? 0 : animations.press });
     scale.value = reduceMotion
       ? 1
       : withSpring(1, animations.spring.press);
