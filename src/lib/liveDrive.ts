@@ -1,6 +1,5 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
 
 import { supabase } from '@/src/lib/supabase';
 
@@ -20,39 +19,6 @@ export type LiveDriveSession = {
   visibilityMode: LiveDriveVisibilityMode;
   expiresAt: string;
 };
-
-export function getSafeLiveDriveStartMessage(error: unknown) {
-  const message = error instanceof Error ? error.message.toLowerCase() : '';
-
-  if (message.includes('development or store build') || message.includes('expo go')) {
-    return 'Live Drive needs an installed development or store build. You are still in Ghost.';
-  }
-  if (message.includes('background location') || message.includes('always access')) {
-    return Platform.OS === 'ios'
-      ? 'Set NOXA Location to Always in iPhone Settings.'
-      : 'Background location is not allowed. Enable background location for NOXA, then retry.';
-  }
-  if (message.includes('precise location') || message.includes('precise gps fix')) {
-    return Platform.OS === 'ios'
-      ? 'Enable Precise Location for NOXA in iPhone Settings.'
-      : 'Precise Location is unavailable. Enable precise location for NOXA, then retry.';
-  }
-  if (message.includes('location services are off')) {
-    return Platform.OS === 'ios'
-      ? 'Enable iPhone Location Services, then retry.'
-      : 'Location Services are off. Enable them in Settings, then retry.';
-  }
-  if (
-    message.includes('allow location')
-    || message.includes('foreground')
-    || message.includes('when in use')
-  ) {
-    return Platform.OS === 'ios'
-      ? 'Allow Location for NOXA in iPhone Settings.'
-      : 'Location access is not allowed. Enable location for NOXA, then retry.';
-  }
-  return 'Live Drive could not start. Check Location settings and retry.';
-}
 
 type PendingLiveDriveCleanup = {
   userId: string;
@@ -426,11 +392,7 @@ export async function requestLiveDrivePermissions() {
 
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== Location.PermissionStatus.GRANTED) {
-    throw new Error(
-      Platform.OS === 'ios'
-        ? 'Background location requires Always access in iPhone Settings.'
-        : 'Allow background location so your 4-hour Live Drive session can continue.',
-    );
+    throw new Error('Background location permission is required for Live Drive.');
   }
 
   return current;
