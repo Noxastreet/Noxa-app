@@ -2495,6 +2495,7 @@ export default function LiveMapScreen() {
               {driverLocation ? "nearby now" : "active now"}
             </Text>
           </View>
+
           <View style={styles.headerActions}>
             <NoxaIconButton
               accessibilityHint="Find people, Crews and Events"
