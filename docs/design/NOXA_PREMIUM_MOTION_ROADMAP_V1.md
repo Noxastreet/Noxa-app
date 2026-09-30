@@ -2307,3 +2307,69 @@ Use:
 - no second MapView;
 - no new GPS or realtime runtime.
 
+
+
+---
+
+# 26. BATCH C - CONTEXTUAL CONTINUITY CHECKPOINT
+
+## Implementation set
+
+### C1 - Drive Together internal stage continuity
+**Status:** MERGED / CI VERIFIED
+
+- one existing Drive Together sheet shell remains mounted;
+- destination / drivers / waiting / active / invite / loading use short local transitions;
+- existing drag/snap physics remain intact;
+- no Mapbox/GPS/realtime architecture change.
+
+### C2 - Canonical confirmations
+**Status:** MERGED / CI VERIFIED
+
+- one NOXA confirmation surface replaces Home/Map Live Drive center modals;
+- Drive Together Cancel / End / Leave no longer use system alerts;
+- privacy copy and audience semantics remain unchanged;
+- destructive backend calls remain unchanged;
+- destructive confirmation remains visible while the backend action commits.
+
+### C3 - Visibility popover
+**Status:** MERGED / CI VERIFIED
+
+- Global / Crew / Friends / Ghost opens from the map identity trigger with restrained anchored motion;
+- radio semantics and privacy confirmation path remain unchanged;
+- Reduce Motion supported.
+
+### C4 - Quick Connect internal continuity
+**Status:** IMPLEMENTED / CI PENDING
+
+- stable Quick Connect screen shell;
+- short semantic transitions between Share / Connect / Scanner / Preview / Success;
+- existing QR, camera permission, resolve, redeem and already-friends behavior untouched;
+- no location/GPS behavior added.
+
+## Batch C physical checkpoint
+
+Create **one** TestFlight only after C4 is merged.
+
+Required checks:
+
+- [ ] Drive Together destination -> driver selection transition no longer hard-jumps.
+- [ ] Drive Together waiting -> active/room controls remains one continuous sheet.
+- [ ] Drive Together drag/snap still works after internal stage animation.
+- [ ] Live Drive start confirmation uses the NOXA bottom confirmation surface.
+- [ ] Live Drive audience-change confirmation uses the same surface.
+- [ ] Cancel Drive Together no longer opens the native iOS alert.
+- [ ] End/Leave Drive Together uses the canonical destructive confirmation.
+- [ ] destructive confirmation remains visible while processing.
+- [ ] visibility popover opens from the identity control without a static pop.
+- [ ] Global/Crew/Friends/Ghost behavior is unchanged.
+- [ ] Quick Connect Add Driver -> Scanner is continuous.
+- [ ] Scanner -> Preview is continuous.
+- [ ] Preview -> Connected success is continuous.
+- [ ] Quick Connect QR scan and manual code entry still work.
+- [ ] no Mapbox/GPS/realtime regression.
+- [ ] no root-tab black/blank transition regression.
+
+## Batch C gate
+
+If the above critical flows pass, move to **Batch D: product-wide micro-interactions, semantic haptics, depth/decor, and final iPhone performance QA.**
