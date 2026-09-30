@@ -14,11 +14,11 @@ import { NoxaCompactLogo } from '@/src/components/brand';
 import { NoxaButton, NoxaScreen } from '@/src/components/ui';
 import {
   getLiveDriveSession,
-  getSafeLiveDriveStartMessage,
   requestLiveDrivePermissions,
   startLiveDriveSession,
   stopLiveDriveSession,
 } from '@/src/lib/liveDrive';
+import { getSafeLiveDriveStartMessage } from '@/src/lib/liveDriveError';
 import { supabase } from '@/src/lib/supabase';
 import {
   hasCompletedVisibilitySetup,
