@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 5
     if: ${{ github.run_attempt == 1 }}
     steps:
-      - name: Read EAS submission and service status
+      - name: Read submission and Apple upload evidence
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         shell: bash
@@ -40,20 +40,26 @@ jobs:
             else if (arg.type.kind === "NON_NULL" && arg.defaultValue == null) throw new Error("Unsupported required argument: "+arg.name);
           }
           const node = await getType(leaf(field.type).name);
-          const safe = ["id","status","createdAt","updatedAt","completedAt","platform","appVersion","appBuildVersion"];
+          const safe = ["id","status","createdAt","updatedAt","completedAt","platform","appVersion","appBuildVersion","priority"];
           const fields = node.fields.filter(f=>safe.includes(f.name)&&["SCALAR","ENUM"].includes(leaf(f.type).kind)).map(f=>f.name);
           if (!fields.includes("status")) throw new Error("Submission status schema unavailable");
           const body = "{ app { byId(appId: \"8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a\") { "+field.name+(args.length?"("+args.join(",")+")":"")+" { "+fields.join(" ")+" } } } }";
           
-          console.log("Submission schema:",JSON.stringify(node.fields.map(f=>({name:f.name,type:leaf(f.type).name}))));
-          console.log("Recent NOXA submissions:",JSON.stringify(await query(body)));
-          for (const url of ["https://status.expo.dev/api/v2/summary.json","https://status.expo.io/api/v2/summary.json"]) {
-            try {
-              const response = await fetch(url,{signal:AbortSignal.timeout(15000)});
-              const status = await response.json();
-              console.log("Expo service status:",JSON.stringify({url,http:response.status,status:status.status,incidents:status.incidents?.map(i=>({name:i.name,status:i.status})),degraded:status.components?.filter(c=>c.status!=="operational").map(c=>({name:c.name,status:c.status}))}));
-              break;
-            } catch(error) { console.log("Status endpoint unavailable:",url,error.message); }
+          const uploadType = await getType("AppStoreConnectBuildUpload");
+          console.log("App Store upload schema:",JSON.stringify(uploadType?.fields?.map(f=>({name:f.name,type:leaf(f.type).name}))));
+          const uploadFields = uploadType?.fields?.filter(f=>["SCALAR","ENUM"].includes(leaf(f.type).kind)&&!/(secret|token|key|url)/i.test(f.name)&&f.args.length===0).map(f=>f.name) ?? [];
+          const detailedBody = body.replace(fields.join(" "), fields.join(" ")+" logFiles"+(uploadFields.length?" appStoreConnectBuildUpload { "+uploadFields.join(" ")+" }":""));
+          const response = await query(detailedBody);
+          const current = response.app.byId.submissions.find(s=>s.id==="49c9752a-921b-4c71-a187-603845b0e2aa");
+          if (!current) throw new Error("Expected submission missing");
+          const {logFiles,...metadata} = current;
+          console.log("Current submission evidence:",JSON.stringify(metadata));
+          for (const url of Array.isArray(logFiles)?logFiles:logFiles?[logFiles]:[]) {
+            const response = await fetch(url,{signal:AbortSignal.timeout(15000)});
+            if(!response.ok) { console.log("Submission logs not ready:",response.status); continue; }
+            const log = await response.text();
+            console.log("Apple successful upload text found:",/successfully uploaded.*App Store Connect/i.test(log));
+            console.log("Apple submitted confirmation text found:",/Submitted your app to Apple App Store Connect/i.test(log));
           }
           
           
