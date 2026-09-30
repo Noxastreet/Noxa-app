@@ -110,7 +110,6 @@ function initials(value: string) {
 
 export function MapDriverCard({
   driverId,
-  fallbackProfile,
   bottomOffset,
   isInDrive,
   isRelevant,
@@ -307,14 +306,13 @@ export function MapDriverCard({
   };
 
 
-  const name = isRelevant ? displayName(profile, unavailable || error ? null : fallbackProfile) : 'NOXA driver';
-  const username = isRelevant && !unavailable && !error
-    ? usernameLabel(profile?.username ?? fallbackProfile?.username)
-    : null;
-  const avatarUrl = isRelevant && !unavailable && !error
-    ? (profile?.avatarUrl ?? fallbackProfile?.avatarUrl ?? null)
-    : null;
-  const car = isRelevant ? vehicleLabel(vehicle) : null;
+  const mapIdentityAllowed = !loading && !unavailable && !error
+    && (relationship === 'self'
+      || (isRelevant && (relationship === 'mutual' || sharedCrew || isInDrive)));
+  const name = isRelevant ? displayName(mapIdentityAllowed ? profile : null, null) : 'NOXA driver';
+  const username = mapIdentityAllowed ? usernameLabel(profile?.username) : null;
+  const avatarUrl = mapIdentityAllowed ? profile?.avatarUrl ?? null : null;
+  const car = mapIdentityAllowed ? vehicleLabel(vehicle) : null;
 
   const primaryAction: {
     title: string;
@@ -424,7 +422,7 @@ export function MapDriverCard({
         </View>
       ) : (
         <NoxaDetailReveal>
-          {!unavailable && vehicle ? (
+          {mapIdentityAllowed && vehicle ? (
             <NoxaPressableSurface
               accessibilityLabel={car ? `Open ${car}` : 'Open vehicle'}
               accessibilityRole="button"
@@ -454,7 +452,7 @@ export function MapDriverCard({
           ) : !error ? (
             <Text style={styles.loadingText}>
               {unavailable ? 'This driver is private or no longer available.'
-                : !isRelevant ? 'Identity is private on the map.'
+                : !mapIdentityAllowed ? 'Identity is private on the map.'
                   : 'No public primary vehicle.'}
             </Text>
           ) : null}
