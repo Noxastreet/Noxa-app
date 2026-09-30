@@ -63,6 +63,9 @@ jobs:
       - name: NOXA detail navigation motion contract
         run: npm run verify:motion-detail-navigation
 
+      - name: NOXA premium action-sheet motion contract
+        run: npm run verify:motion-action-sheet
+
       - name: Chat latest-window contract
         run: node ./scripts/verify-chat-window.mjs
 
