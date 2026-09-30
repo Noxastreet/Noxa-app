@@ -43,6 +43,7 @@ function isValidLatLng(point: LatLng) {
 
 export function createDriverFeatureCollection(
   drivers: MapboxDriver[],
+  selectedDriverId: string | null = null,
 ): PointFeatureCollection {
   return {
     type: "FeatureCollection",
@@ -53,6 +54,7 @@ export function createDriverFeatureCollection(
         id: driver.user_id,
         type: "driver",
         title: driver.label,
+        selected: driver.user_id === selectedDriverId,
       },
       geometry: {
         type: "Point",
