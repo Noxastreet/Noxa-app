@@ -13,6 +13,7 @@ export { NoxaSheet } from './NoxaSheet';
 export { NoxaSectionTitle } from './NoxaSectionTitle';
 export { NoxaTopBar } from './NoxaTopBar';
 
+export { NoxaDetailReveal } from './NoxaDetailReveal';
 export { NoxaDivider } from './NoxaDivider';
 export { NoxaEmptyState } from './NoxaEmptyState';
 export { NoxaIconButton } from './NoxaIconButton';
