@@ -43,19 +43,7 @@ export function NoxaAuthScreen({ children, footer, onBack, subtitle, title }: No
         <Rect fill="url(#authHeroFade)" height="100%" width="100%" />
       </Svg>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingTop: Math.max(insets.top, spacing.md) + spacing.sm,
-              paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
-            },
-          ]}
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.md) + spacing.sm }]}>
             <Pressable
               accessibilityLabel="Go back"
               accessibilityRole="button"
@@ -66,6 +54,20 @@ export function NoxaAuthScreen({ children, footer, onBack, subtitle, title }: No
             </Pressable>
             <NoxaCompactLogo size="sm" />
           </View>
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
+            },
+          ]}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+
 
           <View style={styles.heroSpace} />
 
@@ -105,19 +107,24 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 26,
   },
   header: {
+    paddingHorizontal: 26,
+    paddingBottom: spacing.xs,
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
   backButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: -8,

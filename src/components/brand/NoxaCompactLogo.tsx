@@ -31,6 +31,7 @@ export function NoxaCompactLogo({ size = 'md' }: NoxaCompactLogoProps) {
         </Svg>
       </View>
       <Text
+        allowFontScaling={false}
         style={[
           styles.wordmark,
           {
