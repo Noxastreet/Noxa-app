@@ -70,7 +70,7 @@ function harness({ relevant = true, result = () => ({ data: null, error: null })
       if (name === 'expo-router') return { router: { push() {} } };
       if (name.endsWith('/supabase')) return { supabase };
       if (name.endsWith('/ui')) return ui;
-      if (name.endsWith('/theme')) return { animations: tokens, colors: tokens, radius: tokens, spacing: tokens, typography: { fontFamily: tokens } };
+      if (name.endsWith('/theme')) return { animations: tokens, colors: tokens, radius: tokens, spacing: tokens, typography: { fontFamily: tokens, v2: { label: tokens } } };
       throw new Error('Unexpected import: ' + name);
     },
   });
