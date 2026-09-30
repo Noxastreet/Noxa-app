@@ -15,7 +15,7 @@ import { colors, spacing, typography } from '@/src/theme';
 const emailPattern = /^\S+@\S+\.\S+$/;
 
 function backToSignIn() {
-  router.replace('/sign-in');
+  router.dismissTo('/sign-in');
 }
 
 export default function ForgotPasswordScreen() {
@@ -147,9 +147,7 @@ export default function ForgotPasswordScreen() {
             />
           </View>
 
-          <Text onPress={backToSignIn} style={styles.backLink}>
-            Back to <Text style={styles.backLinkAccent}>Sign In</Text>
-          </Text>
+          <NoxaButton fullWidth onPress={backToSignIn} title="Back to Sign In" variant="ghost" size="md" />
         </View>
       )}
     </NoxaAuthScreen>
@@ -170,19 +168,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: typography.lineHeight.caption,
     textAlign: 'center',
-  },
-  backLink: {
-    minHeight: 40,
-    marginTop: spacing.xs,
-    color: colors.textMuted,
-    fontFamily: typography.fontFamily.body,
-    fontSize: 13,
-    lineHeight: 40,
-    textAlign: 'center',
-  },
-  backLinkAccent: {
-    color: colors.textAccent,
-    fontWeight: '600',
   },
   successContent: {
     alignItems: 'center',

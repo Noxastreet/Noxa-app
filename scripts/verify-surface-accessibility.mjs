@@ -56,6 +56,7 @@ function assertFixedBack(node, insideScroll = false) {
   ts.forEachChild(node, child => assertFixedBack(child, scroll));
 }
 assertFixedBack(authAst);
+assert.ok(authScreen.includes('maxFontSizeMultiplier={1.5}'), 'Large brand display title must leave scaled form content usable');
 const wordmark = fs.readFileSync('src/components/brand/NoxaCompactLogo.tsx', 'utf8');
 assert.ok(wordmark.includes('allowFontScaling={false}') && wordmark.includes('accessibilityLabel="NOXA"'), 'Brand wordmark retains geometry and its accessible identity');
 
