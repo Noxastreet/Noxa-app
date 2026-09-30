@@ -90,6 +90,9 @@ jobs:
       - name: Map driver contextual card contract
         run: npm run verify:map-driver-card
 
+      - name: Map selected driver marker contract
+        run: npm run verify:map-selected-driver
+
       - name: Map camera ownership contract
         run: npm run verify:map-camera-ownership
 
