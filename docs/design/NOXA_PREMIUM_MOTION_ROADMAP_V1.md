@@ -2007,3 +2007,67 @@ For any motion PR, reviewers ask:
 - [ ] Does the interaction remain clear without haptics?
 - [ ] Has this been physically checked on TestFlight?
 
+
+
+---
+
+# 23. ACCELERATED EXECUTION MODE
+
+**Activated:** 2026-09-30
+
+The Product Owner explicitly selected accelerated delivery. From this point, NOXA does not create a TestFlight build for every small motion PR.
+
+## Rules
+
+1. Every implementation PR still runs full Quality/CI.
+2. Small compatible PRs are grouped into one runtime batch.
+3. TestFlight is created only at meaningful physical-device checkpoints.
+4. A failed CI contract still blocks merge.
+5. A physical regression found at a batch checkpoint blocks the next batch.
+6. Runtime evidence is evaluated across the whole batch, not per tiny diff.
+
+## Batch checkpoint policy
+
+### Batch A - Detail hierarchy + sheet foundation
+Includes:
+- PR #333 - detail navigation foundation;
+- PR #334 - premium shared EntityActionSheet physics;
+- PR #335 - unified detail header interactions;
+- PR #336 - staged detail content reveal.
+
+**Canonical main:** `4cd770c5f3ea704578a5e6f45a70f2a848446ca1`  
+**Implementation status:** MERGED / CI VERIFIED  
+**Physical-device status:** NOT VERIFIED  
+**TestFlight:** one combined checkpoint queued.
+
+Required Batch A physical checks:
+- root tabs have no black/blank gap;
+- Map -> Driver Profile push/back is coherent;
+- Map/Event -> Event Detail push/back is coherent;
+- Garage -> Vehicle Detail push/back is coherent;
+- Crew -> Crew Detail push/back is coherent;
+- native iOS back gesture remains functional;
+- detail shell appears before async content;
+- loaded content reveals without layout jump;
+- header controls have consistent spring feedback;
+- shared action sheet rises smoothly;
+- action sheet drag can interrupt its spring;
+- velocity dismissal works;
+- backdrop and sheet dismiss together;
+- action fires only after sheet dismissal;
+- Reduce Motion remains functional;
+- no visible Mapbox/GPS/realtime regression.
+
+## Next batch after A passes
+
+### Batch B - Map spatial interaction + state continuity
+Planned focus:
+- marker selected state;
+- marker -> contextual card sequencing;
+- camera ownership model;
+- recenter/follow states;
+- card -> route continuity;
+- route shell + ETA/km reveal;
+- loading/success/error continuity around map actions.
+
+No TestFlight is required between individual Batch B PRs unless a critical runtime-risk change is introduced.
