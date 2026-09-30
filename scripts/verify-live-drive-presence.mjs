@@ -10,6 +10,10 @@ function assert(condition, message) {
 const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
 const liveDriveError = fs.readFileSync('src/lib/liveDriveError.ts', 'utf8');
 const permissionFlow = fs.readFileSync('src/lib/liveDrivePermissionFlow.ts', 'utf8');
+const backgroundPermissionFlow = fs.readFileSync(
+  'src/lib/backgroundLocationPermissionFlow.ts',
+  'utf8',
+);
 const permissionRecoverySheet = fs.readFileSync(
   'src/features/map/LiveDrivePermissionRecoverySheet.tsx',
   'utf8',
@@ -225,18 +229,23 @@ assert(
 );
 
 assert(
-  permissionFlow.includes("Platform.OS === 'ios'") &&
-    permissionFlow.includes('Location.getBackgroundPermissionsAsync()') &&
-    permissionFlow.includes('background?.status !== Location.PermissionStatus.GRANTED') &&
-    permissionFlow.includes('background?.canAskAgain !== false') &&
-    permissionFlow.includes('Location.requestBackgroundPermissionsAsync()') &&
+  permissionFlow.includes('await requestIosBackgroundLocationPreflight();') &&
     permissionFlow.includes('return requestLiveDrivePermissions();'),
-  'iOS Live Drive must proactively request the background/Always authorization path, then delegate final validation to the verified runtime.',
+  'Live Drive must use the shared background-location preflight before delegating final validation to the verified runtime.',
 );
 assert(
-  !permissionFlow.includes('startLocationUpdatesAsync') &&
-    !permissionFlow.includes('driver_locations'),
-  'Permission preflight must not create a second GPS writer or publish presence.',
+  backgroundPermissionFlow.includes("Platform.OS !== 'ios'") &&
+    backgroundPermissionFlow.includes('Location.getBackgroundPermissionsAsync()') &&
+    backgroundPermissionFlow.includes('background?.status !== Location.PermissionStatus.GRANTED') &&
+    backgroundPermissionFlow.includes('background?.canAskAgain !== false') &&
+    backgroundPermissionFlow.includes('Location.requestBackgroundPermissionsAsync()'),
+  'Shared iOS permission preflight must proactively enter the native background/Always authorization path.',
+);
+assert(
+  !backgroundPermissionFlow.includes('startLocationUpdatesAsync') &&
+    !backgroundPermissionFlow.includes('driver_locations') &&
+    !backgroundPermissionFlow.includes('drive_location_state'),
+  'Shared permission preflight must not start GPS or publish any location.',
 );
 
 assert(
