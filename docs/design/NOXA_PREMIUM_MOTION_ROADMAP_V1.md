@@ -2373,3 +2373,82 @@ Required checks:
 ## Batch C gate
 
 If the above critical flows pass, move to **Batch D: product-wide micro-interactions, semantic haptics, depth/decor, and final iPhone performance QA.**
+
+
+---
+
+# 27. BUILD 65 PHYSICAL CHECKPOINT + EVENT / DRIVE TOGETHER BRIDGE
+
+## Build 65 physical result
+
+**Status:** PASS WITH ONE POLISH NOTE
+
+Verified from the supplied iPhone recording:
+
+- visibility popover opens and closes correctly;
+- Live Drive start confirmation uses the new NOXA confirmation presentation;
+- Drive Together destination -> driver-selection transition is smoother;
+- waiting-room / room UI remains functional;
+- root tabs do not show black/blank transition gaps;
+- Map stays mounted through the exercised flows.
+
+### Remaining polish note
+
+After confirming selected drivers, the Drive Together sheet briefly disappears before the waiting room appears.
+
+This is a visual continuity issue, not a functional blocker.
+
+Track for final polish:
+- retain a loading room shell during room creation;
+- avoid exposing a bare-map gap while the room RPC resolves.
+
+## Next functional block - Event <-> Drive Together
+
+### Primary scenario
+
+**Event -> Route -> Add driver -> Drive Together**
+
+Rules:
+- Event coordinates/title become the shared Drive Together destination automatically;
+- do not ask the user to pick the destination a second time;
+- immediately open friend/driver selection;
+- room creation continues through the existing quick-drive backend path.
+
+### Reverse scenario
+
+**Drive Together -> Destination -> Event**
+
+Rules:
+- destination chooser exposes current active/upcoming Events;
+- choosing an Event uses its existing map coordinates/title;
+- no Event-specific Drive Together table or backend domain is introduced.
+
+### Existing room rule
+
+If a Drive Together room already exists:
+- do not create another room;
+- confirm using the Event as the current room destination;
+- update/request the shared destination using the existing quick-drive destination RPC.
+
+### Route ownership
+
+The shared object is the destination, not one server-shared route geometry.
+
+Each participant:
+- keeps their own current location;
+- calculates their own route toward the same destination;
+- publishes existing Drive Together progress under the existing privacy/runtime model.
+
+## Runtime verification for the bridge
+
+- [ ] Event -> Route shows Add driver.
+- [ ] Add driver opens Drive Together directly at Who is going.
+- [ ] Event destination is already populated.
+- [ ] selected friend creates one room, not two.
+- [ ] invitation shows the Event destination.
+- [ ] participant accepts and receives their own route to the same Event.
+- [ ] Drive Together destination chooser lists Events.
+- [ ] selecting an Event from Drive Together skips manual destination re-entry.
+- [ ] existing room asks before applying Event destination.
+- [ ] existing room is reused instead of duplicated.
+- [ ] no Mapbox/GPS/realtime/privacy regression.
