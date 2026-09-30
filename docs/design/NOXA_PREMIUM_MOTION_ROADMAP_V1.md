@@ -2237,3 +2237,73 @@ After sheet/confirmation behavior is stable:
 6. Reduce Motion physical QA;
 7. final performance/jank pass on physical iPhone.
 
+
+
+---
+
+# 25. BUILD 64 PHYSICAL CHECKPOINT - BATCH B
+
+**Evidence:** iOS screen recording supplied by Product Owner on 2026-09-30.  
+**Runtime:** physical iPhone, installed TestFlight build 64.
+
+## VERIFIED on build 64
+
+- root-tab switching shows no black/blank transition frame;
+- Map remains mounted through the exercised flows;
+- Event marker selection is immediate and visually clear;
+- Event contextual card opens without a duplicate preview layer;
+- Event -> Route shows a stable route shell rather than a blank handoff;
+- route line renders;
+- ETA / distance remain visible during route interaction;
+- camera fit follows route-state commit without a visible blank frame;
+- manual map interaction does not destroy the route state;
+- Event Detail push/back remains coherent;
+- the updated Map motion does not visibly regress root navigation.
+
+## NOT VERIFIED on build 64
+
+- ordinary driver-marker tap -> selected-driver emphasis;
+- ordinary driver-marker tap -> canonical Driver Card without duplicate preview;
+- driver card -> Profile flow;
+- Active Group Drive participant selected-marker treatment;
+- long-running follow/recenter behavior;
+- Reduce Motion;
+- haptic semantics.
+
+These items remain runtime NOT VERIFIED rather than failed.
+
+## Batch B status
+
+**Event / Route / camera continuity:** VERIFIED  
+**Driver-marker continuity:** NOT VERIFIED  
+**Overall Batch B:** PASS WITH LIMITATIONS
+
+The remaining driver-marker checks do not block accelerated Batch C development because no regression was observed in build 64 and the unverified cases are isolated runtime checks.
+
+## Build 64 new confirmation for Batch C
+
+Drive Together still changes its internal sheet content too abruptly between:
+- destination selection;
+- driver selection;
+- waiting-room state;
+- room controls.
+
+The outer sheet physics are acceptable. The problem is the instantaneous replacement of the inner content tree.
+
+### C1 target
+
+Keep one mounted Drive Together sheet shell and animate only the internal semantic stage:
+- create destination;
+- choose drivers;
+- waiting room;
+- active room;
+- invite;
+- loading.
+
+Use:
+- short local-state fade;
+- existing sheet spring for snap movement;
+- system Reduce Motion;
+- no second MapView;
+- no new GPS or realtime runtime.
+
