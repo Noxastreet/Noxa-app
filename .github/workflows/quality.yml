@@ -147,6 +147,9 @@ jobs:
       - name: Drive Together map-first static contract
         run: npm run verify:drive-together-quickflow
 
+      - name: Event / Drive Together bridge contract
+        run: npm run verify:event-drive-together
+
       - name: Drive Together local database smoke
         run: npm run test:drive-together-quickflow
 
