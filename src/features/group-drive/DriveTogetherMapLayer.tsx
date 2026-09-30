@@ -13,6 +13,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  ReduceMotion,
+} from 'react-native-reanimated';
 
 import {
   acceptGroupDriveLocationDisclosure,
@@ -62,7 +67,14 @@ import type {
   MapboxDriver,
   MapboxRoute,
 } from '@/src/features/mapbox/types';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import {
+  animations,
+  colors,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '@/src/theme';
 
 type ComposerMode =
   | 'room'
@@ -100,6 +112,12 @@ type Props = {
 
 const ROOM_DETAILS_RECONCILE_MS = 5_000;
 const LOCATION_STALE_MS = 45_000;
+const DRIVE_STAGE_ENTER = FadeIn
+  .duration(animations.micro)
+  .reduceMotion(ReduceMotion.System);
+const DRIVE_STAGE_EXIT = FadeOut
+  .duration(animations.fast)
+  .reduceMotion(ReduceMotion.System);
 
 function initials(name: string) {
   return (
@@ -1932,6 +1950,25 @@ export function DriveTogetherMapLayer({
     );
   };
 
+  const stageKey =
+    composerMode === 'create-destination'
+      ? 'create-destination'
+      : composerMode === 'change-destination'
+        ? 'change-destination'
+        : composerMode === 'create-friends'
+          ? 'create-friends'
+          : composerMode === 'invite-drivers'
+            ? 'invite-drivers'
+            : invite
+              ? 'invite'
+              : roomId
+                ? roomActive
+                  ? 'room-active'
+                  : details
+                    ? 'room-waiting'
+                    : 'room-loading'
+                : 'empty';
+
   return (
     <>
       {roomActive && participantMetrics.length ? (
@@ -1959,27 +1996,33 @@ export function DriveTogetherMapLayer({
               ? 'collapsed'
               : sheetSnap
           }>
-          {composerMode === 'create-destination'
-            || composerMode === 'change-destination'
-            ? renderDestinationComposer()
-            : composerMode === 'create-friends'
-              || composerMode === 'invite-drivers'
-              ? renderFriendComposer()
-              : invite
-                ? renderInvite()
-                : roomId
-                  ? renderRoom()
-                  : (
-                    <View style={styles.emptyComposer}>
-                      <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
-                      <Text style={styles.sheetTitle}>Choose a destination.</Text>
-                      <PrimaryAction
-                        icon="flag-outline"
-                        onPress={() => setComposerMode('create-destination')}
-                        title="Set destination"
-                      />
-                    </View>
-                  )}
+          <Animated.View
+            entering={DRIVE_STAGE_ENTER}
+            exiting={DRIVE_STAGE_EXIT}
+            key={stageKey}
+            style={styles.stage}>
+            {composerMode === 'create-destination'
+              || composerMode === 'change-destination'
+              ? renderDestinationComposer()
+              : composerMode === 'create-friends'
+                || composerMode === 'invite-drivers'
+                ? renderFriendComposer()
+                : invite
+                  ? renderInvite()
+                  : roomId
+                    ? renderRoom()
+                    : (
+                      <View style={styles.emptyComposer}>
+                        <Text style={styles.eyebrow}>DRIVE TOGETHER</Text>
+                        <Text style={styles.sheetTitle}>Choose a destination.</Text>
+                        <PrimaryAction
+                          icon="flag-outline"
+                          onPress={() => setComposerMode('create-destination')}
+                          title="Set destination"
+                        />
+                      </View>
+                    )}
+          </Animated.View>
         </DriveTogetherSheet>
       ) : null}
     </>
@@ -1999,6 +2042,10 @@ const styles = StyleSheet.create({
   },
   actionGrow: {
     flex: 1,
+  },
+  stage: {
+    flex: 1,
+    minHeight: 0,
   },
   composer: {
     flex: 1,
