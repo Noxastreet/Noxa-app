@@ -1212,7 +1212,6 @@ export function DriveTogetherMapLayer({
     if (!pendingDestructiveAction || !roomId || working) return;
 
     if (pendingDestructiveAction === 'cancel-room') {
-      setPendingDestructiveAction(null);
       setWorking(true);
       setError(null);
       void cancelDrive(roomId)
@@ -1220,9 +1219,11 @@ export function DriveTogetherMapLayer({
           if (!cancelled) {
             throw new Error('The room is no longer cancellable. Refreshing its state.');
           }
+          setPendingDestructiveAction(null);
           clearRoom();
         })
         .catch((cancelError) => {
+          setPendingDestructiveAction(null);
           setError(
             cancelError instanceof Error
               ? cancelError.message
@@ -1235,15 +1236,18 @@ export function DriveTogetherMapLayer({
     }
 
     const host = Boolean(details && details.hostId === details.currentUserId);
-    setPendingDestructiveAction(null);
     setWorking(true);
     setError(null);
     void (host
       ? endGroupDrive(roomId)
       : leaveGroupDriveAndStopLocation(roomId)
     )
-      .then(() => clearRoom())
+      .then(() => {
+        setPendingDestructiveAction(null);
+        clearRoom();
+      })
       .catch((finishError) => {
+        setPendingDestructiveAction(null);
         setError(
           finishError instanceof Error
             ? finishError.message
