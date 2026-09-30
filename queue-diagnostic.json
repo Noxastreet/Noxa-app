@@ -1,0 +1,20 @@
+{
+  "source": "879bf6681f88a1a4756abd5ce9ce13130bbab3c6",
+  "checkedAt": "2026-09-30T23:29:04.218Z",
+  "serviceStatus": {
+    "indicator": "none",
+    "description": "All Systems Operational"
+  },
+  "unresolvedIncidents": [],
+  "availableQueueFields": [],
+  "submission": {
+    "id": "88312134-8dec-4255-8cf2-bc57fbb5ba7a",
+    "platform": "IOS",
+    "status": "IN_QUEUE",
+    "createdAt": "2026-09-30T22:55:44.144Z",
+    "updatedAt": "2026-09-30T22:55:44.350Z",
+    "completedAt": null,
+    "priority": "NORMAL"
+  },
+  "readOnly": true
+}
