@@ -509,12 +509,10 @@ export function DriveTogetherMapLayer({
 
     setDraftDestination(nextDestination);
     setComposerMode('create-friends');
-    setSelectedFriendIds((current) =>
-      current.size > 0
-        ? current
-        : initialFriendId
-          ? new Set([initialFriendId])
-          : new Set(),
+    setSelectedFriendIds(
+      initialFriendId
+        ? new Set([initialFriendId])
+        : new Set(),
     );
     setSearchQuery('');
     setSearchResults([]);
@@ -2330,6 +2328,15 @@ const styles = StyleSheet.create({
   searchResults: {
     gap: 6,
     paddingBottom: spacing.md,
+  },
+  destinationSectionLabel: {
+    marginTop: spacing.xs,
+    marginBottom: 4,
+    paddingHorizontal: spacing.sm,
+    color: colors.textSubtle,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
   },
   placeRow: {
     minHeight: 58,
