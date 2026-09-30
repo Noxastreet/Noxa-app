@@ -9,6 +9,11 @@ function assert(condition, message) {
 
 const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
 const liveDriveError = fs.readFileSync('src/lib/liveDriveError.ts', 'utf8');
+const permissionFlow = fs.readFileSync('src/lib/liveDrivePermissionFlow.ts', 'utf8');
+const permissionRecoverySheet = fs.readFileSync(
+  'src/features/map/LiveDrivePermissionRecoverySheet.tsx',
+  'utf8',
+);
 const visibilitySetup = fs.readFileSync('app/visibility-setup.tsx', 'utf8');
 const mapScreen = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
 
@@ -128,8 +133,8 @@ const mapStartIndex = mapScreen.indexOf('const startSharing = useCallback(');
 const mapStartEndIndex = mapScreen.indexOf('const applyAudienceChange = useCallback(', mapStartIndex);
 const mapStartSlice = mapScreen.slice(mapStartIndex, mapStartEndIndex);
 assert(
-  mapStartSlice.includes('const initialLocation = await requestLiveDrivePermissions();'),
-  'Map Live Drive start must capture the validated location returned by permissions.',
+  mapStartSlice.includes('const initialLocation = await requestRequiredLiveDrivePermissions();'),
+  'Map Live Drive start must run the required permission preflight before capturing the validated location.',
 );
 assert(
   mapStartSlice.includes('initialLocation,') &&
@@ -149,7 +154,7 @@ const setupStartIndex = visibilitySetup.indexOf(
 const setupCompleteIndex = visibilitySetup.indexOf("completeSetup('global');", setupIndex);
 assert(
   visibilitySetup.indexOf(
-    'const initialLocation = await requestLiveDrivePermissions();',
+    'const initialLocation = await requestRequiredLiveDrivePermissions();',
     setupIndex,
   ) > setupIndex &&
     setupStartIndex > setupIndex &&
@@ -202,8 +207,9 @@ assert(
 
 
 assert(
-  liveDriveError.includes('export function getSafeLiveDriveStartMessage(error: unknown)'),
-  'Live Drive must expose one shared safe startup-error mapper outside the low-level background runtime.',
+  liveDriveError.includes('export function getSafeLiveDriveStartMessage(error: unknown)') &&
+    liveDriveError.includes('export function shouldOfferLiveDriveSettings(error: unknown)'),
+  'Live Drive must expose shared safe startup messaging and iOS Settings recovery classification.',
 );
 assert(
   liveDriveError.includes('Set NOXA Location to Always in iPhone Settings.') &&
@@ -212,20 +218,49 @@ assert(
   'Live Drive startup errors must distinguish background, precise-location, and system-location failures.',
 );
 assert(
-  liveDriveError.includes("Platform.OS === 'ios'") &&
+  liveDriveError.includes("Platform.OS !== 'ios'") &&
     liveDrive.includes('Allow background location so your 4-hour Live Drive session can continue.') &&
     !liveDrive.includes("from 'react-native'"),
-  'Low-level Live Drive must remain unchanged and platform-UI independent while the UI mapper gives iOS-specific recovery guidance.',
+  'Low-level Live Drive must remain unchanged while the UI layer owns iOS-specific recovery guidance.',
+);
+
+assert(
+  permissionFlow.includes("Platform.OS === 'ios'") &&
+    permissionFlow.includes('Location.getBackgroundPermissionsAsync()') &&
+    permissionFlow.includes('background?.status !== Location.PermissionStatus.GRANTED') &&
+    permissionFlow.includes('background?.canAskAgain !== false') &&
+    permissionFlow.includes('Location.requestBackgroundPermissionsAsync()') &&
+    permissionFlow.includes('return requestLiveDrivePermissions();'),
+  'iOS Live Drive must proactively request the background/Always authorization path, then delegate final validation to the verified runtime.',
 );
 assert(
-  visibilitySetup.includes("import { getSafeLiveDriveStartMessage } from '@/src/lib/liveDriveError';") &&
-    visibilitySetup.includes('setErrorMessage(getSafeLiveDriveStartMessage(error));') &&
-    !visibilitySetup.includes('function getSafeLiveDriveError('),
-  'Visibility setup must reuse the shared safe Live Drive startup-error mapper.',
+  !permissionFlow.includes('startLocationUpdatesAsync') &&
+    !permissionFlow.includes('driver_locations'),
+  'Permission preflight must not create a second GPS writer or publish presence.',
+);
+
+assert(
+  permissionRecoverySheet.includes('Linking.openSettings()') &&
+    permissionRecoverySheet.includes('confirmTitle="Open Settings"') &&
+    permissionRecoverySheet.includes('cancelTitle="Stay in Ghost"') &&
+    permissionRecoverySheet.includes('<NoxaConfirmationSheet'),
+  'iOS permission recovery must use the canonical NOXA confirmation surface and open system Settings explicitly.',
+);
+
+assert(
+  visibilitySetup.includes("from '@/src/lib/liveDrivePermissionFlow'") &&
+    visibilitySetup.includes('shouldOfferLiveDriveSettings') &&
+    visibilitySetup.includes('setPermissionRecoveryMessage(safeMessage)') &&
+    visibilitySetup.includes("AppState.addEventListener('change'") &&
+    visibilitySetup.includes('void goGlobal();'),
+  'Visibility setup must recover from iOS permission Settings and retry the user-approved Global start on return.',
 );
 assert(
-  mapStartSlice.includes('setSharingError(getSafeLiveDriveStartMessage(error));'),
-  'Map Live Drive startup must sanitize the concrete permission failure before storing it.',
+  mapStartSlice.includes('const safeMessage = getSafeLiveDriveStartMessage(error);') &&
+    mapStartSlice.includes('shouldOfferLiveDriveSettings(error)') &&
+    mapStartSlice.includes('setPendingLiveDrivePermissionRecovery({') &&
+    mapScreen.includes('await startSharing(recovery.mode);'),
+  'Map Live Drive must preserve the concrete failure, offer Settings recovery, and retry the requested audience after returning.',
 );
 assert(
   mapScreen.includes(
