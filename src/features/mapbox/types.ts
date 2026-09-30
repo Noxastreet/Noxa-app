@@ -42,6 +42,7 @@ export type MapboxLiveMapProps = {
   isDestinationPicking?: boolean;
   onMapPress?: (point: LatLng) => void;
   selectedEventId: string | null;
+  selectedDriverId?: string | null;
   mapFilter: MapboxMapFilter;
   isRouteMode: boolean;
   followUserLocation: boolean;
