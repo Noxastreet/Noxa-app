@@ -918,6 +918,7 @@ export default function CanonicalCrewDetailScreen() {
   if (loading) {
     return (
       <NoxaScreen>
+        <CrewHeader onMore={() => undefined} />
         <View style={styles.state}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.stateText}>Entering crew…</Text>
