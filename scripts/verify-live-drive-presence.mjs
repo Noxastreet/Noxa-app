@@ -201,13 +201,35 @@ assert(
 
 
 assert(
-  visibilitySetup.includes("message.includes('precise location')") &&
-    visibilitySetup.includes('Enable Precise Location for NOXA in iPhone Settings'),
-  'Visibility setup must explain precise-location failures instead of collapsing them into a generic Live Drive error.',
+  liveDrive.includes('export function getSafeLiveDriveStartMessage(error: unknown)'),
+  'Live Drive must expose one shared safe startup-error mapper.',
 );
 assert(
-  visibilitySetup.includes("message.includes('location services are off')"),
-  'Visibility setup must explain disabled iPhone Location Services.',
+  liveDrive.includes('Background Location is not set to Always.') &&
+    liveDrive.includes('Precise Location is unavailable.') &&
+    liveDrive.includes('Location Services are off.'),
+  'Live Drive startup errors must distinguish background, precise-location, and system-location failures.',
+);
+assert(
+  liveDrive.includes("Platform.OS === 'ios'") &&
+    liveDrive.includes('Background location requires Always access in iPhone Settings.'),
+  'iOS background permission denial must direct the user to Always access instead of a generic retry.',
+);
+assert(
+  visibilitySetup.includes('getSafeLiveDriveStartMessage,') &&
+    visibilitySetup.includes('setErrorMessage(getSafeLiveDriveStartMessage(error));') &&
+    !visibilitySetup.includes('function getSafeLiveDriveError('),
+  'Visibility setup must reuse the shared safe Live Drive startup-error mapper.',
+);
+assert(
+  mapStartSlice.includes('setSharingError(getSafeLiveDriveStartMessage(error));'),
+  'Map Live Drive startup must sanitize the concrete permission failure before storing it.',
+);
+assert(
+  mapScreen.includes(
+    '? "Live Drive is reconnecting. Your last visibility setting is preserved."\n          : sharingError,',
+  ),
+  'Map must show the sanitized concrete Live Drive startup reason instead of replacing it with one generic banner.',
 );
 
 if (!process.exitCode) {
