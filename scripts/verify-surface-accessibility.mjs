@@ -62,4 +62,20 @@ assert.ok(authScreen.includes('maxFontSizeMultiplier={1.5}'), 'Large brand displ
 const wordmark = fs.readFileSync('src/components/brand/NoxaCompactLogo.tsx', 'utf8');
 assert.ok(wordmark.includes('allowFontScaling={false}') && wordmark.includes('accessibilityLabel="NOXA"'), 'Brand wordmark retains geometry and its accessible identity');
 
+
+const buttonSource = fs.readFileSync('src/components/ui/NoxaButton.tsx', 'utf8');
+const buttonAst = ts.createSourceFile('NoxaButton.tsx', buttonSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+let actionLabels = 0;
+function assertCompleteActionLabel(node) {
+  if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(buttonAst) === 'Text') {
+    actionLabels += 1;
+    const attributes = node.attributes.properties.filter(ts.isJsxAttribute).map(attribute => attribute.name.getText(buttonAst));
+    assert.ok(!attributes.includes('numberOfLines'), 'Shared action labels must wrap fully instead of truncating provider or action identity');
+    assert.ok(!attributes.includes('maxFontSizeMultiplier') && !attributes.includes('allowFontScaling'), 'Ordinary action labels must retain full Dynamic Type scaling');
+  }
+  ts.forEachChild(node, assertCompleteActionLabel);
+}
+assertCompleteActionLabel(buttonAst);
+assert.ok(actionLabels > 0, 'Shared action-label typography must remain covered');
+
 console.log('Surface accessibility contract passed: ' + controls + ' raw interactive controls inspected.');

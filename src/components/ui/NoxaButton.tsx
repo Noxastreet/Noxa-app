@@ -153,7 +153,6 @@ export function NoxaButton({
             <View style={styles.leadingIcon}>{leadingIcon}</View>
           ) : null}
           <Text
-            numberOfLines={2}
             style={[
               styles.text,
               styles[`${size}Text`],
