@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  FadeIn,
   FadeInDown,
   FadeOutDown,
   ReduceMotion,
@@ -379,6 +380,9 @@ const MAP_CONTEXT_ENTER = FadeInDown
 const MAP_CONTEXT_EXIT = FadeOutDown
   .duration(animations.fast)
   .reduceMotion(ReduceMotion.System);
+const ROUTE_STATE_ENTER = FadeIn
+  .duration(animations.micro)
+  .reduceMotion(ReduceMotion.System);
 
 function EventCard({
   event,
@@ -509,26 +513,36 @@ function RouteCard({
           variant="ghost"
         />
       </View>
-      {loading ? (
-        <View style={styles.routeStatusRow}>
-          <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={styles.routeStatusText}>Building road route…</Text>
-        </View>
-      ) : route ? (
-        <View style={styles.routeMetrics}>
-          <Text style={styles.routeMetric}>
-            {formatDistance(remainingDistanceMeters ?? route.distanceMeters)}
-          </Text>
-          <Text style={styles.routeMetricMuted}>•</Text>
-          <Text style={styles.routeMetric}>
-            ~{formatDuration(remainingDurationSeconds ?? route.durationSeconds)}
-          </Text>
-        </View>
-      ) : (
-        <Text style={styles.routeStatusText}>
-          {message ?? "Route unavailable. Keep exploring the NOXA map."}
-        </Text>
-      )}
+      <View style={styles.routeStateSlot}>
+        {loading ? (
+          <Animated.View
+            entering={ROUTE_STATE_ENTER}
+            key="route-loading"
+            style={styles.routeStatusRow}>
+            <ActivityIndicator color={colors.primary} size="small" />
+            <Text style={styles.routeStatusTextInline}>Building road route…</Text>
+          </Animated.View>
+        ) : route ? (
+          <Animated.View
+            entering={ROUTE_STATE_ENTER}
+            key="route-ready"
+            style={styles.routeMetrics}>
+            <Text style={styles.routeMetric}>
+              {formatDistance(remainingDistanceMeters ?? route.distanceMeters)}
+            </Text>
+            <Text style={styles.routeMetricMuted}>•</Text>
+            <Text style={styles.routeMetric}>
+              ~{formatDuration(remainingDurationSeconds ?? route.durationSeconds)}
+            </Text>
+          </Animated.View>
+        ) : (
+          <Animated.View entering={ROUTE_STATE_ENTER} key="route-error">
+            <Text style={styles.routeStatusText}>
+              {message ?? "Route unavailable. Keep exploring the NOXA map."}
+            </Text>
+          </Animated.View>
+        )}
+      </View>
       {route && canFollow ? (
         <NoxaButton
           accessibilityLabel={
@@ -1776,7 +1790,7 @@ export default function LiveMapScreen() {
     routeRequestKeyRef.current = null;
     setRoute(null);
     setRouteMessage(null);
-    setRouteStatus("idle");
+    setRouteStatus(isRouteMode && focusEventId ? "loading" : "idle");
     routeRequestKeyRef.current = null;
   }, [focusEventId, isRouteMode]);
 
@@ -1918,10 +1932,16 @@ export default function LiveMapScreen() {
       setRouteStatus(nextRoute ? "ready" : "error");
       setRouteMessage(nextRoute ? null : nextMessage);
       if (nextRoute) {
-        fitRouteToMap(nextRoute.coordinates, {
-          latitude: selectedEvent.latitude,
-          longitude: selectedEvent.longitude,
-        }, origin);
+        requestAnimationFrame(() =>
+          fitRouteToMap(
+            nextRoute.coordinates,
+            {
+              latitude: selectedEvent.latitude,
+              longitude: selectedEvent.longitude,
+            },
+            origin,
+          ),
+        );
       }
     }
   }, [
@@ -1973,6 +1993,9 @@ export default function LiveMapScreen() {
     setIsRouteFocusMode(false);
     if (!hasValidCoordinates(event)) return;
     setSelectedEvent(event);
+    setRoute(null);
+    setRouteMessage(null);
+    setRouteStatus("loading");
     router.setParams({ focusEventId: event.id, mapMode: "route" });
   }, [driveTogetherNavigation]);
 
@@ -3265,20 +3288,30 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: -0.3,
   },
+  routeStateSlot: {
+    minHeight: 44,
+    justifyContent: "center",
+    marginTop: spacing.sm,
+  },
   routeStatusRow: {
-    marginTop: spacing.md,
+    minHeight: 40,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
   },
   routeStatusText: {
-    marginTop: spacing.sm,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  routeStatusTextInline: {
     color: colors.textMuted,
     fontSize: typography.caption,
     fontWeight: "500",
   },
   routeMetrics: {
-    marginTop: spacing.md,
+    minHeight: 40,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
