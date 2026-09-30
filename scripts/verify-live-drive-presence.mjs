@@ -205,9 +205,9 @@ assert(
   'Live Drive must expose one shared safe startup-error mapper.',
 );
 assert(
-  liveDrive.includes('Background Location is not set to Always.') &&
-    liveDrive.includes('Precise Location is unavailable.') &&
-    liveDrive.includes('Location Services are off.'),
+  liveDrive.includes('Set NOXA Location to Always in iPhone Settings.') &&
+    liveDrive.includes('Enable Precise Location for NOXA in iPhone Settings.') &&
+    liveDrive.includes('Enable iPhone Location Services, then retry.'),
   'Live Drive startup errors must distinguish background, precise-location, and system-location failures.',
 );
 assert(
