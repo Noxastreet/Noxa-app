@@ -1,0 +1,46 @@
+name: Read-only final 73 queue and official service diagnostic
+on:
+  push:
+    branches: [ci/noxa-final73-queue-diagnostic-20260930]
+    paths: [.github/workflows/noxa-final73-queue-diagnostic-once.yml]
+permissions:
+  contents: write
+jobs:
+  diagnostic:
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Read fresh SAME submission metadata and public EAS service status
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const service=await fetch('https://status.expo.dev/api/v2/status.json').then(r=>r.json());
+          const incidents=await fetch('https://status.expo.dev/api/v2/incidents/unresolved.json').then(r=>r.json());
+          async function query(query){
+            const r=await fetch('https://api.expo.dev/graphql',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.EXPO_TOKEN},body:JSON.stringify({query})});
+            const data=await r.json();if(!r.ok||data.errors)throw new Error(JSON.stringify({status:r.status,errors:data.errors}));return data.data;
+          }
+          const shape='kind name ofType { kind name ofType { kind name ofType { kind name } } }';
+          const getType=async name=>(await query('{ __type(name: '+JSON.stringify(name)+') { fields { name type { '+shape+' } args { name defaultValue type { '+shape+' } } } }')).__type;
+          const leaf=t=>t.ofType?leaf(t.ofType):t;
+          const app=await getType('App');const list=app.fields.find(f=>f.name==='submissions');
+          if(!list)throw new Error('Submission list unavailable');
+          const node=await getType(leaf(list.type).name);
+          const safe=['id','status','createdAt','updatedAt','completedAt','platform','priority','appVersion','appBuildVersion'];
+          const fields=node.fields.filter(f=>f.args.length===0&&['SCALAR','ENUM'].includes(leaf(f.type).kind)&&(safe.includes(f.name)||/^(queue|estimated|wait|started|duration)/i.test(f.name))&&!/(secret|token|key|url)/i.test(f.name)).map(f=>f.name);
+          const args=[];
+          for(const a of list.args){if(['limit','first'].includes(a.name))args.push(a.name+':5');else if(a.name==='offset')args.push('offset:0');else if(a.name==='filter')args.push('filter:{}');else if(a.type.kind==='NON_NULL'&&a.defaultValue==null)throw new Error('Unsupported list argument');}
+          const data=await query('{ app { byId(appId:"8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a") { submissions('+args.join(',')+') { '+fields.join(' ')+' } } } }');
+          const submission=data.app.byId.submissions.find(s=>s.id==='88312134-8dec-4255-8cf2-bc57fbb5ba7a');
+          if(!submission)throw new Error('Expected SAME submission missing; never resubmit');
+          const evidence={source:'879bf6681f88a1a4756abd5ce9ce13130bbab3c6',checkedAt:new Date().toISOString(),serviceStatus:service.status,unresolvedIncidents:incidents.incidents.map(i=>({name:i.name,status:i.status,updatedAt:i.updated_at})),availableQueueFields:fields.filter(f=>!safe.includes(f)),submission,readOnly:true};
+          fs.writeFileSync('queue-diagnostic.json',JSON.stringify(evidence,null,2));console.log(JSON.stringify(evidence));
+          NODE
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path:'queue-diagnostic.json',branch:'ci/noxa-final73-queue-diagnostic-20260930',message:'evidence: fresh SAME final 73 queue and official service status',content:fs.readFileSync('queue-diagnostic.json').toString('base64')});
