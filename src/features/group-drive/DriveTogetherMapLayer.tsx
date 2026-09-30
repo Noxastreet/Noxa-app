@@ -364,6 +364,7 @@ export function DriveTogetherMapLayer({
     setDetails(null);
     setSnapshot(null);
     setInvite(null);
+    setPendingExternalDestination(null);
     setConnection('closed');
     setIsSharingLocation(false);
     setComposerMode('room');
