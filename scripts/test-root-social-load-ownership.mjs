@@ -140,6 +140,6 @@ function textValues(tree) {
   return list.flatMap((x) => (typeof x === 'string' || typeof x === 'number') ? [String(x)] : Array.isArray(x) ? x.flatMap(textValues) : textValues(x));
 }
 const stack = subject('src/features/crews-events/CanonicalPrimitives.tsx', 'CanonicalAvatarStack');
-assert.deepEqual(textValues(stack.component({ profiles: [], total: 0 })), [], 'Empty stacks must not invent people');
+assert.equal(textValues(stack.component({ profiles: [], total: 0 })).length, 0, 'Empty stacks must not invent people');
 assert.equal(textValues(stack.component({ profiles: [], total: 3 })).join(''), '+3', 'Only the confirmed real total is presented');
 console.log('Root social request ownership, unavailable counts and honest identity smoke passed.');
