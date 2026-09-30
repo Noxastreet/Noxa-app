@@ -56,6 +56,30 @@ export function NoxaConfirmationSheet({
   const translateY = useRef(new Animated.Value(visible ? 0 : 44)).current;
   const backdropOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const dismissingRef = useRef(false);
+  const contentRef = useRef({
+    eyebrow,
+    title,
+    body,
+    footnote,
+    icon,
+    cancelTitle,
+    confirmTitle,
+    confirmVariant,
+  });
+
+  if (visible) {
+    contentRef.current = {
+      eyebrow,
+      title,
+      body,
+      footnote,
+      icon,
+      cancelTitle,
+      confirmTitle,
+      confirmVariant,
+    };
+  }
+  const content = contentRef.current;
 
   const animateIn = useCallback(() => {
     translateY.stopAnimation();
@@ -185,20 +209,20 @@ export function NoxaConfirmationSheet({
             style={styles.sheet}>
             <View style={styles.iconWrap}>
               <Ionicons
-                name={icon}
+                name={content.icon}
                 size={21}
                 color={
-                  confirmVariant === 'danger'
+                  content.confirmVariant === 'danger'
                     ? colors.primaryHover
                     : colors.text
                 }
               />
             </View>
 
-            {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.body}>{body}</Text>
-            {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
+            {content.eyebrow ? <Text style={styles.eyebrow}>{content.eyebrow}</Text> : null}
+            <Text style={styles.title}>{content.title}</Text>
+            <Text style={styles.body}>{content.body}</Text>
+            {content.footnote ? <Text style={styles.footnote}>{content.footnote}</Text> : null}
 
             <View style={styles.actions}>
               <NoxaButton
@@ -206,7 +230,7 @@ export function NoxaConfirmationSheet({
                 fullWidth
                 onPress={requestCancel}
                 size="md"
-                title={cancelTitle}
+                title={content.cancelTitle}
                 variant="secondary"
               />
               <NoxaButton
@@ -215,8 +239,8 @@ export function NoxaConfirmationSheet({
                 loading={busy}
                 onPress={onConfirm}
                 size="md"
-                title={confirmTitle}
-                variant={confirmVariant}
+                title={content.confirmTitle}
+                variant={content.confirmVariant}
               />
             </View>
           </NoxaSurface>
