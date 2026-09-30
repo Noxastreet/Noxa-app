@@ -1,0 +1,32 @@
+{
+  "source": "879bf6681f88a1a4756abd5ce9ce13130bbab3c6",
+  "nativeRun": 36783514352,
+  "nativeWorkflowHead": "607f71b2cc0b2a196b32b5e649ef874371965b96",
+  "status": "VERIFIED",
+  "reviewedAt": "2026-09-30T22:47:56Z",
+  "googleActionFullyVisible": true,
+  "scope": [
+    "Normal entry/sign-in/empty-field validation",
+    "Recovery footer return and header return; Sign In back returns to welcome",
+    "Accessibility-XXXL entry action and Email reachability",
+    "Actual screenshot review: complete Continue / with / Google label with no ellipsis; intrinsic button height contains complete label"
+  ],
+  "screenshots": [
+    {
+      "path": "audit-runtime-evidence/0-recovery.png",
+      "gitBlobSHA": "9e1e79d12e5baac067a2550ce27f30c113d063ee"
+    },
+    {
+      "path": "audit-runtime-evidence/1-sign-in.png",
+      "gitBlobSHA": "225f52854179349683cd5f890594ac0f5d4ae5db"
+    },
+    {
+      "path": "audit-runtime-evidence/6-large-text-google.png",
+      "gitBlobSHA": "cc04e080065209cbe2074a7e20563511e6588071"
+    }
+  ],
+  "reducedMotionEvidence": "Registered actual-component interruption/Reduced Motion contracts passed; simulator setting configured. Physical toggling NOT VERIFIED.",
+  "authenticatedRuntime": "NOT VERIFIED",
+  "physicalRuntime": "NOT VERIFIED",
+  "voiceOver": "NOT VERIFIED"
+}
