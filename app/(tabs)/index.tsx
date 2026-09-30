@@ -2383,6 +2383,7 @@ export default function LiveMapScreen() {
         route={effectiveRoute}
         routeDestination={driveTogetherNavigation?.destination ?? null}
         selectedEventId={selectedEvent?.id ?? null}
+        selectedDriverId={selectedDriverId}
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
