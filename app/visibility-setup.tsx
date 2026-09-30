@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   BackHandler,
   ScrollView,
   StyleSheet,
@@ -12,13 +13,17 @@ import {
 
 import { NoxaCompactLogo } from '@/src/components/brand';
 import { NoxaButton, NoxaScreen } from '@/src/components/ui';
+import { LiveDrivePermissionRecoverySheet } from '@/src/features/map/LiveDrivePermissionRecoverySheet';
 import {
   getLiveDriveSession,
-  requestLiveDrivePermissions,
   startLiveDriveSession,
   stopLiveDriveSession,
 } from '@/src/lib/liveDrive';
-import { getSafeLiveDriveStartMessage } from '@/src/lib/liveDriveError';
+import {
+  getSafeLiveDriveStartMessage,
+  shouldOfferLiveDriveSettings,
+} from '@/src/lib/liveDriveError';
+import { requestRequiredLiveDrivePermissions } from '@/src/lib/liveDrivePermissionFlow';
 import { supabase } from '@/src/lib/supabase';
 import {
   hasCompletedVisibilitySetup,
@@ -34,6 +39,8 @@ export default function VisibilitySetupScreen() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [pendingChoice, setPendingChoice] = useState<PendingChoice>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [permissionRecoveryMessage, setPermissionRecoveryMessage] =
+    useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -101,17 +108,36 @@ export default function VisibilitySetupScreen() {
 
     setPendingChoice('global');
     setErrorMessage(null);
+    setPermissionRecoveryMessage(null);
 
     try {
-      const initialLocation = await requestLiveDrivePermissions();
+      const initialLocation = await requestRequiredLiveDrivePermissions();
       await startLiveDriveSession(userId, 'global', initialLocation);
       completeSetup('global');
     } catch (error) {
       await stopLiveDriveSession(true).catch(() => undefined);
-      setErrorMessage(getSafeLiveDriveStartMessage(error));
+      const safeMessage = getSafeLiveDriveStartMessage(error);
+      setErrorMessage(safeMessage);
+      if (shouldOfferLiveDriveSettings(error)) {
+        setPermissionRecoveryMessage(safeMessage);
+      }
       setPendingChoice(null);
     }
   }, [completeSetup, pendingChoice, userId]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (
+        nextState === 'active'
+        && permissionRecoveryMessage
+        && pendingChoice === null
+      ) {
+        setPermissionRecoveryMessage(null);
+        void goGlobal();
+      }
+    });
+    return () => subscription.remove();
+  }, [goGlobal, pendingChoice, permissionRecoveryMessage]);
 
   if (isCheckingSession) {
     return (
@@ -211,6 +237,15 @@ export default function VisibilitySetupScreen() {
             You can change visibility from the Map at any time.
           </Text>
         </View>
+
+        <LiveDrivePermissionRecoverySheet
+          message={
+            permissionRecoveryMessage
+            ?? 'Live Drive needs additional iPhone location access.'
+          }
+          onCancel={() => setPermissionRecoveryMessage(null)}
+          visible={permissionRecoveryMessage !== null}
+        />
       </View>
     </NoxaScreen>
   );
