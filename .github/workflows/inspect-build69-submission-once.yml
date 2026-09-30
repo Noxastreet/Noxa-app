@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 5
     if: ${{ github.run_attempt == 1 }}
     steps:
-      - name: Read EAS submission status
+      - name: Read EAS submission and service status
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         shell: bash
@@ -44,6 +44,17 @@ jobs:
           const fields = node.fields.filter(f=>safe.includes(f.name)&&["SCALAR","ENUM"].includes(leaf(f.type).kind)).map(f=>f.name);
           if (!fields.includes("status")) throw new Error("Submission status schema unavailable");
           const body = "{ app { byId(appId: \"8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a\") { "+field.name+(args.length?"("+args.join(",")+")":"")+" { "+fields.join(" ")+" } } } }";
+          
+          console.log("Submission schema:",JSON.stringify(node.fields.map(f=>({name:f.name,type:leaf(f.type).name}))));
           console.log("Recent NOXA submissions:",JSON.stringify(await query(body)));
+          for (const url of ["https://status.expo.dev/api/v2/summary.json","https://status.expo.io/api/v2/summary.json"]) {
+            try {
+              const response = await fetch(url,{signal:AbortSignal.timeout(15000)});
+              const status = await response.json();
+              console.log("Expo service status:",JSON.stringify({url,http:response.status,status:status.status,incidents:status.incidents?.map(i=>({name:i.name,status:i.status})),degraded:status.components?.filter(c=>c.status!=="operational").map(c=>({name:c.name,status:c.status}))}));
+              break;
+            } catch(error) { console.log("Status endpoint unavailable:",url,error.message); }
+          }
+          
           
           NODE
