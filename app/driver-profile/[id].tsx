@@ -15,7 +15,7 @@ import {
 } from "react-native";
 
 import { ReportModal } from "@/src/components/moderation/ReportModal";
-import { NoxaButton, NoxaScreen } from "@/src/components/ui";
+import { NoxaButton, NoxaIconButton, NoxaScreen } from "@/src/components/ui";
 import { EntityActionSheet, type EntityAction } from "@/src/features/crews-events/EntityActionSheet";
 import { VehicleTypeIcon } from "@/src/features/garage/vehicle-picker/components/VehicleTypeIcon";
 import { formatProfileLocation } from "@/src/features/profile/formatProfileLocation";
@@ -58,13 +58,14 @@ const uuidPattern =
 
 function HeaderAction({ icon, onPress, label }: { icon: IconName; onPress?: () => void; label: string }) {
   return (
-    <Pressable
+    <NoxaIconButton
       accessibilityLabel={label}
-      accessibilityRole="button"
+      icon={icon}
+      iconSize={21}
       onPress={onPress}
-      style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}>
-      <Ionicons name={icon} size={21} color={colors.text} />
-    </Pressable>
+      size={44}
+      variant="overlay"
+    />
   );
 }
 
