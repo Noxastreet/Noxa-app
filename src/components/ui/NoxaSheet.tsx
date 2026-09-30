@@ -32,14 +32,14 @@ export function NoxaSheet({ children, style, subtitle, title }: NoxaSheetProps) 
 
 const styles = StyleSheet.create({
   sheet: {
-    gap: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    gap: geometry.sheet.gap,
+    paddingHorizontal: geometry.sheet.gutter,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
   },
   handle: {
-    width: 38,
-    height: 3,
+    width: geometry.sheet.handleWidth,
+    height: geometry.sheet.handleHeight,
     alignSelf: 'center',
     backgroundColor: colors.neutralStrong,
   },

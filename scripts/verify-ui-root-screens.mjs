@@ -148,3 +148,16 @@ assert(
 if (!process.exitCode) {
   console.log('NOXA root-screen visual system contract passed.');
 }
+
+const driverDetail = fs.readFileSync('app/driver-profile/[id].tsx', 'utf8');
+const vehicleDetail = fs.readFileSync('app/vehicle-details.tsx', 'utf8');
+const crewDetail = fs.readFileSync('src/features/crews-events/CanonicalCrewDetailScreen.tsx', 'utf8');
+const eventDetail = fs.readFileSync('src/features/crews-events/CanonicalEventDetailScreen.tsx', 'utf8');
+const actions = fs.readFileSync('src/features/crews-events/EntityActionSheet.tsx', 'utf8');
+for (const [name, source] of [['Driver', driverDetail], ['Vehicle', vehicleDetail], ['Crew', crewDetail], ['Event', eventDetail]]) {
+  assert(/NoxaSurface/.test(source), name + ' detail must share the canonical automotive surface.');
+}
+assert(/NoxaTopBar/.test(driverDetail) && /NoxaTopBar/.test(crewDetail), 'Driver and Crew details must share the native bar.');
+assert(/NoxaSegmentedControl/.test(crewDetail), 'Crew detail sections must share accessible segmented controls.');
+assert(/NoxaListRow/.test(profile), 'Profile account actions must share Settings list rows.');
+assert(/useSafeAreaInsets/.test(actions) && /<ScrollView/.test(actions) && /destructiveDivider/.test(actions), 'Action sheets must fit small phones and separate destructive actions.');

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,14 +11,16 @@ type NoxaAvatarProps = {
 };
 
 export function NoxaAvatar({ imageUrl, initials = 'NX', size = 48 }: NoxaAvatarProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const compactLabel = initials.slice(0, 2).toUpperCase() || 'NX';
 
   return (
     <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}> 
-      {imageUrl ? (
+      {imageUrl && imageUrl !== failedUrl ? (
         <Image
           cachePolicy="memory-disk"
           contentFit="cover"
+          onError={() => setFailedUrl(imageUrl)}
           recyclingKey={imageUrl}
           source={{ uri: imageUrl }}
           style={[styles.image, { borderRadius: size / 2 }]}

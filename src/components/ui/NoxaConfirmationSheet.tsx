@@ -198,7 +198,6 @@ export function NoxaConfirmationSheet({
           style={[
             styles.motionLayer,
             {
-              paddingBottom: Math.max(spacing.md, insets.bottom),
               transform: [{ translateY }],
             },
           ]}>
@@ -206,7 +205,7 @@ export function NoxaConfirmationSheet({
             corners="top"
             cut={geometry.cut.lg}
             level="sheet"
-            style={styles.sheet}>
+            style={[styles.sheet, { paddingBottom: Math.max(spacing.lg, insets.bottom + spacing.md) }]}>
             <View style={styles.iconWrap}>
               <Ionicons
                 name={content.icon}
@@ -257,14 +256,14 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.62)',
+    backgroundColor: colors.scrim,
   },
   motionLayer: {
     width: '100%',
   },
   sheet: {
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: geometry.sheet.gutter,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },

@@ -91,7 +91,7 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
       <View style={styles.heroShade} />
       <View style={styles.vehicleBadges}>
         {vehicle.is_primary ? <NoxaBadge label="PRIMARY" variant="primary" /> : null}
-        <NoxaBadge label={vehicle.is_public ? 'PUBLIC' : 'PRIVATE'} variant={vehicle.is_public ? 'primary' : 'default'} />
+        <NoxaBadge label={vehicle.is_public ? 'PUBLIC' : 'PRIVATE'} variant="default" />
       </View>
       <View style={styles.heroContent}>
         <Text numberOfLines={1} style={styles.brand}>{vehicle.brand}</Text>
@@ -169,19 +169,16 @@ function VehicleCard({
           </View>
         </Pressable>
         {!vehicle.is_primary ? (
-          <Pressable
+          <NoxaButton
             accessibilityLabel={`Make ${modelName || 'vehicle'} primary`}
-            accessibilityRole="button"
-            disabled={busy}
+            leadingIcon={<Ionicons name="star-outline" size={16} color={colors.text} />}
+            loading={busy}
             onPress={() => onMakePrimary(vehicle)}
-            style={({ pressed }) => [styles.primaryAction, pressed && !busy && styles.pressed, busy && styles.disabled]}>
-            {busy ? (
-              <ActivityIndicator size="small" color={colors.primaryHover} />
-            ) : (
-              <Ionicons name="star-outline" size={16} color={colors.primaryHover} />
-            )}
-            <Text style={styles.primaryActionText}>{busy ? 'SETTING PRIMARY…' : 'MAKE PRIMARY'}</Text>
-          </Pressable>
+            size="sm"
+            style={styles.primaryAction}
+            title="Make primary"
+            variant="secondary"
+          />
         ) : (
           <View style={styles.primaryLockedRow}>
             <Ionicons name="star" size={15} color={colors.primaryHover} />

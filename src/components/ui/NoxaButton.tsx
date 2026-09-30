@@ -140,6 +140,7 @@ export function NoxaButton({
             <View style={styles.leadingIcon}>{leadingIcon}</View>
           ) : null}
           <Text
+            numberOfLines={2}
             style={[
               styles.text,
               styles[`${size}Text`],
@@ -178,11 +179,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    maxWidth: '100%',
   },
   leadingIcon: { marginRight: spacing.sm },
   trailingIcon: { marginLeft: spacing.sm },
   disabled: { opacity: 0.42 },
   text: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontWeight: '800',
     letterSpacing: 0.15,
   },

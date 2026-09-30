@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Image,
   ImageBackground,
@@ -15,13 +14,13 @@ import {
 } from "react-native";
 
 import { ReportModal } from "@/src/components/moderation/ReportModal";
-import { NoxaButton, NoxaDetailReveal, NoxaIconButton, NoxaScreen } from "@/src/components/ui";
+import { NoxaAvatar, NoxaButton, NoxaDetailReveal, NoxaIconButton, NoxaLoadingState, NoxaScreen, NoxaSurface, NoxaTopBar } from "@/src/components/ui";
 import { EntityActionSheet, type EntityAction } from "@/src/features/crews-events/EntityActionSheet";
 import { VehicleTypeIcon } from "@/src/features/garage/vehicle-picker/components/VehicleTypeIcon";
 import { formatProfileLocation } from "@/src/features/profile/formatProfileLocation";
 import { blockUser } from "@/src/lib/moderation";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { colors, radius, spacing, typography } from "@/src/theme";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -126,13 +125,7 @@ function IdentityBlock({
   return (
     <View style={styles.identityBlock}>
       <View style={styles.identityTop}>
-        {profile.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} accessibilityLabel={`${displayName} avatar`} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarInitials}>{getInitials(displayName)}</Text>
-          </View>
-        )}
+        <NoxaAvatar imageUrl={profile.avatar_url} initials={getInitials(displayName)} size={72} />
         <View style={styles.identityCopy}>
           <Text numberOfLines={1} style={styles.name}>{displayName}</Text>
           {username ? <Text numberOfLines={1} style={styles.username}>{username}</Text> : null}
@@ -154,24 +147,14 @@ function IdentityBlock({
       {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
       {canFollow ? (
-        <Pressable
-          accessibilityRole="button"
-          disabled={isFollowLoading}
+        <NoxaButton
+          fullWidth
+          loading={isFollowLoading}
           onPress={onFollow}
-          style={({ pressed }) => [
-            styles.followButton,
-            isFollowing && styles.followingButton,
-            pressed && !isFollowLoading && styles.pressed,
-            isFollowLoading && styles.disabled,
-          ]}>
-          {isFollowLoading ? (
-            <ActivityIndicator color={colors.text} size="small" />
-          ) : (
-            <Text style={[styles.followButtonText, isFollowing && styles.followingButtonText]}>
-              {isFollowing ? "FOLLOWING" : "FOLLOW"}
-            </Text>
-          )}
-        </Pressable>
+          size="md"
+          title={isFollowing ? 'Following' : 'Follow'}
+          variant={isFollowing ? 'secondary' : 'primary'}
+        />
       ) : null}
     </View>
   );
@@ -242,6 +225,7 @@ function FeaturedVehicle({ vehicle }: { vehicle: PublicVehicle }) {
       accessibilityRole="button"
       onPress={() => router.push({ pathname: "/vehicle-details", params: { id: vehicle.id } })}
       style={({ pressed }) => [styles.featuredVehicle, pressed && styles.pressed]}>
+      <NoxaSurface maskChildren style={styles.vehicleArtwork}>
       {vehicle.cover_image_url ? (
         <ImageBackground
           source={{ uri: vehicle.cover_image_url }}
@@ -256,6 +240,7 @@ function FeaturedVehicle({ vehicle }: { vehicle: PublicVehicle }) {
           {content}
         </View>
       )}
+      </NoxaSurface>
     </Pressable>
   );
 }
@@ -526,25 +511,21 @@ export default function PublicDriverProfileScreen() {
   return (
     <NoxaScreen padded={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <HeaderAction icon="chevron-back" label="Go back" onPress={() => router.back()} />
-          <Text style={styles.headerTitle}>DRIVER</Text>
-          {canFollow ? (
+        <NoxaTopBar
+          centered
+          title="Driver"
+          left={<HeaderAction icon="chevron-back" label="Go back" onPress={() => router.back()} />}
+          right={canFollow ? (
             <HeaderAction
               icon={isBlocking ? "hourglass-outline" : "ellipsis-horizontal"}
               label="Driver safety actions"
               onPress={isBlocking ? undefined : () => setActionsVisible(true)}
             />
-          ) : (
-            <View style={styles.headerSpacer} />
-          )}
-        </View>
+          ) : undefined}
+        />
 
         {isLoading ? (
-          <View style={styles.loadingCard}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={styles.stateMessage}>Loading driver profile…</Text>
-          </View>
+          <NoxaLoadingState label="Loading driver profile…" />
         ) : errorMessage && !profile ? (
           <StateCard title="Profile unavailable" message={errorMessage} onRetry={isValidDriverId ? loadDriverProfile : undefined} />
         ) : !profile ? (
@@ -679,9 +660,9 @@ const styles = StyleSheet.create({
   section: { gap: spacing.sm },
   sectionEyebrow: { color: colors.textMuted, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
   sectionCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: "700" },
-  featuredVehicle: { height: 210, overflow: "hidden", borderRadius: radius.hero, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, ...shadows.card },
+  featuredVehicle: { height: 210, overflow: "hidden", backgroundColor: 'transparent' },
   vehicleArtwork: { flex: 1, justifyContent: "flex-end" },
-  vehicleArtworkRadius: { borderRadius: radius.hero },
+  vehicleArtworkRadius: { borderRadius: 0 },
   vehicleFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceSoft },
   vehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(6,6,10,0.34)" },
   vehicleBadge: { position: "absolute", top: spacing.md, left: spacing.md, minHeight: 30, flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: "rgba(6,6,10,0.72)" },

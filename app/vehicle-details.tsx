@@ -1,9 +1,9 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
+import { ActivityIndicator, Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
 
-import { NoxaAvatar, NoxaBadge, NoxaDetailReveal, NoxaIconButton, NoxaScreen } from '@/src/components/ui';
+import { NoxaAvatar, NoxaBadge, NoxaButton, NoxaDetailReveal, NoxaIconButton, NoxaScreen, NoxaSurface } from '@/src/components/ui';
 import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -145,7 +145,7 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
   );
 
   return (
-    <View style={styles.heroCard}>
+    <NoxaSurface maskChildren style={styles.heroCard}>
       {vehicle.cover_image_url ? (
         <ImageBackground source={{ uri: vehicle.cover_image_url }} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius as ImageStyle}>
           {content}
@@ -156,7 +156,7 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
           {content}
         </View>
       )}
-    </View>
+    </NoxaSurface>
   );
 }
 
@@ -175,11 +175,7 @@ function OwnerCard({ owner }: { owner: VehicleOwner }) {
       accessibilityLabel="View owner profile"
       onPress={() => router.push({ pathname: '/driver-profile/[id]', params: { id: owner.id } })}
       style={({ pressed }) => [styles.ownerCard, pressed && styles.pressed]}>
-      {owner.avatar_url ? (
-        <Image source={{ uri: owner.avatar_url }} style={styles.ownerAvatar} accessibilityLabel={`${ownerName || 'Owner'} avatar`} />
-      ) : (
-        <NoxaAvatar initials={formatOwnerInitials(owner)} size={48} />
-      )}
+      <NoxaAvatar imageUrl={owner.avatar_url} initials={formatOwnerInitials(owner)} size={48} />
       <View style={styles.ownerCopy}>
         <Text style={styles.eyebrow}>OWNER</Text>
         {ownerName ? <Text style={styles.ownerName}>{ownerName}</Text> : null}
@@ -230,9 +226,7 @@ function StateCard({ title, message, onRetry, loading }: { title: string; messag
       <Text style={styles.stateTitle}>{title}</Text>
       {message ? <Text style={styles.stateText}>{message}</Text> : null}
       {onRetry ? (
-        <Pressable accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
-          <Text style={styles.retryText}>Retry</Text>
-        </Pressable>
+        <NoxaButton title="Retry" variant="secondary" size="md" onPress={onRetry} />
       ) : null}
     </View>
   );
@@ -450,9 +444,9 @@ const styles = StyleSheet.create({
   },
   headerSpacer: { width: 40, height: 40 },
   pressed: { opacity: 0.82, transform: [{ translateY: 1 }, { scale: 0.98 }] },
-  heroCard: { height: 330, overflow: 'hidden', backgroundColor: colors.surface },
+  heroCard: { height: 330, overflow: 'hidden', backgroundColor: 'transparent' },
   heroImage: { flex: 1 },
-  heroImageRadius: { borderBottomLeftRadius: radius.hero, borderBottomRightRadius: radius.hero },
+  heroImageRadius: { borderRadius: 0 },
   vehiclePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSoft },
   heroContent: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: 68, paddingBottom: spacing.lg },
   heroTitle: {

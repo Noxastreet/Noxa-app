@@ -13,7 +13,7 @@ export function NoxaEmptyState({ icon, title, body }: NoxaEmptyStateProps) {
   return (
     <View style={styles.emptyState}>
       <View style={styles.iconWrap}>
-        <Ionicons name={icon} size={26} color={colors.primaryHover} />
+        <Ionicons name={icon} size={26} color={colors.textMuted} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
@@ -35,9 +35,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.primarySubtle,
+    backgroundColor: colors.surfaceSoft,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderAccent,
+    borderColor: colors.border,
   },
   title: {
     color: colors.text,
