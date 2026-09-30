@@ -11,7 +11,7 @@ import {
   getGroupDriveLocationSession,
   getPendingGroupDriveServerAction,
   loadActiveDriveLifecycleSnapshot,
-  requestGroupDriveLocationPermissions,
+  requestRequiredGroupDriveLocationPermissions,
   retryGroupDriveLocationCleanup,
   startGroupDriveLocationSession,
   stopGroupDriveLocationSession,
@@ -126,7 +126,7 @@ export default function GroupDriveLocationSharingScreen() {
     setError(null);
     try {
       const consent = acceptGroupDriveLocationDisclosure(driveSessionId);
-      await requestGroupDriveLocationPermissions();
+      await requestRequiredGroupDriveLocationPermissions();
       await startGroupDriveLocationSession(consent);
       clearPendingGroupDriveServerAction(
         currentUserId,
