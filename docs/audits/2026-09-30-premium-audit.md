@@ -60,3 +60,9 @@ No evidence-backed new backend or root-flow redesign is needed. Existing avatar 
 | A07 | P2 | Auth scroll forbids keyboard dismissal; lifecycle/focus debug logs ship in field | Native interactive/on-drag dismissal; remove logs without auth rewrite |
 
 Automated evidence is separate from physical evidence. Full device gestures, VoiceOver focus traversal, extreme Dynamic Type, GPS, multi-user realtime and background/foreground remain NOT VERIFIED until actual device evidence exists. No FPS/latency improvement is claimed from source inspection.
+
+## Additional source-confirmed trust findings
+
+A08 P1: Crew/Events root base and optional context lacked request ownership; old base/enrichment/hero identity could arrive after refresh or focus loss. Add version guards, invalidate on blur and test the actual async components with deferred responses. No query/channel/schema changes.
+
+A09 P1: Unknown member/attendance data was displayed as zero; empty avatar stacks rendered invented AK/N/PM identities; non-spatial all-city lists claimed NEARBY NOW/around you. Unknown counts are absent, real confirmed zero remains zero, existing detail navigation replaces relationship actions until context is known, fabricated avatars are removed, and temporal/all-community lists use accurate language. No new data is invented.

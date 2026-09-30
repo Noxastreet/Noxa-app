@@ -55,7 +55,7 @@ type AttendanceRow = {
 };
 
 type EventCardModel = EventRow & {
-  attendeeCount: number;
+  attendeeCount: number | null;
   myResponse: "going" | "maybe" | null;
 };
 
@@ -107,8 +107,10 @@ function urgency(event: EventRow) {
   if (getEventLifecycle(event) === "live") return "LIVE";
   const starts = new Date(event.starts_at).getTime();
   const diff = starts - Date.now();
-  if (diff <= 12 * 60 * 60 * 1000) return "TONIGHT";
-  if (diff <= 24 * 60 * 60 * 1000) return "TODAY";
+  const startDate = new Date(starts);
+  const today = new Date();
+  if (startDate.toDateString() === today.toDateString()) return "TODAY";
+  if (diff > 0 && diff <= 12 * 60 * 60 * 1000) return "SOON";
   return "UPCOMING";
 }
 
@@ -123,7 +125,7 @@ function HeroEvent({
   busy: boolean;
   onRsvp: (event: EventCardModel) => void;
 }) {
-  const responseLabel = event.myResponse === "going" ? "GOING ✓" : "I'M GOING";
+  const responseLabel = event.attendeeCount === null ? "VIEW EVENT" : event.myResponse === "going" ? "GOING ✓" : "I'M GOING";
 
   return (
     <NoxaPressableSurface
@@ -168,12 +170,14 @@ function HeroEvent({
           <View style={styles.heroSocialRow}>
             <CanonicalAvatarStack
               profiles={attendees}
-              total={event.attendeeCount}
+              total={event.attendeeCount ?? 0}
               max={3}
               size={28}
             />
             <Text numberOfLines={1} style={styles.heroSocialText}>
-              {event.attendeeCount
+              {event.attendeeCount === null
+                ? "Attendance unavailable"
+                : event.attendeeCount
                 ? `${event.attendeeCount} driver${event.attendeeCount === 1 ? "" : "s"} going`
                 : "Be the first driver going"}
             </Text>
@@ -228,7 +232,7 @@ function EventListCard({ event }: { event: EventCardModel }) {
         </Text>
         <View style={styles.eventBottomRow}>
           <CanonicalPill label={getEventLifecycle(event) === "live" ? "LIVE" : eventType(event)} tone={getEventLifecycle(event) === "live" ? "accent" : "default"} />
-          <Text style={styles.goingText}>{event.attendeeCount} GOING</Text>
+          {event.attendeeCount !== null ? <Text style={styles.goingText}>{event.attendeeCount} GOING</Text> : null}
         </View>
       </View>
       <Ionicons name="chevron-forward" size={19} color={colors.textQuiet} />
@@ -241,11 +245,11 @@ function NearbyStrip({ count }: { count: number }) {
     <NoxaSurface style={styles.nearbyStrip}>
       <View style={styles.nearbyAccent} />
       <View style={styles.nearbyCopy}>
-        <Text style={styles.nearbyEyebrow}>NEARBY NOW</Text>
+        <Text style={styles.nearbyEyebrow}>THIS WEEK</Text>
         <Text style={styles.nearbyText}>
           {count
-            ? `${count} event${count === 1 ? "" : "s"} available around you`
-            : "New local events will appear here"}
+            ? `${count} event${count === 1 ? "" : "s"} scheduled this week`
+            : "Upcoming events will appear here"}
         </Text>
       </View>
       <Ionicons name="navigate-outline" size={20} color={colors.textMuted} />
@@ -263,8 +267,10 @@ export default function CanonicalEventsScreen() {
   const [busyEventId, setBusyEventId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
+  const loadVersionRef = useRef(0);
 
-  const loadHeroProfiles = useCallback(async (eventId: string) => {
+  const loadHeroProfiles = useCallback(async (eventId: string, version: number) => {
+    const isCurrent = () => loadVersionRef.current === version;
     const { data: attendanceData, error: attendanceError } = await supabase
       .from("event_attendees")
       .select("user_id")
@@ -273,6 +279,7 @@ export default function CanonicalEventsScreen() {
       .order("joined_at", { ascending: true })
       .limit(4);
 
+    if (!isCurrent()) return;
     if (attendanceError) {
       setHeroAttendees([]);
       return;
@@ -289,6 +296,7 @@ export default function CanonicalEventsScreen() {
       .select("id,display_name,username,avatar_url")
       .in("id", ids);
 
+    if (!isCurrent()) return;
     const byId = new Map(
       ((profileData ?? []) as CanonicalProfile[]).map((profile) => [
         profile.id,
@@ -304,10 +312,13 @@ export default function CanonicalEventsScreen() {
 
   const load = useCallback(
     async (showSpinner = true) => {
+      const version = ++loadVersionRef.current;
+      const isCurrent = () => loadVersionRef.current === version;
       if (showSpinner) setLoading(true);
       setError(null);
 
       const currentUserId = (await getCurrentSessionUser())?.id ?? null;
+      if (!isCurrent()) return;
       setUserId(currentUserId);
 
       const now = new Date();
@@ -321,6 +332,7 @@ export default function CanonicalEventsScreen() {
         .or(`starts_at.gte.${feedFloor.toISOString()},ends_at.gt.${now.toISOString()}`)
         .order("starts_at", { ascending: true });
 
+      if (!isCurrent()) return;
       if (eventsResult.error) {
         setError(eventsResult.error.message || "Events could not be loaded.");
         setLoading(false);
@@ -336,7 +348,7 @@ export default function CanonicalEventsScreen() {
         })
         .map((event) => ({
           ...event,
-          attendeeCount: 0,
+          attendeeCount: null,
           myResponse: null,
         }));
 
@@ -345,14 +357,16 @@ export default function CanonicalEventsScreen() {
       setRefreshing(false);
       hasLoadedRef.current = true;
 
-      if (baseModels[0]) void loadHeroProfiles(baseModels[0].id);
-      else setHeroAttendees([]);
+      setHeroAttendees([]);
+      if (baseModels[0]) void loadHeroProfiles(baseModels[0].id, version).catch(() => {
+        if (isCurrent()) setHeroAttendees([]);
+      });
 
       void supabase
         .from("event_attendees")
         .select("event_id,user_id,response,joined_at")
         .then((attendanceResult) => {
-          if (attendanceResult.error) return;
+          if (!isCurrent() || attendanceResult.error) return;
 
           const attendance = (attendanceResult.data ?? []) as AttendanceRow[];
           const counts = new Map<string, number>();
@@ -372,7 +386,7 @@ export default function CanonicalEventsScreen() {
               myResponse: mine.get(event.id) ?? null,
             })),
           );
-        });
+        }).catch(() => { /* Optional attendance remains unavailable. */ });
     },
     [loadHeroProfiles],
   );
@@ -380,6 +394,7 @@ export default function CanonicalEventsScreen() {
   useFocusEffect(
     useCallback(() => {
       void load(!hasLoadedRef.current);
+      return () => { loadVersionRef.current += 1; };
     }, [load]),
   );
 
@@ -395,6 +410,10 @@ export default function CanonicalEventsScreen() {
   const setGoing = useCallback(
     async (event: EventCardModel) => {
       if (!userId || busyEventId) return;
+      if (event.attendeeCount === null) {
+        router.push({ pathname: "/event-details", params: { id: event.id } });
+        return;
+      }
       setBusyEventId(event.id);
       setError(null);
 
