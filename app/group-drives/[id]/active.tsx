@@ -17,7 +17,7 @@ import {
   loadGroupDriveDetails,
   prepareDriveRoute,
   reduceParticipantStackOrder,
-  requestGroupDriveLocationPermissions,
+  requestRequiredGroupDriveLocationPermissions,
   startGroupDriveLocationSession,
   stopGroupDriveLocationSession,
   subscribeToActiveDriveRealtime,
@@ -140,7 +140,7 @@ export default function ActiveDriveScreen() {
             void (async () => {
               try {
                 const consent = acceptGroupDriveLocationDisclosure(driveSessionId);
-                await requestGroupDriveLocationPermissions();
+                await requestRequiredGroupDriveLocationPermissions();
                 await startGroupDriveLocationSession(consent);
                 setError(null);
               } catch (shareError) {
