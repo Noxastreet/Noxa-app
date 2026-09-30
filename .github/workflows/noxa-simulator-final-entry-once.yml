@@ -15,6 +15,8 @@ jobs:
     timeout-minutes: 25
     env:
       CI: "1"
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: "600000"
+      MAESTRO_CLI_NO_ANALYTICS: "1"
       AUDIT_SOURCE_SHA: "a33acedf4d263c5583165b373ccf20328b13f537"
     steps:
       - uses: actions/checkout@v4
@@ -137,6 +139,13 @@ jobs:
             for(const file of fs.readdirSync(dir).filter(x=>x.endsWith('.png'))){
               const path='audit-runtime-evidence/'+file;const content=fs.readFileSync(dir+'/'+file).toString('base64');
               await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path,branch:'ci/noxa-simulator-final-entry-20260930',message:'evidence: hosted iOS '+file+' from '+process.env.AUDIT_SOURCE_SHA,content,sha:(await github.rest.repos.getContent({owner:context.repo.owner,repo:context.repo.repo,path,ref:'ci/noxa-simulator-final-entry-20260930'}).catch(()=>({data:{}}))).data.sha});
+              if(content.length>900000){
+                for(let part=0;part*700000<content.length;part++){
+                  const chunkPath=path+'.b64-'+part+'.txt';
+                  const old=await github.rest.repos.getContent({owner:context.repo.owner,repo:context.repo.repo,path:chunkPath,ref:'ci/noxa-simulator-final-entry-20260930'}).catch(()=>({data:{}}));
+                  await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path:chunkPath,branch:'ci/noxa-simulator-final-entry-20260930',message:'evidence: unchanged native image transport chunk',sha:old.data.sha,content:Buffer.from(content.slice(part*700000,(part+1)*700000)).toString('base64')});
+                }
+              }
             }
       - uses: actions/upload-artifact@v4
         if: always()
