@@ -3,13 +3,13 @@
   "bundleId": "com.karaketidis.noxa",
   "version": "1.0.0",
   "buildNumber": 69,
-  "observedAt": "2026-09-30T14:23:05.948Z",
+  "observedAt": "2026-09-30T14:24:07.564Z",
   "submission": {
     "id": "49c9752a-921b-4c71-a187-603845b0e2aa",
     "platform": "IOS",
-    "status": "IN_QUEUE",
+    "status": "IN_PROGRESS",
     "createdAt": "2026-09-30T13:06:04.957Z",
-    "updatedAt": "2026-09-30T13:06:05.224Z",
+    "updatedAt": "2026-09-30T14:23:13.332Z",
     "completedAt": null
   }
 }\n
