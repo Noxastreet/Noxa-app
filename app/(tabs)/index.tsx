@@ -56,6 +56,7 @@ import {
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
 import { getEventLifecycle, type EventCategory } from "@/src/lib/eventExperience";
+import { getSafeLiveDriveStartMessage } from "@/src/lib/liveDriveError";
 import {
   isJwtValidationError,
   refreshSupabaseSessionOnce,
@@ -1173,11 +1174,7 @@ export default function LiveMapScreen() {
           setIsVisibleOnMap(false);
           setVisibilityMode("ghost");
           setLiveDriveExpiresAt(null);
-          setSharingError(
-            error instanceof Error
-              ? error.message
-              : "Could not start the 4-hour Live Drive session.",
-          );
+          setSharingError(getSafeLiveDriveStartMessage(error));
         }
       } finally {
         if (
@@ -2380,7 +2377,7 @@ export default function LiveMapScreen() {
         icon: "warning-outline" as const,
         message: isVisibleOnMap
           ? "Live Drive is reconnecting. Your last visibility setting is preserved."
-          : "Live Drive could not start. You are still in Ghost.",
+          : sharingError,
       }
     : locationError
       ? { icon: "warning-outline" as const, message: locationError }

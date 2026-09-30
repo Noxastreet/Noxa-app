@@ -8,6 +8,7 @@ function assert(condition, message) {
 }
 
 const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
+const liveDriveError = fs.readFileSync('src/lib/liveDriveError.ts', 'utf8');
 const visibilitySetup = fs.readFileSync('app/visibility-setup.tsx', 'utf8');
 const mapScreen = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
 
@@ -201,13 +202,36 @@ assert(
 
 
 assert(
-  visibilitySetup.includes("message.includes('precise location')") &&
-    visibilitySetup.includes('Enable Precise Location for NOXA in iPhone Settings'),
-  'Visibility setup must explain precise-location failures instead of collapsing them into a generic Live Drive error.',
+  liveDriveError.includes('export function getSafeLiveDriveStartMessage(error: unknown)'),
+  'Live Drive must expose one shared safe startup-error mapper outside the low-level background runtime.',
 );
 assert(
-  visibilitySetup.includes("message.includes('location services are off')"),
-  'Visibility setup must explain disabled iPhone Location Services.',
+  liveDriveError.includes('Set NOXA Location to Always in iPhone Settings.') &&
+    liveDriveError.includes('Enable Precise Location for NOXA in iPhone Settings.') &&
+    liveDriveError.includes('Enable iPhone Location Services, then retry.'),
+  'Live Drive startup errors must distinguish background, precise-location, and system-location failures.',
+);
+assert(
+  liveDriveError.includes("Platform.OS === 'ios'") &&
+    liveDrive.includes('Allow background location so your 4-hour Live Drive session can continue.') &&
+    !liveDrive.includes("from 'react-native'"),
+  'Low-level Live Drive must remain unchanged and platform-UI independent while the UI mapper gives iOS-specific recovery guidance.',
+);
+assert(
+  visibilitySetup.includes("import { getSafeLiveDriveStartMessage } from '@/src/lib/liveDriveError';") &&
+    visibilitySetup.includes('setErrorMessage(getSafeLiveDriveStartMessage(error));') &&
+    !visibilitySetup.includes('function getSafeLiveDriveError('),
+  'Visibility setup must reuse the shared safe Live Drive startup-error mapper.',
+);
+assert(
+  mapStartSlice.includes('setSharingError(getSafeLiveDriveStartMessage(error));'),
+  'Map Live Drive startup must sanitize the concrete permission failure before storing it.',
+);
+assert(
+  mapScreen.includes(
+    '? "Live Drive is reconnecting. Your last visibility setting is preserved."\n          : sharingError,',
+  ),
+  'Map must show the sanitized concrete Live Drive startup reason instead of replacing it with one generic banner.',
 );
 
 if (!process.exitCode) {

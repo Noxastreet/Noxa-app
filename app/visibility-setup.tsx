@@ -18,6 +18,7 @@ import {
   startLiveDriveSession,
   stopLiveDriveSession,
 } from '@/src/lib/liveDrive';
+import { getSafeLiveDriveStartMessage } from '@/src/lib/liveDriveError';
 import { supabase } from '@/src/lib/supabase';
 import {
   hasCompletedVisibilitySetup,
@@ -27,27 +28,6 @@ import {
 import { colors, radius, spacing, typography } from '@/src/theme';
 
 type PendingChoice = 'global' | 'ghost' | null;
-
-function getSafeLiveDriveError(error: unknown) {
-  const message = error instanceof Error ? error.message.toLowerCase() : '';
-
-  if (message.includes('development or store build') || message.includes('expo go')) {
-    return 'Live Drive needs an installed development or store build. You are still in Ghost.';
-  }
-  if (message.includes('background location')) {
-    return 'Background location was not allowed. You are still in Ghost.';
-  }
-  if (message.includes('precise location')) {
-    return 'Precise Location is unavailable. Enable Precise Location for NOXA in iPhone Settings, then retry.';
-  }
-  if (message.includes('location services are off')) {
-    return 'iPhone Location Services are off. Enable them in Settings, then retry.';
-  }
-  if (message.includes('allow location') || message.includes('foreground')) {
-    return 'Location access was not allowed. You are still in Ghost.';
-  }
-  return 'Live Drive could not start. You are still in Ghost.';
-}
 
 export default function VisibilitySetupScreen() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -128,7 +108,7 @@ export default function VisibilitySetupScreen() {
       completeSetup('global');
     } catch (error) {
       await stopLiveDriveSession(true).catch(() => undefined);
-      setErrorMessage(getSafeLiveDriveError(error));
+      setErrorMessage(getSafeLiveDriveStartMessage(error));
       setPendingChoice(null);
     }
   }, [completeSetup, pendingChoice, userId]);
