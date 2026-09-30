@@ -1083,3 +1083,927 @@ At every checkpoint:
 - CI success = implementation/static confidence only.
 - TestFlight video = physical interaction evidence.
 - A feature becomes VERIFIED only after the relevant physical flow is observed.
+
+
+---
+
+# 19. REFERENCE VIDEO STUDY R1 - PREMIUM SETTINGS / PERSONALIZATION INTERACTION GRAMMAR
+
+**Source type:** user-provided reference-app screen recording  
+**Video duration analyzed:** ~24.4 seconds  
+**Analysis method:** frame-by-frame visual inspection at 30 fps, 1-second timeline pass, 200 ms contact-sheet pass, and 30 fps micro-sequences around key transitions.  
+**Purpose:** extract reusable interaction principles for NOXA. This section records observed behavior, not product features that must be copied literally.
+
+## 19.1 What makes the reference feel premium
+
+The reference does not rely on one spectacular animation.
+
+Its quality comes from a consistent stack of small behaviors:
+
+1. navigation has clear hierarchy and direction;
+2. the previous screen remains spatially related during a push;
+3. local controls respond almost immediately;
+4. selection changes update multiple related UI elements in the same beat;
+5. screen structure stays stable while colors/states change;
+6. scroll/header behavior feels native and physically connected;
+7. unsaved-state feedback is persistent and calm;
+8. large visual changes use crossfade/interpolation rather than hard replacement;
+9. motion is concentrated at the point of interaction instead of animating the entire screen;
+10. state is always visible before, during, and after the transition.
+
+This is the interaction grammar NOXA should borrow.
+
+---
+
+## 19.2 Hierarchical push navigation
+
+### Observed
+
+On Home -> Profile, Profile -> Settings, Settings -> Appearance, Settings -> Language, Settings -> Notifications, and Settings -> Privacy:
+
+- the destination enters from the right;
+- the previous screen moves slightly left, creating shallow parallax;
+- the destination visually sits above the previous level;
+- the incoming screen has a rounded leading edge during the transition;
+- the old screen remains partially visible for part of the push;
+- there is no blank or black intermediate frame;
+- the transition settles quickly.
+
+Observed duration range is approximately **200–300 ms**, depending on the transition.
+
+### Perceived physics
+
+The motion feels like:
+- destination layer: high-distance translation;
+- source layer: low-distance parallax;
+- slight depth separation;
+- fast settle;
+- minimal/no bounce.
+
+The previous screen travels much less than the incoming screen. This is critical. Moving both screens the same distance would feel like a carousel rather than hierarchy.
+
+### NOXA adoption
+
+Apply to:
+- Map -> Driver Profile;
+- Map/Event -> Event Detail;
+- Garage -> Vehicle Detail;
+- Crew -> Crew Detail;
+- Settings -> secondary settings;
+- other true hierarchical pushes.
+
+Do **not** apply to root tabs.
+
+### Implementation rule
+
+For custom transitions where native stack behavior is insufficient:
+
+- incoming screen: ~100% -> 0% horizontal translation;
+- outgoing screen: small negative parallax only;
+- no root-level full-screen opacity fade;
+- optional shallow background dim/depth;
+- transition target: roughly 220–300 ms on iOS after physical tuning;
+- preserve interactive back gesture;
+- Reduce Motion uses simpler native/static behavior.
+
+### Acceptance criteria
+
+- prior screen remains visually related until destination nearly settles;
+- no empty frame;
+- no simultaneous large vertical movement;
+- back is the visual inverse;
+- object identity does not disappear before destination is understandable.
+
+---
+
+## 19.3 Staged content reveal under a stable shell
+
+### Observed
+
+The first Home -> Profile transition shows an important pattern:
+
+- destination shell/header arrives first;
+- avatar/identity becomes legible early;
+- secondary metrics and lower content finish appearing shortly after;
+- the screen is never empty.
+
+This creates a perception of speed even if all content does not resolve on the exact same frame.
+
+### NOXA adoption
+
+Use on network-backed detail screens:
+
+1. render navigation/header shell immediately;
+2. render known identity/media immediately when already available from origin context;
+3. reveal secondary information after it resolves;
+4. use opacity/small translate only;
+5. never gate the whole screen behind one spinner.
+
+Especially useful for:
+- Driver Profile;
+- Event Detail;
+- Vehicle Detail;
+- Crew Detail.
+
+### Guardrail
+
+This is not a license for decorative stagger everywhere.
+
+Stagger exists only when content has real information hierarchy.
+
+---
+
+## 19.4 Collapsible large-title header
+
+### Observed
+
+Deep settings screens show two header states:
+
+**At/near top**
+- large left-aligned title;
+- supporting description underneath.
+
+**After scrolling**
+- compact centered title in the navigation bar;
+- content uses the reclaimed vertical space.
+
+During scroll/overscroll the title transitions between these states rather than appearing as two unrelated headers.
+
+The recording also shows native-feeling top overscroll/rubber-band behavior.
+
+### NOXA adoption
+
+Candidate screens:
+- Driver Profile;
+- Event Detail;
+- Vehicle Detail;
+- Crew Detail;
+- Settings;
+- Search result collections where hierarchy warrants it.
+
+Do not use on:
+- Map root;
+- compact contextual sheets;
+- screens where the title is not primary identity.
+
+### Motion rule
+
+- title collapse follows scroll position;
+- no delayed animation after scroll has already stopped;
+- large title and compact title crossfade/translate as one system;
+- user drag directly controls progress;
+- overscroll may stretch space subtly, but content must not wobble independently.
+
+---
+
+## 19.5 Global theme transition
+
+### Observed
+
+Dark -> light and light -> dark do not hard-switch.
+
+The recording shows an approximately **180–250 ms** global palette transition:
+
+- background;
+- card surfaces;
+- text;
+- icons;
+- borders;
+- accent treatment;
+- toggle state
+
+all move through intermediate values together.
+
+There is **no structural relayout** during the theme change.
+
+The effect is a controlled whole-system color interpolation, not a full-screen navigation transition.
+
+### Why it works
+
+The brain sees the same interface changing material/state instead of a new screen replacing the old one.
+
+### NOXA adoption
+
+This principle is useful beyond literal dark/light mode.
+
+Use the same concept for coordinated state transitions such as:
+
+- Global -> Ghost visibility state;
+- selected route mode;
+- Drive Together ready/active states;
+- selected map object emphasis;
+- active/inactive navigation mode;
+- semantic success/error surface changes.
+
+### Guardrail
+
+Do not animate every color change globally.
+
+Only use coordinated token interpolation when the whole state genuinely changes together.
+
+---
+
+## 19.6 Accent-color selection behavior
+
+### Observed
+
+Theme-color choices use:
+
+- a row of simple circular swatches;
+- selected swatch gets an outer ring/check treatment;
+- selection state updates immediately;
+- related preview content changes in the same interaction beat;
+- primary action/review accent changes as part of the same state;
+- the rest of layout does not move.
+
+Observed visible response is roughly **100–150 ms**.
+
+### NOXA adoption
+
+Map this behavior to selection controls, not necessarily color customization.
+
+Examples:
+- visibility mode;
+- route option;
+- vehicle selection;
+- Drive Together role/state;
+- filter chip;
+- marker category;
+- event attendance state.
+
+### Rule
+
+When a selection affects multiple visual dependents:
+
+**selection indicator + affected preview/state + primary action emphasis update together.**
+
+Do not update the selected control immediately and let related UI catch up noticeably later.
+
+---
+
+## 19.7 Segmented/text-size/UI-style selection
+
+### Observed
+
+Text-size and UI-style choices follow the same pattern:
+
+- options stay in a fixed layout;
+- selected option receives border/emphasis;
+- descriptive label updates;
+- change count updates;
+- no layout bounce;
+- no giant moving pill;
+- response is immediate and local.
+
+### NOXA adoption
+
+For NOXA segmented controls:
+
+- selected state should be clear without oversized movement;
+- use short border/surface/indicator interpolation;
+- content geometry remains stable;
+- avoid sliding a large selector across long distances unless spatial meaning benefits from it.
+
+This validates the restrained `NoxaSegmentedControl` direction already in the codebase.
+
+---
+
+## 19.8 Toggle physics
+
+### Observed
+
+Notification/settings toggles:
+
+- state reacts within roughly one interaction beat;
+- thumb translates directly;
+- track color updates with thumb movement;
+- no bounce spectacle;
+- adjacent rows do not animate;
+- repeated toggling remains calm and readable.
+
+The impression is closer to **direct mechanical state change** than decorative animation.
+
+### NOXA adoption
+
+Use for:
+- privacy toggles;
+- notification settings;
+- visibility-related binary preferences;
+- location-sharing preferences where appropriate;
+- settings.
+
+### Canonical toggle behavior
+
+1. press acknowledgement begins immediately;
+2. thumb translation and track interpolation happen together;
+3. target state settles quickly;
+4. haptic only if semantic importance warrants it;
+5. row itself does not scale unless it is also a navigation action.
+
+---
+
+## 19.9 Live preview as immediate feedback
+
+### Observed
+
+Appearance changes are previewed directly in an example chat card on the same screen.
+
+The user does not need to:
+- leave settings;
+- open another screen;
+- imagine the result.
+
+Changes to accent/style update the preview immediately.
+
+### NOXA adoption
+
+Use the principle where preview has product value.
+
+Candidate examples:
+- profile/vehicle editor preview;
+- selected map marker style/state preview;
+- crew identity changes;
+- event cover/crop preview;
+- route preference outcome preview where deterministic;
+- privacy/visibility explanation preview.
+
+### Guardrail
+
+Do not add fake previews purely for decoration.
+
+Preview must reduce uncertainty before commit.
+
+---
+
+## 19.10 Persistent unsaved-changes action bar
+
+### Observed
+
+After the first settings modification, a bottom action area persists with:
+
+- current change count;
+- Discard;
+- Review.
+
+As more settings change, the count increments.
+
+The action area remains anchored while page content scrolls.
+
+This produces three useful effects:
+
+1. the user always knows there are pending changes;
+2. destructive discard is separated from normal controls;
+3. commit/review is always reachable without scrolling back to a save button.
+
+### NOXA adoption
+
+Only for flows that genuinely support draft/batch editing.
+
+Strong candidates:
+- Profile Edit;
+- Vehicle Edit;
+- Event Edit;
+- Crew Edit;
+- future advanced preferences with multiple pending changes.
+
+Not appropriate for:
+- instant map actions;
+- RSVP;
+- Ready;
+- Quick Connect;
+- route start.
+
+### Motion behavior
+
+When first dirty state appears:
+- bar enters once, preferably short slide/fade from safe-area bottom;
+- subsequent count changes update locally;
+- bar does not repeatedly re-enter;
+- on successful save, it resolves/disappears after confirmed persistence.
+
+---
+
+## 19.11 Selection count / dirty-state feedback
+
+### Observed
+
+The reference does not merely show a generic Save button.
+
+It communicates:
+- `1 change`;
+- `2 changes`;
+- etc.
+
+This gives the editing session a clear state.
+
+### NOXA adoption
+
+For multi-edit screens:
+
+- maintain explicit dirty-field count when technically useful;
+- count only meaningful changed values;
+- reverting a value should reduce the count;
+- save success returns count to zero;
+- stale network failure must not falsely clear dirty state.
+
+This belongs to Phase 4/5 behavior, not only visual polish.
+
+---
+
+## 19.12 Scroll behavior and spatial stability
+
+### Observed
+
+During Appearance, Language, Notifications, and Privacy scrolling:
+
+- cards retain stable geometry;
+- the bottom review bar stays anchored;
+- content scroll does not animate individual cards independently;
+- top title/navigation behavior is coupled to scroll;
+- list items do not bounce individually;
+- large blocks move as one scroll surface.
+
+### NOXA adoption
+
+Important rule:
+
+**Scroll itself is already motion. Do not layer unnecessary per-card animation on top of active scrolling.**
+
+Therefore:
+- avoid animated card entrance while user is actively scrolling;
+- do not continuously scale map/list items based on scroll unless there is a concrete spatial purpose;
+- sticky elements must remain truly stable.
+
+---
+
+## 19.13 Screen-to-screen visual continuity
+
+### Observed
+
+Settings subpages preserve:
+- same background material;
+- same card radius language;
+- same icon containers;
+- same row heights;
+- same title grammar;
+- same bottom action grammar.
+
+Navigation motion therefore feels coherent because the destination belongs to the same visual world.
+
+### NOXA adoption
+
+This reinforces a core requirement:
+
+Motion cannot rescue inconsistent UI.
+
+For each Phase 1/2 transition pair, confirm:
+- surface hierarchy matches;
+- icon treatment matches;
+- spacing scale matches;
+- typography hierarchy matches;
+- destination object visually relates to origin object.
+
+If not, fix the mismatch before adding a sophisticated transition.
+
+---
+
+## 19.14 Nested hierarchy without modal chaos
+
+### Observed
+
+The app uses normal hierarchical pushes for settings subsections rather than turning every subsection into a bottom sheet.
+
+This keeps depth understandable:
+
+Settings -> Appearance  
+Settings -> Language  
+Settings -> Notifications  
+Settings -> Privacy
+
+### NOXA adoption
+
+Use:
+- **push** for durable hierarchical destinations;
+- **sheet** for contextual/temporary map actions;
+- **modal** for blocking confirmation or focused creation only.
+
+This distinction becomes canonical:
+
+### Push
+- Driver Profile
+- Event Detail
+- Vehicle Detail
+- Crew Detail
+- Settings subsections
+
+### Sheet
+- Driver Card
+- Event Card
+- Route Card
+- Invite/Add Driver
+- contextual Drive Together controls
+
+### Modal
+- destructive confirmation;
+- permission explanation when required;
+- tightly scoped focused creation when a sheet is insufficient.
+
+Do not use sheets merely because they look premium.
+
+---
+
+## 19.15 Navigation vs local-state motion
+
+### Observed
+
+The reference clearly separates:
+
+**Navigation**
+- directional translation;
+- depth/parallax;
+- ~200–300 ms.
+
+**Local state**
+- selection/toggle/color change;
+- ~100–150 ms;
+- little/no spatial travel.
+
+**System material change**
+- global palette interpolation;
+- ~180–250 ms;
+- no navigation movement.
+
+This three-class separation is one of the strongest lessons from the video.
+
+### NOXA canonical rule
+
+Never use the same animation recipe for all three classes.
+
+Map to shared token families:
+
+- navigation spatial push;
+- local state spring/timing;
+- coordinated material/state interpolation.
+
+---
+
+## 19.16 Perceived latency rule
+
+### Observed
+
+The UI acknowledges selections before a long explanatory animation could begin.
+
+No interaction in the recording appears to wait for decorative movement before showing state.
+
+### NOXA adoption
+
+For every user action:
+
+**feedback first, completion second.**
+
+Examples:
+
+### RSVP
+- immediate pressed/selected feedback;
+- loading indicator if needed;
+- server-confirmed final state;
+- rollback/error if request fails.
+
+### Ready
+- immediate local response;
+- confirmed shared state;
+- do not wait silently for realtime roundtrip.
+
+### Route
+- immediate route-action acknowledgement;
+- stable loading shell;
+- route appears when ready.
+
+### Add Driver
+- immediate press/loading;
+- result confirmed after actual success.
+
+---
+
+## 19.17 Animation sequencing
+
+### Observed principle
+
+When more than one thing changes, the reference does not fire unrelated animation everywhere.
+
+Typical sequence is:
+
+1. direct target reacts;
+2. dependent state updates;
+3. surrounding UI remains stable.
+
+For navigation:
+
+1. incoming layer begins;
+2. outgoing layer parallax follows;
+3. destination settles;
+4. content/state becomes fully legible.
+
+### NOXA adoption
+
+For complex map interactions use the same order.
+
+Example marker -> Driver Card:
+
+1. marker selected immediately;
+2. camera adjusts only if required;
+3. card enters;
+4. detail/action content resolves;
+5. no unrelated controls animate.
+
+Example Start Route:
+
+1. button acknowledges;
+2. route shell/status appears;
+3. camera frames route;
+4. ETA/km settles;
+5. secondary controls update.
+
+---
+
+## 19.18 Depth language
+
+### Observed
+
+Depth is created mostly through:
+- layered dark surfaces;
+- subtle border contrast;
+- small shadows/glows;
+- source/destination parallax;
+- selected outline;
+- limited accent color.
+
+It does not rely on:
+- heavy drop shadows;
+- giant blur;
+- neon everywhere;
+- background particles.
+
+### NOXA adoption
+
+This is highly compatible with NOXA.
+
+For premium depth:
+- use edge/border contrast before heavy shadow;
+- use elevation only where interaction hierarchy requires it;
+- selected map/card state may receive subtle accent edge;
+- keep map labels/routes higher priority than decoration.
+
+---
+
+## 19.19 Motion density budget
+
+### Observation
+
+At almost every moment, only **one interaction family** is visually dominant.
+
+Examples:
+- screen push;
+- one toggle;
+- one selected swatch;
+- scroll;
+- theme interpolation.
+
+The UI does not animate navigation, multiple cards, background decoration, and buttons simultaneously.
+
+### NOXA rule
+
+Introduce a motion-density budget:
+
+### Low-density moment
+Normal idle screen:
+- optional subtle status only.
+
+### Medium-density moment
+Local interaction:
+- target + directly dependent state only.
+
+### High-density moment
+Navigation/camera/sheet transition:
+- suspend decorative motion;
+- prioritize one spatial story.
+
+This rule is especially important on Map.
+
+---
+
+## 19.20 Reference-derived timing ranges
+
+These are **observed/estimated from the recording**, not exact source-code values.
+
+| Interaction | Observed feel / estimate | NOXA starting range |
+|---|---:|---:|
+| Local selection response | ~100–150 ms | 100–180 ms |
+| Toggle settle | ~100–160 ms | 100–180 ms |
+| Accent/selected-state interpolation | ~100–150 ms | 100–180 ms |
+| Theme/material transition | ~180–250 ms | 180–260 ms |
+| Hierarchical push/back | ~200–300 ms | 220–300 ms |
+| Sticky action bar entrance | short, single entrance | 180–260 ms |
+| Collapsible title | directly driven by scroll | gesture-driven |
+
+These ranges must be tuned on TestFlight hardware.
+
+---
+
+# 20. REFERENCE R1 -> NOXA ROADMAP MAPPING
+
+The reference study modifies the eight phases as follows.
+
+## Phase 1 additions - Detail transitions
+
+Add:
+- hierarchical push with shallow source parallax;
+- no blank transition frames;
+- optional rounded incoming edge only if it matches native implementation cleanly;
+- stable shell before async content;
+- staged secondary content reveal;
+- collapsible large-title pattern for appropriate detail screens;
+- push/back symmetry.
+
+### Phase 1 new acceptance items
+
+- [ ] incoming detail enters with clear hierarchy;
+- [ ] source moves less than destination;
+- [ ] back visually reverses the push;
+- [ ] header shell is visible immediately;
+- [ ] async content does not blank the destination;
+- [ ] large-title collapse, if used, is scroll-driven;
+- [ ] no decorative stagger beyond information hierarchy.
+
+---
+
+## Phase 2 additions - Cards and sheets
+
+Add:
+- preserve one dominant motion story;
+- anchored persistent actions remain spatially stable;
+- avoid turning durable navigation destinations into sheets;
+- bottom action bars, if present, enter once and remain stable;
+- direct target reaction precedes dependent surface motion.
+
+### Phase 2 new acceptance items
+
+- [ ] sheet motion does not compete with active scroll;
+- [ ] sticky actions remain physically stable;
+- [ ] sheet is used because context is temporary, not because sheets look premium;
+- [ ] local controls inside sheet remain faster than sheet motion.
+
+---
+
+## Phase 3 additions - Map spatial interactions
+
+Add the sequencing rule:
+
+### Marker selection
+1. immediate selected marker state;
+2. optional camera response;
+3. contextual card entrance;
+4. content resolution.
+
+### Route start
+1. action acknowledgement;
+2. route-status shell;
+3. camera frame;
+4. route/ETA data;
+5. secondary controls.
+
+Add motion-density budget:
+- no decorative background movement during camera transitions;
+- do not animate multiple marker families while a camera move is active.
+
+---
+
+## Phase 4 additions - Loading / success / error
+
+Add:
+- stable shell first;
+- staged data reveal based on information priority;
+- no full-screen spinner if origin already knows enough to build the destination shell;
+- retain dirty state on save failure;
+- use coordinated material interpolation for major semantic state changes when appropriate.
+
+---
+
+## Phase 5 additions - Micro-interactions
+
+Add:
+- local selections target 100–180 ms starting range;
+- selected control + dependent preview update in the same beat;
+- fixed geometry during selection;
+- toggles use direct mechanical thumb/track motion;
+- do not scale an entire settings row for a simple toggle;
+- explicit pending-change count for multi-edit flows where applicable.
+
+---
+
+## Phase 6 additions - Haptics
+
+Haptics must follow the reference's low motion-density philosophy.
+
+Add:
+- do not pair every local animation with haptic;
+- for toggles, default to visual/mechanical feedback unless state importance justifies haptic;
+- navigation pushes do not require haptic by default;
+- batch-edit dirty-count changes do not haptic;
+- final confirmed save may use success haptic.
+
+---
+
+## Phase 7 additions - Depth / decoration
+
+Add:
+- prefer border/elevation hierarchy over heavy shadow;
+- selected state can use a restrained accent edge/ring;
+- large material/theme changes interpolate without relayout;
+- one accent family at a time;
+- avoid simultaneous glow + scale + blur + shadow.
+
+---
+
+## Phase 8 additions - Performance QA
+
+Add tests for:
+
+### Navigation
+- source/destination parallax remains smooth at 60 fps target;
+- no blank frame under repeated push/back;
+- large-title collapse does not jank during fast scroll.
+
+### Settings/editing
+- rapidly toggle 10+ controls;
+- repeatedly change segmented selections;
+- verify anchored dirty-action bar remains stable;
+- verify preview updates do not rerender the entire screen unnecessarily.
+
+### Map
+- ensure motion-density budget is respected during camera transitions;
+- no hundreds-of-marker animation burst.
+
+---
+
+# 21. NEW CANONICAL INTERACTION RULES FROM REFERENCE R1
+
+These rules become part of NOXA motion review.
+
+1. **Hierarchy moves farther than context.**  
+   Incoming destination may travel substantially; outgoing context only parallax-shifts.
+
+2. **State moves less than navigation.**  
+   Local selection should rarely move large distances.
+
+3. **Feedback precedes network completion.**  
+   The user must know the tap registered immediately.
+
+4. **One motion story at a time.**  
+   Do not animate unrelated layers simultaneously.
+
+5. **Stable geometry is premium.**  
+   State changes should prefer color/border/opacity/short transform over layout jumps.
+
+6. **Scroll is already an animation.**  
+   Avoid redundant card animations while the user scrolls.
+
+7. **Preview uncertainty away.**  
+   If a setting materially changes appearance/behavior and preview is useful, show it immediately.
+
+8. **Dirty state is visible.**  
+   Multi-edit flows explicitly communicate pending changes.
+
+9. **Material transitions do not masquerade as navigation.**  
+   Whole-system color/state changes interpolate in place.
+
+10. **Push, sheet, and modal have different jobs.**  
+    Choose by interaction semantics, not visual fashion.
+
+11. **The destination shell must beat the data.**  
+    Known context renders immediately; network details follow.
+
+12. **A premium transition remains understandable at half speed.**  
+    If slowing the motion exposes unrelated elements moving for no reason, the transition is too complicated.
+
+---
+
+# 22. REFERENCE R1 CHECKLIST FOR FUTURE PR REVIEWS
+
+For any motion PR, reviewers ask:
+
+- [ ] Is this navigation, local state, or material/state interpolation?
+- [ ] Is the chosen motion class appropriate?
+- [ ] Does direct feedback start immediately?
+- [ ] Is geometry stable where it should be?
+- [ ] Are dependent states synchronized?
+- [ ] Is more than one unrelated motion story running?
+- [ ] Does the old context remain understandable during hierarchy change?
+- [ ] Could a stable shell render earlier?
+- [ ] Is this a push that was incorrectly implemented as a sheet?
+- [ ] Is this a sheet that was incorrectly implemented as a full page?
+- [ ] Does scroll already provide enough movement?
+- [ ] Does Reduce Motion still communicate the same state?
+- [ ] Does the interaction remain clear without haptics?
+- [ ] Has this been physically checked on TestFlight?
+
