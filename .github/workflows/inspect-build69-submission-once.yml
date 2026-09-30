@@ -36,6 +36,7 @@ jobs:
           for (const arg of field.args) {
             if (arg.name === "limit" || arg.name === "first") args.push(arg.name+":5");
             else if (arg.name === "offset") args.push("offset:0");
+            else if (arg.name === "filter") args.push("filter:{}");
             else if (arg.type.kind === "NON_NULL" && arg.defaultValue == null) throw new Error("Unsupported required argument: "+arg.name);
           }
           const node = await getType(leaf(field.type).name);
