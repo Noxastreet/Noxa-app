@@ -133,6 +133,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       isDestinationPicking = false,
       onMapPress,
       selectedEventId,
+      selectedDriverId = null,
       mapFilter,
       isRouteMode,
       followUserLocation,
@@ -149,8 +150,8 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     const [hasError, setHasError] = useState(false);
 
     const driverFeatures = useMemo(
-      () => createDriverFeatureCollection(activeDrivers),
-      [activeDrivers],
+      () => createDriverFeatureCollection(activeDrivers, selectedDriverId),
+      [activeDrivers, selectedDriverId],
     );
     const eventFeatures = useMemo(
       () => createEventFeatureCollection(events, selectedEventId),
@@ -466,10 +467,30 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 filter={["!", ["has", "point_count"]]}
                 id="noxa-driver-glow"
                 style={{
-                  circleColor: "rgba(200,16,46,0.22)",
-                  circleRadius: 18,
-                  circleStrokeColor: "rgba(200,16,46,0.34)",
-                  circleStrokeWidth: 1,
+                  circleColor: [
+                    "case",
+                    ["==", ["get", "selected"], true],
+                    "rgba(255,255,255,0.18)",
+                    "rgba(200,16,46,0.22)",
+                  ],
+                  circleRadius: [
+                    "case",
+                    ["==", ["get", "selected"], true],
+                    22,
+                    18,
+                  ],
+                  circleStrokeColor: [
+                    "case",
+                    ["==", ["get", "selected"], true],
+                    "rgba(255,255,255,0.64)",
+                    "rgba(200,16,46,0.34)",
+                  ],
+                  circleStrokeWidth: [
+                    "case",
+                    ["==", ["get", "selected"], true],
+                    2,
+                    1,
+                  ],
                 }}
               />
             </ShapeSource>
@@ -481,6 +502,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   allowOverlap
                   anchor={{ x: 0.5, y: 0.5 }}
                   coordinate={toPosition(driver)}
+                  isSelected={selectedDriverId === driver.user_id}
                   key={driver.user_id}
                 >
                   <TouchableOpacity
@@ -490,6 +512,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                     style={[
                       styles.driverMarker,
                       driver.is_relevant && styles.driverMarkerRelevant,
+                      selectedDriverId === driver.user_id && styles.driverMarkerSelected,
                       driver.is_dimmed && styles.driverMarkerDimmed,
                     ]}
                   >
@@ -705,6 +728,14 @@ const styles = StyleSheet.create({
   driverMarkerRelevant: {
     borderColor: colors.primaryHover,
     transform: [{ scale: 1.08 }],
+  },
+  driverMarkerSelected: {
+    borderColor: colors.text,
+    borderWidth: 2.5,
+    transform: [{ scale: 1.16 }],
+    shadowOpacity: 0.58,
+    shadowRadius: 10,
+    elevation: 7,
   },
   driverMarkerDimmed: {
     opacity: 0.38,
