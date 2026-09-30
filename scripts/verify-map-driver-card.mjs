@@ -93,3 +93,17 @@ assert(
 if (!process.exitCode) {
   console.log('Map driver contextual card contract passed.');
 }
+
+assert(
+  /requestVersion.current === version/.test(card)
+    && /requestVersion.current \+= 1/.test(card)
+    && /key=\{\x60\$\{selectedDriverId\}/.test(home)
+    && /if \(selectedDriverId && !selectedDriver\) setSelectedDriverId\(null\)/.test(home),
+  'Late responses, trust changes and disappearing markers must not leave stale driver cards.',
+);
+assert(
+  /disabled=\{primaryAction.disabled \|\| Boolean\(error\) \|\| unavailable\}/.test(card)
+    && /title="Retry"/.test(card),
+  'Failed/private driver state must gate actions and offer retry for loading errors.',
+);
+await import('./test-map-driver-card.mjs');

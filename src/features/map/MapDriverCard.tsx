@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
+  NoxaAvatar,
   NoxaButton,
   NoxaIconButton,
   NoxaPressableSurface,
@@ -57,6 +58,7 @@ type Props = {
   bottomOffset: number;
   isInDrive: boolean;
   isRelevant: boolean;
+  onRelationshipChange: () => void;
   onClose: () => void;
   onInviteToDrive: (driverId: string) => void;
 };
@@ -105,6 +107,7 @@ export function MapDriverCard({
   isInDrive,
   isRelevant,
   onClose,
+  onRelationshipChange,
   onInviteToDrive,
 }: Props) {
   const [profile, setProfile] = useState<DriverProfile | null>(null);
@@ -114,151 +117,148 @@ export function MapDriverCard({
   const [relationshipLoading, setRelationshipLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [unavailable, setUnavailable] = useState(false);
+  const [sharedCrew, setSharedCrew] = useState(false);
+  const requestVersion = useRef(0);
+  const actionPending = useRef(false);
+
   const load = useCallback(async () => {
+    const version = ++requestVersion.current;
+    const isCurrent = () => requestVersion.current === version;
     setLoading(true);
     setError(null);
+    setProfile(null);
+    setVehicle(null);
+    setRelationship('none');
+    setUnavailable(false);
+    setSharedCrew(false);
 
-    const { data: authData } = await supabase.auth.getUser();
-    const currentUserId = authData.user?.id ?? null;
-    if (!currentUserId) {
-      setError('Sign in again to interact with this driver.');
-      setLoading(false);
-      return;
-    }
-
-    const canRevealMapIdentity = isRelevant || currentUserId === driverId;
-
-    if (canRevealMapIdentity) {
-      const [profileResult, vehicleResult] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id,display_name,username,avatar_url')
-          .eq('id', driverId)
-          .maybeSingle(),
-        supabase
-          .from('vehicles')
-          .select('id,brand,model,year,cover_image_url')
-          .eq('owner_id', driverId)
-          .eq('is_public', true)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (!isCurrent()) return;
+      const currentUserId = authData.user?.id ?? null;
+      if (authError || !currentUserId) {
+        throw new Error('Sign in again to interact with this driver.');
+      }
+      const canRevealMapIdentity = isRelevant || currentUserId === driverId;
+      const [profileResult, vehicleResult, outgoingResult, incomingResult, ownCrews, driverCrews] = await Promise.all([
+        canRevealMapIdentity
+          ? supabase.from('profiles').select('id,display_name,username,avatar_url')
+            .eq('id', driverId).maybeSingle()
+          : supabase.from('profiles').select('id')
+            .eq('id', driverId).maybeSingle(),
+        canRevealMapIdentity
+          ? supabase.from('vehicles')
+            .select('id,brand,model,year,cover_image_url')
+            .eq('owner_id', driverId)
+            .eq('is_public', true)
+            .eq('is_primary', true)
+            .limit(1).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        supabase.from('follows').select('following_id')
+          .eq('follower_id', currentUserId).eq('following_id', driverId).maybeSingle(),
+        supabase.from('follows').select('follower_id')
+          .eq('follower_id', driverId).eq('following_id', currentUserId).maybeSingle(),
+        supabase.from('crew_members').select('crew_id').eq('user_id', currentUserId),
+        supabase.from('crew_members').select('crew_id').eq('user_id', driverId),
       ]);
-
-      if (profileResult.error) {
-        setError('This driver could not be loaded.');
-        setLoading(false);
+      if (!isCurrent()) return;
+      if (profileResult.error) throw new Error('This driver could not be loaded.');
+      if (!profileResult.data) {
+        setUnavailable(true);
         return;
       }
 
-      const row = profileResult.data;
-      setProfile(
-        row
-          ? {
-              id: String(row.id),
-              displayName:
-                String(row.display_name ?? '').trim()
-                || String(row.username ?? '').trim()
-                || 'NOXA driver',
-              username: row.username ? String(row.username) : null,
-              avatarUrl: row.avatar_url ? String(row.avatar_url) : null,
-            }
-          : null,
-      );
-
-      if (!vehicleResult.error && vehicleResult.data) {
-        setVehicle({
-          id: String(vehicleResult.data.id),
-          brand: vehicleResult.data.brand ? String(vehicleResult.data.brand) : null,
-          model: vehicleResult.data.model ? String(vehicleResult.data.model) : null,
-          year:
-            typeof vehicleResult.data.year === 'number'
-              ? vehicleResult.data.year
-              : null,
-          coverImageUrl: vehicleResult.data.cover_image_url
-            ? String(vehicleResult.data.cover_image_url)
-            : null,
+      if (canRevealMapIdentity) {
+        const row = profileResult.data as {
+          id: string; display_name?: string | null; username?: string | null; avatar_url?: string | null;
+        };
+        setProfile({
+          id: row.id,
+          displayName: row.display_name?.trim() || row.username?.trim() || 'NOXA driver',
+          username: row.username ?? null,
+          avatarUrl: row.avatar_url ?? null,
         });
+        if (!vehicleResult.error && vehicleResult.data) {
+          const row = vehicleResult.data;
+          setVehicle({
+            id: String(row.id),
+            brand: row.brand ?? null,
+            model: row.model ?? null,
+            year: typeof row.year === 'number' ? row.year : null,
+            coverImageUrl: row.cover_image_url ?? null,
+          });
+        }
       } else {
+        setProfile(null);
         setVehicle(null);
       }
-    } else {
-      setProfile(null);
-      setVehicle(null);
+
+      if (outgoingResult.error || incomingResult.error) {
+        throw new Error('Connection status is unavailable. Try again.');
+      }
+      setRelationship(
+        currentUserId === driverId ? 'self'
+          : outgoingResult.data && incomingResult.data ? 'mutual'
+            : outgoingResult.data ? 'outgoing'
+              : incomingResult.data ? 'incoming' : 'none',
+      );
+      if (!ownCrews.error && !driverCrews.error) {
+        const ownIds = new Set((ownCrews.data ?? []).map((row) => row.crew_id));
+        setSharedCrew((driverCrews.data ?? []).some((row) => ownIds.has(row.crew_id)));
+      }
+      if (vehicleResult.error) setError('Public vehicle could not be loaded. Try again.');
+    } catch (loadError) {
+      if (isCurrent()) {
+        setError(loadError instanceof Error ? loadError.message : 'This driver could not be loaded. Try again.');
+      }
+    } finally {
+      if (isCurrent()) setLoading(false);
     }
-
-    if (currentUserId === driverId) {
-      setRelationship('self');
-      setLoading(false);
-      return;
-    }
-
-    const [outgoingResult, incomingResult] = await Promise.all([
-      supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', currentUserId)
-        .eq('following_id', driverId)
-        .maybeSingle(),
-      supabase
-        .from('follows')
-        .select('follower_id')
-        .eq('follower_id', driverId)
-        .eq('following_id', currentUserId)
-        .maybeSingle(),
-    ]);
-
-    if (outgoingResult.error || incomingResult.error) {
-      setError('Driver loaded, but connection status is unavailable.');
-      setRelationship('none');
-    } else if (outgoingResult.data && incomingResult.data) {
-      setRelationship('mutual');
-    } else if (outgoingResult.data) {
-      setRelationship('outgoing');
-    } else if (incomingResult.data) {
-      setRelationship('incoming');
-    } else {
-      setRelationship('none');
-    }
-
-    setLoading(false);
   }, [driverId, isRelevant]);
 
   useEffect(() => {
     void load();
+    return () => { requestVersion.current += 1; };
   }, [load]);
 
   const connect = useCallback(async () => {
-    if (relationshipLoading || relationship === 'self' || relationship === 'mutual') return;
-
+    if (actionPending.current || loading || error || unavailable
+      || relationship === 'self' || relationship === 'mutual' || relationship === 'outgoing') return;
+    actionPending.current = true;
+    const version = requestVersion.current;
     setRelationshipLoading(true);
     setError(null);
-    const { data: authData } = await supabase.auth.getUser();
-    const currentUserId = authData.user?.id ?? null;
-    if (!currentUserId || currentUserId === driverId) {
-      setRelationshipLoading(false);
-      return;
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (version !== requestVersion.current) return;
+      const currentUserId = authData.user?.id ?? null;
+      if (authError || !currentUserId || currentUserId === driverId) {
+        throw new Error('Sign in again to interact with this driver.');
+      }
+      const { error: followError } = await supabase.from('follows')
+        .insert({ follower_id: currentUserId, following_id: driverId });
+      if (version !== requestVersion.current) return;
+      if (followError && followError.code !== '23505') {
+        throw new Error('Connection could not be updated. Try again.');
+      }
+      setRelationship((current) => current === 'incoming' ? 'mutual' : 'outgoing');
+      onRelationshipChange();
+    } catch (connectError) {
+      if (version === requestVersion.current) {
+        setError(connectError instanceof Error ? connectError.message : 'Connection could not be updated. Try again.');
+      }
+    } finally {
+      actionPending.current = false;
+      if (version === requestVersion.current) setRelationshipLoading(false);
     }
+  }, [driverId, error, loading, onRelationshipChange, relationship, unavailable]);
 
-    const { error: followError } = await supabase
-      .from('follows')
-      .insert({ follower_id: currentUserId, following_id: driverId });
-
-    if (followError && followError.code !== '23505') {
-      setError('Connection could not be updated.');
-      setRelationshipLoading(false);
-      return;
-    }
-
-    setRelationship((current) => (current === 'incoming' ? 'mutual' : 'outgoing'));
-    setRelationshipLoading(false);
-  }, [driverId, relationship, relationshipLoading]);
-
-  const name = isRelevant ? displayName(profile, fallbackProfile) : 'NOXA driver';
-  const username = isRelevant
+  const name = isRelevant ? displayName(profile, unavailable || error ? null : fallbackProfile) : 'NOXA driver';
+  const username = isRelevant && !unavailable && !error
     ? usernameLabel(profile?.username ?? fallbackProfile?.username)
     : null;
-  const avatarUrl = isRelevant
+  const avatarUrl = isRelevant && !unavailable && !error
     ? (profile?.avatarUrl ?? fallbackProfile?.avatarUrl ?? null)
     : null;
   const car = isRelevant ? vehicleLabel(vehicle) : null;
@@ -328,17 +328,8 @@ export function MapDriverCard({
       <View style={styles.header}>
         <View style={styles.identity}>
           <View style={styles.avatarWrap}>
-            {avatarUrl ? (
-              <Image
-                cachePolicy="memory-disk"
-                contentFit="cover"
-                source={{ uri: avatarUrl }}
-                style={styles.avatar}
-              />
-            ) : (
-              <Text style={styles.initials}>{initials(name)}</Text>
-            )}
-            <View style={styles.liveDot} />
+            <NoxaAvatar imageUrl={avatarUrl} initials={isRelevant ? initials(name) : 'NX'} size={48} />
+
           </View>
 
           <View style={styles.identityCopy}>
@@ -351,6 +342,7 @@ export function MapDriverCard({
                   <Text style={styles.friendBadgeText}>FRIEND</Text>
                 </View>
               ) : null}
+              {sharedCrew ? <Text style={styles.username}>Shared Crew</Text> : null}
             </View>
           </View>
         </View>
@@ -360,7 +352,7 @@ export function MapDriverCard({
           icon="close"
           iconSize={18}
           onPress={onClose}
-          size={40}
+          size={44}
           variant="ghost"
         />
       </View>
@@ -372,7 +364,7 @@ export function MapDriverCard({
         </View>
       ) : (
         <>
-          {vehicle ? (
+          {!unavailable && vehicle ? (
             <NoxaPressableSurface
               accessibilityLabel={car ? `Open ${car}` : 'Open vehicle'}
               accessibilityRole="button"
@@ -384,6 +376,7 @@ export function MapDriverCard({
                 <Image
                   cachePolicy="memory-disk"
                   contentFit="cover"
+                  recyclingKey={vehicle.id}
                   source={{ uri: vehicle.coverImageUrl }}
                   style={styles.vehicleImage}
                 />
@@ -400,13 +393,24 @@ export function MapDriverCard({
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
             </NoxaPressableSurface>
+          ) : !error ? (
+            <Text style={styles.loadingText}>
+              {unavailable ? 'This driver is private or no longer available.'
+                : !isRelevant ? 'Identity is private on the map.'
+                  : 'No public primary vehicle.'}
+            </Text>
           ) : null}
 
-          {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+          {error ? (
+            <View style={styles.loading}>
+              <Text accessibilityRole="alert" style={[styles.error, { flex: 1 }]}>{error}</Text>
+              <NoxaButton title="Retry" variant="secondary" size="sm" onPress={() => void load()} />
+            </View>
+          ) : null}
 
           <View style={styles.actions}>
             <NoxaButton
-              disabled={primaryAction.disabled}
+              disabled={primaryAction.disabled || Boolean(error) || unavailable}
               leadingIcon={<Ionicons name={primaryAction.icon} size={16} color={colors.text} />}
               loading={relationshipLoading}
               onPress={primaryAction.onPress}
@@ -415,8 +419,9 @@ export function MapDriverCard({
               title={primaryAction.title}
             />
 
-            {relationship !== 'self' ? (
+            {relationship !== 'self' && !unavailable ? (
               <NoxaButton
+                disabled={Boolean(error)}
                 leadingIcon={<Ionicons name="person-outline" size={16} color={colors.text} />}
                 onPress={() =>
                   router.push({

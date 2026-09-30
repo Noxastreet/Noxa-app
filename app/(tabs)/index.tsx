@@ -2252,6 +2252,10 @@ export default function LiveMapScreen() {
       : null),
     [mapboxDrivers, selectedDriverId],
   );
+  useEffect(() => {
+    if (selectedDriverId && !selectedDriver) setSelectedDriverId(null);
+  }, [selectedDriver, selectedDriverId]);
+
   const selectedDriverProfile = useMemo(
     () => {
       if (!selectedDriverId || !selectedDriver?.is_relevant) {
@@ -2715,6 +2719,7 @@ export default function LiveMapScreen() {
 
         {selectedDriverId && selectedDriver ? (
           <MapDriverCard
+            key={`${selectedDriverId}:${Boolean(selectedDriver.is_relevant)}`}
             bottomOffset={eventCardBottom}
             driverId={selectedDriverId}
             fallbackProfile={selectedDriverProfile}
@@ -2722,6 +2727,7 @@ export default function LiveMapScreen() {
             isRelevant={Boolean(selectedDriver.is_relevant)}
             onClose={() => setSelectedDriverId(null)}
             onInviteToDrive={inviteDriverToDriveTogether}
+            onRelationshipChange={() => void loadMyDriverIds()}
           />
         ) : null}
 
