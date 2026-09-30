@@ -24,7 +24,7 @@ jobs:
             const data=await r.json();if(!r.ok||data.errors)throw new Error(JSON.stringify({status:r.status,errors:data.errors}));return data.data;
           }
           const shape='kind name ofType { kind name ofType { kind name ofType { kind name } } }';
-          const getType=async name=>(await query('{ __type(name: '+JSON.stringify(name)+') { fields { name type { '+shape+' } args { name defaultValue type { '+shape+' } } } }')).__type;
+          const getType=async name=>(await query('{ __type(name: '+JSON.stringify(name)+') { fields { name type { '+shape+' } args { name defaultValue type { '+shape+' } } } } }')).__type;
           const leaf=t=>t.ofType?leaf(t.ofType):t;
           const app=await getType('App');const list=app.fields.find(f=>f.name==='submissions');
           if(!list)throw new Error('Submission list unavailable');
