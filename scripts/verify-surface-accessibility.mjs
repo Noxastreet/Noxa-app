@@ -10,6 +10,7 @@ function files(dir) {
   });
 }
 let controls = 0;
+const missingRoles = [];
 for (const file of ['app', 'src', 'components'].flatMap(files)) {
   const source = fs.readFileSync(file, 'utf8');
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -18,9 +19,9 @@ for (const file of ['app', 'src', 'components'].flatMap(files)) {
       const tag = node.tagName.getText(ast);
       const attributes = node.attributes.properties.filter(ts.isJsxAttribute);
       const names = attributes.map((a) => a.name.getText(ast));
-      if (['Pressable', 'TouchableOpacity', 'TouchableWithoutFeedback'].includes(tag) && names.includes('onPress')) {
+      if (['Pressable', 'TouchableOpacity', 'TouchableWithoutFeedback', 'Text'].includes(tag) && names.includes('onPress')) {
         controls += 1;
-        assert.ok(names.includes('accessibilityRole'), file + ':' + (ast.getLineAndCharacterOfPosition(node.pos).line + 1) + ': interactive control needs a role');
+        if (!names.includes('accessibilityRole')) missingRoles.push(file + ':' + (ast.getLineAndCharacterOfPosition(node.pos).line + 1));
       }
       if (tag === 'Text' || tag === 'TextInput' || tag === 'NoxaInput') {
         const text = node.getText(ast);
@@ -32,6 +33,7 @@ for (const file of ['app', 'src', 'components'].flatMap(files)) {
   visit(ast);
   assert.ok(!/color:\s*colors\.(textSubtle|textTertiary)\b/.test(source), file + ': unreadable supporting copy');
 }
+assert.equal(missingRoles.length, 0, 'Interactive controls missing roles: ' + missingRoles.join(', '));
 const drive = fs.readFileSync('src/features/group-drive/DriveTogetherMapLayer.tsx', 'utf8');
 for (const label of ['Accept destination request', 'Decline destination request', 'Resume location sharing', 'Clear destination search']) {
   assert.ok(drive.includes('accessibilityLabel="' + label + '"'), label + ' must stay discoverable with a screen reader');
