@@ -218,7 +218,7 @@ assert(
   'Low-level Live Drive must stay platform-UI independent while the UI mapper gives iOS-specific recovery guidance.',
 );
 assert(
-  visibilitySetup.includes('getSafeLiveDriveStartMessage,') &&
+  visibilitySetup.includes("import { getSafeLiveDriveStartMessage } from '@/src/lib/liveDriveError';") &&
     visibilitySetup.includes('setErrorMessage(getSafeLiveDriveStartMessage(error));') &&
     !visibilitySetup.includes('function getSafeLiveDriveError('),
   'Visibility setup must reuse the shared safe Live Drive startup-error mapper.',
