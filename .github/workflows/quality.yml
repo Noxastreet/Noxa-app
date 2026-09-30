@@ -96,6 +96,9 @@ jobs:
       - name: Map camera ownership contract
         run: npm run verify:map-camera-ownership
 
+      - name: Map object focus sequencing contract
+        run: npm run verify:map-object-focus
+
       - name: Home / Map F12 performance contract
         run: npm run verify:home-map-performance
 
