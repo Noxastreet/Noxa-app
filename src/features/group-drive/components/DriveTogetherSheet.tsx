@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 
-import { animations, colors, spacing } from '@/src/theme';
+import { NoxaSurface } from '@/src/components/ui';
+import { animations, colors, geometry, spacing } from '@/src/theme';
 
 export type DriveTogetherSheetSnap = 'collapsed' | 'medium' | 'expanded';
 
@@ -159,6 +160,7 @@ export function DriveTogetherSheet({
           transform: [{ translateY }],
         },
       ]}>
+      <NoxaSurface corners="top" cut={geometry.cut.lg} level="sheet" style={styles.shell}>
       <View
         accessibilityLabel="Drive Together panel"
         accessibilityRole="adjustable"
@@ -173,6 +175,7 @@ export function DriveTogetherSheet({
         ]}>
         {children}
       </View>
+      </NoxaSurface>
     </Animated.View>
   );
 }
@@ -184,32 +187,22 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 55,
     overflow: 'hidden',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: '#0A0A0E',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.10)',
-    shadowColor: colors.black,
-    shadowOpacity: 0.24,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: -8 },
-    elevation: 0,
+
   },
+  shell: { flex: 1 },
   handleArea: {
     height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
   handle: {
-    width: 40,
-    height: 4,
+    width: geometry.sheet.handleWidth,
+    height: geometry.sheet.handleHeight,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: colors.neutralStrong,
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: geometry.sheet.gutter,
   },
 });
