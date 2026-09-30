@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import { Platform } from 'react-native';
 
 import { supabase } from '@/src/lib/supabase';
 
@@ -19,6 +20,39 @@ export type LiveDriveSession = {
   visibilityMode: LiveDriveVisibilityMode;
   expiresAt: string;
 };
+
+export function getSafeLiveDriveStartMessage(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+
+  if (message.includes('development or store build') || message.includes('expo go')) {
+    return 'Live Drive needs an installed development or store build. You are still in Ghost.';
+  }
+  if (message.includes('background location') || message.includes('always access')) {
+    return Platform.OS === 'ios'
+      ? 'Background Location is not set to Always. Open iPhone Settings → NOXA → Location → Always, then retry.'
+      : 'Background location is not allowed. Enable background location for NOXA, then retry.';
+  }
+  if (message.includes('precise location') || message.includes('precise gps fix')) {
+    return Platform.OS === 'ios'
+      ? 'Precise Location is unavailable. Open iPhone Settings → NOXA → Location and enable Precise Location, then retry.'
+      : 'Precise Location is unavailable. Enable precise location for NOXA, then retry.';
+  }
+  if (message.includes('location services are off')) {
+    return Platform.OS === 'ios'
+      ? 'iPhone Location Services are off. Enable them in Settings, then retry.'
+      : 'Location Services are off. Enable them in Settings, then retry.';
+  }
+  if (
+    message.includes('allow location')
+    || message.includes('foreground')
+    || message.includes('when in use')
+  ) {
+    return Platform.OS === 'ios'
+      ? 'Location access is not available. Open iPhone Settings → NOXA → Location and allow access, then retry.'
+      : 'Location access is not allowed. Enable location for NOXA, then retry.';
+  }
+  return 'Live Drive could not start. Check Location permissions and try again. You are still in Ghost.';
+}
 
 type PendingLiveDriveCleanup = {
   userId: string;
@@ -392,7 +426,11 @@ export async function requestLiveDrivePermissions() {
 
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== Location.PermissionStatus.GRANTED) {
-    throw new Error('Allow background location so your 4-hour Live Drive session can continue.');
+    throw new Error(
+      Platform.OS === 'ios'
+        ? 'Background location requires Always access in iPhone Settings.'
+        : 'Allow background location so your 4-hour Live Drive session can continue.',
+    );
   }
 
   return current;
