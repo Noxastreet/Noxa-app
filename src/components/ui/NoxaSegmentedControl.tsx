@@ -55,7 +55,7 @@ function SegmentItem<T extends string>({
   const contentMotion = useAnimatedStyle(() => ({
     transform: [
       {
-        scale: interpolate(
+        scale: reduceMotion ? 1 : interpolate(
           pressProgress.value,
           [0, 1],
           [1, animations.pressedScale],

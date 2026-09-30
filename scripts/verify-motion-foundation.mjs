@@ -115,3 +115,10 @@ assert(
 );
 
 console.log('PASS: NOXA motion foundation contract');
+
+for (const path of ['app/(tabs)/garage.tsx', 'app/(tabs)/profile.tsx']) {
+  const source = read(path);
+  assert(/NoxaDetailReveal/.test(source) && !/new Animated.Value|useEntryAnimation/.test(source), 'Root identity/garage content must use the shared Reduce Motion reveal.');
+}
+assert(/PanResponder.create/.test(driverCard) && /cancelAnimation/.test(driverCard) && /useFocusEffect/.test(driverCard) && /navigationPending.current/.test(driverCard), 'Driver card gestures and navigation must recover safely across interruption/focus.');
+await import('./test-sheet-motion-interruption.mjs');

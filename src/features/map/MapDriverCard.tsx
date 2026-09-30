@@ -1,28 +1,35 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  PanResponder,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import Animated, {
+  cancelAnimation,
   FadeInDown,
   FadeOutDown,
   ReduceMotion,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 
 import {
   NoxaAvatar,
   NoxaButton,
+  NoxaDetailReveal,
   NoxaIconButton,
   NoxaPressableSurface,
   NoxaSurface,
 } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
-import { animations, colors, radius, spacing, typography } from '@/src/theme';
+import { animations, colors, geometry, radius, spacing, typography } from '@/src/theme';
 
 const DRIVER_CARD_ENTER = FadeInDown
   .duration(animations.step)
@@ -80,6 +87,7 @@ function usernameLabel(value: string | null | undefined) {
 
 function vehicleLabel(vehicle: VehiclePreview | null) {
   if (!vehicle) return null;
+
   const name = [vehicle.brand, vehicle.model].filter(Boolean).join(' ').trim();
   if (!name && !vehicle.year) return null;
   return [name || 'Vehicle', vehicle.year ? String(vehicle.year) : null]
@@ -102,7 +110,6 @@ function initials(value: string) {
 
 export function MapDriverCard({
   driverId,
-  fallbackProfile,
   bottomOffset,
   isInDrive,
   isRelevant,
@@ -121,6 +128,32 @@ export function MapDriverCard({
   const [sharedCrew, setSharedCrew] = useState(false);
   const requestVersion = useRef(0);
   const actionPending = useRef(false);
+  const navigationPending = useRef(false);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const reduceMotion = useReducedMotion();
+  const dragY = useSharedValue(0);
+  const dragStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: reduceMotion ? 0 : dragY.value }],
+  }));
+  const dragHandle = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) =>
+      gesture.dy > 5 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+    onPanResponderGrant: () => { cancelAnimation(dragY); },
+    onPanResponderMove: (_, gesture) => {
+      if (!reduceMotion) dragY.value = Math.max(0, Math.min(240, gesture.dy));
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy > 72 || gesture.vy > 0.85) {
+        closeRef.current();
+      } else {
+        dragY.value = reduceMotion ? 0 : withSpring(0, animations.spring.surface);
+      }
+    },
+    onPanResponderTerminate: () => {
+      dragY.value = reduceMotion ? 0 : withSpring(0, animations.spring.surface);
+    },
+  }), [dragY, reduceMotion]);
 
   const load = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -217,10 +250,15 @@ export function MapDriverCard({
     }
   }, [driverId, isRelevant]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    navigationPending.current = false;
     void load();
-    return () => { requestVersion.current += 1; };
-  }, [load]);
+    return () => {
+      requestVersion.current += 1;
+      cancelAnimation(dragY);
+      dragY.value = 0;
+    };
+  }, [dragY, load]));
 
   const connect = useCallback(async () => {
     if (actionPending.current || loading || error || unavailable
@@ -254,27 +292,40 @@ export function MapDriverCard({
     }
   }, [driverId, error, loading, onRelationshipChange, relationship, unavailable]);
 
-  const name = isRelevant ? displayName(profile, unavailable || error ? null : fallbackProfile) : 'NOXA driver';
-  const username = isRelevant && !unavailable && !error
-    ? usernameLabel(profile?.username ?? fallbackProfile?.username)
-    : null;
-  const avatarUrl = isRelevant && !unavailable && !error
-    ? (profile?.avatarUrl ?? fallbackProfile?.avatarUrl ?? null)
-    : null;
-  const car = isRelevant ? vehicleLabel(vehicle) : null;
+  const openDetail = (kind: 'profile' | 'vehicle') => {
+    if (navigationPending.current || loading || error || unavailable) return;
+    if (kind === 'vehicle' && !vehicle) return;
+    navigationPending.current = true;
+    if (kind === 'vehicle' && vehicle) {
+      router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } });
+    } else if (relationship === 'self') {
+      router.push('/(tabs)/profile');
+    } else {
+      router.push({ pathname: '/driver-profile/[id]', params: { id: driverId } });
+    }
+  };
 
-  const primaryAction = useMemo<{
+
+  const mapIdentityAllowed = !loading && !unavailable && !error
+    && (relationship === 'self'
+      || (isRelevant && (relationship === 'mutual' || sharedCrew || isInDrive)));
+  const name = isRelevant ? displayName(mapIdentityAllowed ? profile : null, null) : 'NOXA driver';
+  const username = mapIdentityAllowed ? usernameLabel(profile?.username) : null;
+  const avatarUrl = mapIdentityAllowed ? profile?.avatarUrl ?? null : null;
+  const car = mapIdentityAllowed ? vehicleLabel(vehicle) : null;
+
+  const primaryAction: {
     title: string;
     icon: keyof typeof Ionicons.glyphMap;
     disabled: boolean;
     onPress: () => void;
-  }>(() => {
+  } = (() => {
     if (relationship === 'self') {
       return {
         title: 'Your profile',
         icon: 'person-outline' as const,
         disabled: false,
-        onPress: () => router.push('/(tabs)/profile'),
+        onPress: () => openDetail('profile'),
       };
     }
     if (isInDrive) {
@@ -290,7 +341,11 @@ export function MapDriverCard({
         title: 'Invite to Drive',
         icon: 'navigate-outline' as const,
         disabled: false,
-        onPress: () => onInviteToDrive(driverId),
+        onPress: () => {
+          if (navigationPending.current) return;
+          navigationPending.current = true;
+          onInviteToDrive(driverId);
+        },
       };
     }
     if (relationship === 'outgoing') {
@@ -315,15 +370,18 @@ export function MapDriverCard({
       disabled: false,
       onPress: () => void connect(),
     };
-  }, [connect, driverId, isInDrive, onInviteToDrive, relationship]);
+  })();
 
   return (
     <Animated.View
       entering={DRIVER_CARD_ENTER}
       exiting={DRIVER_CARD_EXIT}
       style={[styles.cardPosition, { bottom: bottomOffset }]}>
+      <Animated.View style={dragStyle}>
       <NoxaSurface level="overlay" style={styles.card}>
-      <View style={styles.handle} />
+      <View {...dragHandle.panHandlers} style={styles.dragArea}>
+        <View style={styles.handle} />
+      </View>
 
       <View style={styles.header}>
         <View style={styles.identity}>
@@ -363,15 +421,13 @@ export function MapDriverCard({
           <Text style={styles.loadingText}>Loading driver…</Text>
         </View>
       ) : (
-        <>
-          {!unavailable && vehicle ? (
+        <NoxaDetailReveal>
+          {mapIdentityAllowed && vehicle ? (
             <NoxaPressableSurface
               accessibilityLabel={car ? `Open ${car}` : 'Open vehicle'}
               accessibilityRole="button"
               contentStyle={styles.vehicle}
-              onPress={() =>
-                router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })
-              }>
+              onPress={() => openDetail('vehicle')}>
               {vehicle.coverImageUrl ? (
                 <Image
                   cachePolicy="memory-disk"
@@ -396,7 +452,7 @@ export function MapDriverCard({
           ) : !error ? (
             <Text style={styles.loadingText}>
               {unavailable ? 'This driver is private or no longer available.'
-                : !isRelevant ? 'Identity is private on the map.'
+                : !mapIdentityAllowed ? 'Identity is private on the map.'
                   : 'No public primary vehicle.'}
             </Text>
           ) : null}
@@ -423,12 +479,7 @@ export function MapDriverCard({
               <NoxaButton
                 disabled={Boolean(error)}
                 leadingIcon={<Ionicons name="person-outline" size={16} color={colors.text} />}
-                onPress={() =>
-                  router.push({
-                    pathname: '/driver-profile/[id]',
-                    params: { id: driverId },
-                  })
-                }
+                onPress={() => openDetail('profile')}
                 size="md"
                 style={styles.secondaryAction}
                 title="Profile"
@@ -436,9 +487,10 @@ export function MapDriverCard({
               />
             ) : null}
           </View>
-        </>
+        </NoxaDetailReveal>
       )}
       </NoxaSurface>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -457,6 +509,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     backgroundColor: 'transparent',
   },
+  dragArea: { minHeight: geometry.controlHeight.compact, justifyContent: 'center', alignItems: 'center' },
   handle: {
     width: 36,
     height: 4,

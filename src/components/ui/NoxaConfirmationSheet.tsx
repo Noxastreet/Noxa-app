@@ -56,6 +56,7 @@ export function NoxaConfirmationSheet({
   const translateY = useRef(new Animated.Value(visible ? 0 : 44)).current;
   const backdropOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const dismissingRef = useRef(false);
+  const motionEpoch = useRef(0);
   const contentRef = useRef({
     eyebrow,
     title,
@@ -82,6 +83,7 @@ export function NoxaConfirmationSheet({
   const content = contentRef.current;
 
   const animateIn = useCallback(() => {
+    motionEpoch.current += 1;
     translateY.stopAnimation();
     backdropOpacity.stopAnimation();
 
@@ -109,10 +111,12 @@ export function NoxaConfirmationSheet({
     (after?: () => void) => {
       if (dismissingRef.current) return;
       dismissingRef.current = true;
+      const epoch = ++motionEpoch.current;
       translateY.stopAnimation();
       backdropOpacity.stopAnimation();
 
       const complete = () => {
+        if (motionEpoch.current !== epoch) return;
         setRendered(false);
         dismissingRef.current = false;
         after?.();
@@ -150,6 +154,7 @@ export function NoxaConfirmationSheet({
 
   useEffect(() => {
     if (visible) {
+      motionEpoch.current += 1;
       dismissingRef.current = false;
       translateY.setValue(reduceMotion ? 0 : 44);
       backdropOpacity.setValue(reduceMotion ? 1 : 0);
@@ -173,6 +178,12 @@ export function NoxaConfirmationSheet({
     if (!rendered || !visible) return;
     animateIn();
   }, [animateIn, rendered, visible]);
+
+  useEffect(() => () => {
+    motionEpoch.current += 1;
+    translateY.stopAnimation();
+    backdropOpacity.stopAnimation();
+  }, [backdropOpacity, translateY]);
 
   return (
     <Modal
