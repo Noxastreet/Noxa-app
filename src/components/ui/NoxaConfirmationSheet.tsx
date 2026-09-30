@@ -226,43 +226,42 @@ export function NoxaConfirmationSheet({
               style={{ maxHeight: Math.max(44, windowHeight - insets.top - spacing.lg) }}
               contentContainerStyle={[styles.sheet, { paddingBottom: Math.max(spacing.lg, insets.bottom + spacing.md) }]}
               keyboardShouldPersistTaps="handled">
+              <View style={styles.iconWrap}>
+                <Ionicons
+                  name={content.icon}
+                  size={21}
+                  color={
+                    content.confirmVariant === 'danger'
+                      ? colors.textCritical
+                      : colors.text
+                  }
+                />
+              </View>
 
-            <View style={styles.iconWrap}>
-              <Ionicons
-                name={content.icon}
-                size={21}
-                color={
-                  content.confirmVariant === 'danger'
-                    ? colors.textCritical
-                    : colors.text
-                }
-              />
-            </View>
+              {content.eyebrow ? <Text style={styles.eyebrow}>{content.eyebrow}</Text> : null}
+              <Text accessibilityRole="header" style={styles.title}>{content.title}</Text>
+              <Text style={styles.body}>{content.body}</Text>
+              {content.footnote ? <Text style={styles.footnote}>{content.footnote}</Text> : null}
 
-            {content.eyebrow ? <Text style={styles.eyebrow}>{content.eyebrow}</Text> : null}
-            <Text accessibilityRole="header" style={styles.title}>{content.title}</Text>
-            <Text style={styles.body}>{content.body}</Text>
-            {content.footnote ? <Text style={styles.footnote}>{content.footnote}</Text> : null}
-
-            <View style={styles.actions}>
-              <NoxaButton
-                disabled={busy}
-                fullWidth
-                onPress={requestCancel}
-                size="md"
-                title={content.cancelTitle}
-                variant="secondary"
-              />
-              <NoxaButton
-                disabled={confirmDisabled}
-                fullWidth
-                loading={busy}
-                onPress={onConfirm}
-                size="md"
-                title={content.confirmTitle}
-                variant={content.confirmVariant}
-              />
-            </View>
+              <View style={styles.actions}>
+                <NoxaButton
+                  disabled={busy}
+                  fullWidth
+                  onPress={requestCancel}
+                  size="md"
+                  title={content.cancelTitle}
+                  variant="secondary"
+                />
+                <NoxaButton
+                  disabled={confirmDisabled}
+                  fullWidth
+                  loading={busy}
+                  onPress={onConfirm}
+                  size="md"
+                  title={content.confirmTitle}
+                  variant={content.confirmVariant}
+                />
+              </View>
             </ScrollView>
           </NoxaSurface>
         </Animated.View>

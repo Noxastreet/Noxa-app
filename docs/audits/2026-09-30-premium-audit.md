@@ -55,7 +55,7 @@ No evidence-backed new backend or root-flow redesign is needed. Existing avatar 
 | A02 | P1 | Reduced Motion tab still applied focus translate/scale and press scale | Identity transforms with Reduced Motion; deterministic actual-component smoke |
 | A03 | P1 | Shared controls had no animation reset on disable/loading/selection interruption | Reset/cancel on state change and cleanup; press→disable→resume and Reduced Motion interruption smoke |
 | A04 | P1 | Confirmation body/actions unbounded on small screen / large text | Bounded ScrollView contains complete task and actions; title/modal/escape semantics; existing epoch smoke |
-| A05 | P1 | 55 raw interactive controls lacked role; selected/disabled semantics missing in some map/drive/picker controls | Scoped accessibility-only controls pass; preserve callbacks and privacy-safe label sources |
+| A05 | P1 | 54 raw interactive controls lacked role; selected/disabled semantics missing in some map/drive/picker controls | Scoped accessibility-only controls pass; preserve callbacks and privacy-safe label sources |
 | A06 | P2 | Field error not associated with input; loading parent not explicitly grouped/busy; headings truncated at one line | Shared semantic/error/hierarchy corrections |
 | A07 | P2 | Auth scroll forbids keyboard dismissal; lifecycle/focus debug logs ship in field | Native interactive/on-drag dismissal; remove logs without auth rewrite |
 
