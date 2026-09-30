@@ -1,0 +1,88 @@
+name: Confirm SAME final 73 Apple upload read-only
+on:
+  push:
+    branches: [ci/noxa-build73-upload-evidence-20260930]
+    paths: [.github/workflows/noxa-build73-upload-evidence-once.yml]
+permissions:
+  contents: write
+jobs:
+  observe:
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      SUBMISSION_ID: "88312134-8dec-4255-8cf2-bc57fbb5ba7a"
+      CANONICAL_SOURCE_SHA: "879bf6681f88a1a4756abd5ce9ce13130bbab3c6"
+    steps:
+      - name: Follow only the already scheduled submission and publish evidence
+        run: |
+          node --input-type=module <<'NODE'
+          const endpoint = "https://api.expo.dev/graphql";
+          async function query(query) {
+            const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + process.env.EXPO_TOKEN }, body: JSON.stringify({ query }) });
+            const result = await response.json();
+            if (!response.ok || result.errors) throw new Error(JSON.stringify({status:response.status,errors:result.errors}));
+            return result.data;
+          }
+          const typeShape = "kind name ofType { kind name ofType { kind name ofType { kind name } } }";
+          const getType = async (name) => (await query('{ __type(name: '+JSON.stringify(name)+') { name fields { name type { '+typeShape+' } args { name defaultValue type { '+typeShape+' } } } } }')).__type;
+          const leaf = (type) => type.ofType ? leaf(type.ofType) : type;
+          const app = await getType("App");
+          if (!app) throw new Error("App schema unavailable");
+          const field = app.fields.find((f) => /^(submissions|recentSubmissions)$/.test(f.name));
+          if (!field) { console.log("Submission fields:", app.fields.filter(f=>/submi/i.test(f.name)).map(f=>f.name)); throw new Error("Submission list field unavailable"); }
+          console.log("Submission list:",field.name,"arguments:",field.args.map(a=>({name:a.name,type:leaf(a.type).name,required:a.type.kind==="NON_NULL",default:a.defaultValue})));
+          const args = [];
+          for (const arg of field.args) {
+            if (arg.name === "limit" || arg.name === "first") args.push(arg.name+":5");
+            else if (arg.name === "offset") args.push("offset:0");
+            else if (arg.name === "filter") args.push("filter:{}");
+            else if (arg.type.kind === "NON_NULL" && arg.defaultValue == null) throw new Error("Unsupported required argument: "+arg.name);
+          }
+          const node = await getType(leaf(field.type).name);
+          const safe = ["id","status","createdAt","updatedAt","completedAt","platform","appVersion","appBuildVersion","priority"];
+          const fields = node.fields.filter(f=>safe.includes(f.name)&&["SCALAR","ENUM"].includes(leaf(f.type).kind)).map(f=>f.name);
+          if (!fields.includes("status")) throw new Error("Submission status schema unavailable");
+          const body = "{ app { byId(appId: \"8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a\") { "+field.name+(args.length?"("+args.join(",")+")":"")+" { "+fields.join(" ")+" } } } }";
+          
+          const uploadType = await getType("AppStoreConnectBuildUpload");
+          console.log("App Store upload schema:",JSON.stringify(uploadType?.fields?.map(f=>({name:f.name,type:leaf(f.type).name}))));
+          const uploadFields = uploadType?.fields?.filter(f=>["SCALAR","ENUM"].includes(leaf(f.type).kind)&&!/(secret|token|key|url)/i.test(f.name)&&f.args.length===0).map(f=>f.name) ?? [];
+          const detailedBody = body.replace(fields.join(" "), fields.join(" ")+" logFiles"+(uploadFields.length?" appStoreConnectBuildUpload { "+uploadFields.join(" ")+" }":""));
+          
+          let previous = '';
+          async function publish(value) {
+            const root='https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/submission-state.json';
+            const headers={Accept:'application/vnd.github+json',Authorization:'Bearer '+process.env.GH_TOKEN,'X-GitHub-Api-Version':'2022-11-28'};
+            const current=await fetch(root+'?ref=ci%2Fnoxa-build73-upload-evidence-20260930',{headers});
+            const old=current.ok?await current.json():{};
+            const response=await fetch(root,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({branch:'ci/noxa-build73-upload-evidence-20260930',sha:old.sha,message:'evidence: SAME build 73 submission '+value.status,content:Buffer.from(JSON.stringify(value,null,2)).toString('base64')})});
+            if(!response.ok)throw new Error('Evidence publication failed '+response.status);
+          }
+          let finished=false;
+          for(let attempt=0;attempt<340;attempt++){
+            try{
+              const data=await query(detailedBody);
+              const current=data.app.byId.submissions.find(s=>s.id===process.env.SUBMISSION_ID);
+              if(!current)throw new Error('SAME submission missing; never resubmit');
+              const {logFiles,...metadata}=current;
+              let appleUploadConfirmed=false;
+              if(current.status==='FINISHED'){
+                for(const url of Array.isArray(logFiles)?logFiles:logFiles?[logFiles]:[]){
+                  const response=await fetch(url,{signal:AbortSignal.timeout(15000)});
+                  if(response.ok)appleUploadConfirmed ||= /successfully uploaded.*App Store Connect/i.test(await response.text());
+                }
+              }
+              const state={source:process.env.CANONICAL_SOURCE_SHA,...metadata,appleUploadConfirmed};
+              const stateKey=current.status+':'+appleUploadConfirmed;
+              console.log('SAME submission state:',JSON.stringify(state));
+              if(stateKey!==previous){await publish(state);previous=stateKey;}
+              if(['ERRORED','CANCELED','CANCELLED'].includes(current.status))process.exit(1);
+              if(current.status==='FINISHED'&&appleUploadConfirmed){finished=true;break;}
+            }catch(error){console.log('Read-only monitor recovery:',error.message);}
+            await new Promise(r=>setTimeout(r,60000));
+          }
+          if(!finished)throw new Error('SAME submission not confirmed; continue read-only monitoring, never resubmit');
+          NODE
