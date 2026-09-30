@@ -72,7 +72,7 @@ function harness({ relevant = true, result = () => ({ data: null, error: null })
       if (name === 'expo-router') return { router: { push: (route) => pushes.push(route) }, useFocusEffect: (fn) => effects.push(fn) };
       if (name.endsWith('/supabase')) return { supabase };
       if (name.endsWith('/ui')) return ui;
-      if (name.endsWith('/theme')) return { animations: tokens, colors: tokens, radius: tokens, spacing: tokens, typography: { fontFamily: tokens, v2: { label: tokens } } };
+      if (name.endsWith('/theme')) return { animations: tokens, colors: tokens, geometry: { controlHeight: tokens }, radius: tokens, spacing: tokens, typography: { fontFamily: tokens, v2: { label: tokens } } };
       throw new Error('Unexpected import: ' + name);
     },
   });

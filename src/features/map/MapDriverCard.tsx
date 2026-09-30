@@ -29,7 +29,7 @@ import {
   NoxaSurface,
 } from '@/src/components/ui';
 import { supabase } from '@/src/lib/supabase';
-import { animations, colors, radius, spacing, typography } from '@/src/theme';
+import { animations, colors, geometry, radius, spacing, typography } from '@/src/theme';
 
 const DRIVER_CARD_ENTER = FadeInDown
   .duration(animations.step)
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     backgroundColor: 'transparent',
   },
-  dragArea: { minHeight: 32, justifyContent: 'center', alignItems: 'center' },
+  dragArea: { minHeight: geometry.controlHeight.compact, justifyContent: 'center', alignItems: 'center' },
   handle: {
     width: 36,
     height: 4,
