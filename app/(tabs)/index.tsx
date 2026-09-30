@@ -14,6 +14,7 @@ import {
 import Animated, {
   FadeIn,
   FadeInDown,
+  FadeOut,
   FadeOutDown,
   ReduceMotion,
 } from "react-native-reanimated";
@@ -382,6 +383,16 @@ const MAP_CONTEXT_EXIT = FadeOutDown
   .reduceMotion(ReduceMotion.System);
 const ROUTE_STATE_ENTER = FadeIn
   .duration(animations.micro)
+  .reduceMotion(ReduceMotion.System);
+const VISIBILITY_MENU_ENTER = FadeIn
+  .duration(animations.rootTab)
+  .withInitialValues({
+    opacity: 0,
+    transform: [{ translateY: -6 }, { scale: 0.985 }],
+  })
+  .reduceMotion(ReduceMotion.System);
+const VISIBILITY_MENU_EXIT = FadeOut
+  .duration(animations.fast)
   .reduceMotion(ReduceMotion.System);
 
 function EventCard({
@@ -2458,59 +2469,67 @@ export default function LiveMapScreen() {
         ) : null}
 
         {!isRouteFocusMode && visibilityMenuOpen ? (
-          <NoxaSurface level="overlay" style={[styles.visibilityMenu, { top: headerBottom + spacing.xs }]}>
-            <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
-            {VISIBILITY_MODES.map((mode) => {
-              const selected = visibilityMode === mode.id;
-              return (
-                <TouchableOpacity
-                  accessibilityLabel={`${mode.label}. ${mode.description}`}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  activeOpacity={0.76}
-                  key={mode.id}
-                  onPress={() => void changeVisibilityMode(mode.id)}
-                  style={[
-                    styles.visibilityOption,
-                    selected && styles.visibilityOptionSelected,
-                  ]}
-                >
-                  <View
+          <Animated.View
+            entering={VISIBILITY_MENU_ENTER}
+            exiting={VISIBILITY_MENU_EXIT}
+            style={[
+              styles.visibilityMenuPosition,
+              { top: headerBottom + spacing.xs },
+            ]}>
+            <NoxaSurface level="overlay" style={styles.visibilityMenu}>
+              <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
+              {VISIBILITY_MODES.map((mode) => {
+                const selected = visibilityMode === mode.id;
+                return (
+                  <TouchableOpacity
+                    accessibilityLabel={`${mode.label}. ${mode.description}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    activeOpacity={0.76}
+                    key={mode.id}
+                    onPress={() => void changeVisibilityMode(mode.id)}
                     style={[
-                      styles.visibilityOptionIcon,
-                      selected && styles.visibilityOptionIconSelected,
+                      styles.visibilityOption,
+                      selected && styles.visibilityOptionSelected,
                     ]}
                   >
-                    <Ionicons
-                      name={mode.icon}
-                      size={16}
-                      color={selected ? colors.primaryHover : colors.textMuted}
-                    />
-                  </View>
-                  <View style={styles.visibilityOptionCopy}>
-                    <Text
+                    <View
                       style={[
-                        styles.visibilityOptionLabel,
-                        selected && styles.visibilityOptionLabelSelected,
+                        styles.visibilityOptionIcon,
+                        selected && styles.visibilityOptionIconSelected,
                       ]}
                     >
-                      {mode.label}
-                    </Text>
-                    <Text style={styles.visibilityOptionDescription}>
-                      {mode.description}
-                    </Text>
-                  </View>
-                  {selected ? (
-                    <Ionicons
-                      name="checkmark"
-                      size={16}
-                      color={colors.primaryHover}
-                    />
-                  ) : null}
-                </TouchableOpacity>
-              );
-            })}
-          </NoxaSurface>
+                      <Ionicons
+                        name={mode.icon}
+                        size={16}
+                        color={selected ? colors.primaryHover : colors.textMuted}
+                      />
+                    </View>
+                    <View style={styles.visibilityOptionCopy}>
+                      <Text
+                        style={[
+                          styles.visibilityOptionLabel,
+                          selected && styles.visibilityOptionLabelSelected,
+                        ]}
+                      >
+                        {mode.label}
+                      </Text>
+                      <Text style={styles.visibilityOptionDescription}>
+                        {mode.description}
+                      </Text>
+                    </View>
+                    {selected ? (
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={colors.primaryHover}
+                      />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </NoxaSurface>
+          </Animated.View>
         ) : null}
 
         {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
@@ -2861,10 +2880,13 @@ const styles = StyleSheet.create({
   visibilityTitleActive: {
     color: colors.text,
   },
-  visibilityMenu: {
+  visibilityMenuPosition: {
     position: "absolute",
     left: spacing.md,
     width: 264,
+  },
+  visibilityMenu: {
+    width: "100%",
     overflow: "hidden",
     padding: spacing.xs,
     backgroundColor: "transparent",
