@@ -108,12 +108,19 @@ assert.equal(race.states[0].displayName, 'Current');
 assert.equal(race.states[3], false);
 
 // A stranger lookup must request no face, real name or vehicle.
-const stranger = harness({ relevant: false, result: () => ({ data: { id: 'driver' }, error: null }) });
+const stranger = harness({ relevant: false, result: (query) => ({
+  data: query.table === 'profiles' ? { id: 'driver' } : query.table === 'crew_members' ? [] : null,
+  error: null,
+}) });
 await stranger.callbacks[0]();
 assert.equal(stranger.calls.find((q) => q.table === 'profiles').fields, 'id');
 assert.equal(stranger.calls.some((q) => q.table === 'vehicles'), false);
 assert.equal(stranger.states[0], null);
 assert.equal(stranger.states[1], null);
+assert.equal(stranger.states[5], null);
+stranger.render();
+await Promise.all([stranger.callbacks[1](), stranger.callbacks[1]()]);
+assert.equal(stranger.calls.filter((q) => q.insert).length, 1);
 
 // Missing/RLS-hidden identity is unavailable; network errors keep actions gated.
 const unavailable = harness();

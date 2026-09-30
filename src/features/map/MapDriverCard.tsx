@@ -142,9 +142,11 @@ export function MapDriverCard({
       }
       const canRevealMapIdentity = isRelevant || currentUserId === driverId;
       const [profileResult, vehicleResult, outgoingResult, incomingResult, ownCrews, driverCrews] = await Promise.all([
-        supabase.from('profiles')
-          .select(canRevealMapIdentity ? 'id,display_name,username,avatar_url' : 'id')
-          .eq('id', driverId).maybeSingle(),
+        canRevealMapIdentity
+          ? supabase.from('profiles').select('id,display_name,username,avatar_url')
+            .eq('id', driverId).maybeSingle()
+          : supabase.from('profiles').select('id')
+            .eq('id', driverId).maybeSingle(),
         canRevealMapIdentity
           ? supabase.from('vehicles')
             .select('id,brand,model,year,cover_image_url')
