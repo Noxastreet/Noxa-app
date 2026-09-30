@@ -172,29 +172,6 @@ export function CanonicalAvatarStack({
           <CanonicalAvatar profile={profile} size={size} />
         </View>
       ))}
-      {!visible.length ? (
-        <>
-          {["AK", "N", "PM"].slice(0, max).map((label, index) => (
-            <View
-              key={label}
-              style={[
-                styles.avatarFallback,
-                styles.avatarStackItem,
-                {
-                  width: size,
-                  height: size,
-                  borderRadius: size / 2,
-                  marginLeft: index > 0 ? -8 : 0,
-                },
-              ]}
-            >
-              <Text style={[styles.avatarText, { fontSize: Math.max(9, size * 0.28) }]}>
-                {label}
-              </Text>
-            </View>
-          ))}
-        </>
-      ) : null}
       {remaining > 0 ? (
         <View
           style={[

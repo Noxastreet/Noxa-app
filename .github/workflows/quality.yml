@@ -60,6 +60,9 @@ jobs:
       - name: NOXA surface accessibility contract
         run: node ./scripts/verify-surface-accessibility.mjs
 
+      - name: NOXA social root response ownership smoke
+        run: node ./scripts/test-root-social-load-ownership.mjs
+
       - name: NOXA root-screen visual system contract
         run: npm run verify:ui-root-screens
 

@@ -82,10 +82,11 @@ type CrewEvent = {
 
 type Crew = CrewRow & {
   ownerName: string;
-  memberCount: number;
+  memberCount: number | null;
   currentUserRole: CrewRole | null;
   isCurrentUserMember: boolean;
   pendingJoinRequestId: string | null;
+  relationshipKnown: boolean;
 };
 
 function getOwnerName(row: CrewRow) {
@@ -124,6 +125,7 @@ function CrewLogo({ crew, size = 42 }: { crew: Crew; size?: number }) {
 }
 
 function actionLabel(crew: Crew) {
+  if (!crew.relationshipKnown) return "VIEW CREW";
   if (crew.currentUserRole === "owner") return "OWNER";
   if (crew.isCurrentUserMember) return "JOINED";
   if (crew.pendingJoinRequestId) return "REQUESTED";
@@ -139,8 +141,8 @@ function CrewFilterControl({
   onChange,
 }: {
   value: CrewFilter;
-  myCount: number;
-  discoverCount: number;
+  myCount?: number;
+  discoverCount?: number;
   onChange: (value: CrewFilter) => void;
 }) {
   return (
@@ -192,7 +194,7 @@ function HeroCrew({
 
         <View style={styles.heroTopRow}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOUR CREW" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOUR CREW" : "DISCOVER"}
             tone={event ? "accent" : "neutral"}
           />
           <View style={styles.heroMenuButton}>
@@ -208,7 +210,7 @@ function HeroCrew({
                 {crew.name.toUpperCase()}
               </Text>
               <Text numberOfLines={1} style={styles.heroMeta}>
-                {(crew.city || "NOXA").toUpperCase()} · {crew.memberCount} MEMBERS
+                {(crew.city || "NOXA").toUpperCase()}{crew.memberCount === null ? " · CREW" : ` · ${crew.memberCount} MEMBERS`}
               </Text>
             </View>
           </View>
@@ -227,7 +229,7 @@ function HeroCrew({
               </Text>
             </View>
             <View style={styles.heroActionArea}>
-              <CanonicalAvatarStack total={crew.memberCount} max={3} size={27} />
+              {crew.memberCount !== null ? <CanonicalAvatarStack total={crew.memberCount} max={3} size={27} /> : null}
               <CanonicalPrimaryButton
                 compact
                 disabled={!canAction || busy}
@@ -264,9 +266,9 @@ function CompactCrewCard({ crew, event }: { crew: Crew; event?: CrewEvent }) {
         <View style={styles.compactShade} />
         <View style={styles.compactTop}>
           <CanonicalPill
-            label={crew.isCurrentUserMember ? "YOURS" : "NEARBY"}
+            label={crew.isCurrentUserMember ? "YOURS" : "DISCOVER"}
           />
-          <Text style={styles.compactMemberCount}>{crew.memberCount}</Text>
+          {crew.memberCount !== null ? <Text style={styles.compactMemberCount}>{crew.memberCount}</Text> : null}
         </View>
         <View style={styles.compactBottom}>
           <CrewLogo crew={crew} size={34} />
@@ -552,12 +554,16 @@ export default function CanonicalCrewsScreen() {
   const [createVisible, setCreateVisible] = useState(false);
   const [creating, setCreating] = useState(false);
   const hasLoadedRef = useRef(false);
+  const loadVersionRef = useRef(0);
 
   const load = useCallback(async (showSpinner = true) => {
+    const version = ++loadVersionRef.current;
+    const isCurrent = () => loadVersionRef.current === version;
     if (showSpinner) setLoading(true);
     setError(null);
 
     const currentUserId = (await getCurrentSessionUser())?.id ?? null;
+    if (!isCurrent()) return;
     setUserId(currentUserId);
 
     const crewsResult = await supabase
@@ -567,6 +573,7 @@ export default function CanonicalCrewsScreen() {
       )
       .order("created_at", { ascending: false });
 
+    if (!isCurrent()) return;
     if (crewsResult.error) {
       setError(crewsResult.error.message);
       setLoading(false);
@@ -579,10 +586,11 @@ export default function CanonicalCrewsScreen() {
     const baseModels = rows.map((row) => ({
       ...row,
       ownerName: getOwnerName(row),
-      memberCount: 0,
+      memberCount: null,
       currentUserRole: null,
       isCurrentUserMember: false,
       pendingJoinRequestId: null,
+      relationshipKnown: false,
     } satisfies Crew));
 
     setCrews(baseModels);
@@ -619,6 +627,7 @@ export default function CanonicalCrewsScreen() {
         .select("id,display_name,username,avatar_url")
         .limit(8),
     ]).then(([membersResult, requestsResult, eventsResult, profilesResult]) => {
+      if (!isCurrent()) return;
       const memberRows = membersResult.error
         ? []
         : ((membersResult.data ?? []) as CrewMemberRow[]);
@@ -643,10 +652,11 @@ export default function CanonicalCrewsScreen() {
         return {
           ...row,
           ownerName: getOwnerName(row),
-          memberCount: memberCount.get(row.id) ?? 0,
+          memberCount: membersResult.error ? null : memberCount.get(row.id) ?? 0,
           currentUserRole: role,
           isCurrentUserMember: role !== null,
           pendingJoinRequestId: requestByCrew.get(row.id) ?? null,
+          relationshipKnown: !membersResult.error && !requestsResult.error,
         } satisfies Crew;
       });
 
@@ -656,12 +666,13 @@ export default function CanonicalCrewsScreen() {
         setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
       }
       setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
-    });
+    }).catch(() => { /* Keep the usable base crews when optional context is unavailable. */ });
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       void load(!hasLoadedRef.current);
+      return () => { loadVersionRef.current += 1; };
     }, [load]),
   );
 
@@ -686,6 +697,10 @@ export default function CanonicalCrewsScreen() {
   const handleAction = useCallback(
     async (crew: Crew) => {
       if (!userId || busyCrewId) return;
+      if (!crew.relationshipKnown) {
+        router.push({ pathname: "/crew/[id]", params: { id: crew.id } });
+        return;
+      }
       const label = actionLabel(crew);
 
       if (label === "JOINED") {
@@ -794,7 +809,7 @@ export default function CanonicalCrewsScreen() {
         <NoxaSurface style={styles.stateCard}>
           <Ionicons name="people-outline" size={36} color={colors.primary} />
           <Text style={styles.stateTitle}>
-            {filter === "mine" ? "No crews yet" : "Nothing nearby yet"}
+            {filter === "mine" ? "No crews yet" : "No crews to discover yet"}
           </Text>
           <Text style={styles.stateText}>
             {filter === "mine"
@@ -849,7 +864,7 @@ export default function CanonicalCrewsScreen() {
         <View style={styles.peopleStrip}>
           <View style={styles.peopleCopy}>
             <Text style={styles.peopleEyebrow}>
-              {filter === "mine" ? "YOUR COMMUNITY" : "PEOPLE NEARBY"}
+              {filter === "mine" ? "YOUR COMMUNITY" : "COMMUNITY"}
             </Text>
             <Text style={styles.peopleText}>
               {filter === "mine"
@@ -914,8 +929,8 @@ export default function CanonicalCrewsScreen() {
         />
 
         <CrewFilterControl
-          discoverCount={discovery.length}
-          myCount={myCrews.length}
+          discoverCount={!loading && crews.every((crew) => crew.relationshipKnown) ? discovery.length : undefined}
+          myCount={!loading && crews.every((crew) => crew.relationshipKnown) ? myCrews.length : undefined}
           onChange={setFilter}
           value={filter}
         />
