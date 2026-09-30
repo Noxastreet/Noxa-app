@@ -135,7 +135,7 @@ function Field({
         maxLength={160}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.textSubtle}
+        placeholderTextColor={colors.textQuiet}
         selectionColor={colors.primary}
         style={styles.field}
         value={value}
@@ -475,7 +475,7 @@ export default function ConvoySetupScreen() {
                 <Text style={styles.fieldLabel}>START</Text>
                 <View style={styles.chips}>
                   {[0, 30, 60].map((minutes) => (
-                    <Pressable
+                    <Pressable accessibilityRole="radio" accessibilityState={{ checked: delayMinutes === minutes }}
                       key={minutes}
                       onPress={() => setDelayMinutes(minutes)}
                       style={({ pressed }) => [
@@ -498,7 +498,7 @@ export default function ConvoySetupScreen() {
                   <Text style={styles.counterValue}>{maxSlots}</Text>
                 </View>
                 <View style={styles.counterTrack}>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     accessibilityLabel="Reduce convoy slots"
                     onPress={() => setMaxSlots((value) => Math.max(2, value - 1))}
                     style={styles.counterButton}
@@ -508,7 +508,7 @@ export default function ConvoySetupScreen() {
                   <View style={styles.counterLine}>
                     <View style={[styles.counterFill, { width: `${((maxSlots - 2) / 18) * 100}%` }]} />
                   </View>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     accessibilityLabel="Increase convoy slots"
                     onPress={() => setMaxSlots((value) => Math.min(20, value + 1))}
                     style={styles.counterButton}
@@ -525,7 +525,7 @@ export default function ConvoySetupScreen() {
                   multiline
                   onChangeText={setSafetyNote}
                   placeholder="Shared safety reminder"
-                  placeholderTextColor={colors.textSubtle}
+                  placeholderTextColor={colors.textQuiet}
                   selectionColor={colors.primary}
                   style={[styles.field, styles.noteField]}
                   value={safetyNote}
@@ -542,7 +542,7 @@ export default function ConvoySetupScreen() {
             </>
           ) : (
             <View style={styles.emptyCard}>
-              <Ionicons name="hourglass-outline" size={28} color={colors.textSubtle} />
+              <Ionicons name="hourglass-outline" size={28} color={colors.textQuiet} />
               <Text style={styles.emptyTitle}>NO ACTIVE CONVOY</Text>
               <Text style={styles.emptyText}>A crew owner or admin can open the next private lobby.</Text>
             </View>
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
   },
   introIcon: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.primaryMuted },
   introCopy: { flex: 1, gap: spacing.xxs },
-  introTitle: { color: colors.primaryHover, fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
+  introTitle: { color: colors.textAccent, fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
   introText: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   fieldGroup: { gap: spacing.xs },
   fieldLabel: { color: colors.textMuted, fontSize: 9, fontWeight: "900", letterSpacing: 1 },
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
   chip: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
   chipActive: { borderColor: colors.primary, backgroundColor: colors.primarySubtle },
   chipText: { color: colors.textMuted, fontSize: 9, fontWeight: "900" },
-  chipTextActive: { color: colors.primaryHover },
+  chipTextActive: { color: colors.textAccent },
   counterHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   counterValue: { color: colors.text, fontFamily: typography.fontFamily.body, fontSize: 17, fontWeight: "900" },
   counterTrack: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
   routePoint: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   routeDot: { width: 9, height: 9, borderRadius: radius.pill, borderWidth: 2, borderColor: colors.primary },
   routeCopy: { flex: 1 },
-  routeLabel: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
+  routeLabel: { color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
   routeValue: { marginTop: 2, color: colors.text, fontSize: 13, fontWeight: "800" },
   routeLine: { width: 1, height: 18, marginLeft: 8, backgroundColor: colors.borderStrong },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -834,18 +834,18 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.text, fontSize: 10, fontWeight: "900" },
   participantCopy: { flex: 1 },
   participantName: { color: colors.text, fontSize: 13, fontWeight: "800" },
-  participantMeta: { marginTop: 2, color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.6 },
+  participantMeta: { marginTop: 2, color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.6 },
   readyStatus: { flexDirection: "row", alignItems: "center", gap: 5 },
-  readyDot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.textSubtle },
+  readyDot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.textQuiet },
   readyDotActive: { backgroundColor: colors.success },
-  readyText: { color: colors.textSubtle, fontSize: 8, fontWeight: "900" },
+  readyText: { color: colors.textQuiet, fontSize: 8, fontWeight: "900" },
   readyTextActive: { color: colors.success },
   actionRow: { flexDirection: "row", gap: spacing.sm },
   managerActions: { gap: spacing.sm },
-  helperText: { color: colors.textSubtle, fontSize: 10, lineHeight: 15, textAlign: "center" },
+  helperText: { color: colors.textQuiet, fontSize: 10, lineHeight: 15, textAlign: "center" },
   liveHero: { alignItems: "center", padding: spacing.xl, borderRadius: radius.card, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
   livePulse: { width: 12, height: 12, marginBottom: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.primary },
-  liveEyebrow: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 1 },
+  liveEyebrow: { color: colors.textAccent, fontSize: 9, fontWeight: "900", letterSpacing: 1 },
   liveTitle: { marginTop: spacing.xs, color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 22, fontWeight: "900", textAlign: "center" },
   liveMeta: { marginTop: spacing.xs, color: colors.textMuted, fontSize: 11 },
   safetyCard: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.success, backgroundColor: colors.successMuted },
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   statCard: { width: "48.5%", minHeight: 82, justifyContent: "center", padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   statValue: { color: colors.text, fontFamily: typography.fontFamily.body, fontSize: 17, fontWeight: "900" },
-  statLabel: { marginTop: spacing.xs, color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  statLabel: { marginTop: spacing.xs, color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
   state: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   stateIcon: { width: 64, height: 64, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.primaryMuted },
   stateTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900", textAlign: "center" },
@@ -867,6 +867,6 @@ const styles = StyleSheet.create({
   emptyCard: { minHeight: 300, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   emptyTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 16, fontWeight: "900" },
   emptyText: { color: colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: "center" },
-  errorText: { color: colors.primaryHover, fontSize: 11, fontWeight: "700", textAlign: "center" },
+  errorText: { color: colors.textAccent, fontSize: 11, fontWeight: "700", textAlign: "center" },
   pressed: { opacity: 0.86, transform: [{ translateY: 1 }, { scale: 0.985 }] },
 });

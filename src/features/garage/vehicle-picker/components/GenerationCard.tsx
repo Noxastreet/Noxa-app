@@ -20,7 +20,7 @@ export function GenerationCard({ item, onPress }: GenerationCardProps) {
       onPress={onPress}>
       <View style={styles.row}>
         <Text numberOfLines={1} style={styles.label}>{item.label}</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+        <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
       </View>
     </PickerCardFrame>
   );

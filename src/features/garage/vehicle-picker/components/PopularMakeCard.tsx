@@ -24,7 +24,7 @@ export function PopularMakeCard({ item, onPress }: PopularMakeCardProps) {
       onPress={onPress}>
       <View style={styles.row}>
         <Text numberOfLines={1} style={styles.label}>{item.label}</Text>
-        <Ionicons name="arrow-forward" size={14} color={colors.textSubtle} />
+        <Ionicons name="arrow-forward" size={14} color={colors.textQuiet} />
       </View>
     </PickerCardFrame>
   );

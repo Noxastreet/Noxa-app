@@ -208,7 +208,7 @@ export default function SettingsScreen() {
                     : 'Sign in to manage your account'}
               </Text>
             </View>
-            {profile ? <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} /> : null}
+            {profile ? <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} /> : null}
           </Pressable>
 
           {errorMessage ? (
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: typography.letterSpacing.label,
   },
-  groupDescription: { color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
+  groupDescription: { color: colors.textQuiet, fontSize: 9, fontWeight: '700' },
   groupList: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderAccent,
   },
   dangerLabel: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -416,17 +416,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderAccent,
   },
-  deleteAccountText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  deleteAccountText: { flex: 1, color: colors.textAccent, fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
   signature: { alignItems: 'center', gap: 3, paddingTop: spacing.xs },
   signatureBrand: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.display,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 2.4,
   },
   signatureCredit: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 1.2,

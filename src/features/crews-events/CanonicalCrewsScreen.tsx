@@ -316,7 +316,7 @@ function UpcomingDrive({ event, crew }: { event: CrewEvent; crew?: Crew }) {
           {crew ? `Hosted by ${crew.name}` : "Crew members are invited"}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={20} color={colors.textQuiet} />
     </NoxaPressableSurface>
   );
 }
@@ -411,7 +411,7 @@ function CreateCrewModal({
               maxLength={60}
               onChangeText={setName}
               placeholder="Apex Collective"
-              placeholderTextColor={colors.textSubtle}
+              placeholderTextColor={colors.textQuiet}
               selectionColor={colors.primary}
               style={styles.input}
               value={name}
@@ -425,7 +425,7 @@ function CreateCrewModal({
               maxLength={80}
               onChangeText={setCity}
               placeholder="Thessaloniki"
-              placeholderTextColor={colors.textSubtle}
+              placeholderTextColor={colors.textQuiet}
               selectionColor={colors.primary}
               style={styles.input}
               value={city}
@@ -439,7 +439,7 @@ function CreateCrewModal({
               multiline
               onChangeText={setDescription}
               placeholder="What brings your crew together?"
-              placeholderTextColor={colors.textSubtle}
+              placeholderTextColor={colors.textQuiet}
               selectionColor={colors.primary}
               style={[styles.input, styles.textArea]}
               value={description}
@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfacePressed,
   },
   filterCountActive: { backgroundColor: colors.primaryMuted },
-  filterCountText: { color: colors.textSubtle, fontSize: 9, fontWeight: "900" },
+  filterCountText: { color: colors.textQuiet, fontSize: 9, fontWeight: "900" },
   filterCountTextActive: { color: colors.text },
   errorBanner: {
     minHeight: 48,
@@ -1141,7 +1141,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   heroSignal: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 10,
     lineHeight: 14,
     fontWeight: "800",
@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   organizerBlock: { flex: 1, minWidth: 0 },
   organizerEyebrow: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     lineHeight: 10,
     fontWeight: "900",
@@ -1240,7 +1240,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   dateMonth: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 8,
     lineHeight: 11,
     fontWeight: "900",
@@ -1248,7 +1248,7 @@ const styles = StyleSheet.create({
   },
   driveCopy: { flex: 1, gap: spacing.xxs },
   driveEyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "900",
@@ -1262,7 +1262,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   driveMeta: { color: colors.textMuted, fontSize: 11, lineHeight: 15 },
-  driveSignal: { color: colors.textSubtle, fontSize: 10, lineHeight: 14 },
+  driveSignal: { color: colors.textQuiet, fontSize: 10, lineHeight: 14 },
   peopleStrip: {
     minHeight: 78,
     flexDirection: "row",

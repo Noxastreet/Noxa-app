@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   privacyTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
   privacyBody: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   dangerZone: { gap: spacing.sm, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.divider },
-  dangerLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  dangerLabel: { color: colors.textQuiet, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   unavailable: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
-  error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
+  error: { color: colors.textAccent, fontSize: 13, fontWeight: '700' },
 });

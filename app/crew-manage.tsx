@@ -270,7 +270,7 @@ export default function CrewManageScreen() {
           <View style={styles.state}><Ionicons name="lock-closed-outline" size={32} color={colors.primary} /><Text style={styles.stateTitle}>Management unavailable</Text><Text style={styles.muted}>{error}</Text></View>
         ) : (
           <>
-            {error ? <Pressable onPress={() => setError(null)} style={styles.error}><Text style={styles.errorText}>{error}</Text></Pressable> : null}
+            {error ? <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setError(null)} style={styles.error}><Text style={styles.errorText}>{error}</Text></Pressable> : null}
 
             <View style={styles.quickList}>
               <NoxaButton fullWidth title="Create Crew Event" onPress={() => router.push({ pathname: '/event-editor', params: { crewId } })} />
@@ -306,7 +306,7 @@ export default function CrewManageScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>SEARCH BY USERNAME</Text>
               <View style={styles.inviteRow}>
-                <TextInput autoCapitalize="none" autoCorrect={false} onChangeText={setInviteUsername} onSubmitEditing={() => void invite()} placeholder="@username" placeholderTextColor={colors.textSubtle} returnKeyType="send" selectionColor={colors.primary} style={styles.input} value={inviteUsername} />
+                <TextInput autoCapitalize="none" autoCorrect={false} onChangeText={setInviteUsername} onSubmitEditing={() => void invite()} placeholder="@username" placeholderTextColor={colors.textQuiet} returnKeyType="send" selectionColor={colors.primary} style={styles.input} value={inviteUsername} />
                 <MiniAction title="INVITE" disabled={busy === 'invite' || inviteUsername.trim().length < 2} onPress={() => void invite()} />
               </View>
             </View>
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   miniAction: { minHeight: 34, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceRaised },
   miniDanger: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
   miniText: { color: colors.text, fontSize: 8, fontWeight: '900', letterSpacing: 0.35 },
-  miniDangerText: { color: colors.primaryHover },
+  miniDangerText: { color: colors.textAccent },
   inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   input: { flex: 1, minHeight: 42, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, color: colors.text, fontSize: 13 },
   memberBlock: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },

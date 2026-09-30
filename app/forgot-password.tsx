@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   formError: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: typography.caption,
     fontWeight: '600',
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   backLinkAccent: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontWeight: '600',
   },
   successContent: {

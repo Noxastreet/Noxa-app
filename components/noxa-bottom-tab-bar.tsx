@@ -1,8 +1,9 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -123,13 +124,19 @@ export function NoxaBottomTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(Keyboard.isVisible());
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const activeRoute = state.routes[state.index];
   const activeOptions = activeRoute ? descriptors[activeRoute.key]?.options : undefined;
   const activeTabBarStyle = StyleSheet.flatten(
     activeOptions?.tabBarStyle as StyleProp<ViewStyle>,
   );
 
-  if (activeTabBarStyle?.display === 'none') {
+  if (activeTabBarStyle?.display === 'none' || (activeOptions?.tabBarHideOnKeyboard && keyboardVisible)) {
     return null;
   }
 

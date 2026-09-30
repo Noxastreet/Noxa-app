@@ -399,7 +399,7 @@ export default function SocialListScreen() {
                 maxLength={60}
                 onChangeText={setSearchQuery}
                 placeholder="Search this list…"
-                placeholderTextColor={colors.textSubtle}
+                placeholderTextColor={colors.textQuiet}
                 selectionColor={colors.primary}
                 style={styles.searchInput}
                 value={searchQuery}
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   city: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: "700",
   },

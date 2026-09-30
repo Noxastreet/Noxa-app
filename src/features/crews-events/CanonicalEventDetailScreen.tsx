@@ -728,7 +728,7 @@ export default function CanonicalEventDetailScreen() {
         />
 
         {error ? (
-          <Pressable onPress={() => setError(null)} style={styles.errorBanner}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss error" onPress={() => setError(null)} style={styles.errorBanner}>
             <Ionicons name="alert-circle-outline" size={16} color={colors.primaryHover} />
             <Text numberOfLines={2} style={styles.errorText}>{error}</Text>
           </Pressable>
@@ -814,7 +814,7 @@ export default function CanonicalEventDetailScreen() {
                 {organizerName}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+            <Ionicons name="chevron-forward" size={18} color={colors.textQuiet} />
           </Pressable>
         </View>
 
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
   heroCopy: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xl },
   heroTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, lineHeight: 35, fontWeight: "900", letterSpacing: -0.7 },
   heroTitleCompact: { fontSize: 27, lineHeight: 30 },
-  heroUrgency: { color: colors.primaryHover, fontSize: 11, lineHeight: 15, fontWeight: "900", letterSpacing: 0.2 },
+  heroUrgency: { color: colors.textAccent, fontSize: 11, lineHeight: 15, fontWeight: "900", letterSpacing: 0.2 },
   heroLocation: { color: colors.text, fontSize: 15, lineHeight: 21 },
   heroSocial: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   heroSocialText: { flex: 1, color: colors.textMuted, fontSize: 11, lineHeight: 15 },

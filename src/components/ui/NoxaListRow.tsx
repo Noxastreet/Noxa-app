@@ -53,7 +53,7 @@ export function NoxaListRow({
         {caption ? <Text style={styles.caption}>{caption}</Text> : null}
       </View>
       {value ? <Text style={styles.value}>{value}</Text> : null}
-      {onPress ? <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} /> : null}
+      {onPress ? <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} /> : null}
     </Pressable>
   );
 }
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.v2.row.lineHeight,
     fontWeight: '800',
   },
-  labelDestructive: { color: colors.primaryHover },
+  labelDestructive: { color: colors.textAccent },
   caption: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   value: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   pressed: { opacity: 0.8, transform: [{ scale: animations.pressedScale }] },

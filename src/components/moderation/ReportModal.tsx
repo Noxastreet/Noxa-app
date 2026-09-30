@@ -99,7 +99,7 @@ export function ReportModal({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.overlay}>
-        <Pressable accessibilityLabel="Close report" onPress={close} style={styles.backdrop} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Close report" onPress={close} style={styles.backdrop} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
@@ -145,7 +145,7 @@ export function ReportModal({
                     <Ionicons
                       name={selected ? 'radio-button-on' : 'radio-button-off'}
                       size={17}
-                      color={selected ? colors.primaryHover : colors.textSubtle}
+                      color={selected ? colors.primaryHover : colors.textQuiet}
                     />
                     <Text style={[styles.reasonText, selected && styles.reasonTextSelected]}>
                       {item.label}
@@ -162,7 +162,7 @@ export function ReportModal({
                 multiline
                 onChangeText={setDetails}
                 placeholder="Add context that will help us review the report…"
-                placeholderTextColor={colors.textSubtle}
+                placeholderTextColor={colors.textQuiet}
                 selectionColor={colors.primary}
                 style={styles.detailsInput}
                 textAlignVertical="top"
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginVertical: spacing.xs,
     borderRadius: radius.pill,
-    backgroundColor: colors.textSubtle,
+    backgroundColor: colors.textQuiet,
   },
   header: {
     flexDirection: 'row',
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   headerCopy: { flex: 1 },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.3,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   reasonText: { flex: 1, color: colors.textMuted, fontSize: 11, fontWeight: '700' },
   reasonTextSelected: { color: colors.text },
   detailsGroup: { gap: spacing.xs },
-  label: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  label: { color: colors.textQuiet, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   detailsInput: {
     minHeight: 112,
     padding: spacing.md,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
   },
-  counter: { color: colors.textSubtle, fontSize: 9, fontWeight: '700', textAlign: 'right' },
+  counter: { color: colors.textQuiet, fontSize: 9, fontWeight: '700', textAlign: 'right' },
   errorCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  errorText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: '700' },
+  errorText: { flex: 1, color: colors.textAccent, fontSize: 11, fontWeight: '700' },
   submitButton: {
     minHeight: 52,
     flexDirection: 'row',

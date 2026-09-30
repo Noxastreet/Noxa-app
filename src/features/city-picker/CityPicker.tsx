@@ -79,7 +79,7 @@ function FallbackRow({ onPress, query }: { onPress: () => void; query: string })
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.fallbackRow, pressed && styles.rowPressed]}>
-      <Ionicons color={colors.textSubtle} name="add-circle-outline" size={20} />
+      <Ionicons color={colors.textQuiet} name="add-circle-outline" size={20} />
       <Text numberOfLines={1} style={styles.fallbackText}>
         Use “{query}” as my city
       </Text>
@@ -199,13 +199,13 @@ export function CityPicker({ countryCode, onClose, onSelect, selectedCity, visib
             maxLength={80}
             onChangeText={setQuery}
             placeholder="Search city"
-            placeholderTextColor={colors.textSubtle}
+            placeholderTextColor={colors.textQuiet}
             style={styles.searchInput}
             value={query}
           />
           {query ? (
             <Pressable accessibilityLabel="Clear search" accessibilityRole="button" onPress={() => setQuery('')}>
-              <Ionicons color={colors.textSubtle} name="close-circle" size={18} />
+              <Ionicons color={colors.textQuiet} name="close-circle" size={18} />
             </Pressable>
           ) : null}
         </View>
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginTop: spacing.md,
     marginBottom: spacing.xs,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   rowPressed: { backgroundColor: colors.surfacePressed },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
-  rowRegion: { marginTop: 1, color: colors.textSubtle, fontSize: 11, fontWeight: '700' },
+  rowRegion: { marginTop: 1, color: colors.textQuiet, fontSize: 11, fontWeight: '700' },
   rowCheck: { marginLeft: spacing.xs },
   fallbackRow: {
     minHeight: rowHeight,

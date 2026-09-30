@@ -420,7 +420,7 @@ export default function QuickConnectScreen() {
                 ) : sessionLoading ? (
                   <ActivityIndicator color={colors.primary} size="large" />
                 ) : (
-                  <Ionicons name="qr-code-outline" size={72} color={colors.textSubtle} />
+                  <Ionicons name="qr-code-outline" size={72} color={colors.textQuiet} />
                 )}
 
                 <Text style={styles.codeLabel}>QUICK CONNECT CODE</Text>
@@ -432,7 +432,7 @@ export default function QuickConnectScreen() {
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
               <View style={styles.actionRow}>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(sessionLoading) }} accessibilityLabel="Refresh your connect code"
                   disabled={sessionLoading}
                   onPress={() => {
                     setSession(null);
@@ -446,7 +446,7 @@ export default function QuickConnectScreen() {
                   <Ionicons name="refresh" size={18} color={colors.text} />
                   <Text style={styles.secondaryButtonText}>NEW CODE</Text>
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(!session) }}
                   disabled={!session}
                   onPress={() => void shareCode()}
                   style={({ pressed }) => [
@@ -484,7 +484,7 @@ export default function QuickConnectScreen() {
                       ) : null}
                     </View>
                   </View>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={() => {
                       if (returnToDriveTogether) {
                         router.back();
@@ -505,7 +505,7 @@ export default function QuickConnectScreen() {
                       color={colors.text}
                     />
                   </Pressable>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={resetConnect}
                     style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}>
                     <Text style={styles.textButtonText}>ADD ANOTHER DRIVER</Text>
@@ -536,7 +536,7 @@ export default function QuickConnectScreen() {
 
                   {error ? <Text style={styles.error}>{error}</Text> : null}
 
-                  <Pressable
+                  <Pressable accessibilityRole="button" accessibilityState={{ disabled: redeeming, busy: redeeming }} accessibilityLabel={preview.alreadyFriends ? 'Open profile' : 'Add friend'}
                     disabled={redeeming}
                     onPress={() => void addFriend()}
                     style={({ pressed }) => [
@@ -559,7 +559,7 @@ export default function QuickConnectScreen() {
                       </>
                     )}
                   </Pressable>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={resetConnect}
                     style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}>
                     <Text style={styles.textButtonText}>USE ANOTHER CODE</Text>
@@ -572,7 +572,7 @@ export default function QuickConnectScreen() {
                       <Text style={styles.sectionEyebrow}>SCAN QR</Text>
                       <Text style={styles.scannerTitle}>Point at a NOXA code.</Text>
                     </View>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       accessibilityLabel="Close scanner"
                       onPress={() => {
                         setScannerOpen(false);
@@ -612,7 +612,7 @@ export default function QuickConnectScreen() {
                     </Text>
                   </View>
 
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     onPress={() => void openScanner()}
                     style={({ pressed }) => [styles.scanButton, pressed && styles.pressed]}>
                     <View style={styles.scanIcon}>
@@ -622,7 +622,7 @@ export default function QuickConnectScreen() {
                       <Text style={styles.scanTitle}>SCAN QR CODE</Text>
                       <Text style={styles.scanMeta}>Fastest when both phones are together</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={19} color={colors.textSubtle} />
+                    <Ionicons name="chevron-forward" size={19} color={colors.textQuiet} />
                   </Pressable>
 
                   <View style={styles.dividerRow}>
@@ -641,13 +641,13 @@ export default function QuickConnectScreen() {
                         if (canSubmitCode) void resolveValue(codeInput);
                       }}
                       placeholder="AB12-CD34-EF"
-                      placeholderTextColor={colors.textSubtle}
+                      placeholderTextColor={colors.textQuiet}
                       returnKeyType="go"
                       selectionColor={colors.primary}
                       style={styles.codeInput}
                       value={codeInput}
                     />
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canSubmitCode || resolving, busy: resolving }} accessibilityLabel="Find driver from code"
                       disabled={!canSubmitCode || resolving}
                       onPress={() => void resolveValue(codeInput)}
                       style={[
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     width: 38,
   },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.4,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   sectionEyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.35,
@@ -861,7 +861,7 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     marginTop: spacing.xs,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -1000,7 +1000,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderStrong,
   },
   dividerText: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -1078,7 +1078,7 @@ const styles = StyleSheet.create({
   },
   previewStatus: {
     marginTop: 6,
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.4,
@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   error: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 11.5,
     lineHeight: 16,
     fontWeight: '700',

@@ -268,12 +268,12 @@ export default function CrewChatScreen() {
                     <Text style={styles.noticeLabel}>CREW NOTICE</Text>
                     <Text style={styles.noticeText}>{crew.description}</Text>
                   </View>
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     accessibilityLabel="Hide crew notice"
                     onPress={() => setNoticeVisible(false)}
                     style={styles.noticeClose}
                   >
-                    <Ionicons name="close" size={15} color={colors.textSubtle} />
+                    <Ionicons name="close" size={15} color={colors.textQuiet} />
                   </Pressable>
                 </View>
               ) : null}
@@ -286,7 +286,7 @@ export default function CrewChatScreen() {
 
               {messages.length === 0 ? (
                 <View style={styles.empty}>
-                  <Ionicons name="chatbubbles-outline" size={30} color={colors.textSubtle} />
+                  <Ionicons name="chatbubbles-outline" size={30} color={colors.textQuiet} />
                   <Text style={styles.emptyTitle}>START THE CREW CHAT</Text>
                   <Text style={styles.emptyText}>
                     Messages are visible only to current crew members.
@@ -335,7 +335,7 @@ export default function CrewChatScreen() {
                 onChangeText={setDraft}
                 onSubmitEditing={() => void sendMessage()}
                 placeholder="Message the crew…"
-                placeholderTextColor={colors.textSubtle}
+                placeholderTextColor={colors.textQuiet}
                 selectionColor={colors.primary}
                 style={styles.input}
                 value={draft}
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   privateText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 7,
     fontWeight: "900",
     letterSpacing: 0.7,
@@ -441,13 +441,13 @@ const styles = StyleSheet.create({
   },
   noticeCopy: { flex: 1, gap: spacing.xxs },
   noticeLabel: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.8,
   },
   noticeText: { color: colors.text, fontSize: 12, lineHeight: 18 },
-  noticeClose: { padding: spacing.xxs },
+  noticeClose: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', padding: spacing.xxs },
   messageRow: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   messageTime: {
     marginTop: 4,
     marginLeft: spacing.xs,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     fontWeight: "700",
   },
@@ -574,6 +574,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  errorText: { color: colors.primaryHover, fontSize: 11, fontWeight: "700", textAlign: "center" },
+  errorText: { color: colors.textAccent, fontSize: 11, fontWeight: "700", textAlign: "center" },
   pressed: { opacity: 0.86, transform: [{ translateY: 1 }, { scale: 0.985 }] },
 });

@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.md,
   },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,

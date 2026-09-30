@@ -155,7 +155,7 @@ function VehicleCard({
                 {meta.length > 0 ? meta.join('  ·  ') : 'Add build details anytime'}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+            <Ionicons name="chevron-forward" size={18} color={colors.textQuiet} />
           </View>
         </Pressable>
         {!vehicle.is_primary ? (
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   },
   identityCopy: { flex: 1, minWidth: 0 },
   vehicleType: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 1,
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
     backgroundColor: colors.surfaceSoft,
   },
-  primaryActionText: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  primaryActionText: { color: colors.textAccent, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   primaryLockedRow: {
     minHeight: 42,
     flexDirection: 'row',

@@ -54,7 +54,7 @@ export function MapboxEventLocationPickerCompat(props: EventLocationPickerProps)
   return (
     <View style={styles.screen}>
       <MapboxStateView {...state} />
-      <Pressable onPress={props.onCancel} style={[styles.cancel, { top: insets.top + spacing.md }]}>
+      <Pressable accessibilityRole="button" onPress={props.onCancel} style={[styles.cancel, { top: insets.top + spacing.md }]}>
         <Text style={styles.cancelText}>Cancel</Text>
       </Pressable>
     </View>

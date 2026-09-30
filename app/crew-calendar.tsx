@@ -115,7 +115,7 @@ function CalendarEventCard({ event }: { event: CalendarEvent }) {
           <Text numberOfLines={1} style={styles.metaText}>{event.location_name}</Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   monthButtonDisabled: { opacity: 0.32 },
   monthCopy: { flex: 1, alignItems: "center" },
-  monthEyebrow: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  monthEyebrow: { color: colors.textAccent, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
   monthTitle: {
     marginTop: 2,
     color: colors.text,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   weekHeader: { flexDirection: "row", marginTop: spacing.lg, marginBottom: spacing.xs },
   weekday: {
     width: "14.2857%",
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 0.5,
@@ -536,12 +536,12 @@ const styles = StyleSheet.create({
   dayCellSelected: { backgroundColor: colors.primary },
   dayText: { color: colors.textMuted, fontSize: 12, fontWeight: "800" },
   dayTextMuted: { color: colors.textDisabled },
-  dayTextToday: { color: colors.primaryHover, fontWeight: "900" },
+  dayTextToday: { color: colors.textAccent, fontWeight: "900" },
   dayTextSelected: { color: colors.text },
   eventDot: { width: 4, height: 4, borderRadius: radius.pill, backgroundColor: colors.primaryHover },
   eventDotSelected: { backgroundColor: colors.text },
   listHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  listEyebrow: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  listEyebrow: { color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
   listTitle: {
     marginTop: 2,
     color: colors.text,
@@ -600,14 +600,14 @@ const styles = StyleSheet.create({
     fontSize: 23,
     fontWeight: "900",
   },
-  dateMonth: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  dateMonth: { color: colors.textAccent, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
   eventCopy: { flex: 1, minWidth: 0, gap: 5 },
   eventBadgeRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  category: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
+  category: { color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
   eventTitle: { color: colors.text, fontSize: 14, fontWeight: "900", lineHeight: 19 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   metaText: { flexShrink: 1, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
-  metaDot: { width: 2, height: 2, marginHorizontal: 2, borderRadius: radius.pill, backgroundColor: colors.textSubtle },
+  metaDot: { width: 2, height: 2, marginHorizontal: 2, borderRadius: radius.pill, backgroundColor: colors.textQuiet },
   emptyCard: {
     minHeight: 230,
     alignItems: "center",

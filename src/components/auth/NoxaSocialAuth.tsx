@@ -117,13 +117,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderStrong,
   },
   dividerText: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.body,
     fontSize: 11,
     lineHeight: 16,
   },
   error: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: typography.caption,
     fontWeight: '600',

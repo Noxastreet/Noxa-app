@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  replayLabel: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  replayLabel: { color: colors.textQuiet, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   skipButton: {
     minWidth: 44,
     minHeight: 44,
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   step: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.body,
     fontSize: 10,
     fontWeight: '700',
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: radius.pill,
-    backgroundColor: colors.textSubtle,
+    backgroundColor: colors.textQuiet,
   },
   indicatorActive: { width: 24, backgroundColor: colors.primary },
 });

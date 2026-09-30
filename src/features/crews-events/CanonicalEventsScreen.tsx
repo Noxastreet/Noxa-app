@@ -231,7 +231,7 @@ function EventListCard({ event }: { event: EventCardModel }) {
           <Text style={styles.goingText}>{event.attendeeCount} GOING</Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={19} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={19} color={colors.textQuiet} />
     </NoxaPressableSurface>
   );
 }
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   heroMeta: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 11,
     lineHeight: 15,
     fontWeight: "900",
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   dateMonth: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 8,
     lineHeight: 11,
     fontWeight: "900",
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   goingText: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "800",
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
   },
   nearbyCopy: { flex: 1 },
   nearbyEyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "900",

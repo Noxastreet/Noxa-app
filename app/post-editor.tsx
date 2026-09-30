@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: { color: colors.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.6 },
   captionInput: { minHeight: 118, paddingTop: spacing.md, textAlignVertical: "top" },
-  counter: { marginTop: -spacing.sm, color: colors.textSubtle, fontSize: 9, fontWeight: "800", textAlign: "right" },
+  counter: { marginTop: -spacing.sm, color: colors.textQuiet, fontSize: 9, fontWeight: "800", textAlign: "right" },
   errorCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  errorText: { flex: 1, color: colors.primaryHover, fontSize: 12, fontWeight: "700", lineHeight: 18 },
+  errorText: { flex: 1, color: colors.textAccent, fontSize: 12, fontWeight: "700", lineHeight: 18 },
   footer: {
     position: "absolute",
     left: 0,

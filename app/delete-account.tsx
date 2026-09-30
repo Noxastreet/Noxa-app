@@ -281,7 +281,7 @@ export default function DeleteAccountScreen() {
                   maxLength={6}
                   onChangeText={setConfirmation}
                   placeholder="DELETE"
-                  placeholderTextColor={colors.textSubtle}
+                  placeholderTextColor={colors.textQuiet}
                   selectionColor={colors.primary}
                   style={styles.confirmationInput}
                   value={confirmation}
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryMuted,
   },
   heroEyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  cardTitle: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
+  cardTitle: { color: colors.textQuiet, fontSize: 9, fontWeight: '900', letterSpacing: 1.3 },
   consequenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   consequenceText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   emailRow: {
@@ -429,8 +429,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   confirmationGroup: { gap: spacing.xs },
-  confirmationLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  confirmationWord: { color: colors.primaryHover },
+  confirmationLabel: { color: colors.textQuiet, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  confirmationWord: { color: colors.textAccent },
   confirmationInput: {
     minHeight: 52,
     paddingHorizontal: spacing.md,
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  errorText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: '700', lineHeight: 17 },
+  errorText: { flex: 1, color: colors.textAccent, fontSize: 11, fontWeight: '700', lineHeight: 17 },
   deleteButton: {
     minHeight: 54,
     flexDirection: 'row',
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.76, transform: [{ scale: 0.99 }] },
   footerText: {
     paddingHorizontal: spacing.sm,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: '600',
     lineHeight: 16,

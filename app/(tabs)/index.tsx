@@ -2855,7 +2855,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 2,
     borderColor: colors.surface,
-    backgroundColor: colors.textSubtle,
+    backgroundColor: colors.textQuiet,
   },
   identityStatusDotLive: {
     backgroundColor: colors.success,
@@ -2993,7 +2993,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.xs,
     paddingBottom: 6,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     fontWeight: "900",
     letterSpacing: 1.2,
@@ -3028,7 +3028,7 @@ const styles = StyleSheet.create({
   visibilityOptionLabelSelected: { color: colors.text },
   visibilityOptionDescription: {
     marginTop: 1,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     fontWeight: "600",
   },
@@ -3129,7 +3129,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   cardKicker: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 10,
     fontWeight: "600",
     letterSpacing: 1.3,
@@ -3151,7 +3151,7 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     marginTop: 2,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 11,
     fontWeight: "500",
   },
@@ -3197,7 +3197,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   routeFocusDistance: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 12,
     fontWeight: "900",
     fontVariant: ["tabular-nums"],
@@ -3257,7 +3257,7 @@ const styles = StyleSheet.create({
     width: 3,
     height: 3,
     borderRadius: 2,
-    backgroundColor: colors.textSubtle,
+    backgroundColor: colors.textQuiet,
   },
   routeFocusArrival: {
     marginLeft: "auto",

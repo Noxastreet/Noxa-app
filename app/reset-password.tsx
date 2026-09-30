@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   formError: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: typography.caption,
     fontWeight: '600',

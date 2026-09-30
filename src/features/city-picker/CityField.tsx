@@ -34,7 +34,7 @@ export function CityField({ countryCode, disabled = false, label = 'City · opti
           pressed && isInteractive && styles.shellPressed,
           !isInteractive && styles.shellDisabled,
         ]}>
-        <Ionicons color={colors.textSubtle} name="location-outline" size={20} style={styles.placeholderIcon} />
+        <Ionicons color={colors.textQuiet} name="location-outline" size={20} style={styles.placeholderIcon} />
         <Text numberOfLines={1} style={[styles.value, !trimmedValue && styles.valuePlaceholder]}>
           {trimmedValue || (hasCountry ? 'Add your city' : 'Choose a country first')}
         </Text>
@@ -46,10 +46,10 @@ export function CityField({ countryCode, disabled = false, label = 'City · opti
             hitSlop={8}
             onPress={() => onChange('')}
             style={styles.clearButton}>
-            <Ionicons color={colors.textSubtle} name="close-circle" size={18} />
+            <Ionicons color={colors.textQuiet} name="close-circle" size={18} />
           </Pressable>
         ) : isInteractive ? (
-          <Ionicons color={colors.textSubtle} name="chevron-forward" size={16} />
+          <Ionicons color={colors.textQuiet} name="chevron-forward" size={16} />
         ) : null}
       </Pressable>
 
@@ -69,7 +69,7 @@ export function CityField({ countryCode, disabled = false, label = 'City · opti
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
   label: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.4,

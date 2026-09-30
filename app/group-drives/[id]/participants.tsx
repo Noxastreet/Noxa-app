@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   removeText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   error: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 13,
     fontWeight: '700',
   },

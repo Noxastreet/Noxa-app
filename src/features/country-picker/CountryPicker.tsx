@@ -148,13 +148,13 @@ export function CountryPicker({ onClose, onSelect, selectedCode, visible }: Coun
             autoCorrect={false}
             onChangeText={setQuery}
             placeholder="Search country or code"
-            placeholderTextColor={colors.textSubtle}
+            placeholderTextColor={colors.textQuiet}
             style={styles.searchInput}
             value={query}
           />
           {query ? (
             <Pressable accessibilityLabel="Clear search" accessibilityRole="button" onPress={() => setQuery('')}>
-              <Ionicons color={colors.textSubtle} name="close-circle" size={18} />
+              <Ionicons color={colors.textQuiet} name="close-circle" size={18} />
             </Pressable>
           ) : null}
         </View>
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginTop: spacing.md,
     marginBottom: spacing.xs,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   flag: { fontSize: 24, width: 32, textAlign: 'center' },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
-  rowCode: { color: colors.textSubtle, fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  rowCode: { color: colors.textQuiet, fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
   rowCheck: { marginLeft: spacing.xs },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
   emptyText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: '700', textAlign: 'center' },

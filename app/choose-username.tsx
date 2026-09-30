@@ -161,10 +161,10 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, justifyContent: 'center', gap: spacing.xl, paddingBottom: spacing.xxxl },
   copy: { gap: spacing.sm },
-  eyebrow: { color: colors.primaryHover, fontSize: 9, fontWeight: '900', letterSpacing: 1.25 },
+  eyebrow: { color: colors.textAccent, fontSize: 9, fontWeight: '900', letterSpacing: 1.25 },
   title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
   body: { maxWidth: 520, color: colors.textMuted, ...typography.v2.body },
   lockNote: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   lockText: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
+  error: { color: colors.textAccent, fontSize: 13, fontWeight: '700' },
 });

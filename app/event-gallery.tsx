@@ -353,7 +353,7 @@ export default function EventGalleryScreen() {
                   editable={!uploading}
                   maxLength={500}
                   placeholder="Add a caption…"
-                  placeholderTextColor={colors.textSubtle}
+                  placeholderTextColor={colors.textQuiet}
                   selectionColor={colors.primary}
                   style={styles.captionInput}
                 />
@@ -449,7 +449,7 @@ export default function EventGalleryScreen() {
       >
         <View style={styles.lightbox}>
           <View style={styles.lightboxHeader}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               accessibilityLabel="Close photo"
               onPress={() => setSelectedItem(null)}
               style={styles.lightboxButton}
@@ -459,7 +459,7 @@ export default function EventGalleryScreen() {
             <Text style={styles.lightboxTitle}>EVENT PHOTO</Text>
             {selectedItem
             && (selectedItem.uploader_id === currentUserId || isHost) ? (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(deleting) }}
                 accessibilityLabel="Remove photo"
                 disabled={deleting}
                 onPress={confirmDelete}
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxs,
   },
   latestActive: { color: colors.text, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
-  latestHint: { color: colors.textSubtle, fontSize: 10, fontWeight: "700" },
+  latestHint: { color: colors.textQuiet, fontSize: 10, fontWeight: "700" },
   uploadCard: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
   },
   uploadPreview: { width: 96, height: 112, borderRadius: radius.md, backgroundColor: colors.surfaceSoft },
   uploadFields: { flex: 1, gap: spacing.xs },
-  uploadTitle: { color: colors.primaryHover, fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
+  uploadTitle: { color: colors.textAccent, fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
   captionInput: {
     minHeight: 52,
     padding: spacing.sm,
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  errorText: { color: colors.primaryHover, fontSize: 11, fontWeight: "700" },
+  errorText: { color: colors.textAccent, fontSize: 11, fontWeight: "700" },
   lightbox: { flex: 1, backgroundColor: "#000" },
   lightboxHeader: {
     minHeight: 68,
@@ -665,6 +665,6 @@ const styles = StyleSheet.create({
   lightboxCopy: { flex: 1, gap: spacing.xxs },
   detailName: { color: colors.text, fontSize: 13, fontWeight: "900" },
   detailCaption: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
-  detailCaptionMuted: { color: colors.textSubtle, fontSize: 13 },
+  detailCaptionMuted: { color: colors.textQuiet, fontSize: 13 },
   pressed: { opacity: 0.86, transform: [{ translateY: 1 }, { scale: 0.985 }] },
 });

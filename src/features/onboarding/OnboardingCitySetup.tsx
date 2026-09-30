@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   eyebrow: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.body,
     fontWeight: '600',
     ...typography.v2.label,
@@ -279,14 +279,14 @@ const styles = StyleSheet.create({
     ...typography.v2.body,
   },
   errorText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: typography.caption,
     lineHeight: typography.lineHeight.caption,
   },
   formError: {
     marginTop: spacing.md,
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     ...typography.v2.body,
   },

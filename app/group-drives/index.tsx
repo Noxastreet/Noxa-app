@@ -68,7 +68,7 @@ function DriveRow({ item }: { item: GroupDriveListItem }) {
         <Ionicons name="navigate-outline" size={15} color={colors.textMuted} />
         <Text style={styles.meta}>{formatDriveDistance(item.routeDistanceMeters)}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} style={styles.chevron} />
+      <Ionicons name="chevron-forward" size={18} color={colors.textQuiet} style={styles.chevron} />
     </Pressable>
   );
 }
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   heroBody: { color: colors.textMuted, ...typography.v2.body },
   sectionTitle: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.6,
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   noticeCopy: { gap: spacing.xs },
   noticeTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  noticeTitle: { color: colors.primaryHover, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
+  noticeTitle: { color: colors.textAccent, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
   noticeText: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   row: {
     minHeight: 148,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   rowPressed: { backgroundColor: colors.surfacePressed },
   rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  invited: { color: colors.primaryHover, fontSize: 11, fontWeight: '800' },
+  invited: { color: colors.textAccent, fontSize: 11, fontWeight: '800' },
   activeLabel: { color: colors.success, fontSize: 11, fontWeight: '800' },
   terminalLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800' },
   rowTitle: { marginTop: spacing.md, marginBottom: spacing.sm, color: colors.text, fontSize: 20, fontWeight: '900' },

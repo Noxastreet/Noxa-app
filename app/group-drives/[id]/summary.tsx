@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   outcomeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs },
   outcome: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
-  completedAt: { color: colors.textSubtle, fontSize: 12, fontWeight: '600' },
+  completedAt: { color: colors.textQuiet, fontSize: 12, fontWeight: '600' },
   metrics: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -170,16 +170,16 @@ const styles = StyleSheet.create({
   },
   metricBlock: { flex: 1, gap: spacing.xxs },
   metric: { color: colors.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  metricLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
+  metricLabel: { color: colors.textQuiet, fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
   truthNote: {
     marginTop: -spacing.md,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 11,
     lineHeight: 17,
   },
   section: { gap: spacing.xs },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  sectionTitle: { color: colors.textQuiet, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
   sectionCount: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   participantRow: {
     minHeight: 60,
