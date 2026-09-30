@@ -1,0 +1,17 @@
+name: Cancel superseded build 68 once
+on:
+  push:
+    branches: [ci/cancel-superseded-build68-20260930]
+    paths: [.github/workflows/cancel-build68-once.yml]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    if: ${{ github.run_attempt == 1 }}
+    steps:
+      - name: Cancel superseded delivery
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST repos/Noxastreet/Noxa-app/actions/runs/36715545028/cancel
