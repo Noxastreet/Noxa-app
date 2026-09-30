@@ -12,6 +12,7 @@ function assert(condition, message) {
 }
 
 const home = read('app/(tabs)/index.tsx');
+// Route state commits before spatial camera movement.
 
 assert(
   /const ROUTE_STATE_ENTER = FadeIn[\s\S]{0,120}duration\(animations\.micro\)[\s\S]{0,120}ReduceMotion\.System/.test(home),
