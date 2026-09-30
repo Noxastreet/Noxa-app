@@ -1,0 +1,181 @@
+name: NOXA final native auth and complete action-label audit
+on:
+  push:
+    branches: [ci/noxa-native-complete-labels-20260930]
+    paths: [.github/workflows/noxa-native-complete-labels-once.yml]
+permissions:
+  contents: write
+concurrency:
+  group: noxa-simulator-audit-20260930
+  cancel-in-progress: false
+jobs:
+  simulator:
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: macos-latest
+    timeout-minutes: 95
+    env:
+      CI: "1"
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: "600000"
+      MAESTRO_CLI_NO_ANALYTICS: "1"
+      AUDIT_SOURCE_SHA: "879bf6681f88a1a4756abd5ce9ce13130bbab3c6"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 879bf6681f88a1a4756abd5ce9ce13130bbab3c6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Native audit source and static gate
+        run: |
+          test "$(git rev-parse HEAD)" = "$AUDIT_SOURCE_SHA"
+          npx tsc --noEmit
+          npm run lint
+          node scripts/test-ui-accessibility-interruption.mjs
+          node scripts/verify-surface-accessibility.mjs
+      - name: Add simulator-only build profile on temporary runner
+        run: |
+          node <<'NODE'
+          const fs=require('fs');const eas=JSON.parse(fs.readFileSync('eas.json','utf8'));
+          eas.build['audit-simulator']={extends:'production',autoIncrement:false,distribution:'internal',environment:'production',ios:{simulator:true}};
+          fs.writeFileSync('eas.json',JSON.stringify(eas,null,2));
+          NODE
+      - name: Build native simulator app without increment or submission
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          mkdir -p artifacts/screens
+          npx --yes eas-cli@24.7.0 build --platform ios --profile audit-simulator --local --non-interactive --output artifacts/noxa-audit-simulator.tar.gz
+      - name: Boot iPhone simulator and install
+        run: |
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/devices.json"
+          SIM_ID="$(node -e 'const d=require(process.env.RUNNER_TEMP+"/devices.json");const p=Object.values(d.devices).flat().find(x=>x.name.includes("iPhone")&&x.isAvailable);if(!p)process.exit(1);process.stdout.write(p.udid)')"
+          echo "SIM_ID=$SIM_ID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$SIM_ID" || true
+          xcrun simctl bootstatus "$SIM_ID" -b
+          mkdir -p "$RUNNER_TEMP/noxa-sim-app"
+          tar -xzf artifacts/noxa-audit-simulator.tar.gz -C "$RUNNER_TEMP/noxa-sim-app"
+          APP_DIR="$(find "$RUNNER_TEMP/noxa-sim-app" -type d -name '*.app' -maxdepth 3 -print -quit)"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_DIR/Info.plist"
+          xcrun simctl install "$SIM_ID" "$APP_DIR"
+          xcrun simctl launch "$SIM_ID" com.karaketidis.noxa
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install hosted UI test tooling
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev -o "$RUNNER_TEMP/install-maestro.sh"
+          bash "$RUNNER_TEMP/install-maestro.sh"
+      - name: Exercise actual native entry, validation, recovery and back navigation
+        run: |
+          cat > noxa-entry-audit.yml <<'FLOW'
+          appId: com.karaketidis.noxa
+          ---
+          - launchApp:
+              clearState: true
+          - extendedWaitUntil:
+              visible: "Create Account"
+              timeout: 60000
+          - takeScreenshot: artifacts/screens/welcome
+          - tapOn: "Sign In"
+          - assertVisible: "Welcome back."
+          - takeScreenshot: artifacts/screens/sign-in
+          - tapOn: "Sign In"
+          - assertVisible: "Email is required."
+          - assertVisible: "Password is required."
+          - scrollUntilVisible:
+              element: "Forgot password?"
+              direction: DOWN
+          - tapOn: "Forgot password?"
+          - assertVisible: ".*password.*"
+          - takeScreenshot: artifacts/screens/recovery
+          - scrollUntilVisible:
+              element: "Back to Sign In"
+              direction: DOWN
+          - tapOn: "Back to Sign In"
+          - waitForAnimationToEnd
+          - assertVisible: "Welcome back."
+          - scrollUntilVisible:
+              element: "Forgot password?"
+              direction: DOWN
+          - tapOn: "Forgot password?"
+          - assertVisible: "Reset password."
+          - tapOn: "Go back"
+          - waitForAnimationToEnd
+          - assertVisible: "Welcome back."
+          - tapOn: "Go back"
+          - waitForAnimationToEnd
+          - extendedWaitUntil:
+              visible: "Create Account"
+              timeout: 30000
+          - tapOn: "Create Account"
+          - takeScreenshot: artifacts/screens/sign-up
+          FLOW
+          "$HOME/.maestro/bin/maestro" --device "$SIM_ID" test --debug-output artifacts/maestro noxa-entry-audit.yml
+      - name: Capture Dynamic Type entry, complete provider action and Reduce Motion setting
+        if: always()
+        run: |
+          xcrun simctl ui "$SIM_ID" content_size accessibility-extra-extra-extra-large
+          xcrun simctl spawn "$SIM_ID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool YES
+          xcrun simctl terminate "$SIM_ID" com.karaketidis.noxa || true
+          xcrun simctl launch "$SIM_ID" com.karaketidis.noxa
+          cat > noxa-large-entry.yml <<'FLOW'
+          appId: com.karaketidis.noxa
+          ---
+          - launchApp:
+              clearState: true
+          - extendedWaitUntil:
+              visible: "NOXA"
+              timeout: 60000
+          - scrollUntilVisible:
+              element: "Sign In"
+              direction: DOWN
+              timeout: 60000
+              centerElement: true
+          - extendedWaitUntil:
+              visible: "Sign In"
+              timeout: 60000
+          - takeScreenshot: artifacts/screens/large-text-entry
+          - tapOn: "Sign In"
+          - scrollUntilVisible:
+              element: "Email"
+              direction: DOWN
+              timeout: 60000
+              centerElement: true
+          - takeScreenshot: artifacts/screens/large-text-auth
+          - scrollUntilVisible:
+              element: "Continue with Google"
+              direction: DOWN
+              timeout: 60000
+              centerElement: true
+          - assertVisible: "Continue with Google"
+          - takeScreenshot: artifacts/screens/large-text-google
+          FLOW
+          "$HOME/.maestro/bin/maestro" --device "$SIM_ID" test --debug-output artifacts/maestro-large noxa-large-entry.yml
+      - name: Preserve visual evidence on isolated audit branch
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');const dir='artifacts/screens';fs.mkdirSync(dir,{recursive:true});
+            function files(path){return fs.readdirSync(path,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(path+'/'+e.name):[path+'/'+e.name]);}
+            const candidates=files(process.env.GITHUB_WORKSPACE).filter(p=>p.endsWith('.png')&& !p.includes('/node_modules/')&&!p.includes('/.git/')&&!p.includes('/assets/')&&!p.includes('/audit-runtime-evidence/'));
+            for(const [i,path] of candidates.entries()){if(!path.startsWith(process.env.GITHUB_WORKSPACE+'/'+dir+'/'))fs.copyFileSync(path,dir+'/'+i+'-'+path.split('/').pop());}
+            for(const file of fs.readdirSync(dir).filter(x=>x.endsWith('.png'))){
+              const path='audit-runtime-evidence/'+file;const content=fs.readFileSync(dir+'/'+file).toString('base64');
+              await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path,branch:'ci/noxa-native-complete-labels-20260930',message:'evidence: hosted iOS '+file+' from '+process.env.AUDIT_SOURCE_SHA,content,sha:(await github.rest.repos.getContent({owner:context.repo.owner,repo:context.repo.repo,path,ref:'ci/noxa-native-complete-labels-20260930'}).catch(()=>({data:{}}))).data.sha});
+              if(content.length>900000){for(let part=0;part*700000<content.length;part++){
+                const chunkPath=path+'.b64-'+part+'.txt';
+                const existing=await github.rest.repos.getContent({owner:context.repo.owner,repo:context.repo.repo,path:chunkPath,ref:'ci/noxa-native-complete-labels-20260930'}).catch(()=>({data:{}}));
+                await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path:chunkPath,branch:'ci/noxa-native-complete-labels-20260930',message:'evidence: native final-source image transport',sha:existing.data.sha,content:Buffer.from(content.slice(part*700000,(part+1)*700000)).toString('base64')});
+              }}
+            }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: noxa-hosted-ios-audit
+          path: artifacts/
+          retention-days: 3
+          include-hidden-files: true
