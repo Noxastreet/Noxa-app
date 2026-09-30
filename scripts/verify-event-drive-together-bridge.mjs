@@ -52,8 +52,9 @@ assert(
 
 assert(
   /title="Drive Together to this event\?"/.test(layer)
-    && /proposeQuickDriveDestination\(roomId, next\)/.test(layer),
-  'Existing Drive Together rooms must confirm and reuse the current room instead of creating another one.',
+    && /proposeQuickDriveDestination\(roomId, next\)/.test(layer)
+    && /const clearRoom = useCallback[\s\S]{0,420}setPendingExternalDestination\(null\)/.test(layer),
+  'Existing Drive Together rooms must confirm/reuse the room and clear external Event intent when room state is cleared.',
 );
 
 assert(
