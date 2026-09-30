@@ -75,6 +75,12 @@ jobs:
           - inputText: "invalid"
           - assertVisible: "invalid"
           - takeScreenshot: artifacts/screens/sign-in-keyboard
+          - swipe:
+              start: "80%,25%"
+              end: "80%,55%"
+              duration: 600
+          - waitForAnimationToEnd
+          - takeScreenshot: artifacts/screens/sign-in-keyboard-dismissed
           - scrollUntilVisible:
               element: "Sign In"
               direction: DOWN
