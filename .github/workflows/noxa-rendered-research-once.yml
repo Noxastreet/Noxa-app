@@ -1,0 +1,37 @@
+name: NOXA rendered official design research once
+on:
+  push:
+    branches: [ci/noxa-rendered-research-20260930]
+    paths: [.github/workflows/noxa-rendered-research-once.yml]
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fb74ff4fdea496917cd3ddbd46271a5acbc1275f
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Render official documentation
+        env:
+          RESEARCH_TOOLS: ${{ runner.temp }}/noxa-research-tools
+        run: |
+          mkdir -p "$RESEARCH_TOOLS"
+          npm install --prefix "$RESEARCH_TOOLS" playwright
+          "$RESEARCH_TOOLS/node_modules/.bin/playwright" install --with-deps chromium
+          node <<'NODE'
+          const {chromium}=require(process.env.RESEARCH_TOOLS+'/node_modules/playwright'); const fs=require('fs');const crypto=require('crypto');(async()=>{fs.mkdirSync('audit-evidence',{recursive:true});const browser=await chromium.launch({headless:true});for(const [id,url] of [["uber","https://base.uber.com/"],["baseweb","https://baseweb.design/components/button/"],["material","https://m3.material.io/foundations/accessible-design/overview"],["meta","https://www.meta.com/design-at-meta/"],["meta-a11y","https://www.meta.com/accessibility/"],["google-en","https://developer.android.com/design/ui/mobile/guides/foundations/accessibility?hl=en"]]){const page=await browser.newPage({locale:'en-US'});try{const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(6000);const text=await page.locator('body').innerText();fs.writeFileSync('audit-evidence/'+id+'.txt',text);console.log('SOURCE '+JSON.stringify({id,url,finalUrl:page.url(),status:response.status(),retrievedAt:new Date().toISOString(),textLength:text.length,sha256:crypto.createHash('sha256').update(text).digest('hex')}));console.log('EXCERPT '+id+'\n'+text.slice(0,20000)+'\nEND EXCERPT '+id);}catch(e){console.log('SOURCE_ERROR '+id+' '+e.message);}await page.close();}await browser.close();})();
+          NODE
+      - name: Discover current design links
+        run: |
+          git grep -n 'figma.com/' -- docs README.md || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: noxa-rendered-official-sources
+          path: audit-evidence/
+          retention-days: 7
