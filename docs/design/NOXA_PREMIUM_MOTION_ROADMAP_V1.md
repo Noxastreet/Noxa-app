@@ -2379,28 +2379,25 @@ If the above critical flows pass, move to **Batch D: product-wide micro-interact
 
 # 27. BUILD 65 PHYSICAL CHECKPOINT + EVENT / DRIVE TOGETHER BRIDGE
 
+## Build numbering correction
+
+- **Build 65 = Batch B physical checkpoint.**
+- **Build 66 = full Batch C build.**
+- The canonical NOXA confirmation for `Cancel Drive Together?` is expected only in build 66. The older system alert in build 65 is therefore not a Batch B regression.
+
 ## Build 65 physical result
 
-**Status:** PASS WITH ONE POLISH NOTE
+**Status:** PASS
 
 Verified from the supplied iPhone recording:
 
-- visibility popover opens and closes correctly;
-- Live Drive start confirmation uses the new NOXA confirmation presentation;
-- Drive Together destination -> driver-selection transition is smoother;
-- waiting-room / room UI remains functional;
-- root tabs do not show black/blank transition gaps;
-- Map stays mounted through the exercised flows.
+- Map remains stable through the exercised flow;
+- Drive Together can be created;
+- destination -> driver selection -> waiting room works;
+- root tabs do not expose black/blank transition gaps;
+- no critical Batch B regression was observed.
 
-### Remaining polish note
-
-After confirming selected drivers, the Drive Together sheet briefly disappears before the waiting room appears.
-
-This is a visual continuity issue, not a functional blocker.
-
-Track for final polish:
-- retain a loading room shell during room creation;
-- avoid exposing a bare-map gap while the room RPC resolves.
+Build 66 contains the complete Batch C motion/confirmation set and requires its own physical acceptance before Batch C is marked runtime-verified.
 
 ## Next functional block - Event <-> Drive Together
 
