@@ -28,6 +28,10 @@ jobs:
             const jsons=all.filter(p=>p.endsWith('.json'));
             for(const file of jsons){const text=fs.readFileSync(file,'utf8');if(text.length<100000)console.log('UI debug '+file+': '+text);}
             for(const [i,file] of images.entries()){
-              const path='audit-runtime-evidence/'+i+'-'+file.split('/').pop();
-              await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path,branch:'ci/noxa-simulator-evidence-20260930',message:'evidence: anonymous simulator image from a33aced',content:fs.readFileSync(file).toString('base64')});
+              const data=fs.readFileSync(file).toString('base64');
+              for(let part=0;part*700000<data.length;part++){
+                const path='audit-runtime-evidence/'+i+'-'+file.split('/').pop()+'.b64-'+part+'.txt';
+                const existing=await github.rest.repos.getContent({owner:context.repo.owner,repo:context.repo.repo,path,ref:'ci/noxa-simulator-evidence-20260930'}).catch(()=>({data:{}}));
+                await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path,branch:'ci/noxa-simulator-evidence-20260930',message:'evidence: unchanged anonymous native image encoded in transport chunks',sha:existing.data.sha,content:Buffer.from(data.slice(part*700000,(part+1)*700000)).toString('base64')});
+              }
             }
