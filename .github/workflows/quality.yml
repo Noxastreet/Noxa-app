@@ -120,6 +120,9 @@ jobs:
       - name: Quick Connect static contract
         run: npm run verify:quick-connect
 
+      - name: Quick Connect motion continuity contract
+        run: npm run verify:quick-connect-motion
+
       - name: Quick Connect database smoke
         run: npm run test:quick-connect
 

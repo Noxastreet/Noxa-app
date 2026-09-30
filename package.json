@@ -46,7 +46,8 @@
     "verify:map-object-focus": "node ./scripts/verify-map-object-focus.mjs",
     "verify:drive-together-motion": "node ./scripts/verify-drive-together-motion-continuity.mjs",
     "verify:canonical-confirmations": "node ./scripts/verify-canonical-confirmations.mjs",
-    "verify:visibility-popover-motion": "node ./scripts/verify-visibility-popover-motion.mjs"
+    "verify:visibility-popover-motion": "node ./scripts/verify-visibility-popover-motion.mjs",
+    "verify:quick-connect-motion": "node ./scripts/verify-quick-connect-motion.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
