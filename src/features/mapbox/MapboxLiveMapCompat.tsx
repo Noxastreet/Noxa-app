@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import {
   type ComponentType,
   type RefAttributes,
