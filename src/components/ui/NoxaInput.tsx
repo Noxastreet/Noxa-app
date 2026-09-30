@@ -36,7 +36,8 @@ export function NoxaInput({
         />
         <TextInput
           {...props}
-          accessibilityLabel={props.accessibilityLabel ?? label}
+          accessibilityLabel={props.accessibilityLabel ?? label ?? props.placeholder}
+          accessibilityHint={[props.accessibilityHint, error ?? hint].filter(Boolean).join('. ') || undefined}
           onBlur={(event) => {
             setFocused(false);
             onBlur?.(event);
@@ -52,7 +53,7 @@ export function NoxaInput({
         {trailing}
       </View>
       {error ? (
-        <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
+        <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text>
       ) : hint ? (
         <Text style={styles.hint}>{hint}</Text>
       ) : null}
@@ -63,7 +64,7 @@ export function NoxaInput({
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
   label: {
-    color: colors.textTertiary,
+    color: colors.textQuiet,
     fontSize: typography.v2.label.fontSize,
     lineHeight: typography.v2.label.lineHeight,
     letterSpacing: typography.v2.label.letterSpacing,
@@ -79,11 +80,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 54,
+    minHeight: geometry.controlHeight.primary,
     paddingHorizontal: spacing.md,
     color: colors.text,
     fontSize: typography.body,
   },
-  error: { color: colors.primaryHover, fontSize: typography.caption, fontWeight: '700' },
+  error: { color: colors.textCritical, fontSize: typography.caption, fontWeight: '700' },
   hint: { color: colors.textMuted, fontSize: typography.caption },
 });

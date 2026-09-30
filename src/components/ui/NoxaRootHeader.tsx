@@ -13,7 +13,7 @@ export function NoxaRootHeader({ title, subtitle, actions }: Props) {
   return (
     <View style={styles.header}>
       <View style={styles.copy}>
-        <Text numberOfLines={1} style={styles.title}>{title}</Text>
+        <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{title}</Text>
         {subtitle ? <Text numberOfLines={2} style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
       {actions ? <View style={styles.actions}>{actions}</View> : null}

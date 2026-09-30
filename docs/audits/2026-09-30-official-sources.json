@@ -1,0 +1,236 @@
+[
+  {
+    "id": "apple-hig",
+    "url": "https://developer.apple.com/design/human-interface-guidelines",
+    "finalUrl": "https://developer.apple.com/design/human-interface-guidelines",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:08.172Z",
+    "rawSha256": "608b1dac30e2129df5446e6f36b2e1fed11007f99e8c3ae2940160b73eebfd0e",
+    "textLength": 173
+  },
+  {
+    "id": "apple-modality",
+    "url": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/modality.json",
+    "finalUrl": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/modality.json",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:08.181Z",
+    "rawSha256": "79f76255705524952443c7ef0aaffaf6285142d0fdcd0a0ad9be4b1c3181e5be",
+    "textLength": 6542
+  },
+  {
+    "id": "apple-accessibility",
+    "url": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/accessibility.json",
+    "finalUrl": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/accessibility.json",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:08.193Z",
+    "rawSha256": "be49ec0b34397f356a1e3fd8c7ad323713198515523947097913cb9c57da699b",
+    "textLength": 20976
+  },
+  {
+    "id": "apple-typography",
+    "url": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.json",
+    "finalUrl": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.json",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:08.230Z",
+    "rawSha256": "85bf7dc78d41a6e5e16d4055f3bdadf7bac4f7d5cb2206514c8b82d5d24631ed",
+    "textLength": 36246
+  },
+  {
+    "id": "apple-motion",
+    "url": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/motion.json",
+    "finalUrl": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/motion.json",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:08.335Z",
+    "rawSha256": "957268c323af4617dabb6c0449d0920248c995159d54f76c691aa180ceb72a61",
+    "textLength": 8801
+  },
+  {
+    "id": "apple-design-videos",
+    "url": "https://developer.apple.com/videos/design/",
+    "finalUrl": "https://developer.apple.com/videos/design/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:08.829Z",
+    "rawSha256": "8b9e038685c83129b1858f48d63873af0223921a718bf15c8de0834614aa1e71",
+    "textLength": 11705
+  },
+  {
+    "id": "uber-accessibility",
+    "url": "https://baseweb.design/guides/accessibility/",
+    "finalUrl": "https://baseweb.design/guides/accessibility/",
+    "status": 404,
+    "retrievedAt": "2026-09-30T16:10:08.850Z",
+    "rawSha256": "da9e4971f4ec15a021664d2b6482ff3b705422523ed31aac085509392e7d59e7",
+    "textLength": 0
+  },
+  {
+    "id": "uber-base",
+    "url": "https://base.uber.com/",
+    "finalUrl": "https://base.uber.com/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:09.031Z",
+    "rawSha256": "0b3d4da1dbfc9794e1356bd58fd5c6d791db91284de97a5fdbe0b567f54ae974",
+    "textLength": 18
+  },
+  {
+    "id": "google-material",
+    "url": "https://m3.material.io/foundations/accessible-design/overview",
+    "finalUrl": "https://m3.material.io/foundations/accessible-design/overview",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:09.481Z",
+    "rawSha256": "1e093eb615a8ab4ec2aebf265d99f1902a9ac4757b972572d21228cccfe9204a",
+    "textLength": 49
+  },
+  {
+    "id": "meta-design",
+    "url": "https://design.facebook.com/",
+    "finalUrl": "https://www.meta.com/design-at-meta/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:09.507Z",
+    "rawSha256": "e6724dfe365c6abef44466e578c27bf5bf7a3b8afcde1ac491a1991e6c390a60",
+    "textLength": 21
+  },
+  {
+    "id": "google-accessibility",
+    "url": "https://developer.android.com/design/ui/mobile/guides/foundations/accessibility",
+    "finalUrl": "https://developer.android.com/design/ui/mobile/guides/foundations/accessibility?hl=zh-tw",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:09.636Z",
+    "rawSha256": "c0f4961000755923f6f5f8ee6cb9a95a1c9d22abf249344d91ee3bdaec143bfe",
+    "textLength": 6659
+  },
+  {
+    "id": "meta-accessibility",
+    "url": "https://about.fb.com/news/2023/05/accessibility-tools-in-facebook-and-instagram/",
+    "finalUrl": "https://about.fb.com/news/2023/05/accessibility-tools-in-facebook-and-instagram/",
+    "status": 404,
+    "retrievedAt": "2026-09-30T16:10:09.900Z",
+    "rawSha256": "389105aed1565bb04678ee51f1e8d7205c7a8e23dd20b6db3e2a6655bd704ef8",
+    "textLength": 5460
+  },
+  {
+    "id": "fluent-motion",
+    "url": "https://fluent2.microsoft.design/motion",
+    "finalUrl": "https://fluent2.microsoft.design/motion",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:10.190Z",
+    "rawSha256": "b9389a119221fd6ba77d9763af00f3b81895a3f53973ffdb6e367692ad98239b",
+    "textLength": 7691
+  },
+  {
+    "id": "fluent-accessibility",
+    "url": "https://fluent2.microsoft.design/accessibility",
+    "finalUrl": "https://fluent2.microsoft.design/accessibility",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:10.192Z",
+    "rawSha256": "96f1a967597a92f412910a7aa61ccf7a64240cba70d8fea3d194b0b4939e5df9",
+    "textLength": 5984
+  },
+  {
+    "id": "airbnb-accessibility",
+    "url": "https://www.airbnb.com/accessibility",
+    "finalUrl": "https://www.airbnb.com/accessibility",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:11.442Z",
+    "rawSha256": "d531000317bed5f74e101c9d29be2146f2d1c81001c558670848fd97d625bc39",
+    "textLength": 8720
+  },
+  {
+    "id": "airbnb-language",
+    "url": "https://airbnb.design/building-a-visual-language/",
+    "finalUrl": "https://www.airbnb.com/404",
+    "status": 404,
+    "retrievedAt": "2026-09-30T16:10:11.452Z",
+    "rawSha256": "a71bb7d237aea979f1174a535454c4447a1c804e6f4a8f4574679906eef5d85a",
+    "textLength": 222
+  },
+  {
+    "id": "porsche-accessibility",
+    "url": "https://designsystem.porsche.com/v3/accessibility",
+    "finalUrl": "https://designsystem.porsche.com/v3/accessibility/",
+    "status": 403,
+    "retrievedAt": "2026-09-30T16:10:11.949Z",
+    "rawSha256": "a824bc7739e226e1b40ea0f8c4e4f4c6f796fc3b4abfa6e9abe3bd119a30d938",
+    "textLength": 26
+  },
+  {
+    "id": "porsche-typography",
+    "url": "https://designsystem.porsche.com/v3/styles/typography",
+    "finalUrl": "https://designsystem.porsche.com/v3/styles/typography/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:11.973Z",
+    "rawSha256": "99d6c1c2c393e80aa76b662ea0fa462aef099c7990bc8f8b95df542907eee704",
+    "textLength": 11322
+  },
+  {
+    "id": "porsche-motion",
+    "url": "https://designsystem.porsche.com/v3/styles/motion",
+    "finalUrl": "https://designsystem.porsche.com/v3/styles/motion/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:10:11.989Z",
+    "rawSha256": "ccec85536ea7b45b56cc7bb70bdb7c959a6ea26ec3f8763bc5630d251b1f8448",
+    "textLength": 10933
+  },
+  {
+    "id": "porsche-introduction",
+    "url": "https://designsystem.porsche.com/v3/introduction",
+    "finalUrl": "https://designsystem.porsche.com/v3/introduction/",
+    "status": 403,
+    "retrievedAt": "2026-09-30T16:10:11.992Z",
+    "rawSha256": "a824bc7739e226e1b40ea0f8c4e4f4c6f796fc3b4abfa6e9abe3bd119a30d938",
+    "textLength": 26
+  },
+  {
+    "id": "uber",
+    "url": "https://base.uber.com/",
+    "finalUrl": "https://base.uber.com/6d2425e9f/p/294ab4-base-design-system",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:28:29.579Z",
+    "textLength": 1229,
+    "sha256": "e54f65f704b4b83291eb7adcc71adbedb6a80e3b84e03604ef38e0f43957b182"
+  },
+  {
+    "id": "baseweb",
+    "url": "https://baseweb.design/components/button/",
+    "finalUrl": "https://baseweb.design/components/button/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:28:37.359Z",
+    "textLength": 4226,
+    "sha256": "bc40960d5803551781266cc327d6d4abdb58a160bd36ce52740add13ae5a56db"
+  },
+  {
+    "id": "material",
+    "url": "https://m3.material.io/foundations/accessible-design/overview",
+    "finalUrl": "https://m3.material.io/foundations/overview/principles",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:28:44.296Z",
+    "textLength": 3769,
+    "sha256": "ce1231664ace7211aa861089cdf6b2b0deda03eaded5442f0ae08ea923b3e6e4"
+  },
+  {
+    "id": "meta",
+    "url": "https://www.meta.com/design-at-meta/",
+    "finalUrl": "https://www.meta.com/design-at-meta/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:28:51.710Z",
+    "textLength": 4323,
+    "sha256": "ad7b09d7cd518a7a3f705512b1f7e18c3ec2135614c4ee019290f5f927bebec6"
+  },
+  {
+    "id": "meta-a11y",
+    "url": "https://www.meta.com/accessibility/",
+    "finalUrl": "https://www.meta.com/accessibility/",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:29:00.340Z",
+    "textLength": 4279,
+    "sha256": "973b3deae863e079cd423a1389574bfa5950f702e936660a0b35b213c8c9eb54"
+  },
+  {
+    "id": "google-en",
+    "url": "https://developer.android.com/design/ui/mobile/guides/foundations/accessibility?hl=en",
+    "finalUrl": "https://developer.android.com/design/ui/mobile/guides/foundations/accessibility?hl=en",
+    "status": 200,
+    "retrievedAt": "2026-09-30T16:29:06.989Z",
+    "textLength": 5003,
+    "sha256": "25b7421dbb8ab89694f76d9232c863d332ad2b9d02cccbc4c400eb5a09b8cb93"
+  }
+]
