@@ -24,15 +24,19 @@ if (!failures.length) {
     ['stranger avatar masking missing', /avatar_url: null/],
     ['stranger vehicle masking missing', /vehicle_label: null/],
     ['stranger label masking missing', /label: "NOXA driver"/],
-    ['driver preview state missing', /selectedDriverId/],
-    ['pin press must open preview before profile', /setSelectedDriverId\(driverId\)/],
-    ['trusted preview avatar missing', /selectedDriver\.is_relevant && selectedDriver\.avatar_url/],
-    ['trusted preview vehicle missing', /selectedDriver\.vehicle_label/],
-    ['explicit profile action missing', /View profile/],
-    ['preview close action missing', /Close driver preview/],
+    ['driver marker must hand off directly to canonical card', /onDriverPress=\{props\.onDriverPress\}/],
   ];
   for (const [label, pattern] of requiredCompat) {
     if (!pattern.test(compat)) failures.push(label);
+  }
+
+  if (/selectedDriverId/.test(compat) || /View profile|Close driver preview/.test(compat)) {
+    failures.push('Legacy duplicate driver preview must not remain inside MapboxLiveMapCompat');
+  }
+  if (!/!selectedDriverId \|\| !selectedDriver\?\.is_relevant/.test(home)
+    || !/displayName: "NOXA driver"/.test(home)
+    || !/isRelevant=\{Boolean\(selectedDriver\.is_relevant\)\}/.test(home)) {
+    failures.push('Canonical MapDriverCard must receive masked stranger identity and explicit relevance state');
   }
 
   if (!/driverLocation \? "nearby now" : "active now"/.test(home)) {

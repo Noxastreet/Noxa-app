@@ -19,6 +19,10 @@ const mapRuntime = fs.readFileSync(
   'src/features/mapbox/MapboxLiveMap.tsx',
   'utf8',
 );
+const mapCompat = fs.readFileSync(
+  'src/features/mapbox/MapboxLiveMapCompat.tsx',
+  'utf8',
+);
 
 assert(
   /onDriverPress=\{openDriverCard\}/.test(home)
@@ -28,8 +32,20 @@ assert(
 );
 
 assert(
-  !/const openDriverProfile[\s\S]{0,250}router\.push/.test(home),
-  'The primary marker tap must not navigate directly to the full driver profile.',
+  !/const openDriverProfile[\s\S]{0,250}router\.push/.test(home)
+    && /onDriverPress=\{props\.onDriverPress\}/.test(mapCompat)
+    && !/selectedDriverId|View profile|Close driver preview/.test(mapCompat),
+  'The primary marker tap must open exactly one canonical in-map driver card before full profile navigation.',
+);
+
+assert(
+  /isRelevant: boolean/.test(card)
+    && /const canRevealMapIdentity = isRelevant \|\| currentUserId === driverId/.test(card)
+    && /setProfile\(null\);[\s\S]{0,80}setVehicle\(null\);/.test(card)
+    && /const name = isRelevant \?/.test(card)
+    && /: 'NOXA driver'/.test(card)
+    && /isRelevant=\{Boolean\(selectedDriver\.is_relevant\)\}/.test(home),
+  'Stranger identity and vehicle data must remain masked on the Map card until explicit profile navigation.',
 );
 
 assert(

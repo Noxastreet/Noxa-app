@@ -56,6 +56,7 @@ type Props = {
   } | null;
   bottomOffset: number;
   isInDrive: boolean;
+  isRelevant: boolean;
   onClose: () => void;
   onInviteToDrive: (driverId: string) => void;
 };
@@ -102,6 +103,7 @@ export function MapDriverCard({
   fallbackProfile,
   bottomOffset,
   isInDrive,
+  isRelevant,
   onClose,
   onInviteToDrive,
 }: Props) {
@@ -124,57 +126,64 @@ export function MapDriverCard({
       return;
     }
 
-    const [profileResult, vehicleResult] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id,display_name,username,avatar_url')
-        .eq('id', driverId)
-        .maybeSingle(),
-      supabase
-        .from('vehicles')
-        .select('id,brand,model,year,cover_image_url')
-        .eq('owner_id', driverId)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+    const canRevealMapIdentity = isRelevant || currentUserId === driverId;
 
-    if (profileResult.error) {
-      setError('This driver could not be loaded.');
-      setLoading(false);
-      return;
-    }
+    if (canRevealMapIdentity) {
+      const [profileResult, vehicleResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id,display_name,username,avatar_url')
+          .eq('id', driverId)
+          .maybeSingle(),
+        supabase
+          .from('vehicles')
+          .select('id,brand,model,year,cover_image_url')
+          .eq('owner_id', driverId)
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-    const row = profileResult.data;
-    setProfile(
-      row
-        ? {
-            id: String(row.id),
-            displayName:
-              String(row.display_name ?? '').trim()
-              || String(row.username ?? '').trim()
-              || 'NOXA driver',
-            username: row.username ? String(row.username) : null,
-            avatarUrl: row.avatar_url ? String(row.avatar_url) : null,
-          }
-        : null,
-    );
+      if (profileResult.error) {
+        setError('This driver could not be loaded.');
+        setLoading(false);
+        return;
+      }
 
-    if (!vehicleResult.error && vehicleResult.data) {
-      setVehicle({
-        id: String(vehicleResult.data.id),
-        brand: vehicleResult.data.brand ? String(vehicleResult.data.brand) : null,
-        model: vehicleResult.data.model ? String(vehicleResult.data.model) : null,
-        year:
-          typeof vehicleResult.data.year === 'number'
-            ? vehicleResult.data.year
-            : null,
-        coverImageUrl: vehicleResult.data.cover_image_url
-          ? String(vehicleResult.data.cover_image_url)
+      const row = profileResult.data;
+      setProfile(
+        row
+          ? {
+              id: String(row.id),
+              displayName:
+                String(row.display_name ?? '').trim()
+                || String(row.username ?? '').trim()
+                || 'NOXA driver',
+              username: row.username ? String(row.username) : null,
+              avatarUrl: row.avatar_url ? String(row.avatar_url) : null,
+            }
           : null,
-      });
+      );
+
+      if (!vehicleResult.error && vehicleResult.data) {
+        setVehicle({
+          id: String(vehicleResult.data.id),
+          brand: vehicleResult.data.brand ? String(vehicleResult.data.brand) : null,
+          model: vehicleResult.data.model ? String(vehicleResult.data.model) : null,
+          year:
+            typeof vehicleResult.data.year === 'number'
+              ? vehicleResult.data.year
+              : null,
+          coverImageUrl: vehicleResult.data.cover_image_url
+            ? String(vehicleResult.data.cover_image_url)
+            : null,
+        });
+      } else {
+        setVehicle(null);
+      }
     } else {
+      setProfile(null);
       setVehicle(null);
     }
 
@@ -213,7 +222,7 @@ export function MapDriverCard({
     }
 
     setLoading(false);
-  }, [driverId]);
+  }, [driverId, isRelevant]);
 
   useEffect(() => {
     void load();
@@ -245,10 +254,14 @@ export function MapDriverCard({
     setRelationshipLoading(false);
   }, [driverId, relationship, relationshipLoading]);
 
-  const name = displayName(profile, fallbackProfile);
-  const username = usernameLabel(profile?.username ?? fallbackProfile?.username);
-  const avatarUrl = profile?.avatarUrl ?? fallbackProfile?.avatarUrl ?? null;
-  const car = vehicleLabel(vehicle);
+  const name = isRelevant ? displayName(profile, fallbackProfile) : 'NOXA driver';
+  const username = isRelevant
+    ? usernameLabel(profile?.username ?? fallbackProfile?.username)
+    : null;
+  const avatarUrl = isRelevant
+    ? (profile?.avatarUrl ?? fallbackProfile?.avatarUrl ?? null)
+    : null;
+  const car = isRelevant ? vehicleLabel(vehicle) : null;
 
   const primaryAction = useMemo<{
     title: string;

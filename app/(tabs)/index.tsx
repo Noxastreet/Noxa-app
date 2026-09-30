@@ -2158,7 +2158,13 @@ export default function LiveMapScreen() {
   );
   const selectedDriverProfile = useMemo(
     () => {
-      if (!selectedDriverId) return null;
+      if (!selectedDriverId || !selectedDriver?.is_relevant) {
+        return {
+          displayName: "NOXA driver",
+          username: null,
+          avatarUrl: null,
+        };
+      }
       const driver = activeDrivers.find((candidate) => candidate.user_id === selectedDriverId);
       if (driver?.profile) {
         return {
@@ -2167,14 +2173,11 @@ export default function LiveMapScreen() {
           avatarUrl: driver.profile.avatar_url,
         };
       }
-      if (selectedDriver) {
-        return {
-          displayName: selectedDriver.label,
-          username: null,
-          avatarUrl: selectedDriver.avatar_url,
-        };
-      }
-      return null;
+      return {
+        displayName: selectedDriver.label,
+        username: null,
+        avatarUrl: selectedDriver.avatar_url,
+      };
     },
     [activeDrivers, selectedDriver, selectedDriverId],
   );
@@ -2557,6 +2560,7 @@ export default function LiveMapScreen() {
             driverId={selectedDriverId}
             fallbackProfile={selectedDriverProfile}
             isInDrive={selectedDriverIsInDrive}
+            isRelevant={Boolean(selectedDriver.is_relevant)}
             onClose={() => setSelectedDriverId(null)}
             onInviteToDrive={inviteDriverToDriveTogether}
           />
