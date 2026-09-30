@@ -2071,3 +2071,169 @@ Planned focus:
 - loading/success/error continuity around map actions.
 
 No TestFlight is required between individual Batch B PRs unless a critical runtime-risk change is introduced.
+
+
+---
+
+# 24. PHYSICAL RUNTIME VIDEO REVIEW - 2026-09-30
+
+**Evidence:** two iOS screen recordings supplied by the Product Owner on 2026-09-30.  
+**Build number:** not visible in the recordings, so these videos are treated as physical runtime evidence without assigning a TestFlight build number.
+
+## What is already working visually
+
+- Root tab switching stays spatially stable with no observed black/blank interstitial frame.
+- Native hierarchical push/back behavior is visible across Create Event, Garage setup, Edit Profile, Settings and Event Detail.
+- The Map remains mounted and visually stable while contextual UI changes.
+- Event selection already communicates selected state clearly.
+- The shared Event action sheet reads as a distinct bottom-sheet interaction rather than a full-page navigation.
+- Map camera movement, route line rendering and focused navigation are functioning in physical runtime.
+- Sticky bottom actions in Create Event remain usable around keyboard and long-form content.
+- The bottom navigation remains visually anchored during ordinary root-screen use.
+
+## Runtime motion issues visible in the recordings
+
+### 1. Drive Together sheet still changes state by layout jump
+
+Observed during:
+- destination selection;
+- participant selection;
+- waiting-room state;
+- room controls.
+
+Problem:
+- the same bottom region changes height/content too abruptly;
+- internal controls appear/disappear as separate layouts rather than one continuous sheet state;
+- the user can perceive component replacement instead of state progression.
+
+Required fix:
+- preserve one stable sheet shell;
+- animate internal state with short opacity/translate transitions;
+- use measured snap points for compact / destination / participants / waiting states;
+- keep the map visually continuous behind the sheet;
+- do not create another MapView or route runtime.
+
+### 2. Live Drive confirmations are still generic center modals
+
+Observed:
+- audience-change confirmation;
+- start 4-hour Live Drive confirmation.
+
+Problem:
+- they visually belong to a different interaction system than NOXA sheets;
+- fade-in center cards feel generic next to the new premium sheet language.
+
+Required fix:
+- move to one canonical NOXA confirmation surface;
+- coordinated backdrop fade + restrained material entrance;
+- no drag-to-dismiss for consent/privacy confirmations;
+- explicit Cancel / Confirm hierarchy;
+- preserve all current privacy copy and business logic.
+
+### 3. Native iOS alert remains for destructive Drive Together cancellation
+
+Observed:
+- "Cancel Drive Together?" system alert.
+
+Problem:
+- breaks the NOXA visual/motion language at a high-attention moment.
+
+Required fix:
+- replace only the presentation layer with canonical NOXA destructive confirmation;
+- keep the exact existing destructive action semantics;
+- no new backend state or cancellation logic.
+
+### 4. Visibility popover needs anchored motion
+
+Observed:
+- Global / Friends / Ghost menu.
+
+Problem:
+- appears/disappears almost as a static block;
+- does not visually communicate that it belongs to the avatar/visibility control.
+
+Required fix:
+- anchored fade + short scale/translate from the trigger;
+- selected mode changes in place;
+- privacy confirmation remains a separate confirmation interaction when required.
+
+### 5. Event Card -> Route transition still reads as two UI states
+
+Observed:
+- Event Card;
+- route request;
+- Route Card;
+- camera fit;
+- ETA / km.
+
+Problem:
+- the sequence is functional but visually separable.
+
+Status:
+- **Batch B B3** directly addresses this with immediate loading shell, fixed geometry, short state reveal and camera fit after route-state commit.
+
+### 6. Driver/Event object focus needs one shared spatial beat
+
+Observed:
+- event marker selection has clear selected state;
+- driver selection was not fully exercised in these recordings.
+
+Status:
+- **Batch B B4/B5** addresses shared selected-driver state and selected-state -> camera-focus sequencing.
+
+### 7. Bottom-tab and small control press feedback remains understated
+
+Observed:
+- root tab changes are stable, but press feedback itself is visually minimal.
+
+Required later:
+- shared micro spring/opacity response;
+- optional restrained haptic only on meaningful mode changes;
+- no animated tab-bar translation or decorative bounce.
+
+## Physical evidence status from these recordings
+
+### VERIFIED from video
+- root tab transitions do not show a visible black/blank gap;
+- Map remains mounted through the exercised flows;
+- Event Detail push/back is coherent;
+- Event action sheet opens as a bottom sheet;
+- Map event selection and route rendering function in runtime;
+- focused route/navigation UI can enter and exit;
+- Create Event long-form + keyboard interaction remains usable.
+
+### NOT VERIFIED by these recordings
+- Driver Profile push/back specifically;
+- Vehicle Detail push/back specifically;
+- Crew Detail push/back specifically;
+- action-sheet drag interruption;
+- velocity-based sheet dismissal;
+- Reduce Motion;
+- haptic behavior;
+- exact realtime location accuracy;
+- long-duration Live Drive reliability;
+- selected-driver marker treatment from Batch B.
+
+## Batch C - Contextual sheets + confirmations
+
+After Batch B physical checkpoint, priority order:
+
+1. Drive Together stable multi-state sheet;
+2. canonical Live Drive privacy confirmation surface;
+3. canonical destructive Drive Together cancellation confirmation;
+4. visibility popover anchored motion;
+5. Quick Connect internal scanner/result state continuity;
+6. remaining map/contextual sheet snap-point consistency.
+
+## Batch D - Micro-interactions + final tactile layer
+
+After sheet/confirmation behavior is stable:
+
+1. root tab press response;
+2. small icon/button press springs;
+3. segmented/toggle mechanical motion;
+4. selective haptics;
+5. final depth/blur/highlight pass;
+6. Reduce Motion physical QA;
+7. final performance/jank pass on physical iPhone.
+

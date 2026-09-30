@@ -853,7 +853,8 @@ export default function LiveMapScreen() {
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
   const animateTo = useCallback(
-    (region: MapRegion) => mapRef.current?.animateToRegion(region, 550),
+    (region: MapRegion, duration = 550) =>
+      mapRef.current?.animateToRegion(region, duration),
     [],
   );
 
@@ -2005,7 +2006,9 @@ export default function LiveMapScreen() {
       setSelectedDriverId(null);
       setSelectedEvent(event);
       setIsCameraAwayFromUser(true);
-      animateTo(eventRegion(event));
+      requestAnimationFrame(() =>
+        animateTo(eventRegion(event), animations.step),
+      );
     },
     [animateTo],
   );
@@ -2247,19 +2250,19 @@ export default function LiveMapScreen() {
 
     const driver = mapboxDrivers.find((candidate) => candidate.user_id === driverId);
     if (driver) {
-      mapRef.current?.animateToRegion(
-        {
-          ...pointRegion({
-            latitude: driver.latitude,
-            longitude: driver.longitude,
-          }),
-          latitudeDelta: 0.035,
-          longitudeDelta: 0.035,
-        },
-        260,
+      const focusRegion = {
+        ...pointRegion({
+          latitude: driver.latitude,
+          longitude: driver.longitude,
+        }),
+        latitudeDelta: 0.035,
+        longitudeDelta: 0.035,
+      };
+      requestAnimationFrame(() =>
+        animateTo(focusRegion, animations.step),
       );
     }
-  }, [mapObjectSelectionLocked, mapboxDrivers]);
+  }, [animateTo, mapObjectSelectionLocked, mapboxDrivers]);
 
   const inviteDriverToDriveTogether = useCallback((driverId: string) => {
     setSelectedDriverId(null);
