@@ -8,6 +8,7 @@ function assert(condition, message) {
 }
 
 const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
+const liveDriveError = fs.readFileSync('src/lib/liveDriveError.ts', 'utf8');
 const visibilitySetup = fs.readFileSync('app/visibility-setup.tsx', 'utf8');
 const mapScreen = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
 
@@ -201,19 +202,20 @@ assert(
 
 
 assert(
-  liveDrive.includes('export function getSafeLiveDriveStartMessage(error: unknown)'),
-  'Live Drive must expose one shared safe startup-error mapper.',
+  liveDriveError.includes('export function getSafeLiveDriveStartMessage(error: unknown)'),
+  'Live Drive must expose one shared safe startup-error mapper outside the low-level background runtime.',
 );
 assert(
-  liveDrive.includes('Set NOXA Location to Always in iPhone Settings.') &&
-    liveDrive.includes('Enable Precise Location for NOXA in iPhone Settings.') &&
-    liveDrive.includes('Enable iPhone Location Services, then retry.'),
+  liveDriveError.includes('Set NOXA Location to Always in iPhone Settings.') &&
+    liveDriveError.includes('Enable Precise Location for NOXA in iPhone Settings.') &&
+    liveDriveError.includes('Enable iPhone Location Services, then retry.'),
   'Live Drive startup errors must distinguish background, precise-location, and system-location failures.',
 );
 assert(
-  liveDrive.includes("Platform.OS === 'ios'") &&
-    liveDrive.includes('Background location requires Always access in iPhone Settings.'),
-  'iOS background permission denial must direct the user to Always access instead of a generic retry.',
+  liveDriveError.includes("Platform.OS === 'ios'") &&
+    liveDrive.includes('Background location permission is required for Live Drive.') &&
+    !liveDrive.includes("from 'react-native'"),
+  'Low-level Live Drive must stay platform-UI independent while the UI mapper gives iOS-specific recovery guidance.',
 );
 assert(
   visibilitySetup.includes('getSafeLiveDriveStartMessage,') &&
