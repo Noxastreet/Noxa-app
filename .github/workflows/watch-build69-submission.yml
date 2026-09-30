@@ -1,0 +1,77 @@
+name: Watch build 69 submission
+on:
+  push:
+    branches: [ci/watch-build69-submission-20260930]
+    paths: [.github/workflows/watch-build69-submission.yml]
+permissions:
+  contents: write
+concurrency:
+  group: watch-build69-submission
+  cancel-in-progress: false
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: ${{ github.run_attempt == 1 }}
+    steps:
+      - name: Watch existing EAS submission without resubmitting
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const endpoint = "https://api.expo.dev/graphql";
+          async function query(query) {
+            const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + process.env.EXPO_TOKEN }, body: JSON.stringify({ query }) });
+            const result = await response.json();
+            if (!response.ok || result.errors) throw new Error(JSON.stringify({status:response.status,errors:result.errors}));
+            return result.data;
+          }
+          const typeShape = "kind name ofType { kind name ofType { kind name ofType { kind name } } }";
+          const getType = async (name) => (await query('{ __type(name: '+JSON.stringify(name)+') { name fields { name type { '+typeShape+' } args { name defaultValue type { '+typeShape+' } } } } }')).__type;
+          const leaf = (type) => type.ofType ? leaf(type.ofType) : type;
+          const app = await getType("App");
+          if (!app) throw new Error("App schema unavailable");
+          const field = app.fields.find((f) => /^(submissions|recentSubmissions)$/.test(f.name));
+          if (!field) { console.log("Submission fields:", app.fields.filter(f=>/submi/i.test(f.name)).map(f=>f.name)); throw new Error("Submission list field unavailable"); }
+          console.log("Submission list:",field.name,"arguments:",field.args.map(a=>({name:a.name,type:leaf(a.type).name,required:a.type.kind==="NON_NULL",default:a.defaultValue})));
+          const args = [];
+          for (const arg of field.args) {
+            if (arg.name === "limit" || arg.name === "first") args.push(arg.name+":5");
+            else if (arg.name === "offset") args.push("offset:0");
+            else if (arg.name === "filter") args.push("filter:{}");
+            else if (arg.type.kind === "NON_NULL" && arg.defaultValue == null) throw new Error("Unsupported required argument: "+arg.name);
+          }
+          const node = await getType(leaf(field.type).name);
+          const safe = ["id","status","createdAt","updatedAt","completedAt","platform","appVersion","appBuildVersion"];
+          const fields = node.fields.filter(f=>safe.includes(f.name)&&["SCALAR","ENUM"].includes(leaf(f.type).kind)).map(f=>f.name);
+          if (!fields.includes("status")) throw new Error("Submission status schema unavailable");
+          const body = "{ app { byId(appId: \"8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a\") { "+field.name+(args.length?"("+args.join(",")+")":"")+" { "+fields.join(" ")+" } } } }";
+          
+          console.log("Submission schema fields:", node.fields.map(f=>f.name));
+          const branch = "ci/watch-build69-submission-20260930";
+          const path = "release-status/build69.json";
+          let blobSha;
+          async function github(method, suffix, value) {
+            const response = await fetch("https://api.github.com/repos/Noxastreet/Noxa-app"+suffix, {method,headers:{"Content-Type":"application/json",Authorization:"Bearer "+process.env.GH_TOKEN,"X-GitHub-Api-Version":"2022-11-28"},body:value?JSON.stringify(value):undefined});
+            const result = await response.json();
+            if(!response.ok) throw new Error("GitHub status checkpoint HTTP "+response.status);
+            return result;
+          }
+          for (let attempt=0; attempt<110; attempt++) {
+            const response = await query(body);
+            const submission = response.app.byId.submissions.find(s=>s.id==="49c9752a-921b-4c71-a187-603845b0e2aa");
+            if(!submission) throw new Error("Expected submission is missing");
+            const evidence = {sourceSha:"fb74ff4fdea496917cd3ddbd46271a5acbc1275f",bundleId:"com.karaketidis.noxa",version:"1.0.0",buildNumber:69,observedAt:new Date().toISOString(),submission};
+            console.log(JSON.stringify(evidence));
+            const written = await github("PUT","/contents/"+path,{message:"ci: record build 69 submission "+submission.status,branch,content:Buffer.from(JSON.stringify(evidence,null,2)+"\\n").toString("base64"),...(blobSha?{sha:blobSha}:{})});
+            blobSha = written.content.sha;
+            if(submission.status==="FINISHED") break;
+            if(["ERRORED","CANCELED","CANCELLED"].includes(submission.status)) throw new Error("EAS submission ended: "+submission.status);
+            if(attempt===109) throw new Error("Monitor deadline reached; submission remains active");
+            await new Promise(done=>setTimeout(done,60000));
+          }
+          
+          
+          NODE
