@@ -673,6 +673,7 @@ export default function CanonicalEventDetailScreen() {
   if (loading) {
     return (
       <NoxaScreen>
+        <EventHeader />
         <View style={styles.state}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.stateText}>Opening event…</Text>

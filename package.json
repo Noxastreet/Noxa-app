@@ -37,7 +37,8 @@
     "verify:map-driver-card": "node ./scripts/verify-map-driver-card.mjs",
     "verify:ui-foundation": "node ./scripts/verify-ui-foundation.mjs",
     "verify:ui-root-screens": "node ./scripts/verify-ui-root-screens.mjs",
-    "verify:motion-foundation": "node ./scripts/verify-motion-foundation.mjs"
+    "verify:motion-foundation": "node ./scripts/verify-motion-foundation.mjs",
+    "verify:motion-detail-navigation": "node ./scripts/verify-detail-motion-navigation.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

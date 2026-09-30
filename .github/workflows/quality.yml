@@ -60,6 +60,9 @@ jobs:
       - name: NOXA motion foundation contract
         run: npm run verify:motion-foundation
 
+      - name: NOXA detail navigation motion contract
+        run: npm run verify:motion-detail-navigation
+
       - name: Chat latest-window contract
         run: node ./scripts/verify-chat-window.mjs
 
