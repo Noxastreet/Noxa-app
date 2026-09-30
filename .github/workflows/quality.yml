@@ -84,6 +84,9 @@ jobs:
       - name: Navigation focus and live route progress contract
         run: npm run verify:navigation-focus
 
+      - name: Route motion continuity contract
+        run: npm run verify:route-motion-continuity
+
       - name: Map driver contextual card contract
         run: npm run verify:map-driver-card
 
