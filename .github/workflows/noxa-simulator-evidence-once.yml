@@ -1,0 +1,33 @@
+name: Inspect anonymous simulator evidence once
+on:
+  push:
+    branches: [ci/noxa-simulator-evidence-20260930]
+    paths: [.github/workflows/noxa-simulator-evidence-once.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.run_attempt == 1 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the existing anonymous UI test artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 36750290186 --repo Noxastreet/Noxa-app --name noxa-hosted-ios-audit --dir evidence
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(dir+'/'+e.name):[dir+'/'+e.name]);}
+            const all=files('evidence');
+            console.log('Evidence paths:',JSON.stringify(all.filter(p=>!p.endsWith('.tar.gz'))));
+            const images=all.filter(p=>p.endsWith('.png'));
+            const jsons=all.filter(p=>p.endsWith('.json'));
+            for(const file of jsons){const text=fs.readFileSync(file,'utf8');if(text.length<100000)console.log('UI debug '+file+': '+text);}
+            for(const [i,file] of images.entries()){
+              const path='audit-runtime-evidence/'+i+'-'+file.split('/').pop();
+              await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path,branch:'ci/noxa-simulator-evidence-20260930',message:'evidence: anonymous simulator image from a33aced',content:fs.readFileSync(file).toString('base64')});
+            }
