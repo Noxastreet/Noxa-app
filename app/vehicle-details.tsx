@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
 
-import { NoxaAvatar, NoxaBadge, NoxaScreen } from '@/src/components/ui';
+import { NoxaAvatar, NoxaBadge, NoxaIconButton, NoxaScreen } from '@/src/components/ui';
 import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -101,9 +101,14 @@ function formatOwnerInitials(owner: VehicleOwner) {
 
 function HeaderAction({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress?: () => void }) {
   return (
-    <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}>
-      <Ionicons name={icon} size={22} color={colors.text} />
-    </Pressable>
+    <NoxaIconButton
+      accessibilityLabel={label}
+      icon={icon}
+      iconSize={22}
+      onPress={onPress}
+      size={44}
+      variant="overlay"
+    />
   );
 }
 
