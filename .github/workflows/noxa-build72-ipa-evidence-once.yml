@@ -1,0 +1,52 @@
+name: Verify preserved build 72 IPA independently
+on:
+  push:
+    branches: [ci/noxa-build72-ipa-evidence-20260930]
+    paths: [.github/workflows/noxa-build72-ipa-evidence-once.yml]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ github.run_attempt == 1 }}
+    env:
+      SOURCE_SHA: "2de5f8a61ec445cf705004c733d2ba2075e768a9"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the already preserved IPA and current main
+        run: |
+          gh run download 36772072719 --repo Noxastreet/Noxa-app --name noxa-build72-ipa-36772072719 --dir ipa-evidence
+          gh api repos/Noxastreet/Noxa-app/branches/main --jq '.commit.sha' > current-main.txt
+      - name: Validate bytes, embedded plist and recorded source
+        run: |
+          python3 <<'PY'
+          import glob, hashlib, json, os, plistlib, re, zipfile
+          from pathlib import Path
+          paths=glob.glob('ipa-evidence/*.ipa')
+          assert len(paths)==1, 'Expected the same single preserved IPA'
+          with open(paths[0],'rb') as stream:
+              digest=hashlib.file_digest(stream,'sha256').hexdigest()
+          recorded=Path('ipa-evidence/ipa-sha256.txt').read_text().split()[0]
+          assert digest==recorded, 'Preserved IPA bytes changed'
+          source=json.loads(Path('ipa-evidence/ipa-metadata.json').read_text())
+          assert source['source']==os.environ['SOURCE_SHA']
+          assert Path('current-main.txt').read_text().strip()==os.environ['SOURCE_SHA']
+          with zipfile.ZipFile(paths[0]) as archive:
+              infos=[p for p in archive.namelist() if re.fullmatch(r'Payload/[^/]+\.app/Info\.plist',p)]
+              assert len(infos)==1
+              info=plistlib.loads(archive.read(infos[0]))
+          assert info['CFBundleIdentifier']=='com.karaketidis.noxa'
+          assert info['CFBundleShortVersionString']=='1.0.0'
+          assert str(info['CFBundleVersion'])=='72'
+          evidence={'source':source['source'],'bundle':info['CFBundleIdentifier'],'version':info['CFBundleShortVersionString'],'build':str(info['CFBundleVersion']),'ipaSHA256':digest,'artifactId':11125146143,'deliveryRun':36772072719,'submissionScheduled':False,'preservedBytesMatchRunner':True}
+          Path('ipa-integrity-evidence.json').write_text(json.dumps(evidence,indent=2))
+          print(json.dumps(evidence))
+          PY
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path:'ipa-integrity-evidence.json',branch:'ci/noxa-build72-ipa-evidence-20260930',message:'evidence: independently verified exact-source preserved production IPA',content:fs.readFileSync('ipa-integrity-evidence.json').toString('base64')});
