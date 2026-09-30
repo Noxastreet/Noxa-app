@@ -42,7 +42,8 @@
     "verify:motion-action-sheet": "node ./scripts/verify-premium-action-sheet.mjs",
     "verify:map-camera-ownership": "node ./scripts/verify-map-camera-ownership.mjs",
     "verify:route-motion-continuity": "node ./scripts/verify-route-motion-continuity.mjs",
-    "verify:map-selected-driver": "node ./scripts/verify-map-selected-driver.mjs"
+    "verify:map-selected-driver": "node ./scripts/verify-map-selected-driver.mjs",
+    "verify:map-object-focus": "node ./scripts/verify-map-object-focus.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
