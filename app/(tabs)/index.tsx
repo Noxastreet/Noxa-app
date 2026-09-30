@@ -30,6 +30,7 @@ import {
 import { MapDriverCard } from "@/src/features/map/MapDriverCard";
 import {
   DriveTogetherMapLayer,
+  type DriveTogetherDestinationSeed,
   type DriveTogetherNavigationOverlay,
 } from "@/src/features/group-drive/DriveTogetherMapLayer";
 import {
@@ -482,6 +483,7 @@ function RouteCard({
   onClose,
   onFollowToggle,
   onRetry,
+  onAddDriver,
   remainingDistanceMeters,
   remainingDurationSeconds,
 }: {
@@ -497,6 +499,7 @@ function RouteCard({
   onClose: () => void;
   onFollowToggle: () => void;
   onRetry: () => void;
+  onAddDriver: () => void;
 }) {
   const loading = status === "loading";
   return (
@@ -571,6 +574,17 @@ function RouteCard({
           style={styles.routeFollowButton}
           title={following ? "Following" : "Follow"}
           variant={following ? "primary" : "secondary"}
+        />
+      ) : null}
+      {route ? (
+        <NoxaButton
+          accessibilityLabel="Add a driver to this event route"
+          leadingIcon={<Ionicons name="people-outline" size={16} color={colors.text} />}
+          onPress={onAddDriver}
+          size="md"
+          style={styles.routeFollowButton}
+          title="Add driver"
+          variant="secondary"
         />
       ) : null}
       {status === "error" ? (
@@ -724,6 +738,8 @@ export default function LiveMapScreen() {
   const [driveTogetherDrivers, setDriveTogetherDrivers] = useState<MapboxDriver[]>([]);
   const [driveTogetherQuickStartFriendId, setDriveTogetherQuickStartFriendId] =
     useState<string | null>(null);
+  const [driveTogetherInitialDestination, setDriveTogetherInitialDestination] =
+    useState<DriveTogetherDestinationSeed | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [isRouteFocusMode, setIsRouteFocusMode] = useState(false);
 
@@ -2252,6 +2268,30 @@ export default function LiveMapScreen() {
       })),
     [events],
   );
+  const driveTogetherEventDestinations = useMemo<DriveTogetherDestinationSeed[]>(
+    () =>
+      events
+        .filter((event) => {
+          const lifecycle = getEventLifecycle(event);
+          return (
+            hasValidCoordinates(event)
+            && (lifecycle === "scheduled" || lifecycle === "live")
+          );
+        })
+        .map((event) => ({
+          id: event.id,
+          latitude: event.latitude,
+          longitude: event.longitude,
+          label: event.title,
+          subtitle: [
+            formatEventTime(event.starts_at),
+            event.location_name ?? null,
+          ]
+            .filter(Boolean)
+            .join(" • "),
+        })),
+    [events],
+  );
   const openDriverCard = useCallback((driverId: string) => {
     if (mapObjectSelectionLocked) return;
 
@@ -2278,6 +2318,20 @@ export default function LiveMapScreen() {
   const inviteDriverToDriveTogether = useCallback((driverId: string) => {
     setSelectedDriverId(null);
     setDriveTogetherQuickStartFriendId(driverId);
+    setDriveTogetherOpen(true);
+  }, []);
+
+  const startDriveTogetherForEvent = useCallback((event: EventMarkerRow) => {
+    if (!hasValidCoordinates(event)) return;
+    setSelectedDriverId(null);
+    setDriveTogetherQuickStartFriendId(null);
+    setDriveTogetherInitialDestination({
+      id: event.id,
+      latitude: event.latitude,
+      longitude: event.longitude,
+      label: event.title,
+      subtitle: event.location_name,
+    });
     setDriveTogetherOpen(true);
   }, []);
   const selectMapboxEvent = useCallback(
@@ -2621,6 +2675,7 @@ export default function LiveMapScreen() {
             onClose={closeRouteMode}
             onFollowToggle={toggleRouteFollow}
             onRetry={retryRoute}
+            onAddDriver={() => startDriveTogetherForEvent(selectedEvent)}
             remainingDistanceMeters={routeRemainingDistanceMeters}
             remainingDurationSeconds={routeRemainingDurationSeconds}
           />
@@ -2664,6 +2719,8 @@ export default function LiveMapScreen() {
       <DriveTogetherMapLayer
         bottomInset={insets.bottom}
         initialFriendId={driveTogetherQuickStartFriendId}
+        initialDestination={driveTogetherInitialDestination}
+        eventDestinations={driveTogetherEventDestinations}
         bottomOffset={driveTogetherPanelVisible ? 0 : eventCardBottom + spacing.sm}
         currentLocation={driverLocation}
         following={isDriveTogetherFollowing}
@@ -2674,6 +2731,7 @@ export default function LiveMapScreen() {
         onFollowingChange={setIsDriveTogetherFollowing}
         onNavigationChange={handleDriveTogetherNavigationChange}
         onOpenChange={setDriveTogetherOpen}
+        onInitialDestinationConsumed={() => setDriveTogetherInitialDestination(null)}
         onPanelVisibilityChange={handleDriveTogetherPanelVisibilityChange}
         open={driveTogetherOpen}
         topOffset={headerBottom + spacing.md}

@@ -47,7 +47,8 @@
     "verify:drive-together-motion": "node ./scripts/verify-drive-together-motion-continuity.mjs",
     "verify:canonical-confirmations": "node ./scripts/verify-canonical-confirmations.mjs",
     "verify:visibility-popover-motion": "node ./scripts/verify-visibility-popover-motion.mjs",
-    "verify:quick-connect-motion": "node ./scripts/verify-quick-connect-motion.mjs"
+    "verify:quick-connect-motion": "node ./scripts/verify-quick-connect-motion.mjs",
+    "verify:event-drive-together": "node ./scripts/verify-event-drive-together-bridge.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
