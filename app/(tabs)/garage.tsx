@@ -1,9 +1,8 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   ImageBackground,
   Pressable,
   ScrollView,
@@ -16,6 +15,7 @@ import {
 import {
   NoxaBadge,
   NoxaButton,
+  NoxaDetailReveal,
   NoxaRootHeader,
   NoxaScreen,
   NoxaSurface,
@@ -124,29 +124,19 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
 
 function VehicleCard({
   vehicle,
-  index,
   busy,
   onMakePrimary,
 }: {
   vehicle: GarageVehicle;
-  index: number;
   busy: boolean;
   onMakePrimary: (vehicle: GarageVehicle) => void;
 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(18)).current;
   const meta = vehicleMeta(vehicle);
   const modelName = [vehicle.brand, vehicle.model].filter(Boolean).join(' ');
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 420, delay: index * 50, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 420, delay: index * 50, useNativeDriver: true }),
-    ]).start();
-  }, [index, opacity, translateY]);
 
   return (
-    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+    <NoxaDetailReveal>
       <NoxaSurface
         level="content"
         maskChildren
@@ -186,7 +176,7 @@ function VehicleCard({
           </View>
         )}
       </NoxaSurface>
-    </Animated.View>
+    </NoxaDetailReveal>
   );
 }
 
@@ -311,11 +301,10 @@ export default function GarageScreen() {
           <GarageState error={hasVehicleError} isLoading={isLoadingVehicles} onRetry={loadVehicles} />
         ) : (
           <View style={styles.vehicleList}>
-            {vehicles.map((vehicle, index) => (
+            {vehicles.map((vehicle) => (
               <VehicleCard
                 key={vehicle.id}
                 vehicle={vehicle}
-                index={index}
                 busy={primaryBusyId === vehicle.id}
                 onMakePrimary={makePrimary}
               />

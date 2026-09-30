@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
-  Animated,
   Image,
   ImageBackground,
   Pressable,
@@ -17,6 +16,7 @@ import {
 import {
   NoxaAvatar,
   NoxaButton,
+  NoxaDetailReveal,
   NoxaIconButton,
   NoxaListRow,
   NoxaPressableSurface,
@@ -30,7 +30,7 @@ import { formatProfileLocation } from '@/src/features/profile/formatProfileLocat
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
-import { animations, colors, radius, spacing, typography } from '@/src/theme';
+import { colors, radius, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
   id: string;
@@ -59,20 +59,6 @@ type ProfilePost = {
   image_url: string;
   created_at: string;
 };
-
-function useEntryAnimation(delay = 0, distance: number = animations.entranceDistance) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(distance)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: animations.entrance, delay, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: animations.entrance, delay, useNativeDriver: true }),
-    ]).start();
-  }, [delay, opacity, translateY]);
-
-  return { opacity, transform: [{ translateY }] };
-}
 
 function getProfileInitials(displayName: string) {
   const initials = displayName
@@ -139,7 +125,7 @@ function Identity({
   const location = formatProfileLocation(profile?.country_code, profile?.city);
 
   return (
-    <Animated.View style={[styles.identity, useEntryAnimation(40, 12)]}>
+    <NoxaDetailReveal style={styles.identity}>
       <View style={styles.identityTop}>
         <View style={styles.avatarRing}>
           <NoxaAvatar imageUrl={profile?.avatar_url} initials={getProfileInitials(displayName)} size={82} />
@@ -184,16 +170,15 @@ function Identity({
           />
         </View>
       ) : null}
-    </Animated.View>
+    </NoxaDetailReveal>
   );
 }
 
 function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | null; vehiclesCount: number }) {
-  const animatedStyle = useEntryAnimation(90, 16);
 
   if (!vehicle) {
     return (
-      <Animated.View style={[styles.section, animatedStyle]}>
+      <NoxaDetailReveal style={styles.section}>
         <Text style={styles.sectionEyebrow}>YOUR GARAGE</Text>
         <Pressable
           accessibilityRole="button"
@@ -208,7 +193,7 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
         </Pressable>
-      </Animated.View>
+      </NoxaDetailReveal>
     );
   }
 
@@ -237,7 +222,7 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
   );
 
   return (
-    <Animated.View style={[styles.section, animatedStyle]}>
+    <NoxaDetailReveal style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionEyebrow}>YOUR GARAGE</Text>
         <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/garage')}>
@@ -272,7 +257,7 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
           </View>
         )}
       </NoxaPressableSurface>
-    </Animated.View>
+    </NoxaDetailReveal>
   );
 }
 
@@ -302,7 +287,7 @@ function NoxaContext({ vehiclesCount }: { vehiclesCount: number }) {
   ];
 
   return (
-    <Animated.View style={[styles.section, useEntryAnimation(130)]}>
+    <NoxaDetailReveal style={styles.section}>
       <Text style={styles.sectionEyebrow}>YOUR NOXA</Text>
       <View style={styles.contextList}>
         {rows.map((row, index) => (
@@ -320,7 +305,7 @@ function NoxaContext({ vehiclesCount }: { vehiclesCount: number }) {
           </Pressable>
         ))}
       </View>
-    </Animated.View>
+    </NoxaDetailReveal>
   );
 }
 
@@ -334,7 +319,7 @@ function SocialContext({
   followingCount: number;
 }) {
   return (
-    <Animated.View style={[styles.section, useEntryAnimation(165)]}>
+    <NoxaDetailReveal style={styles.section}>
       <Text style={styles.sectionEyebrow}>COMMUNITY</Text>
       <View style={styles.socialRow}>
         <Pressable
@@ -355,13 +340,13 @@ function SocialContext({
           <Text style={styles.socialLabel}>Following</Text>
         </Pressable>
       </View>
-    </Animated.View>
+    </NoxaDetailReveal>
   );
 }
 
 function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: boolean }) {
   return (
-    <Animated.View style={[styles.section, useEntryAnimation(195)]}>
+    <NoxaDetailReveal style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <View>
           <Text style={styles.sectionEyebrow}>MOMENTS</Text>
@@ -394,13 +379,13 @@ function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: b
           <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
         </Pressable>
       )}
-    </Animated.View>
+    </NoxaDetailReveal>
   );
 }
 
 function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; onSignOut: () => void }) {
   return (
-    <Animated.View style={[styles.section, useEntryAnimation(225)]}>
+    <NoxaDetailReveal style={styles.section}>
       <Text style={styles.sectionEyebrow}>ACCOUNT</Text>
       <View style={styles.contextList}>
         <NoxaListRow icon="settings-outline" label="Settings" onPress={() => router.push('/settings')} />
@@ -414,7 +399,7 @@ function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; on
           onPress={onSignOut}
         />
       </View>
-    </Animated.View>
+    </NoxaDetailReveal>
   );
 }
 

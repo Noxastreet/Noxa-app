@@ -19,6 +19,8 @@ function harness({ relevant = true, result = () => ({ data: null, error: null })
   const effects = [];
   const calls = [];
   const callbacks = [];
+  const pushes = [];
+  let gesture;
   let stateCursor = 0;
   let refCursor = 0;
   const tokens = new Proxy({}, { get: () => 16 });
@@ -63,11 +65,11 @@ function harness({ relevant = true, result = () => ({ data: null, error: null })
     require(name) {
       if (name === 'react') return react;
       if (name === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
-      if (name === 'react-native') return { ActivityIndicator: 'Loading', View: 'View', Text: 'Text', StyleSheet: { create: (s) => s } };
-      if (name === 'react-native-reanimated') return { __esModule: true, default: { View: 'Animated' }, FadeInDown: motion, FadeOutDown: motion, ReduceMotion: { System: 0 } };
+      if (name === 'react-native') return { ActivityIndicator: 'Loading', View: 'View', Text: 'Text', StyleSheet: { create: (s) => s }, PanResponder: { create: (config) => { gesture = config; return { panHandlers: {} }; } } };
+      if (name === 'react-native-reanimated') return { __esModule: true, default: { View: 'Animated' }, FadeInDown: motion, FadeOutDown: motion, ReduceMotion: { System: 0 }, useReducedMotion: () => false, useSharedValue: (value) => ({ value }), useAnimatedStyle: (fn) => fn(), cancelAnimation() {}, withSpring: (value) => value };
       if (name === '@expo/vector-icons') return { Ionicons: 'Icon' };
       if (name === 'expo-image') return { Image: 'Image' };
-      if (name === 'expo-router') return { router: { push() {} } };
+      if (name === 'expo-router') return { router: { push: (route) => pushes.push(route) }, useFocusEffect: (fn) => effects.push(fn) };
       if (name.endsWith('/supabase')) return { supabase };
       if (name.endsWith('/ui')) return ui;
       if (name.endsWith('/theme')) return { animations: tokens, colors: tokens, radius: tokens, spacing: tokens, typography: { fontFamily: tokens, v2: { label: tokens } } };
@@ -85,7 +87,7 @@ function harness({ relevant = true, result = () => ({ data: null, error: null })
     });
   }
   render();
-  return { states, calls, callbacks, effects, render };
+  return { states, calls, callbacks, effects, render, pushes, get gesture() { return gesture; } };
 }
 
 // Complete an older request after a newer retry. Its identity must never win.
@@ -119,7 +121,7 @@ assert.equal(stranger.states[0], null);
 assert.equal(stranger.states[1], null);
 assert.equal(stranger.states[5], null);
 stranger.render();
-await Promise.all([stranger.callbacks[1](), stranger.callbacks[1]()]);
+await Promise.all([stranger.callbacks[2](), stranger.callbacks[2]()]);
 assert.equal(stranger.calls.filter((q) => q.insert).length, 1);
 
 // Missing/RLS-hidden identity is unavailable; network errors keep actions gated.
@@ -127,7 +129,7 @@ const unavailable = harness();
 await unavailable.callbacks[0]();
 assert.equal(unavailable.states[6], true);
 unavailable.render();
-await unavailable.callbacks[1]();
+await unavailable.callbacks[2]();
 assert.equal(unavailable.calls.some((q) => q.insert), false);
 
 const failed = harness({ result() { throw new Error('Offline'); } });
@@ -135,7 +137,7 @@ await failed.callbacks[0]();
 assert.equal(failed.states[3], false);
 assert.ok(failed.states[5]);
 failed.render();
-await failed.callbacks[1]();
+await failed.callbacks[2]();
 assert.equal(failed.calls.some((q) => q.insert), false);
 
 // Cleanup invalidates an in-flight load before a late identity response.
@@ -154,3 +156,30 @@ const vehicleQuery = race.calls.find((q) => q.table === 'vehicles');
 assert.ok(vehicleQuery.filters.some(([field, value]) => field === 'is_public' && value === true));
 assert.ok(vehicleQuery.filters.some(([field, value]) => field === 'is_primary' && value === true));
 console.log('Map driver card async/privacy smoke passed.');
+
+const profile = harness({ result: (query) => ({
+  data: query.table === 'profiles' ? { id: 'driver', display_name: 'Driver' } : query.table === 'crew_members' ? [] : null,
+  error: null,
+}) });
+await profile.callbacks[0]();
+function find(node, title) {
+  if (!node || typeof node !== 'object') return null;
+  if (node.props?.title === title) return node;
+  for (const child of [node.props?.children].flat()) {
+    const found = find(child, title);
+    if (found) return found;
+  }
+  return null;
+}
+const profileButton = find(profile.render(), 'Profile');
+assert.ok(profileButton);
+profileButton.props.onPress();
+profileButton.props.onPress();
+assert.equal(profile.pushes.length, 1, 'Rapid repeated profile taps must navigate once.');
+assert.equal(profile.pushes[0].params.id, 'driver');
+
+profile.gesture.onPanResponderMove(null, { dy: 20 });
+profile.gesture.onPanResponderTerminate();
+profile.gesture.onPanResponderRelease(null, { dy: 20, vy: 0 });
+assert.equal(profile.pushes.length, 1, 'Interrupted card gestures must not navigate.');
+console.log('Map card navigation/interruption smoke passed.');

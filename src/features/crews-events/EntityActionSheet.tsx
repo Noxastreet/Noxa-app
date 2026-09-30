@@ -45,8 +45,10 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
   const backdropOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const dragStartRef = useRef(0);
   const dismissingRef = useRef(false);
+  const motionEpoch = useRef(0);
 
   const settleOpen = useCallback(() => {
+    motionEpoch.current += 1;
     translateY.stopAnimation();
     backdropOpacity.stopAnimation();
 
@@ -74,10 +76,12 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
     (after?: () => void) => {
       if (dismissingRef.current) return;
       dismissingRef.current = true;
+      const epoch = ++motionEpoch.current;
       translateY.stopAnimation();
       backdropOpacity.stopAnimation();
 
       const complete = () => {
+        if (motionEpoch.current !== epoch) return;
         setRendered(false);
         dismissingRef.current = false;
         after?.();
@@ -120,6 +124,7 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
 
   useEffect(() => {
     if (visible) {
+      motionEpoch.current += 1;
       dismissingRef.current = false;
       translateY.setValue(reduceMotion ? 0 : windowHeight);
       backdropOpacity.setValue(reduceMotion ? 1 : 0);
@@ -197,6 +202,12 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
     if (action.disabled) return;
     requestClose(action.onPress);
   };
+
+  useEffect(() => () => {
+    motionEpoch.current += 1;
+    translateY.stopAnimation();
+    backdropOpacity.stopAnimation();
+  }, [backdropOpacity, translateY]);
 
   return (
     <Modal
