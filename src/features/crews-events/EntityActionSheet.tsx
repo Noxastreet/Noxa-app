@@ -1,8 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Modal,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useReducedMotion } from "react-native-reanimated";
 
-import { colors, radius, spacing } from "@/src/theme";
+import { NoxaButton, NoxaSurface } from "@/src/components/ui";
+import { animations, colors, geometry, spacing } from "@/src/theme";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -23,74 +35,248 @@ type Props = {
 };
 
 export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
+  const reduceMotion = useReducedMotion();
+  const { height: windowHeight } = useWindowDimensions();
+  const [rendered, setRendered] = useState(visible);
+  const translateY = useRef(new Animated.Value(visible ? 0 : windowHeight)).current;
+  const backdropOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const dragStartRef = useRef(0);
+  const dismissingRef = useRef(false);
+
+  const settleOpen = useCallback(() => {
+    translateY.stopAnimation();
+    backdropOpacity.stopAnimation();
+
+    if (reduceMotion) {
+      translateY.setValue(0);
+      backdropOpacity.setValue(1);
+      return;
+    }
+
+    Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: 0,
+        ...animations.spring.sheet,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: animations.micro,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [backdropOpacity, reduceMotion, translateY]);
+
+  const animateOut = useCallback(
+    (after?: () => void) => {
+      if (dismissingRef.current) return;
+      dismissingRef.current = true;
+      translateY.stopAnimation();
+      backdropOpacity.stopAnimation();
+
+      const complete = () => {
+        setRendered(false);
+        dismissingRef.current = false;
+        after?.();
+      };
+
+      if (reduceMotion) {
+        translateY.setValue(windowHeight);
+        backdropOpacity.setValue(0);
+        complete();
+        return;
+      }
+
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: windowHeight,
+          duration: animations.step,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: animations.micro,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) complete();
+      });
+    },
+    [backdropOpacity, reduceMotion, translateY, windowHeight],
+  );
+
+  const requestClose = useCallback(
+    (after?: () => void) => {
+      animateOut(() => {
+        onClose();
+        after?.();
+      });
+    },
+    [animateOut, onClose],
+  );
+
+  useEffect(() => {
+    if (visible) {
+      dismissingRef.current = false;
+      translateY.setValue(reduceMotion ? 0 : windowHeight);
+      backdropOpacity.setValue(reduceMotion ? 1 : 0);
+      setRendered(true);
+      return;
+    }
+
+    if (rendered && !dismissingRef.current) {
+      animateOut();
+    }
+  }, [
+    animateOut,
+    backdropOpacity,
+    reduceMotion,
+    rendered,
+    translateY,
+    visible,
+    windowHeight,
+  ]);
+
+  useEffect(() => {
+    if (!rendered || !visible) return;
+    settleOpen();
+  }, [rendered, settleOpen, visible]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          Math.abs(gesture.dy) > 4 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderGrant: () => {
+          translateY.stopAnimation((value) => {
+            dragStartRef.current = value;
+          });
+        },
+        onPanResponderMove: (_, gesture) => {
+          if (reduceMotion) return;
+          translateY.setValue(Math.max(0, dragStartRef.current + gesture.dy));
+        },
+        onPanResponderRelease: (_, gesture) => {
+          if (reduceMotion) {
+            if (gesture.dy > 44 || gesture.vy > 0.7) requestClose();
+            return;
+          }
+
+          if (gesture.dy > 72 || gesture.vy > 0.85) {
+            requestClose();
+            return;
+          }
+
+          Animated.spring(translateY, {
+            toValue: 0,
+            ...animations.spring.sheet,
+            useNativeDriver: true,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          if (reduceMotion) {
+            translateY.setValue(0);
+            return;
+          }
+
+          Animated.spring(translateY, {
+            toValue: 0,
+            ...animations.spring.sheet,
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    [reduceMotion, requestClose, translateY],
+  );
+
   const run = (action: EntityAction) => {
     if (action.disabled) return;
-    onClose();
-    setTimeout(action.onPress, 120);
+    requestClose(action.onPress);
   };
 
   return (
     <Modal
-      animationType="fade"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={() => requestClose()}
       statusBarTranslucent
       transparent
-      visible={visible}
-    >
+      visible={rendered}>
       <View style={styles.root}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.backdrop, { opacity: backdropOpacity }]}
+        />
         <Pressable
           accessibilityLabel="Close actions"
           accessibilityRole="button"
-          onPress={onClose}
+          onPress={() => requestClose()}
           style={StyleSheet.absoluteFill}
         />
 
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-          <Text numberOfLines={1} style={styles.title}>
-            {title}
-          </Text>
+        <Animated.View
+          style={[
+            styles.motionLayer,
+            {
+              transform: [{ translateY }],
+            },
+          ]}>
+          <NoxaSurface
+            corners="top"
+            cut={geometry.cut.lg}
+            level="sheet"
+            style={styles.sheet}>
+            <View {...panResponder.panHandlers} style={styles.dragArea}>
+              <View style={styles.handle} />
+              <Text numberOfLines={1} style={styles.title}>
+                {title}
+              </Text>
+            </View>
 
-          <View style={styles.actions}>
-            {actions.map((action) => (
-              <Pressable
-                key={action.key}
-                accessibilityRole="button"
-                disabled={action.disabled}
-                onPress={() => run(action)}
-                style={({ pressed }) => [
-                  styles.row,
-                  pressed && !action.disabled && styles.pressed,
-                  action.disabled && styles.disabled,
-                ]}
-              >
-                <View style={styles.iconWrap}>
-                  <Ionicons
-                    name={action.icon ?? "ellipsis-horizontal"}
-                    size={19}
-                    color={action.destructive ? colors.primaryHover : colors.text}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.label,
-                    action.destructive && styles.destructiveLabel,
-                  ]}
-                >
-                  {action.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+            <NoxaSurface
+              corners="signature"
+              level="content"
+              maskChildren
+              style={styles.actions}>
+              {actions.map((action, index) => (
+                <Pressable
+                  key={action.key}
+                  accessibilityRole="button"
+                  disabled={action.disabled}
+                  onPress={() => run(action)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    index < actions.length - 1 && styles.rowDivider,
+                    pressed && !action.disabled && styles.pressed,
+                    action.disabled && styles.disabled,
+                  ]}>
+                  <View style={styles.iconWrap}>
+                    <Ionicons
+                      name={action.icon ?? "ellipsis-horizontal"}
+                      size={19}
+                      color={action.destructive ? colors.primaryHover : colors.text}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.label,
+                      action.destructive && styles.destructiveLabel,
+                    ]}>
+                    {action.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </NoxaSurface>
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}
-          >
-            <Text style={styles.cancelText}>CANCEL</Text>
-          </Pressable>
-        </View>
+            <NoxaButton
+              fullWidth
+              onPress={() => requestClose()}
+              size="md"
+              title="Cancel"
+              variant="secondary"
+            />
+          </NoxaSurface>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -100,18 +286,24 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.54)",
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.58)",
+  },
+  motionLayer: {
+    width: "100%",
   },
   sheet: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xs,
     paddingBottom: spacing.xl,
-    borderTopLeftRadius: radius.hero,
-    borderTopRightRadius: radius.hero,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.background,
+    gap: spacing.sm,
+  },
+  dragArea: {
+    minHeight: 56,
+    justifyContent: "center",
+    paddingTop: spacing.xs,
   },
   handle: {
     width: 38,
@@ -122,7 +314,6 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: spacing.md,
-    marginBottom: spacing.sm,
     color: colors.textMuted,
     fontSize: 11,
     lineHeight: 15,
@@ -132,10 +323,6 @@ const styles = StyleSheet.create({
   },
   actions: {
     overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
   },
   row: {
     minHeight: 56,
@@ -143,6 +330,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
+    backgroundColor: "transparent",
+  },
+  rowDivider: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
@@ -159,23 +349,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   destructiveLabel: { color: colors.primaryHover },
-  cancel: {
-    minHeight: 52,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.sm,
-    borderRadius: radius.button,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  cancelText: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "900",
-    letterSpacing: 0.55,
-  },
-  pressed: { opacity: 0.76 },
+  pressed: { opacity: animations.pressOpacity },
   disabled: { opacity: 0.4 },
 });
