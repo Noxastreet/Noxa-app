@@ -51,6 +51,7 @@ export default function WelcomeScreen() {
       </Svg>
 
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[
           styles.content,
           {
@@ -73,7 +74,10 @@ export default function WelcomeScreen() {
           style={[
             styles.heroSpace,
             {
-              minHeight: responsive.isCompactHeight
+              flex: responsive.fontScale > 1.3 ? 0 : 1,
+              minHeight: responsive.fontScale > 1.3
+                ? spacing.lg
+                : responsive.isCompactHeight
                 ? 72
                 : responsive.vertical(150),
             },
@@ -83,6 +87,8 @@ export default function WelcomeScreen() {
         <View style={styles.bottomContent}>
           <Text style={styles.eyebrow}>Premium Automotive Community</Text>
           <Text
+            accessibilityRole="header"
+            maxFontSizeMultiplier={1.5}
             style={[
               styles.headline,
               {
@@ -119,6 +125,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scroll: {
+    flex: 1,
   },
   content: {
     flexGrow: 1,

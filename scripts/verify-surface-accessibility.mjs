@@ -41,4 +41,22 @@ const map = fs.readFileSync('src/features/mapbox/MapboxLiveMap.tsx', 'utf8');
 assert.ok(/accessibilityState=\{\{ selected: selectedDriverId === driver.user_id \}\}/.test(map), 'Map driver selection must be announced without changing privacy-safe labels');
 const auth = fs.readFileSync('src/components/auth/NoxaAuthField.tsx', 'utf8');
 assert.ok(!auth.includes('console.log'), 'Auth field lifecycle logging must not ship');
+
+const entry = fs.readFileSync('app/welcome.tsx', 'utf8');
+assert.ok(entry.includes('maxFontSizeMultiplier={1.5}'), 'Brand display headline must not overwhelm entry actions at accessibility text sizes');
+assert.ok(entry.includes('responsive.fontScale > 1.3'), 'Entry decorative spacer must collapse for accessibility text sizes');
+assert.ok(entry.includes('style={styles.scroll}'), 'Entry scroll viewport must be bounded');
+const authScreen = fs.readFileSync('src/components/auth/NoxaAuthScreen.tsx', 'utf8');
+const authAst = ts.createSourceFile('AuthScreen.tsx', authScreen, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function assertFixedBack(node, insideScroll = false) {
+  const scroll = insideScroll || (ts.isJsxElement(node) && node.openingElement.tagName.getText(authAst) === 'ScrollView');
+  if (ts.isJsxOpeningElement(node) && node.getText(authAst).includes('accessibilityLabel="Go back"')) {
+    assert.ok(!insideScroll, 'Auth back action must remain outside scrolling content');
+  }
+  ts.forEachChild(node, child => assertFixedBack(child, scroll));
+}
+assertFixedBack(authAst);
+const wordmark = fs.readFileSync('src/components/brand/NoxaCompactLogo.tsx', 'utf8');
+assert.ok(wordmark.includes('allowFontScaling={false}') && wordmark.includes('accessibilityLabel="NOXA"'), 'Brand wordmark retains geometry and its accessible identity');
+
 console.log('Surface accessibility contract passed: ' + controls + ' raw interactive controls inspected.');
