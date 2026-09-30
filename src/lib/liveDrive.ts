@@ -392,7 +392,7 @@ export async function requestLiveDrivePermissions() {
 
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== Location.PermissionStatus.GRANTED) {
-    throw new Error('Background location permission is required for Live Drive.');
+    throw new Error('Allow background location so your 4-hour Live Drive session can continue.');
   }
 
   return current;
