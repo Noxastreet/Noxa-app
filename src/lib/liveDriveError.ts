@@ -1,3 +1,18 @@
+export function shouldOfferLiveDriveSettings(error: unknown) {
+  if (Platform.OS !== 'ios') return false;
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  return (
+    message.includes('background location')
+    || message.includes('always access')
+    || message.includes('precise location')
+    || message.includes('precise gps fix')
+    || message.includes('location services are off')
+    || message.includes('allow location')
+    || message.includes('foreground')
+    || message.includes('when in use')
+  );
+}
+
 import { Platform } from 'react-native';
 
 export function getSafeLiveDriveStartMessage(error: unknown) {
