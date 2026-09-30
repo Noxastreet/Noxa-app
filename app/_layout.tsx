@@ -22,6 +22,13 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+const detailScreenOptions = {
+  animation: 'default' as const,
+  gestureEnabled: true,
+  presentation: 'card' as const,
+  contentStyle: { backgroundColor: colors.background },
+};
+
 const noxaTheme = {
   ...DarkTheme,
   colors: {
@@ -112,7 +119,10 @@ export default function RootLayout() {
           <Stack.Screen name="quick-connect" />
           <Stack.Screen name="group-drives" />
           <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-          <Stack.Screen name="event-details" />
+          <Stack.Screen name="event-details" options={detailScreenOptions} />
+          <Stack.Screen name="driver-profile/[id]" options={detailScreenOptions} />
+          <Stack.Screen name="vehicle-details" options={detailScreenOptions} />
+          <Stack.Screen name="crew/[id]" options={detailScreenOptions} />
           <Stack.Screen name="event-editor" />
           <Stack.Screen name="event-chat" />
           <Stack.Screen name="event-gallery" />
