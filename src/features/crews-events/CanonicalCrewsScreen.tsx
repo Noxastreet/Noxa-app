@@ -546,7 +546,7 @@ export default function CanonicalCrewsScreen() {
   const [events, setEvents] = useState<CrewEvent[]>([]);
   const [profiles, setProfiles] = useState<CanonicalProfile[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<CrewFilter>("mine");
+  const [filter, setFilter] = useState<CrewFilter>("discover");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -555,6 +555,12 @@ export default function CanonicalCrewsScreen() {
   const [creating, setCreating] = useState(false);
   const hasLoadedRef = useRef(false);
   const loadVersionRef = useRef(0);
+  const filterDecisionRef = useRef(false);
+
+  const chooseFilter = useCallback((value: CrewFilter) => {
+    filterDecisionRef.current = true;
+    setFilter(value);
+  }, []);
 
   const load = useCallback(async (showSpinner = true) => {
     const version = ++loadVersionRef.current;
@@ -665,7 +671,10 @@ export default function CanonicalCrewsScreen() {
       if (!profilesResult.error) {
         setProfiles((profilesResult.data ?? []) as CanonicalProfile[]);
       }
-      setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
+      if (!filterDecisionRef.current && models.every((crew) => crew.relationshipKnown)) {
+        filterDecisionRef.current = true;
+        setFilter(models.some((crew) => crew.isCurrentUserMember) ? "mine" : "discover");
+      }
     }).catch(() => { /* Keep the usable base crews when optional context is unavailable. */ });
   }, []);
 
@@ -931,7 +940,7 @@ export default function CanonicalCrewsScreen() {
         <CrewFilterControl
           discoverCount={!loading && crews.every((crew) => crew.relationshipKnown) ? discovery.length : undefined}
           myCount={!loading && crews.every((crew) => crew.relationshipKnown) ? myCrews.length : undefined}
-          onChange={setFilter}
+          onChange={chooseFilter}
           value={filter}
         />
 

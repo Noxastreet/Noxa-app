@@ -51,8 +51,8 @@ function subject(path, privateName) {
       return new Proxy({}, { get: (_t, key) => key === 'getEventLifecycle' ? () => 'scheduled' : token });
     },
   });
-  if (!privateName) exports.default();
-  return { states, refs, callbacks, queries, focus, component: exports.subject };
+  const tree = !privateName ? exports.default() : null;
+  return { states, refs, callbacks, queries, focus, tree, component: exports.subject };
 }
 function findQuery(h, table, fields, after = 0) {
   const q = h.queries.slice(after).find((q) => q.table === table && (!fields || q.fields === fields));
@@ -143,3 +143,28 @@ const stack = subject('src/features/crews-events/CanonicalPrimitives.tsx', 'Cano
 assert.equal(textValues(stack.component({ profiles: [], total: 0 })).length, 0, 'Empty stacks must not invent people');
 assert.equal(textValues(stack.component({ profiles: [], total: 3 })).join(''), '+3', 'Only the confirmed real total is presented');
 console.log('Root social request ownership, unavailable counts and honest identity smoke passed.');
+
+function elements(tree) {
+  if (!tree || typeof tree !== 'object') return [];
+  if (Array.isArray(tree)) return tree.flatMap(elements);
+  return [tree, ...elements(tree.props?.children)];
+}
+// Explicit filter choice owns UI before optional context resolves and after return.
+{
+  const h = subject('src/features/crews-events/CanonicalCrewsScreen.tsx');
+  const filter = elements(h.tree).find((node) => node.type?.name === 'CrewFilterControl');
+  assert.ok(filter, 'Crew filter renders');
+  assert.equal(filter.props.value, 'discover', 'Unloaded relationships must not create a false empty personal list');
+  const cleanup = h.focus(); await flush();
+  const base = findQuery(h, 'crews'); base.resolve({ data: [crew], error: null }); await flush();
+  filter.props.onChange('discover');
+  h.queries.filter((q) => q !== base).forEach((q) => q.resolve({ data: [{ crew_id: 'new', user_id: 'current', role: 'member' }], error: null }));
+  await flush();
+  assert.equal(h.states[4], 'discover', 'Late enrichment must preserve the explicit selection');
+  cleanup(); const after=h.queries.length; h.focus(); await flush();
+  const refreshed=findQuery(h,'crews',null,after);refreshed.resolve({data:[crew],error:null});await flush();
+  h.queries.slice(after).filter(q=>q!==refreshed).forEach(q=>q.resolve({data:[{crew_id:'new',user_id:'current',role:'member'}],error:null}));
+  await flush();
+  assert.equal(h.states[4], 'discover', 'Focus refresh must preserve the explicit selection');
+}
+console.log('Crew filter agency across delayed enrichment and focus recovery passed.');
