@@ -1,4 +1,4 @@
-name: NOXA TestFlight Motion Checkpoint
+name: NOXA TestFlight Motion Status
 
 on:
   push:
@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  local-build-submit:
-    runs-on: macos-latest
-    timeout-minutes: 120
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -32,31 +32,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify Expo authentication
-        shell: bash
-        run: |
-          if [ -z "${EXPO_TOKEN:-}" ]; then
-            echo "::error::GitHub secret EXPO_TOKEN is not configured."
-            exit 1
-          fi
-          npx --yes eas-cli@latest whoami
+      - name: View build 62 submission
+        run: npx --yes eas-cli@latest submit:view 7cc2ea55-82d0-418a-8a97-07220f6999f5 --json
 
-      - name: Configure non-interactive TestFlight team
-        shell: bash
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const file = 'eas.json';
-          const config = JSON.parse(fs.readFileSync(file, 'utf8'));
-          config.submit ??= {};
-          config.submit.production ??= {};
-          config.submit.production.ios ??= {};
-          config.submit.production.ios.appleTeamId = 'V8H92SG76B';
-          fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n');
-          NODE
-
-      - name: Build production IPA locally
-        run: npx --yes eas-cli@latest build --platform ios --profile production --local --non-interactive --output ./noxa.ipa
-
-      - name: Queue IPA submission to TestFlight
-        run: npx --yes eas-cli@latest submit --platform ios --profile production --path ./noxa.ipa --non-interactive --no-wait
+      - name: View TestFlight status
+        run: npx --yes eas-cli@latest submit:status --platform ios --profile production --json --non-interactive
