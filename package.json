@@ -44,7 +44,8 @@
     "verify:route-motion-continuity": "node ./scripts/verify-route-motion-continuity.mjs",
     "verify:map-selected-driver": "node ./scripts/verify-map-selected-driver.mjs",
     "verify:map-object-focus": "node ./scripts/verify-map-object-focus.mjs",
-    "verify:drive-together-motion": "node ./scripts/verify-drive-together-motion-continuity.mjs"
+    "verify:drive-together-motion": "node ./scripts/verify-drive-together-motion-continuity.mjs",
+    "verify:canonical-confirmations": "node ./scripts/verify-canonical-confirmations.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
