@@ -2271,11 +2271,13 @@ export default function LiveMapScreen() {
   const driveTogetherEventDestinations = useMemo<DriveTogetherDestinationSeed[]>(
     () =>
       events
-        .filter(
-          (event) =>
+        .filter((event) => {
+          const lifecycle = getEventLifecycle(event);
+          return (
             hasValidCoordinates(event)
-            && getEventLifecycle(event) !== "ended",
-        )
+            && (lifecycle === "scheduled" || lifecycle === "live")
+          );
+        })
         .map((event) => ({
           id: event.id,
           latitude: event.latitude,
