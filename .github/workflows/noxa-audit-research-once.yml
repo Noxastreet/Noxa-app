@@ -1,0 +1,58 @@
+name: NOXA official design research once
+on:
+  push:
+    branches: [ci/noxa-audit-research-20260930]
+    paths: [.github/workflows/noxa-audit-research-once.yml]
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fb74ff4fdea496917cd3ddbd46271a5acbc1275f
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch current official design sources
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'; import crypto from 'node:crypto';
+          fs.mkdirSync('audit-evidence',{recursive:true});
+          const targets=[["apple-hig","https://developer.apple.com/design/human-interface-guidelines"],["apple-accessibility","https://developer.apple.com/tutorials/data/design/human-interface-guidelines/accessibility.json"],["apple-modality","https://developer.apple.com/tutorials/data/design/human-interface-guidelines/modality.json"],["apple-typography","https://developer.apple.com/tutorials/data/design/human-interface-guidelines/typography.json"],["apple-motion","https://developer.apple.com/tutorials/data/design/human-interface-guidelines/motion.json"],["apple-design-videos","https://developer.apple.com/videos/design/"],["uber-accessibility","https://baseweb.design/guides/accessibility/"],["uber-base","https://base.uber.com/"],["google-accessibility","https://developer.android.com/design/ui/mobile/guides/foundations/accessibility"],["google-material","https://m3.material.io/foundations/accessible-design/overview"],["meta-design","https://design.facebook.com/"],["meta-accessibility","https://about.fb.com/news/2023/05/accessibility-tools-in-facebook-and-instagram/"],["fluent-accessibility","https://fluent2.microsoft.design/accessibility"],["fluent-motion","https://fluent2.microsoft.design/motion"],["airbnb-language","https://airbnb.design/building-a-visual-language/"],["airbnb-accessibility","https://www.airbnb.com/accessibility"],["porsche-introduction","https://designsystem.porsche.com/v3/introduction"],["porsche-typography","https://designsystem.porsche.com/v3/styles/typography"],["porsche-motion","https://designsystem.porsche.com/v3/styles/motion"],["porsche-accessibility","https://designsystem.porsche.com/v3/accessibility"]];
+          const records=[];
+          for(let offset=0;offset<targets.length;offset+=4) {
+            await Promise.all(targets.slice(offset,offset+4).map(async ([id,url])=>{
+              try{
+                const response=await fetch(url,{headers:{'User-Agent':'NOXA-design-audit/1.0'},signal:AbortSignal.timeout(25000)});
+                const raw=await response.text(); let text;
+                if(response.headers.get('content-type')?.includes('json')) {
+                  const fragments=[];
+                  const walk=(value)=>{if(!value||typeof value!=='object')return;if(value.type==='text'&&typeof value.text==='string')fragments.push(value.text);if(value.type==='heading'&&typeof value.text==='string')fragments.push(value.text);for(const child of Object.values(value))if(typeof child==='object')Array.isArray(child)?child.forEach(walk):walk(child);};
+                  walk(JSON.parse(raw));text=fragments.join('\n');
+                }else text=raw.replace(/<script\b[\s\S]*?<\/script>/gi,'').replace(/<style\b[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,'\n').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&#39;/g,"'").split('\n').map(x=>x.trim()).filter(Boolean).join('\n');
+                const record={id,url,finalUrl:response.url,status:response.status,retrievedAt:new Date().toISOString(),rawSha256:crypto.createHash('sha256').update(raw).digest('hex'),textLength:text.length};
+                fs.writeFileSync('audit-evidence/'+id+'.txt',text);fs.writeFileSync('audit-evidence/'+id+'.raw',raw);
+                const lines=text.split('\n');const indexes=lines.map((line,i)=>/accessib|contrast|motion|hierarch|sheet|touch|target|44|typograph|agency|clarity|principle|spacing|consisten|design|scal|focus|privacy|trust|2026|2025/i.test(line)?i:-1).filter(i=>i>=0);
+                const selected=[...new Set(indexes.flatMap(i=>[i, i+1,i+2]))].filter(i=>i<lines.length).sort((a,b)=>a-b);
+                const excerpt=selected.map(i=>lines[i]).join('\n').slice(0,14000);
+                records.push(record);console.log('SOURCE '+JSON.stringify(record));console.log('EXCERPT '+id+'\n'+excerpt+'\nEND EXCERPT '+id);
+              }catch(error){const record={id,url,error:error.message};records.push(record);console.log('SOURCE '+JSON.stringify(record));}
+            }));
+          }
+          fs.writeFileSync('audit-evidence/sources.json',JSON.stringify(records,null,2));
+          
+          NODE
+      - name: Inventory routes and runtime invariants
+        run: |
+          rg --files app src > audit-evidence/source-files.txt
+          rg -n 'accessibilityLabel|accessibilityRole|accessibilityState|allowFontScaling|maxFontSizeMultiplier|useReducedMotion|Haptics|PanResponder|<Modal|<TextInput|KeyboardAvoidingView' app src > audit-evidence/interaction-inventory.txt
+          rg -n 'MapView|watchPosition|startLocationUpdates|supabase.channel' app src > audit-evidence/protected-runtime-inventory.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noxa-official-design-audit-sources
+          path: audit-evidence/
+          retention-days: 7
