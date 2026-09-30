@@ -993,3 +993,93 @@ Map continuity gives it spatial intelligence.
 Haptics give it tactility.  
 Performance gives it credibility.  
 Restraint gives it premium character.
+
+
+---
+
+# 18. LIVE EXECUTION TRACKER
+
+This section is updated as work progresses and is the operational truth for the roadmap.
+
+## Current baseline
+
+**Physical-device evidence:** TestFlight build 62  
+**Observed:** motion foundation works, but whole-screen root-tab fade produced near-black transition gaps.  
+**Correction:** PR #328 removed root-tab screen fades while preserving animated tab indicator, press physics, haptics, contextual Map motion, and Drive Together sheet physics.  
+**Canonical main containing the correction:** `4e449acbeaaa9981595208a94900b221192e0d09`
+
+## Gate 0 - Post-PR #328 TestFlight verification
+
+**Status:** NOT VERIFIED
+
+Before Phase 1 starts, verify the next TestFlight checkpoint on a physical iPhone.
+
+Required checks:
+
+- [ ] Map -> Crew has no black/empty transition frame.
+- [ ] Crew -> Events has no black/empty transition frame.
+- [ ] Events -> Garage has no black/empty transition frame.
+- [ ] Garage -> Profile has no black/empty transition frame.
+- [ ] Profile -> Map has no black/empty transition frame.
+- [ ] Tab indicator still animates correctly.
+- [ ] Tab haptic occurs only on an actual tab change.
+- [ ] Button/card press physics remain responsive.
+- [ ] Driver/Event/Route contextual Map cards still enter/exit correctly.
+- [ ] Drive Together sheet still opens, drags, interrupts, snaps, and dismisses correctly.
+- [ ] No visible Mapbox camera/location regression.
+
+**Gate rule:** If any black/blank transition remains, fix it before Phase 1.
+
+## Phase status board
+
+| Phase | Scope | Status | TestFlight gate |
+|---|---|---|---|
+| Gate 0 | Root-tab regression verification | NOT VERIFIED | Required before Phase 1 |
+| Phase 1 | Detail screen transitions | NOT STARTED | Checkpoint A |
+| Phase 2 | Premium cards and sheets | NOT STARTED | Checkpoint A |
+| Phase 3 | Map spatial interactions | NOT STARTED | Checkpoint B |
+| Phase 4 | Loading / success / error / empty states | NOT STARTED | Checkpoint B |
+| Phase 5 | Product-wide micro-interactions | NOT STARTED | Checkpoint C |
+| Phase 6 | Semantic haptics system | NOT STARTED | Checkpoint C |
+| Phase 7 | Premium depth and decoration | NOT STARTED | Checkpoint D |
+| Phase 8 | Performance + final motion QA | NOT STARTED | Motion RC |
+
+## Immediate next work after Gate 0 passes
+
+### PR M1 - Detail navigation foundation
+
+Do not start with visual spectacle.
+
+First:
+
+1. inventory Map -> Driver Profile;
+2. inventory Map/Event -> Event Detail;
+3. inventory Garage -> Vehicle Detail;
+4. inventory Crew -> Crew Detail;
+5. record current navigator type and push/back behavior;
+6. verify whether platform-native stack transition is already sufficient;
+7. ensure every destination renders a stable shell before network data arrives;
+8. preserve iOS interactive back gesture;
+9. add Reduce Motion behavior;
+10. add a dedicated navigation-motion CI contract.
+
+Only after M1 is green do we add object-specific continuity in M2.
+
+## Roadmap change-control rule
+
+Any change to phase order requires one of these reasons:
+
+- physical-device evidence shows a regression;
+- a dependency blocks the current phase;
+- a critical correctness/security/privacy issue appears;
+- measured performance requires architecture-safe adjustment.
+
+“Another animation looks cooler” is not a reason to reorder the roadmap.
+
+## Runtime truth rule
+
+At every checkpoint:
+
+- CI success = implementation/static confidence only.
+- TestFlight video = physical interaction evidence.
+- A feature becomes VERIFIED only after the relevant physical flow is observed.
