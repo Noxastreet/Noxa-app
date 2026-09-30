@@ -120,13 +120,26 @@ for (const [path, baseTable, row] of [
   await flush();
   assert.equal(h.states[0][0][baseTable === 'crews' ? 'memberCount' : 'attendeeCount'], 0, 'Confirmed empty backend context is zero');
 }
+// A profile response already in flight for the former hero must also be discarded.
+{
+  const h = subject('src/features/crews-events/CanonicalEventsScreen.tsx');
+  const cleanup = h.focus(); await flush();
+  findQuery(h, 'events').resolve({ data: [{ ...event, id: 'old' }], error: null }); await flush();
+  findQuery(h, 'event_attendees', 'user_id').resolve({ data: [{ user_id: 'old-person' }], error: null }); await flush();
+  const oldProfile = findQuery(h, 'profiles');
+  cleanup(); const after = h.queries.length; h.focus(); await flush();
+  findQuery(h, 'events', null, after).resolve({ data: [event], error: null }); await flush();
+  oldProfile.resolve({ data: [{ id: 'old-person', display_name: 'Former hero attendee' }], error: null }); await flush();
+  assert.equal(h.states[1].length, 0, 'Former hero profile cannot leak into the current event');
+}
+
 function textValues(tree) {
   if (!tree || typeof tree !== 'object') return [];
   const children = tree.props?.children;
   const list = Array.isArray(children) ? children : [children];
-  return list.flatMap((x) => typeof x === 'string' ? [x] : Array.isArray(x) ? x.flatMap(textValues) : textValues(x));
+  return list.flatMap((x) => (typeof x === 'string' || typeof x === 'number') ? [String(x)] : Array.isArray(x) ? x.flatMap(textValues) : textValues(x));
 }
 const stack = subject('src/features/crews-events/CanonicalPrimitives.tsx', 'CanonicalAvatarStack');
 assert.deepEqual(textValues(stack.component({ profiles: [], total: 0 })), [], 'Empty stacks must not invent people');
-assert.deepEqual(textValues(stack.component({ profiles: [], total: 3 })), ['+', '3'].filter(() => false).concat('+3'), 'Only the confirmed real total is presented');
+assert.equal(textValues(stack.component({ profiles: [], total: 3 })).join(''), '+3', 'Only the confirmed real total is presented');
 console.log('Root social request ownership, unavailable counts and honest identity smoke passed.');
