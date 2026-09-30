@@ -732,11 +732,6 @@ export default function LiveMapScreen() {
   const [routeMessage, setRouteMessage] = useState<string | null>(null);
   const [isRouteFollowing, setIsRouteFollowing] = useState(false);
   const [isCameraAwayFromUser, setIsCameraAwayFromUser] = useState(false);
-  const mapObjectSelectionLocked =
-    isRouteMode
-    || isRouteFocusMode
-    || driveTogetherPanelVisible
-    || Boolean(driveTogetherNavigation);
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
@@ -796,6 +791,11 @@ export default function LiveMapScreen() {
       ? normalizedFocusEventId
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
+  const mapObjectSelectionLocked =
+    isRouteMode
+    || isRouteFocusMode
+    || driveTogetherPanelVisible
+    || Boolean(driveTogetherNavigation);
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
 
