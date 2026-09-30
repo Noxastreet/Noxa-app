@@ -39,7 +39,7 @@ import {
   loadGroupDriveDetails,
   loadQuickDriveRoomState,
   proposeQuickDriveDestination,
-  requestGroupDriveLocationPermissions,
+  requestRequiredGroupDriveLocationPermissions,
   respondToDriveInvitation,
   respondToQuickDriveDestinationProposal,
   startGroupDriveLocationSession,
@@ -1097,7 +1097,7 @@ export function DriveTogetherMapLayer({
     setWorking(true);
     setError(null);
     try {
-      await requestGroupDriveLocationPermissions();
+      await requestRequiredGroupDriveLocationPermissions();
       const created = await createQuickDriveRoom(
         [...selectedFriendIds],
         draftDestination,
@@ -1131,7 +1131,7 @@ export function DriveTogetherMapLayer({
     setWorking(true);
     setError(null);
     try {
-      await requestGroupDriveLocationPermissions();
+      await requestRequiredGroupDriveLocationPermissions();
       const changed = await respondToDriveInvitation(
         invite.invitationId,
         true,
@@ -1192,7 +1192,7 @@ export function DriveTogetherMapLayer({
     setError(null);
     try {
       const consent = acceptGroupDriveLocationDisclosure(roomId);
-      await requestGroupDriveLocationPermissions();
+      await requestRequiredGroupDriveLocationPermissions();
       await startGroupDriveLocationSession(consent);
       setIsSharingLocation(true);
     } catch (shareError) {
