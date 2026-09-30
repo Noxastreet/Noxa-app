@@ -35,7 +35,7 @@ import {
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type JoinPolicy = "open" | "approval" | "invite_only";
@@ -1315,8 +1315,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -1395,7 +1395,7 @@ const styles = StyleSheet.create({
   },
   optionRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   option: {
-    minHeight: 40,
+    minHeight: geometry.controlHeight.compact,
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",

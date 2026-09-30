@@ -18,7 +18,7 @@ import {
 import { NoxaBadge, NoxaScreen } from "@/src/components/ui";
 import { getEventLifecycle, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type CrewRow = { id: string; name: string };
@@ -496,8 +496,8 @@ const styles = StyleSheet.create({
   },
   monthHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   monthButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -564,8 +564,8 @@ const styles = StyleSheet.create({
   },
   countText: { color: colors.textMuted, fontSize: 10, fontWeight: "900" },
   createButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 14, fontWeight: "900", letterSpacing: 0.8 },
   emptyText: { maxWidth: 260, color: colors.textMuted, fontSize: 12, fontWeight: "700", lineHeight: 18, textAlign: "center" },
   emptyAction: {
-    minHeight: 40,
+    minHeight: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     marginTop: spacing.xs,

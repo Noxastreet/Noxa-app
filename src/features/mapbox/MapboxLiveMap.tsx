@@ -509,13 +509,14 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
                     activeOpacity={0.82}
                     onPress={() => onDriverPress(driver.user_id)}
-                    style={[
+                    style={styles.driverHitTarget}
+                  >
+                    <View style={[
                       styles.driverMarker,
                       driver.is_relevant && styles.driverMarkerRelevant,
                       selectedDriverId === driver.user_id && styles.driverMarkerSelected,
                       driver.is_dimmed && styles.driverMarkerDimmed,
-                    ]}
-                  >
+                    ]}>
                     <View style={styles.driverMarkerAccent} />
                     {driver.avatar_url ? (
                       <Image
@@ -526,6 +527,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                     ) : (
                       <Ionicons name="car-sport" size={15} color={colors.text} />
                     )}
+                    </View>
                   </TouchableOpacity>
                 </MarkerView>
               ))
@@ -663,6 +665,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 MapboxLiveMap.displayName = "MapboxLiveMap";
 
 const styles = StyleSheet.create({
+  driverHitTarget: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   stateView: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",

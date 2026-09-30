@@ -10,7 +10,7 @@ import {
 } from '@/src/lib/authRedirects';
 import { supabase } from '@/src/lib/supabase';
 import { resetToAuthenticatedApp } from '@/src/navigation/authNavigation';
-import { colors, spacing, typography } from '@/src/theme';
+import { geometry, colors, spacing, typography } from '@/src/theme';
 
 type SignInErrors = {
   email?: string;
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   switchButton: {
-    minHeight: 32,
+    minHeight: geometry.controlHeight.compact,
     justifyContent: 'center',
   },
   switchText: {
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   forgotButton: {
-    minHeight: 32,
+    minHeight: geometry.controlHeight.compact,
     justifyContent: 'center',
     marginTop: spacing.xs,
   },

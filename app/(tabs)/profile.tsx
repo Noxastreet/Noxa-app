@@ -175,6 +175,7 @@ function Identity({
 }
 
 function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | null; vehiclesCount: number }) {
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
 
   if (!vehicle) {
     return (
@@ -239,8 +240,9 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
         maskChildren
         onPress={() => router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } })}
         outsideFill={colors.background}>
-        {vehicle.cover_image_url ? (
+        {vehicle.cover_image_url && vehicle.cover_image_url !== failedCoverUrl ? (
           <ImageBackground
+            onError={() => setFailedCoverUrl(vehicle.cover_image_url)}
             source={{ uri: vehicle.cover_image_url }}
             resizeMode="cover"
             style={styles.vehicleArtwork}

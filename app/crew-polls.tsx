@@ -22,7 +22,7 @@ import {
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type CrewRow = { id: string; name: string };
@@ -935,8 +935,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   dismissButton: {
-    width: 36,
-    height: 36,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -961,11 +961,11 @@ const styles = StyleSheet.create({
   optionNumber: { width: 26, height: 26, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
   optionNumberText: { color: colors.textAccent, fontSize: 9, fontWeight: "900" },
   optionField: { flex: 1 },
-  removeOption: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
+  removeOption: { width: geometry.controlHeight.compact, height: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   addOption: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: spacing.sm, paddingVertical: spacing.xs },
   addOptionText: { color: colors.textAccent, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   durationRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  durationButton: { minHeight: 34, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
+  durationButton: { minHeight: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
   durationButtonActive: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
   durationText: { color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
   durationTextActive: { color: colors.textAccent },

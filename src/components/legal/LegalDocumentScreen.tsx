@@ -9,7 +9,7 @@ import {
   SUPPORT_EMAIL,
   type LegalDocument,
 } from '@/src/legal/legalDocuments';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, spacing, typography } from '@/src/theme';
 
 type LegalDocumentScreenProps = {
   document: LegalDocument;
@@ -106,8 +106,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -222,8 +222,8 @@ const styles = StyleSheet.create({
   contactTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
   contactEmail: { marginTop: 3, color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   contactButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

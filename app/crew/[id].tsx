@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CanonicalCrewDetailScreen from '@/src/features/crews-events/CanonicalCrewDetailScreen';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing } from '@/src/theme';
+import { geometry, colors, radius, shadows, spacing } from '@/src/theme';
 
 type CrewRole = 'owner' | 'admin' | 'member';
 
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   manageButton: {
     position: 'absolute',
     right: spacing.md,
-    minHeight: 40,
+    minHeight: geometry.controlHeight.compact,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

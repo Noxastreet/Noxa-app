@@ -34,7 +34,7 @@ import {
   type QuickConnectSession,
 } from '@/src/features/quick-connect/api';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
-import { animations, colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, animations, colors, radius, spacing, typography } from '@/src/theme';
 
 type Mode = 'share' | 'connect';
 
@@ -693,8 +693,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   iconButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
   },
   segmentButton: {
     flex: 1,
-    minHeight: 42,
+    minHeight: geometry.controlHeight.compact,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

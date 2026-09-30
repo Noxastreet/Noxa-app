@@ -86,6 +86,7 @@ function VehicleFallbackIcon({ vehicleType }: { vehicleType: GarageVehicle['vehi
 }
 
 function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const content = (
     <>
       <View style={styles.heroShade} />
@@ -102,9 +103,10 @@ function VehicleArtwork({ vehicle }: { vehicle: GarageVehicle }) {
     </>
   );
 
-  if (vehicle.cover_image_url) {
+  if (vehicle.cover_image_url && vehicle.cover_image_url !== failedCoverUrl) {
     return (
       <ImageBackground
+        onError={() => setFailedCoverUrl(vehicle.cover_image_url)}
         source={{ uri: vehicle.cover_image_url }}
         resizeMode="cover"
         style={styles.heroImage}

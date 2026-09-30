@@ -21,7 +21,7 @@ import {
   uuidPattern,
 } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRow = {
   id: string;
@@ -378,8 +378,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   headerButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,

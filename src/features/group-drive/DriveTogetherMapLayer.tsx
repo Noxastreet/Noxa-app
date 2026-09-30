@@ -67,7 +67,7 @@ import type {
   MapboxRoute,
 } from '@/src/features/mapbox/types';
 import { NoxaConfirmationSheet } from '@/src/components/ui';
-import {
+import { geometry,
   animations,
   colors,
   radius,
@@ -2280,8 +2280,8 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -2586,8 +2586,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   roomCloseButton: {
-    width: 34,
-    height: 34,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -2659,7 +2659,7 @@ const styles = StyleSheet.create({
   },
   inlineButton: {
     minWidth: 64,
-    minHeight: 34,
+    minHeight: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,

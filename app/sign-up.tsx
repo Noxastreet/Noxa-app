@@ -11,7 +11,7 @@ import {
 } from '@/src/lib/authRedirects';
 import { supabase } from '@/src/lib/supabase';
 import { resetToAuthenticatedApp } from '@/src/navigation/authNavigation';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, spacing, typography } from '@/src/theme';
 
 type SignUpErrors = {
   displayName?: string;
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   switchButton: {
-    minHeight: 38,
+    minHeight: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
   },

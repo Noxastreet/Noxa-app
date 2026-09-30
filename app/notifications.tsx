@@ -21,7 +21,7 @@ import {
   respondToDriveInvitation,
 } from '@/src/features/group-drive';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, spacing, typography } from '@/src/theme';
 
 type ActivityKind = 'crew' | 'drive' | 'event' | 'follow';
 
@@ -623,8 +623,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   headerAction: {
-    width: 40,
-    height: 40,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
   },
   invitationActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   acceptButton: {
-    minHeight: 32,
+    minHeight: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   declineButton: {
-    minHeight: 32,
+    minHeight: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.md,

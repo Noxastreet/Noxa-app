@@ -8,7 +8,7 @@ import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressa
 import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
 import { VehicleTypeIcon } from '@/src/features/garage/vehicle-picker/components/VehicleTypeIcon';
 import { supabase } from '@/src/lib/supabase';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 const colorsAvailable = [
   { name: 'Graphite', value: '#2E3038' },
@@ -869,8 +869,8 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   coverActionButton: {
-    minHeight: 42,
+    minHeight: geometry.controlHeight.compact,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

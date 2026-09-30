@@ -24,7 +24,7 @@ import {
   type EventExperienceRow,
 } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 type EventChatRow = Pick<
   EventExperienceRow,
@@ -399,8 +399,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   headerButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -536,8 +536,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sendButton: {
-    width: 40,
-    height: 40,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,

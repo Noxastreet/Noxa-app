@@ -18,7 +18,7 @@ import {
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { initials, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 const crewGalleryBucket = "crew-gallery";
 const maxImageBytes = 10 * 1024 * 1024;
@@ -530,8 +530,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   headerButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -550,8 +550,8 @@ const styles = StyleSheet.create({
   headerSubtitle: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: "700" },
   photoCount: { color: colors.textMuted, fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
   addButton: {
-    width: 34,
-    height: 34,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     backgroundColor: "#000",
   },
-  lightboxButton: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  lightboxButton: { width: geometry.controlHeight.compact, height: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center" },
   lightboxTitle: { color: colors.textMuted, fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
   lightboxImageWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.sm },
   lightboxImage: { width: "100%", height: "100%" },

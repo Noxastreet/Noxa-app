@@ -198,6 +198,7 @@ function CommunityRow({
 }
 
 function FeaturedVehicle({ vehicle }: { vehicle: PublicVehicle }) {
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const meta = [
     vehicle.year ? String(vehicle.year) : null,
     vehicle.horsepower === null ? null : `${vehicle.horsepower} HP`,
@@ -226,8 +227,9 @@ function FeaturedVehicle({ vehicle }: { vehicle: PublicVehicle }) {
       onPress={() => router.push({ pathname: "/vehicle-details", params: { id: vehicle.id } })}
       style={({ pressed }) => [styles.featuredVehicle, pressed && styles.pressed]}>
       <NoxaSurface maskChildren style={styles.vehicleArtwork}>
-      {vehicle.cover_image_url ? (
+      {vehicle.cover_image_url && vehicle.cover_image_url !== failedCoverUrl ? (
         <ImageBackground
+        onError={() => setFailedCoverUrl(vehicle.cover_image_url)}
           source={{ uri: vehicle.cover_image_url }}
           resizeMode="cover"
           style={styles.vehicleArtwork}

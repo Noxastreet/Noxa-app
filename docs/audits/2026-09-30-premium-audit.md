@@ -66,3 +66,7 @@ Automated evidence is separate from physical evidence. Full device gestures, Voi
 A08 P1: Crew/Events root base and optional context lacked request ownership; old base/enrichment/hero identity could arrive after refresh or focus loss. Add version guards, invalidate on blur and test the actual async components with deferred responses. No query/channel/schema changes.
 
 A09 P1: Unknown member/attendance data was displayed as zero; empty avatar stacks rendered invented AK/N/PM identities; non-spatial all-city lists claimed NEARBY NOW/around you. Unknown counts are absent, real confirmed zero remains zero, existing detail navigation replaces relationship actions until context is known, fabricated avatars are removed, and temporal/all-community lists use accurate language. No new data is invented.
+
+A10 P2: Vehicle hero surfaces only handled absent URLs, leaving broken URLs blank; the editor still claimed COVER READY. Existing fallback artwork now handles real image errors without inventing photos, preserves identity and remove/change actions, and retries different URLs. Crew/Event avatars reuse the cached shared NoxaAvatar.
+
+A11 P1: Small raw navigation, relationship, sheet-close and map-driver controls lacked 44pt targets. Existing controls use the compact semantic size; driver artwork stays 36pt inside a transparent 44pt hit target. Map ownership, MarkerView count, GPS and realtime are unchanged. Actual device collision/gesture/FPS evidence remains NOT VERIFIED.
