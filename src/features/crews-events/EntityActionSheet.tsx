@@ -5,6 +5,7 @@ import {
   Modal,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NoxaButton, NoxaSurface } from "@/src/components/ui";
 import { animations, colors, geometry, spacing } from "@/src/theme";
@@ -35,6 +37,7 @@ type Props = {
 };
 
 export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
+  const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const { height: windowHeight } = useWindowDimensions();
   const [rendered, setRendered] = useState(visible);
@@ -225,7 +228,7 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
             corners="top"
             cut={geometry.cut.lg}
             level="sheet"
-            style={styles.sheet}>
+            style={[styles.sheet, { paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.sm) }]}>
             <View {...panResponder.panHandlers} style={styles.dragArea}>
               <View style={styles.handle} />
               <Text numberOfLines={1} style={styles.title}>
@@ -233,6 +236,9 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
               </Text>
             </View>
 
+            <ScrollView
+              style={{ maxHeight: Math.max(120, windowHeight - insets.top - insets.bottom - 180) }}
+              showsVerticalScrollIndicator={false}>
             <NoxaSurface
               corners="signature"
               level="content"
@@ -242,10 +248,12 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
                 <Pressable
                   key={action.key}
                   accessibilityRole="button"
+                  accessibilityState={{ disabled: Boolean(action.disabled) }}
                   disabled={action.disabled}
                   onPress={() => run(action)}
                   style={({ pressed }) => [
                     styles.row,
+                    action.destructive && index > 0 && !actions[index - 1].destructive && styles.destructiveDivider,
                     index < actions.length - 1 && styles.rowDivider,
                     pressed && !action.disabled && styles.pressed,
                     action.disabled && styles.disabled,
@@ -267,6 +275,7 @@ export function EntityActionSheet({ visible, title, actions, onClose }: Props) {
                 </Pressable>
               ))}
             </NoxaSurface>
+            </ScrollView>
 
             <NoxaButton
               fullWidth
@@ -289,13 +298,13 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.58)",
+    backgroundColor: colors.scrim,
   },
   motionLayer: {
     width: "100%",
   },
   sheet: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: geometry.sheet.gutter,
     paddingTop: spacing.xs,
     paddingBottom: spacing.xl,
     gap: spacing.sm,
@@ -306,8 +315,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   handle: {
-    width: 38,
-    height: 4,
+    width: geometry.sheet.handleWidth,
+    height: geometry.sheet.handleHeight,
     alignSelf: "center",
     borderRadius: 2,
     backgroundColor: colors.borderStrong,
@@ -348,6 +357,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: "700",
   },
+  destructiveDivider: { marginTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderStrong },
   destructiveLabel: { color: colors.primaryHover },
   pressed: { opacity: animations.pressOpacity },
   disabled: { opacity: 0.4 },

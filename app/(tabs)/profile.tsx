@@ -18,6 +18,7 @@ import {
   NoxaAvatar,
   NoxaButton,
   NoxaIconButton,
+  NoxaListRow,
   NoxaPressableSurface,
   NoxaRootHeader,
   NoxaScreen,
@@ -141,11 +142,7 @@ function Identity({
     <Animated.View style={[styles.identity, useEntryAnimation(40, 12)]}>
       <View style={styles.identityTop}>
         <View style={styles.avatarRing}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} accessibilityLabel={`${displayName} avatar`} />
-          ) : (
-            <NoxaAvatar initials={getProfileInitials(displayName)} size={82} />
-          )}
+          <NoxaAvatar imageUrl={profile?.avatar_url} initials={getProfileInitials(displayName)} size={82} />
         </View>
         <View style={styles.identityNames}>
           <Text numberOfLines={1} style={styles.name}>{displayName}</Text>
@@ -406,24 +403,16 @@ function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; on
     <Animated.View style={[styles.section, useEntryAnimation(225)]}>
       <Text style={styles.sectionEyebrow}>ACCOUNT</Text>
       <View style={styles.contextList}>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} style={({ pressed }) => [styles.contextRow, styles.rowDivider, pressed && styles.pressed]}>
-          <View style={styles.contextIcon}><Ionicons name="settings-outline" size={20} color={colors.text} /></View>
-          <Text style={[styles.contextLabel, styles.flexLabel]}>Settings</Text>
-          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/notifications')} style={({ pressed }) => [styles.contextRow, styles.rowDivider, pressed && styles.pressed]}>
-          <View style={styles.contextIcon}><Ionicons name="notifications-outline" size={20} color={colors.text} /></View>
-          <Text style={[styles.contextLabel, styles.flexLabel]}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
+        <NoxaListRow icon="settings-outline" label="Settings" onPress={() => router.push('/settings')} />
+        <NoxaListRow icon="notifications-outline" label="Notifications" onPress={() => router.push('/notifications')} />
+        <NoxaListRow
+          destructive
           disabled={isSigningOut}
+          icon="log-out-outline"
+          isLast
+          label={isSigningOut ? 'Logging out…' : 'Log Out'}
           onPress={onSignOut}
-          style={({ pressed }) => [styles.contextRow, pressed && !isSigningOut && styles.pressed, isSigningOut && styles.disabled]}>
-          <View style={[styles.contextIcon, styles.logoutIcon]}><Ionicons name="log-out-outline" size={20} color={colors.primaryHover} /></View>
-          <Text style={styles.logoutText}>{isSigningOut ? 'Logging out…' : 'Log Out'}</Text>
-        </Pressable>
+        />
       </View>
     </Animated.View>
   );

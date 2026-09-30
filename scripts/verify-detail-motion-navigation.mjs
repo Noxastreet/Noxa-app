@@ -34,7 +34,7 @@ assert(
 );
 
 assert(
-  /if \(loading\)[\s\S]{0,240}<CrewHeader onMore=\{\(\) => undefined\} \/>/.test(crewDetail),
+  /if \(loading\)[\s\S]{0,240}<CrewHeader \/>/.test(crewDetail),
   'Crew Detail must render its navigation shell before async data resolves.',
 );
 
@@ -51,8 +51,9 @@ assert(
 );
 
 assert(
-  /NoxaIconButton/.test(crewDetail)
-    && /variant="overlay"/.test(crewDetail),
+  /NoxaTopBar/.test(crewDetail)
+    && /NoxaIconButton/.test(crewDetail)
+    && /variant="ghost"/.test(crewDetail),
   'Crew Detail header actions must use the canonical animated icon control.',
 );
 

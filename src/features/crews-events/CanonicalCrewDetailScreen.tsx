@@ -2,9 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   Share,
@@ -13,7 +11,7 @@ import {
   View,
 } from "react-native";
 
-import { NoxaDetailReveal, NoxaIconButton, NoxaScreen } from "@/src/components/ui";
+import { NoxaAvatar, NoxaDetailReveal, NoxaIconButton, NoxaLoadingState, NoxaScreen, NoxaSegmentedControl, NoxaSurface, NoxaTopBar } from "@/src/components/ui";
 import {
   EntityActionSheet,
   type EntityAction,
@@ -125,45 +123,17 @@ function joinPolicyLabel(policy: JoinPolicy) {
 }
 
 function CrewLogo({ crew, size = 58 }: { crew: Crew; size?: number }) {
-  if (crew.logo_url) {
-    return (
-      <Image
-        source={{ uri: crew.logo_url }}
-        style={{ width: size, height: size, borderRadius: size / 2 }}
-      />
-    );
-  }
-
-  return (
-    <View
-      style={[
-        styles.logoFallback,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
-    >
-      <Text style={styles.logoFallbackText}>{initials(crew.name)}</Text>
-    </View>
-  );
+  return <NoxaAvatar imageUrl={crew.logo_url} initials={initials(crew.name)} size={size} />;
 }
 
-function CrewHeader({ onMore }: { onMore: () => void }) {
+function CrewHeader({ onMore }: { onMore?: () => void }) {
   return (
     <View style={styles.header}>
-      <NoxaIconButton
-        accessibilityLabel="Go back"
-        icon="chevron-back"
-        iconSize={23}
-        onPress={() => router.back()}
-        size={44}
-        variant="overlay"
-      />
-      <NoxaIconButton
-        accessibilityLabel="More crew actions"
-        icon="ellipsis-horizontal"
-        iconSize={20}
-        onPress={onMore}
-        size={44}
-        variant="overlay"
+      <NoxaTopBar
+        centered
+        title="Crew"
+        left={<NoxaIconButton accessibilityLabel="Go back" icon="chevron-back" onPress={() => router.back()} variant="ghost" />}
+        right={onMore ? <NoxaIconButton accessibilityLabel="More crew actions" icon="ellipsis-horizontal" onPress={onMore} variant="ghost" /> : undefined}
       />
     </View>
   );
@@ -267,6 +237,7 @@ function CrewHero({
     .filter((profile): profile is CanonicalProfile => Boolean(profile));
 
   return (
+    <NoxaSurface maskChildren style={styles.heroFrame}>
     <CanonicalArtwork
       uri={artworkUri}
       style={styles.hero}
@@ -316,42 +287,24 @@ function CrewHero({
         </View>
       </View>
     </CanonicalArtwork>
+    </NoxaSurface>
   );
 }
 
 function TabBar({ value, onChange }: { value: CrewTab; onChange: (tab: CrewTab) => void }) {
-  const tabs: { value: CrewTab; label: string }[] = [
-    { value: "activity", label: "ACTIVITY" },
-    { value: "events", label: "EVENTS" },
-    { value: "members", label: "MEMBERS" },
-    { value: "about", label: "ABOUT" },
-  ];
-
   return (
     <View style={styles.tabs}>
-      {tabs.map((tab) => {
-        const active = tab.value === value;
-        return (
-          <Pressable
-            key={tab.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(tab.value)}
-            style={({ pressed }) => [
-              styles.tab,
-              active && styles.tabActive,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text
-              numberOfLines={1}
-              style={[styles.tabText, active && styles.tabTextActive]}
-            >
-              {tab.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+      <NoxaSegmentedControl
+        accessibilityLabel="Crew sections"
+        value={value}
+        onChange={onChange}
+        options={[
+          { value: 'activity', label: 'Activity' },
+          { value: 'events', label: 'Events' },
+          { value: 'members', label: 'Members' },
+          { value: 'about', label: 'About' },
+        ]}
+      />
     </View>
   );
 }
@@ -512,11 +465,11 @@ function EventsTab({ events }: { events: CrewEvent[] }) {
           ))}
         </View>
       ) : (
-        <View style={styles.emptyCard}>
+        <NoxaSurface style={styles.emptyCard}>
           <Ionicons name="calendar-outline" size={30} color={colors.primary} />
           <Text style={styles.emptyTitle}>No upcoming events</Text>
           <Text style={styles.emptyText}>The next crew drive will appear here.</Text>
-        </View>
+        </NoxaSurface>
       )}
     </View>
   );
@@ -527,7 +480,7 @@ function MembersTab({ members, ownerId }: { members: Member[]; ownerId: string }
     <View style={styles.tabContent}>
       <SectionTitle title="MEMBERS" meta={`${members.length} TOTAL`} />
       {members.length ? (
-        <View style={styles.memberList}>
+        <NoxaSurface style={styles.memberList}>
           {members.map((member) => (
             <View key={member.user_id} style={styles.memberRow}>
               <CanonicalAvatar profile={member.profile} size={44} />
@@ -546,13 +499,13 @@ function MembersTab({ members, ownerId }: { members: Member[]; ownerId: string }
               ) : null}
             </View>
           ))}
-        </View>
+        </NoxaSurface>
       ) : (
-        <View style={styles.emptyCard}>
+        <NoxaSurface style={styles.emptyCard}>
           <Ionicons name="people-outline" size={30} color={colors.primary} />
           <Text style={styles.emptyTitle}>No members yet</Text>
           <Text style={styles.emptyText}>The first drivers will appear here.</Text>
-        </View>
+        </NoxaSurface>
       )}
     </View>
   );
@@ -562,15 +515,15 @@ function AboutTab({ crew, owner }: { crew: Crew; owner: CanonicalProfile | null 
   return (
     <View style={styles.tabContent}>
       <SectionTitle title="ABOUT THE CREW" />
-      <View style={styles.aboutCard}>
+      <NoxaSurface style={styles.aboutCard}>
         <Text style={styles.aboutText}>
           {crew.description ||
             "This crew has not added its story yet. Respect the road, the people and the location."}
         </Text>
-      </View>
+      </NoxaSurface>
 
       <SectionTitle title="CREW DETAILS" />
-      <View style={styles.factsCard}>
+      <NoxaSurface style={styles.factsCard}>
         {[
           ["FOUNDER", profileName(owner)],
           ["CITY", crew.city || "Not specified"],
@@ -585,7 +538,7 @@ function AboutTab({ crew, owner }: { crew: Crew; owner: CanonicalProfile | null 
             </Text>
           </View>
         ))}
-      </View>
+      </NoxaSurface>
     </View>
   );
 }
@@ -918,10 +871,9 @@ export default function CanonicalCrewDetailScreen() {
   if (loading) {
     return (
       <NoxaScreen>
-        <CrewHeader onMore={() => undefined} />
+        <CrewHeader />
         <View style={styles.state}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={styles.stateText}>Entering crew…</Text>
+          <NoxaLoadingState label="Entering crew…" />
         </View>
       </NoxaScreen>
     );
@@ -930,7 +882,7 @@ export default function CanonicalCrewDetailScreen() {
   if (!crew) {
     return (
       <NoxaScreen>
-        <CrewHeader onMore={() => undefined} />
+        <CrewHeader />
         <View style={styles.state}>
           <Ionicons name="people-outline" size={38} color={colors.primary} />
           <Text style={styles.stateTitle}>Crew unavailable</Text>
@@ -1028,10 +980,7 @@ const styles = StyleSheet.create({
   loadedContent: { gap: spacing.md },
   pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
   header: {
-    height: 60,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    minHeight: 64,
     paddingHorizontal: spacing.md,
   },
   headerButton: {
@@ -1042,17 +991,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },
+  heroFrame: { marginHorizontal: spacing.md, overflow: 'hidden' },
   hero: {
     minHeight: 302,
     justifyContent: "flex-end",
-    marginHorizontal: spacing.md,
     padding: spacing.md,
     paddingTop: 78,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
-  heroImage: { borderRadius: radius.hero - 1 },
+  heroImage: { borderRadius: 0 },
   heroShadeTop: {
     ...StyleSheet.absoluteFillObject,
     bottom: "48%",
@@ -1136,7 +1083,7 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 16 },
   tabs: {
-    flexDirection: "row",
+    alignItems: "stretch",
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xxs,
@@ -1291,10 +1238,7 @@ const styles = StyleSheet.create({
   vehicleTitle: { color: colors.text, fontSize: 10, lineHeight: 14, fontWeight: "700" },
   memberList: {
     overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
   },
   memberRow: {
     minHeight: 66,
@@ -1316,18 +1260,12 @@ const styles = StyleSheet.create({
   },
   aboutCard: {
     padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
   },
   aboutText: { color: colors.text, fontSize: 14, lineHeight: 21 },
   factsCard: {
     overflow: "hidden",
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
   },
   factRow: {
     minHeight: 54,
@@ -1360,10 +1298,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
     padding: spacing.xl,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
   },
   emptyTitle: {
     color: colors.text,

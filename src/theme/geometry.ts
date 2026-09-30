@@ -9,6 +9,13 @@ export const geometry = {
     standard: 48,
     primary: 56,
   },
+  sheet: {
+    gutter: 20,
+    gap: 16,
+    handleWidth: 38,
+    handleHeight: 3,
+  },
+  rowHeight: 56,
   gutter: {
     min: 16,
     preferred: 24,

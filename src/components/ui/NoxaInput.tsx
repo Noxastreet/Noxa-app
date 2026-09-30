@@ -52,7 +52,7 @@ export function NoxaInput({
         {trailing}
       </View>
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text accessibilityRole="alert" style={styles.error}>{error}</Text>
       ) : hint ? (
         <Text style={styles.hint}>{hint}</Text>
       ) : null}
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   shell: {
     position: 'relative',
-    minHeight: 56,
+    minHeight: geometry.controlHeight.primary,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'transparent',

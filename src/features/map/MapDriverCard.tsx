@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   username: {
     flexShrink: 1,
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: typography.caption,
     fontWeight: '700',
   },
   friendBadge: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   friendBadgeText: {
     color: colors.text,
-    fontSize: 8,
+    fontSize: typography.v2.label.fontSize,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.primaryHover,
-    fontSize: 10.5,
+    fontSize: typography.caption,
     lineHeight: 15,
   },
   actions: {

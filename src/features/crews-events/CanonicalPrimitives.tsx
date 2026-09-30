@@ -289,7 +289,7 @@ export function CanonicalPrimaryButton({
       loading={loading}
       onPress={onPress}
       size={compact ? "sm" : "md"}
-      title={loading ? "PLEASE WAIT…" : label}
+      title={label}
       variant={noxaVariant}
     />
   );

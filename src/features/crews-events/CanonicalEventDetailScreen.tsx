@@ -18,6 +18,7 @@ import {
   NoxaDetailReveal,
   NoxaIconButton,
   NoxaScreen,
+  NoxaSurface,
   NoxaTopBar,
 } from "@/src/components/ui";
 import {
@@ -150,12 +151,14 @@ function Hero({
 }) {
   return (
     <View>
+      <NoxaSurface maskChildren style={[styles.hero, compact && styles.heroCompact]}>
       <CanonicalArtwork
         uri={event.cover_image_url}
-        style={[styles.hero, compact && styles.heroCompact]}
+        style={{ flex: 1 }}
         imageStyle={styles.heroImage}
         icon="flag-outline"
       />
+      </NoxaSurface>
       <View style={styles.heroCopy}>
         <View style={styles.heroPills}>
         <CanonicalPill label={categoryLabel(event)} />
@@ -885,9 +888,9 @@ const styles = StyleSheet.create({
   contentHost: { paddingBottom: 80 },
   pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
   header: { paddingHorizontal: spacing.md },
-  hero: { height: 188, marginHorizontal: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface },
+  hero: { height: 188, marginHorizontal: spacing.md, overflow: 'hidden', backgroundColor: 'transparent' },
   heroCompact: { height: 158 },
-  heroImage: { borderRadius: radius.lg },
+  heroImage: { borderRadius: 0 },
   heroPills: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.xs },
   heroCopy: { gap: spacing.xs, paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.xl },
   heroTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, lineHeight: 35, fontWeight: "900", letterSpacing: -0.7 },
