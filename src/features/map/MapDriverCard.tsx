@@ -159,6 +159,7 @@ export function MapDriverCard({
     const version = ++requestVersion.current;
     const isCurrent = () => requestVersion.current === version;
     setLoading(true);
+    setRelationshipLoading(false);
     setError(null);
     setProfile(null);
     setVehicle(null);
