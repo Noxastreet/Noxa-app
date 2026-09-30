@@ -5,7 +5,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -67,6 +66,7 @@ import type {
   MapboxDriver,
   MapboxRoute,
 } from '@/src/features/mapbox/types';
+import { NoxaConfirmationSheet } from '@/src/components/ui';
 import {
   animations,
   colors,
@@ -277,6 +277,9 @@ export function DriveTogetherMapLayer({
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDestructiveAction, setPendingDestructiveAction] = useState<
+    'cancel-room' | 'finish-active' | null
+  >(null);
 
   const [roomId, setRoomId] = useState<string | null>(null);
   const [roomState, setRoomState] = useState<QuickDriveRoomState | null>(null);
@@ -1197,77 +1200,62 @@ export function DriveTogetherMapLayer({
 
   const cancelWaitingRoom = useCallback(() => {
     if (!roomId || working) return;
-
-    Alert.alert(
-      'Cancel Drive Together?',
-      'The room and all pending invitations will be removed. No trip history will be saved.',
-      [
-        { text: 'Keep room', style: 'cancel' },
-        {
-          text: 'Cancel room',
-          style: 'destructive',
-          onPress: () => {
-            setWorking(true);
-            setError(null);
-            void cancelDrive(roomId)
-              .then((cancelled) => {
-                if (!cancelled) {
-                  throw new Error('The room is no longer cancellable. Refreshing its state.');
-                }
-                clearRoom();
-              })
-              .catch((cancelError) => {
-                setError(
-                  cancelError instanceof Error
-                    ? cancelError.message
-                    : 'Drive Together could not be cancelled.',
-                );
-                void refreshDetails(roomId);
-              })
-              .finally(() => setWorking(false));
-          },
-        },
-      ],
-    );
-  }, [clearRoom, refreshDetails, roomId, working]);
+    setPendingDestructiveAction('cancel-room');
+  }, [roomId, working]);
 
   const finishActive = useCallback(() => {
     if (!details || !roomId || working) return;
-    const host = details.hostId === details.currentUserId;
+    setPendingDestructiveAction('finish-active');
+  }, [details, roomId, working]);
 
-    Alert.alert(
-      host ? 'End Drive Together?' : 'Leave Drive Together?',
-      host
-        ? 'This ends the shared drive for everyone. No trip history will be saved.'
-        : 'You will leave the room and stop sharing your Drive Together location.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: host ? 'End' : 'Leave',
-          style: 'destructive',
-          onPress: () => {
-            setWorking(true);
-            setError(null);
-            void (host
-              ? endGroupDrive(roomId)
-              : leaveGroupDriveAndStopLocation(roomId)
-            )
-              .then(() => clearRoom())
-              .catch((finishError) => {
-                setError(
-                  finishError instanceof Error
-                    ? finishError.message
-                    : 'Drive Together could not be ended.',
-                );
-              })
-              .finally(() => setWorking(false));
-          },
-        },
-      ],
-    );
+  const confirmDestructiveAction = useCallback(() => {
+    if (!pendingDestructiveAction || !roomId || working) return;
+
+    if (pendingDestructiveAction === 'cancel-room') {
+      setPendingDestructiveAction(null);
+      setWorking(true);
+      setError(null);
+      void cancelDrive(roomId)
+        .then((cancelled) => {
+          if (!cancelled) {
+            throw new Error('The room is no longer cancellable. Refreshing its state.');
+          }
+          clearRoom();
+        })
+        .catch((cancelError) => {
+          setError(
+            cancelError instanceof Error
+              ? cancelError.message
+              : 'Drive Together could not be cancelled.',
+          );
+          void refreshDetails(roomId);
+        })
+        .finally(() => setWorking(false));
+      return;
+    }
+
+    const host = Boolean(details && details.hostId === details.currentUserId);
+    setPendingDestructiveAction(null);
+    setWorking(true);
+    setError(null);
+    void (host
+      ? endGroupDrive(roomId)
+      : leaveGroupDriveAndStopLocation(roomId)
+    )
+      .then(() => clearRoom())
+      .catch((finishError) => {
+        setError(
+          finishError instanceof Error
+            ? finishError.message
+            : 'Drive Together could not be ended.',
+        );
+      })
+      .finally(() => setWorking(false));
   }, [
     clearRoom,
     details,
+    pendingDestructiveAction,
+    refreshDetails,
     roomId,
     working,
   ]);
@@ -2025,6 +2013,46 @@ export function DriveTogetherMapLayer({
           </Animated.View>
         </DriveTogetherSheet>
       ) : null}
+
+      <NoxaConfirmationSheet
+        body={
+          pendingDestructiveAction === 'cancel-room'
+            ? 'The room and all pending invitations will be removed. No trip history will be saved.'
+            : Boolean(details && details.hostId === details.currentUserId)
+              ? 'This ends the shared drive for everyone. No trip history will be saved.'
+              : 'You will leave the room and stop sharing your Drive Together location.'
+        }
+        busy={working}
+        cancelTitle={
+          pendingDestructiveAction === 'cancel-room'
+            ? 'Keep room'
+            : 'Cancel'
+        }
+        confirmTitle={
+          pendingDestructiveAction === 'cancel-room'
+            ? 'Cancel room'
+            : Boolean(details && details.hostId === details.currentUserId)
+              ? 'End'
+              : 'Leave'
+        }
+        confirmVariant="danger"
+        eyebrow="DRIVE TOGETHER"
+        icon={
+          pendingDestructiveAction === 'cancel-room'
+            ? 'trash-outline'
+            : 'exit-outline'
+        }
+        onCancel={() => setPendingDestructiveAction(null)}
+        onConfirm={confirmDestructiveAction}
+        title={
+          pendingDestructiveAction === 'cancel-room'
+            ? 'Cancel Drive Together?'
+            : Boolean(details && details.hostId === details.currentUserId)
+              ? 'End Drive Together?'
+              : 'Leave Drive Together?'
+        }
+        visible={pendingDestructiveAction !== null}
+      />
     </>
   );
 }
