@@ -17,7 +17,8 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          node <<'NODE'
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
           const endpoint = "https://api.expo.dev/graphql";
           async function query(query) {
             const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + process.env.EXPO_TOKEN }, body: JSON.stringify({ query }) });
@@ -55,7 +56,7 @@ jobs:
           if (!current) throw new Error("Expected submission missing");
           const {logFiles,...metadata} = current;
           console.log("Current submission evidence:",JSON.stringify(metadata));
-          require('fs').writeFileSync('submission-state.json',JSON.stringify(metadata,null,2));
+          fs.writeFileSync('submission-state.json',JSON.stringify(metadata,null,2));
           for (const url of Array.isArray(logFiles)?logFiles:logFiles?[logFiles]:[]) {
             const response = await fetch(url,{signal:AbortSignal.timeout(15000)});
             if(!response.ok) { console.log("Submission logs not ready:",response.status); continue; }
