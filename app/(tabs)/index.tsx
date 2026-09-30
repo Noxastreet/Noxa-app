@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
-  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   NoxaButton,
+  NoxaConfirmationSheet,
   NoxaIconButton,
   NoxaPressableSurface,
   NoxaSurface,
@@ -2660,107 +2660,41 @@ export default function LiveMapScreen() {
         topOffset={headerBottom + spacing.md}
       />
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => {
-          if (!isStartingLiveDrive) setPendingVisibilityMode(null);
+      <NoxaConfirmationSheet
+        body={`NOXA collects and shares your precise location with ${pendingVisibility?.label.toLowerCase() ?? "your selected audience"} while the app is in the background, so they can see you on the live map.`}
+        busy={isStartingLiveDrive}
+        confirmDisabled={!pendingVisibilityMode}
+        confirmTitle="Start 4-hour session"
+        eyebrow="BACKGROUND LOCATION"
+        footnote="Sharing stops after 4 hours, when you select Ghost, or when you sign out."
+        icon="navigate"
+        onCancel={() => setPendingVisibilityMode(null)}
+        onConfirm={() => {
+          if (pendingVisibilityMode) void startSharing(pendingVisibilityMode);
         }}
-        transparent
+        title="Start a 4-hour Live Drive?"
         visible={pendingVisibilityMode !== null}
-      >
-        <View style={styles.liveDriveModalBackdrop}>
-          <NoxaSurface level="sheet" style={styles.liveDriveModalCard}>
-            <View style={styles.liveDriveModalIcon}>
-              <Ionicons name="navigate" size={22} color={colors.primaryHover} />
-            </View>
-            <Text style={styles.liveDriveModalEyebrow}>BACKGROUND LOCATION</Text>
-            <Text style={styles.liveDriveModalTitle}>Start a 4-hour Live Drive?</Text>
-            <Text style={styles.liveDriveModalBody}>
-              NOXA collects and shares your precise location with{" "}
-              {pendingVisibility?.label.toLowerCase() ?? "your selected audience"} while
-              the app is in the background, so they can see you on the live map.
-            </Text>
-            <Text style={styles.liveDriveModalFootnote}>
-              Sharing stops after 4 hours, when you select Ghost, or when you sign out.
-            </Text>
-            <View style={styles.liveDriveModalActions}>
-              <NoxaButton
-                disabled={isStartingLiveDrive}
-                onPress={() => setPendingVisibilityMode(null)}
-                size="md"
-                style={styles.liveDriveCancelButton}
-                title="Cancel"
-                variant="secondary"
-              />
-              <NoxaButton
-                disabled={isStartingLiveDrive || !pendingVisibilityMode}
-                loading={isStartingLiveDrive}
-                onPress={() => {
-                  if (pendingVisibilityMode) void startSharing(pendingVisibilityMode);
-                }}
-                size="md"
-                style={styles.liveDriveStartButton}
-                title="Start 4-hour session"
-              />
-            </View>
-          </NoxaSurface>
-        </View>
-      </Modal>
+      />
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => {
-          // Android Back and dismissal are Cancel: nothing has been changed.
-          if (!isChangingAudience) setPendingAudienceChange(null);
+      <NoxaConfirmationSheet
+        body={`Change who can see your precise location on the live map from ${pendingAudienceFromLabel ?? "your current audience"} to ${pendingAudienceToLabel ?? "the selected audience"}?`}
+        busy={isChangingAudience}
+        confirmDisabled={!pendingAudienceChange}
+        confirmTitle={
+          pendingAudienceToLabel
+            ? `Change to ${pendingAudienceToLabel}`
+            : "Change audience"
+        }
+        eyebrow="PRECISE LOCATION"
+        footnote={`This does not extend your Live Drive. Sharing keeps the current end time${liveDriveRemaining ? ` (${liveDriveRemaining} left)` : ""} and stops earlier if you select Ghost or sign out.`}
+        icon="eye-outline"
+        onCancel={() => setPendingAudienceChange(null)}
+        onConfirm={() => {
+          if (pendingAudienceChange) void applyAudienceChange(pendingAudienceChange.to);
         }}
-        transparent
+        title="Change Live Drive audience?"
         visible={pendingAudienceChange !== null}
-      >
-        <View style={styles.liveDriveModalBackdrop}>
-          <NoxaSurface level="sheet" style={styles.liveDriveModalCard}>
-            <View style={styles.liveDriveModalIcon}>
-              <Ionicons name="eye-outline" size={22} color={colors.primaryHover} />
-            </View>
-            <Text style={styles.liveDriveModalEyebrow}>PRECISE LOCATION</Text>
-            <Text style={styles.liveDriveModalTitle}>Change Live Drive audience?</Text>
-            <Text style={styles.liveDriveModalBody}>
-              Change who can see your precise location on the live map from{" "}
-              {pendingAudienceFromLabel ?? "your current audience"} to{" "}
-              {pendingAudienceToLabel ?? "the selected audience"}?
-            </Text>
-            <Text style={styles.liveDriveModalFootnote}>
-              This does not extend your Live Drive. Sharing keeps the current end time
-              {liveDriveRemaining ? ` (${liveDriveRemaining} left)` : ""} and stops
-              earlier if you select Ghost or sign out.
-            </Text>
-            <View style={styles.liveDriveModalActions}>
-              <NoxaButton
-                disabled={isChangingAudience}
-                onPress={() => setPendingAudienceChange(null)}
-                size="md"
-                style={styles.liveDriveCancelButton}
-                title="Cancel"
-                variant="secondary"
-              />
-              <NoxaButton
-                disabled={isChangingAudience || !pendingAudienceChange}
-                loading={isChangingAudience}
-                onPress={() => {
-                  if (pendingAudienceChange)
-                    void applyAudienceChange(pendingAudienceChange.to);
-                }}
-                size="md"
-                style={styles.liveDriveStartButton}
-                title={
-                  pendingAudienceToLabel
-                    ? `Change to ${pendingAudienceToLabel}`
-                    : "Change audience"
-                }
-              />
-            </View>
-          </NoxaSurface>
-        </View>
-      </Modal>
+      />
     </View>
   );
 }
@@ -3033,64 +2967,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
   },
-  liveDriveModalBackdrop: {
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.xl,
-    backgroundColor: "rgba(4,4,7,0.78)",
-  },
-  liveDriveModalCard: {
-    padding: spacing.xl,
-    backgroundColor: "transparent",
-  },
-  liveDriveModalIcon: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primarySubtle,
-  },
-  liveDriveModalEyebrow: {
-    marginBottom: spacing.xs,
-    color: colors.primaryHover,
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-  },
-  liveDriveModalTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900",
-  },
-  liveDriveModalBody: {
-    marginTop: spacing.md,
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  liveDriveModalFootnote: {
-    marginTop: spacing.sm,
-    color: colors.textSubtle,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  liveDriveModalActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-  },
-  liveDriveCancelButton: {
-    minWidth: 96,
-  },
   liveDriveCancelText: {
     color: colors.textMuted,
     fontSize: 12,
     fontWeight: "800",
-  },
-  liveDriveStartButton: {
-    flex: 1,
   },
   liveDriveStartText: {
     color: colors.text,
