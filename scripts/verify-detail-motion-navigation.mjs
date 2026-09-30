@@ -16,6 +16,7 @@ const eventDetail = read('src/features/crews-events/CanonicalEventDetailScreen.t
 const crewDetail = read('src/features/crews-events/CanonicalCrewDetailScreen.tsx');
 const driverDetail = read('app/driver-profile/[id].tsx');
 const vehicleDetail = read('app/vehicle-details.tsx');
+const detailReveal = read('src/components/ui/NoxaDetailReveal.tsx');
 
 assert(
   /const detailScreenOptions = \{[\s\S]*animation:\s*'default'[\s\S]*gestureEnabled:\s*true[\s\S]*presentation:\s*'card'[\s\S]*backgroundColor:\s*colors\.background/.test(layout),
@@ -59,6 +60,26 @@ assert(
   /NoxaIconButton/.test(eventDetail),
   'Event Detail header actions must remain on the canonical animated icon control.',
 );
+
+assert(
+  /FadeIn/.test(detailReveal)
+    && /duration\(animations\.micro\)/.test(detailReveal)
+    && /ReduceMotion\.System/.test(detailReveal)
+    && !/FadeInDown|translateY|translateX/.test(detailReveal),
+  'Detail content reveal must be a short opacity-only transition with system Reduce Motion.',
+);
+
+for (const [name, source] of [
+  ['Driver Detail', driverDetail],
+  ['Vehicle Detail', vehicleDetail],
+  ['Event Detail', eventDetail],
+  ['Crew Detail', crewDetail],
+]) {
+  assert(
+    /NoxaDetailReveal/.test(source),
+    `${name} must reveal async content under its stable navigation shell.`,
+  );
+}
 
 assert(
   !/animation:\s*['"]fade['"]/.test(layout),

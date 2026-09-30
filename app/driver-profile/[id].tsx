@@ -15,7 +15,7 @@ import {
 } from "react-native";
 
 import { ReportModal } from "@/src/components/moderation/ReportModal";
-import { NoxaButton, NoxaIconButton, NoxaScreen } from "@/src/components/ui";
+import { NoxaButton, NoxaDetailReveal, NoxaIconButton, NoxaScreen } from "@/src/components/ui";
 import { EntityActionSheet, type EntityAction } from "@/src/features/crews-events/EntityActionSheet";
 import { VehicleTypeIcon } from "@/src/features/garage/vehicle-picker/components/VehicleTypeIcon";
 import { formatProfileLocation } from "@/src/features/profile/formatProfileLocation";
@@ -550,7 +550,7 @@ export default function PublicDriverProfileScreen() {
         ) : !profile ? (
           <StateCard title="Driver not found" message="No public NOXA profile exists for this driver." onRetry={loadDriverProfile} />
         ) : (
-          <>
+          <NoxaDetailReveal style={styles.loadedContent}>
             <IdentityBlock
               profile={profile}
               displayName={displayName}
@@ -595,7 +595,7 @@ export default function PublicDriverProfileScreen() {
 
             <VehicleCollection vehicles={vehicles} featuredId={featuredVehicle?.id ?? null} />
             <Moments posts={posts} />
-          </>
+          </NoxaDetailReveal>
         )}
       </ScrollView>
 
@@ -623,6 +623,7 @@ const styles = StyleSheet.create({
     paddingBottom: 132,
     gap: spacing.xl,
   },
+  loadedContent: { gap: spacing.xl },
   header: {
     minHeight: 44,
     flexDirection: "row",

@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 
-import { NoxaIconButton, NoxaScreen } from "@/src/components/ui";
+import { NoxaDetailReveal, NoxaIconButton, NoxaScreen } from "@/src/components/ui";
 import {
   EntityActionSheet,
   type EntityAction,
@@ -968,6 +968,7 @@ export default function CanonicalCrewDetailScreen() {
       >
         <CrewHeader onMore={() => setActionsOpen(true)} />
 
+        <NoxaDetailReveal style={styles.loadedContent}>
         <CrewHero
           artworkUri={artworkUri}
           crew={crew}
@@ -1009,6 +1010,7 @@ export default function CanonicalCrewDetailScreen() {
           <MembersTab members={members} ownerId={crew.owner_id} />
         ) : null}
         {activeTab === "about" ? <AboutTab crew={crew} owner={owner} /> : null}
+        </NoxaDetailReveal>
       </ScrollView>
 
       <EntityActionSheet
@@ -1023,6 +1025,7 @@ export default function CanonicalCrewDetailScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 104, gap: spacing.md },
+  loadedContent: { gap: spacing.md },
   pressed: { opacity: 0.8, transform: [{ scale: 0.99 }] },
   header: {
     height: 60,

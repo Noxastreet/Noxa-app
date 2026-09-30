@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
 
-import { NoxaAvatar, NoxaBadge, NoxaIconButton, NoxaScreen } from '@/src/components/ui';
+import { NoxaAvatar, NoxaBadge, NoxaDetailReveal, NoxaIconButton, NoxaScreen } from '@/src/components/ui';
 import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -407,12 +407,12 @@ export default function VehicleDetailsScreen() {
         {isLoading ? <StateCard loading title="Loading vehicle..." /> : null}
         {!isLoading && error ? <StateCard title={error} onRetry={loadVehicle} /> : null}
         {!isLoading && !error && vehicle ? (
-          <>
+          <NoxaDetailReveal style={styles.loadedContent}>
             <VehicleHero vehicle={vehicle} />
             {owner ? <OwnerCard owner={owner} /> : null}
             <Information rows={informationRows} />
             <About description={vehicle.description} />
-          </>
+          </NoxaDetailReveal>
         ) : null}
       </ScrollView>
       <EntityActionSheet
@@ -427,6 +427,7 @@ export default function VehicleDetailsScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 72, gap: spacing.lg },
+  loadedContent: { gap: spacing.lg },
   header: {
     position: 'absolute',
     top: spacing.md,
