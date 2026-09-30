@@ -30,8 +30,9 @@ assert(
 
 assert(
   /eventDestinations=\{driveTogetherEventDestinations\}/.test(home)
-    && /getEventLifecycle\(event\) !== "ended"/.test(home),
-  'Drive Together destination chooser must receive active/upcoming Events from Home Map.',
+    && /lifecycle === "scheduled"/.test(home)
+    && /lifecycle === "live"/.test(home),
+  'Drive Together destination chooser must receive only scheduled/live Events from Home Map.',
 );
 
 assert(
@@ -44,7 +45,8 @@ assert(
 assert(
   /if \(!open \|\| !driveStateResolved \|\| !initialDestination\) return;/.test(layer)
     && /if \(roomId\)[\s\S]{0,180}setPendingExternalDestination\(initialDestination\)/.test(layer)
-    && /setDraftDestination\(nextDestination\)[\s\S]{0,180}setComposerMode\('create-friends'\)/.test(layer),
+    && /setDraftDestination\(nextDestination\)[\s\S]{0,180}setComposerMode\('create-friends'\)/.test(layer)
+    && /setSelectedFriendIds\([\s\S]{0,140}initialFriendId[\s\S]{0,140}new Set\(\)/.test(layer),
   'Destination bridge must reuse an existing room or skip directly to friend selection for a new room.',
 );
 
