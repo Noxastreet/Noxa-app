@@ -104,8 +104,8 @@ assert(
   'Shared NOXA avatars must use memory+disk caching.',
 );
 assert(
-  /from "expo-image"/.test(canonical) && /cachePolicy="memory-disk"/.test(canonical),
-  'Crew/Event canonical avatars must use expo-image memory+disk caching.',
+  /NoxaAvatar/.test(canonical) && /cachePolicy="memory-disk"/.test(avatar),
+  'Crew/Event avatars must reuse the canonical cached NOXA avatar with failed-image fallback.',
 );
 
 if (!process.exitCode) {

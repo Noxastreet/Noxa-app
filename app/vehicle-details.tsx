@@ -130,6 +130,7 @@ function VehicleFallback({ vehicleType }: { vehicleType: VehicleDetails['vehicle
 }
 
 function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const content = (
     <>
       <View style={styles.heroContent}>
@@ -146,8 +147,9 @@ function VehicleHero({ vehicle }: { vehicle: VehicleDetails }) {
 
   return (
     <NoxaSurface maskChildren style={styles.heroCard}>
-      {vehicle.cover_image_url ? (
-        <ImageBackground source={{ uri: vehicle.cover_image_url }} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius as ImageStyle}>
+      {vehicle.cover_image_url && vehicle.cover_image_url !== failedCoverUrl ? (
+        <ImageBackground
+          onError={() => setFailedCoverUrl(vehicle.cover_image_url)} source={{ uri: vehicle.cover_image_url }} resizeMode="cover" style={styles.heroImage} imageStyle={styles.heroImageRadius as ImageStyle}>
           {content}
         </ImageBackground>
       ) : (

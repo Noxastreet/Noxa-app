@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -16,14 +17,17 @@ type VehiclePhotoCardProps = {
 };
 
 export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUri, vehicleType }: VehiclePhotoCardProps) {
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const photoAvailable = Boolean(photoUri && photoUri !== failedUri);
   return (
     <Animated.View layout={pickerMotion.layout} style={styles.root} testID="vehicle-picker:photo:cover">
       <View style={styles.preview}>
-        {photoUri ? (
+        {photoAvailable ? (
           <Animated.Image
             entering={pickerMotion.contentEnter}
             exiting={pickerMotion.contentExit}
-            source={{ uri: photoUri }}
+            onError={() => setFailedUri(photoUri)}
+            source={{ uri: photoUri! }}
             style={styles.image}
           />
         ) : (
@@ -33,11 +37,11 @@ export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUr
             style={styles.placeholder}>
             <VehicleTypeIcon vehicleType={vehicleType} size={46} color={colors.primaryHover} />
             <Text style={styles.placeholderTitle}>YOUR VEHICLE</Text>
-            <Text style={styles.placeholderCopy}>A cover photo is optional.</Text>
+            <Text style={styles.placeholderCopy}>{failedUri && failedUri === photoUri ? 'Photo unavailable. Choose another photo.' : 'A cover photo is optional.'}</Text>
           </Animated.View>
         )}
         <View style={styles.scrim} />
-        {photoUri ? (
+        {photoAvailable ? (
           <Animated.View entering={pickerMotion.contentEnter} style={styles.photoBadge}>
             <Ionicons name="checkmark" size={13} color={colors.text} />
             <Text style={styles.photoBadgeText}>COVER READY</Text>
@@ -58,6 +62,7 @@ export function VehiclePhotoCard({ disabled = false, onChoose, onRemove, photoUr
           <Animated.View entering={pickerMotion.contentEnter} exiting={pickerMotion.contentExit}>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Remove cover photo"
               disabled={disabled}
               onPress={onRemove}
               style={({ pressed }) => [styles.removeAction, pressed && styles.pressed, disabled && styles.disabled]}>

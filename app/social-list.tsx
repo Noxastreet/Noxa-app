@@ -15,7 +15,7 @@ import {
 
 import { NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type SocialTab = "followers" | "following";
 
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    minHeight: 42,
+    minHeight: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderBottomWidth: 2,

@@ -34,7 +34,7 @@ import {
 } from '@/src/features/group-drive/runtime/localNavigationLocation';
 import { MapboxLiveMapCompat } from '@/src/features/mapbox/MapboxLiveMapCompat';
 import type { LiveMapHandle, MapRegion, MapboxDriver, MapboxRoute } from '@/src/features/mapbox/types';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, spacing, typography } from '@/src/theme';
 
 function routeForMap(details: GroupDriveDetails | null): MapboxRoute | null {
   const coordinates = details?.routeGeometry?.coordinates;
@@ -510,8 +510,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(6,6,10,0.82)',
   },
   iconButton: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -568,8 +568,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   moreButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

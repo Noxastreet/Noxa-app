@@ -16,7 +16,7 @@ import {
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { initials, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type ConvoyStatus = "lobby" | "live" | "completed" | "cancelled";
@@ -752,8 +752,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   headerButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   counterHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   counterValue: { color: colors.text, fontFamily: typography.fontFamily.body, fontSize: 17, fontWeight: "900" },
   counterTrack: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  counterButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
+  counterButton: { width: geometry.controlHeight.compact, height: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
   counterLine: { flex: 1, height: 4, overflow: "hidden", borderRadius: 2, backgroundColor: colors.surfacePressed },
   counterFill: { height: "100%", backgroundColor: colors.primary },
   statusCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.warning, backgroundColor: colors.warningMuted },

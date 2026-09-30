@@ -19,7 +19,7 @@ import {
   type ReportReason,
   type ReportTargetType,
 } from '@/src/lib/moderation';
-import { colors, radius, shadows, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, shadows, spacing, typography } from '@/src/theme';
 
 const reasons: { label: string; value: ReportReason }[] = [
   { label: 'Harassment', value: 'harassment' },
@@ -261,8 +261,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   closeButton: {
-    width: 38,
-    height: 38,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

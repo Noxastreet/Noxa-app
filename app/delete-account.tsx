@@ -27,7 +27,7 @@ import {
 } from '@/src/lib/socialAuth';
 import { supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, spacing, typography } from '@/src/theme';
 
 const confirmationText = 'DELETE';
 type VerificationMode = 'apple' | 'google' | 'password';
@@ -335,8 +335,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,

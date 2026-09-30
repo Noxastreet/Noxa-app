@@ -17,7 +17,7 @@ import {
 
 import { NoxaButton, NoxaInput, NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 const postImagesBucket = "post-images";
 const maxPostImageBytes = 10 * 1024 * 1024;
@@ -295,8 +295,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   headerButton: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,

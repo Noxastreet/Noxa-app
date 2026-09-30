@@ -12,7 +12,7 @@ import {
   type DriveParticipant,
   type GroupDriveDetails,
 } from '@/src/features/group-drive';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, spacing, typography } from '@/src/theme';
 
 function initials(name: string) {
   return name
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   removeButton: {
-    minHeight: 40,
+    minHeight: geometry.controlHeight.compact,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,

@@ -14,7 +14,7 @@ import {
 
 import { NoxaEmptyState, NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type SearchFilter = "all" | "drivers" | "vehicles" | "crews" | "events";
 
@@ -628,8 +628,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
   },
   filters: { gap: spacing.xs, paddingVertical: spacing.sm },
   filterChip: {
-    minHeight: 34,
+    minHeight: geometry.controlHeight.compact,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,

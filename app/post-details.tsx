@@ -22,7 +22,7 @@ import { ReportModal } from "@/src/components/moderation/ReportModal";
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { blockUser, type ReportTargetType } from "@/src/lib/moderation";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type PostRow = {
   id: string;
@@ -944,8 +944,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -1017,7 +1017,7 @@ const styles = StyleSheet.create({
   commentMetaRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
   commentMeta: { color: colors.textQuiet, fontSize: 9, fontWeight: "800" },
   replyButtonText: { color: colors.textMuted, fontSize: 9, fontWeight: "900" },
-  commentLike: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
+  commentLike: { width: geometry.controlHeight.compact, height: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center" },
   emptyComments: {
     minHeight: 132,
     alignItems: "center",

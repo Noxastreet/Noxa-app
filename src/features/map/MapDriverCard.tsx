@@ -126,6 +126,7 @@ export function MapDriverCard({
 
   const [unavailable, setUnavailable] = useState(false);
   const [sharedCrew, setSharedCrew] = useState(false);
+  const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const requestVersion = useRef(0);
   const actionPending = useRef(false);
   const navigationPending = useRef(false);
@@ -429,10 +430,11 @@ export function MapDriverCard({
               accessibilityRole="button"
               contentStyle={styles.vehicle}
               onPress={() => openDetail('vehicle')}>
-              {vehicle.coverImageUrl ? (
+              {vehicle.coverImageUrl && vehicle.coverImageUrl !== failedCoverUrl ? (
                 <Image
                   cachePolicy="memory-disk"
                   contentFit="cover"
+                  onError={() => setFailedCoverUrl(vehicle.coverImageUrl)}
                   recyclingKey={vehicle.id}
                   source={{ uri: vehicle.coverImageUrl }}
                   style={styles.vehicleImage}

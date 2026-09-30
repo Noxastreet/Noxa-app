@@ -1,9 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Image as ExpoImage } from "expo-image";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ImageBackground, Pressable, StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
-import { NoxaButton, NoxaCutBackground } from "@/src/components/ui";
+import { NoxaAvatar, NoxaButton, NoxaCutBackground } from "@/src/components/ui";
 import { colors, geometry, radius, spacing, typography } from "@/src/theme";
 
 export type CanonicalProfile = {
@@ -82,9 +81,11 @@ export function CanonicalArtwork({
   imageStyle?: StyleProp<ImageStyle>;
   icon?: keyof typeof Ionicons.glyphMap;
 }) {
-  if (uri) {
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  if (uri && uri !== failedUri) {
     return (
       <ImageBackground
+        onError={() => setFailedUri(uri)}
         source={{ uri }}
         resizeMode="cover"
         style={[styles.artwork, style]}
@@ -117,35 +118,7 @@ export function CanonicalAvatar({
   profile?: CanonicalProfile | null;
   size?: number;
 }) {
-  const name = profileName(profile);
-  if (profile?.avatar_url) {
-    return (
-      <ExpoImage
-        cachePolicy="memory-disk"
-        contentFit="cover"
-        recyclingKey={profile.avatar_url}
-        source={{ uri: profile.avatar_url }}
-        style={[
-          styles.avatarImage,
-          { width: size, height: size, borderRadius: size / 2 },
-        ]}
-        transition={100}
-      />
-    );
-  }
-
-  return (
-    <View
-      style={[
-        styles.avatarFallback,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
-    >
-      <Text style={[styles.avatarText, { fontSize: Math.max(9, size * 0.28) }]}>
-        {initials(name)}
-      </Text>
-    </View>
-  );
+  return <NoxaAvatar imageUrl={profile?.avatar_url} initials={initials(profileName(profile))} size={size} />;
 }
 
 export function CanonicalAvatarStack({
@@ -180,7 +153,7 @@ export function CanonicalAvatarStack({
               width: size,
               height: size,
               borderRadius: size / 2,
-              marginLeft: -8,
+              marginLeft: visible.length ? -8 : 0,
             },
           ]}
         >
@@ -210,7 +183,7 @@ export function CanonicalSectionHeader({
           accessibilityRole={onAction ? "button" : undefined}
           disabled={!onAction}
           onPress={onAction}
-          style={({ pressed }) => pressed && styles.pressed}
+          style={({ pressed }) => [styles.sectionActionTarget, pressed && styles.pressed]}
         >
           <Text style={styles.sectionAction}>{action}</Text>
         </Pressable>
@@ -374,6 +347,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: "800",
   },
+  sectionActionTarget: { minWidth: geometry.controlHeight.compact, minHeight: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center" },
   sectionHeader: {
     minHeight: 28,
     flexDirection: "row",

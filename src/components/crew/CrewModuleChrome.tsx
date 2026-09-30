@@ -10,7 +10,7 @@ import {
 } from "react-native";
 
 import { NoxaButton } from "@/src/components/ui";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 export function CrewModuleHeader({
   badge,
@@ -123,8 +123,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   headerButton: {
-    width: 40,
-    height: 40,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,

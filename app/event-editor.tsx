@@ -27,7 +27,7 @@ import { MapboxEventLocationPickerCompat } from "@/src/features/mapbox/MapboxEve
 import { NOXA_FALLBACK_COORDINATE } from "@/src/features/mapbox/config";
 import type { LatLng } from "@/src/features/mapbox/types";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
-import { colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type EventForm = {
   title: string;
@@ -1030,8 +1030,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceBase,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -1183,7 +1183,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   categoryOption: {
-    minHeight: 42,
+    minHeight: geometry.controlHeight.compact,
     flexBasis: "47%",
     flexGrow: 1,
     flexDirection: "row",

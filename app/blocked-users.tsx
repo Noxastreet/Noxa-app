@@ -14,7 +14,7 @@ import {
 
 import { NoxaHeader, NoxaScreen } from '@/src/components/ui';
 import { loadBlockedUsers, unblockUser, type BlockedUser } from '@/src/lib/moderation';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { geometry, colors, radius, spacing, typography } from '@/src/theme';
 
 function initials(name: string) {
   return (
@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   userHandle: { marginTop: 2, color: colors.textMuted, fontSize: 10, fontWeight: '700' },
   unblockButton: {
     minWidth: 82,
-    minHeight: 36,
+    minHeight: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,

@@ -66,7 +66,7 @@ import {
   refreshSupabaseSessionOnce,
   supabase,
 } from "@/src/lib/supabase";
-import { animations, colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { geometry, animations, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type ProfileMarkerRow = {
   id: string;
@@ -2828,8 +2828,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   identityControl: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,

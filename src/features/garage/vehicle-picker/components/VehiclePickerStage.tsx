@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
-import { colors, spacing, typography } from '@/src/theme';
+import { geometry, colors, spacing, typography } from '@/src/theme';
 
 import { pickerMotion } from '../motion';
 
@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   backButton: {
-    width: 42,
-    height: 42,
+    width: geometry.controlHeight.compact,
+    height: geometry.controlHeight.compact,
     alignItems: 'center',
     justifyContent: 'center',
   },

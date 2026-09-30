@@ -21,7 +21,7 @@ import { CityField } from "@/src/features/city-picker";
 import { CountryField } from "@/src/features/country-picker";
 import { isMissingColumnError, normalizeProfileCountryCode } from "@/src/features/profile/profileIdentityPersistence";
 import { supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 type ProfileForm = {
   displayName: string;
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   keyboardAvoiding: { flex: 1 },
   shell: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl, backgroundColor: colors.background },
   content: { paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  iconButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
+  iconButton: { width: geometry.controlHeight.compact, height: geometry.controlHeight.compact, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
   pressed: { opacity: 0.78, transform: [{ translateY: 1 }, { scale: 0.985 }] },
   fieldWrap: { gap: spacing.xs },
   section: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   previewMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: "700" },
   photoHint: { marginTop: spacing.sm, color: colors.textQuiet, fontSize: 9, fontWeight: "700" },
   avatarActions: { flexDirection: "row", gap: spacing.sm },
-  avatarActionButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
+  avatarActionButton: { minHeight: geometry.controlHeight.compact, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
   avatarActionText: { color: colors.text, fontSize: 10, fontWeight: "900" },
   removeButton: { backgroundColor: colors.primarySubtle, borderColor: colors.borderAccent },
   removeText: { color: colors.textAccent, fontSize: 10, fontWeight: "900" },
