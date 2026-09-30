@@ -1378,7 +1378,7 @@ export function DriveTogetherMapLayer({
   const renderDestinationComposer = () => (
     <View style={styles.composer}>
       <View style={styles.sheetHeader}>
-        <Pressable
+        <Pressable accessibilityRole="button"
           accessibilityLabel="Back"
           onPress={() => {
             if (composerMode === 'change-destination') {
@@ -1417,7 +1417,7 @@ export function DriveTogetherMapLayer({
               That point becomes the shared destination.
             </Text>
           </View>
-          <Pressable onPress={cancelMapPick} style={styles.smallGhostButton}>
+          <Pressable accessibilityRole="button" onPress={cancelMapPick} style={styles.smallGhostButton}>
             <Text style={styles.smallGhostText}>Cancel</Text>
           </Pressable>
         </View>
@@ -1430,7 +1430,7 @@ export function DriveTogetherMapLayer({
               autoCorrect={false}
               onChangeText={setSearchQuery}
               placeholder="Address, place or destination"
-              placeholderTextColor={colors.textSubtle}
+              placeholderTextColor={colors.textQuiet}
               returnKeyType="search"
               style={styles.searchInput}
               value={searchQuery}
@@ -1438,7 +1438,7 @@ export function DriveTogetherMapLayer({
             {searchingPlaces ? (
               <ActivityIndicator color={colors.primary} size="small" />
             ) : searchQuery ? (
-              <Pressable
+              <Pressable accessibilityRole="button" style={styles.searchClear}
                 accessibilityLabel="Clear destination search"
                 onPress={() => setSearchQuery('')}>
                 <Ionicons name="close-circle" size={18} color={colors.textMuted} />
@@ -1461,7 +1461,7 @@ export function DriveTogetherMapLayer({
               <>
                 <Text style={styles.destinationSectionLabel}>EVENTS</Text>
                 {eventDestinations.slice(0, 6).map((eventDestination) => (
-                  <Pressable
+                  <Pressable accessibilityRole="button"
                     key={eventDestination.id ?? eventDestination.label}
                     onPress={() =>
                       void selectDestination(
@@ -1489,13 +1489,13 @@ export function DriveTogetherMapLayer({
                         </Text>
                       ) : null}
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+                    <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
                   </Pressable>
                 ))}
               </>
             ) : null}
             {searchResults.map((place) => (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={place.id}
                 onPress={() => choosePlace(place)}
                 style={({ pressed }) => [
@@ -1515,7 +1515,7 @@ export function DriveTogetherMapLayer({
                     </Text>
                   ) : null}
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+                <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
               </Pressable>
             ))}
             {searchQuery.trim().length >= 2
@@ -1542,7 +1542,7 @@ export function DriveTogetherMapLayer({
     return (
       <View style={styles.composer}>
         <View style={styles.sheetHeader}>
-          <Pressable
+          <Pressable accessibilityRole="button"
             accessibilityLabel="Back"
             onPress={() => {
               if (composerMode === 'invite-drivers') {
@@ -1592,7 +1592,7 @@ export function DriveTogetherMapLayer({
               Scan their temporary NOXA code
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+          <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
         </Pressable>
 
         {friendsLoading ? (
@@ -1608,7 +1608,7 @@ export function DriveTogetherMapLayer({
             {source.map((friend) => {
               const selected = selectedFriendIds.has(friend.id);
               return (
-                <Pressable
+                <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={friend.displayName}
                   key={friend.id}
                   onPress={() => toggleFriend(friend.id)}
                   style={({ pressed }) => [
@@ -1815,7 +1815,7 @@ export function DriveTogetherMapLayer({
                 Your room is live, but this device is not publishing its Drive Together position.
               </Text>
             </View>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }} accessibilityLabel="Resume location sharing"
               disabled={sharingLocation}
               onPress={() => void enableSharing()}
               style={styles.inlineButton}>
@@ -1835,7 +1835,7 @@ export function DriveTogetherMapLayer({
               <Text style={styles.noticeTitle}>Route unavailable</Text>
               <Text style={styles.noticeBody}>{navigation.error}</Text>
             </View>
-            <Pressable onPress={navigation.retry} style={styles.inlineButton}>
+            <Pressable accessibilityRole="button" onPress={navigation.retry} style={styles.inlineButton}>
               <Text style={styles.inlineButtonText}>Retry</Text>
             </Pressable>
           </View>
@@ -1843,7 +1843,7 @@ export function DriveTogetherMapLayer({
 
         {roomActive ? (
           <View style={styles.quickActions}>
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: following }} accessibilityLabel={following ? 'Stop following the route' : 'Follow the route'}
               onPress={() => onFollowingChange(!following)}
               style={styles.quickAction}>
               <Ionicons
@@ -1856,7 +1856,7 @@ export function DriveTogetherMapLayer({
               </Text>
             </Pressable>
 
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={openDestinationComposer}
               style={styles.quickAction}>
               <Ionicons name="flag-outline" size={18} color={colors.text} />
@@ -1865,7 +1865,7 @@ export function DriveTogetherMapLayer({
               </Text>
             </Pressable>
 
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(occupiedSlots >= 8 || !isHost) }}
               disabled={occupiedSlots >= 8 || !isHost}
               onPress={openInviteComposer}
               style={[
@@ -1878,13 +1878,13 @@ export function DriveTogetherMapLayer({
           </View>
         ) : (
           <View style={styles.quickActions}>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={openInviteComposer}
               style={styles.quickAction}>
               <Ionicons name="person-add-outline" size={18} color={colors.text} />
               <Text style={styles.quickActionText}>Add driver</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={openDestinationComposer}
               style={styles.quickAction}>
               <Ionicons name="flag-outline" size={18} color={colors.text} />
@@ -1911,13 +1911,13 @@ export function DriveTogetherMapLayer({
             </View>
             {isHost ? (
               <View style={styles.proposalActions}>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityState={{ disabled: working, busy: working }} accessibilityLabel="Decline destination request"
                   disabled={working}
                   onPress={() => void respondToProposal(false)}
                   style={styles.proposalButton}>
                   <Ionicons name="close" size={17} color={colors.textMuted} />
                 </Pressable>
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityState={{ disabled: working, busy: working }} accessibilityLabel="Accept destination request"
                   disabled={working}
                   onPress={() => void respondToProposal(true)}
                   style={[styles.proposalButton, styles.proposalButtonAccept]}>
@@ -2209,6 +2209,7 @@ export function DriveTogetherMapLayer({
 }
 
 const styles = StyleSheet.create({
+  searchClear: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   flexCopy: {
     flex: 1,
     minWidth: 0,
@@ -2287,7 +2288,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.5,
@@ -2334,7 +2335,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: 4,
     paddingHorizontal: spacing.sm,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.4,
@@ -2439,7 +2440,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(200,16,46,0.10)',
   },
   destructiveText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
   },
   quickConnectFriendAction: {
     minHeight: 58,
@@ -2709,7 +2710,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(200,16,46,0.12)',
   },
   proposalLabel: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -2730,8 +2731,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   proposalButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
@@ -2809,7 +2810,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   error: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 11.5,
     fontWeight: '700',
     lineHeight: 16,

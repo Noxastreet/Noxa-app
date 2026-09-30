@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.display,
     fontSize: 11,
     fontWeight: '900',
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingVertical: spacing.md,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 1.2,

@@ -181,7 +181,7 @@ function OwnerCard({ owner }: { owner: VehicleOwner }) {
         {ownerName ? <Text style={styles.ownerName}>{ownerName}</Text> : null}
         {ownerMeta ? <Text style={styles.ownerMeta}>{ownerMeta}</Text> : null}
       </View>
-      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   ownerAvatar: { width: 48, height: 48, borderRadius: radius.pill },
   ownerCopy: { flex: 1 },
-  eyebrow: { color: colors.textSubtle, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
+  eyebrow: { color: colors.textQuiet, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   ownerName: { marginTop: spacing.xxs, color: colors.text, fontSize: typography.body, fontWeight: '900' },
   ownerMeta: { marginTop: spacing.xxs, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   sectionBlock: { marginHorizontal: spacing.lg, gap: spacing.sm },

@@ -142,7 +142,7 @@ function VehicleCard({ vehicle }: { vehicle: CrewVehicle }) {
           <Text style={styles.ownerEyebrow}>CREW DRIVER</Text>
           <Text numberOfLines={1} style={styles.ownerName}>{profileName(vehicle.owner)}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+        <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
       </View>
 
       <View style={styles.specRow}>
@@ -380,7 +380,7 @@ export default function CrewGarageScreen() {
               autoCapitalize="none"
               onChangeText={setQuery}
               placeholder="Search build or driver"
-              placeholderTextColor={colors.textSubtle}
+              placeholderTextColor={colors.textQuiet}
               selectionColor={colors.primary}
               style={styles.searchInput}
               value={query}
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 1.2,
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     fontSize: typography.title,
     fontWeight: "900",
   },
-  summaryLabel: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  summaryLabel: { color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
   searchBar: {
     minHeight: 48,
     flexDirection: "row",
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   vehicleList: { gap: spacing.md },
   listHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   listTitle: { color: colors.text, fontSize: 12, fontWeight: "900", letterSpacing: 0.8 },
-  listCount: { color: colors.textSubtle, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+  listCount: { color: colors.textQuiet, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   vehicleCard: {
     overflow: "hidden",
     borderRadius: radius.hero,
@@ -549,11 +549,11 @@ const styles = StyleSheet.create({
   avatarFallback: { alignItems: "center", justifyContent: "center" },
   avatarText: { color: colors.text, fontSize: 11, fontWeight: "900" },
   ownerCopy: { flex: 1, minWidth: 0 },
-  ownerEyebrow: { color: colors.primaryHover, fontSize: 7, fontWeight: "900", letterSpacing: 0.75 },
+  ownerEyebrow: { color: colors.textAccent, fontSize: 7, fontWeight: "900", letterSpacing: 0.75 },
   ownerName: { marginTop: 2, color: colors.text, fontSize: 13, fontWeight: "800" },
   specRow: { minHeight: 70, flexDirection: "row" },
   spec: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xs },
   specValue: { color: colors.text, fontSize: 12, fontWeight: "900", textTransform: "uppercase" },
-  specLabel: { marginTop: 3, color: colors.textSubtle, fontSize: 7, fontWeight: "900", letterSpacing: 0.7 },
+  specLabel: { marginTop: 3, color: colors.textQuiet, fontSize: 7, fontWeight: "900", letterSpacing: 0.7 },
   pressed: { opacity: 0.82, transform: [{ scale: 0.988 }] },
 });

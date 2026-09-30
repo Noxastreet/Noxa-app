@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 76,
     right: spacing.md,
-    color: colors.textTertiary,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: typography.letterSpacing.label,

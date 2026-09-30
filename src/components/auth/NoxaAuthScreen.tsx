@@ -52,7 +52,7 @@ export function NoxaAuthScreen({ children, footer, onBack, subtitle, title }: No
               paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
             },
           ]}
-          keyboardDismissMode="none"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
@@ -71,7 +71,7 @@ export function NoxaAuthScreen({ children, footer, onBack, subtitle, title }: No
 
           <View style={styles.body}>
             <View style={styles.titleBlock}>
-              <Text style={styles.title}>{title}</Text>
+              <Text accessibilityRole="header" style={styles.title}>{title}</Text>
               <Text style={styles.subtitle}>{subtitle}</Text>
             </View>
             {children}

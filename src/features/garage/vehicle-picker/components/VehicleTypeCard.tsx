@@ -34,7 +34,7 @@ export function VehicleTypeCard({ item, onPress, selected = false }: VehicleType
           <Text style={styles.label}>{item.label}</Text>
           <Text style={styles.caption}>{isCar ? 'Cars' : 'Bikes'}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+        <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
       </View>
     </PickerCardFrame>
   );

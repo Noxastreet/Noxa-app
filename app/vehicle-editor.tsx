@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(10,10,14,0.72)',
   },
   garageBadgeText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
@@ -1015,10 +1015,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   coverRemoveText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
   },
   coverHelp: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.divider,
   },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.4,
@@ -1102,7 +1102,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     textAlign: 'right',
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: typography.caption,
     fontWeight: '700',
   },

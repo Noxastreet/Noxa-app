@@ -243,7 +243,7 @@ function DriverRow({ driver }: { driver: DriverResult }) {
         </Text>
       </View>
       <Text style={styles.resultType}>DRIVER</Text>
-      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -285,7 +285,7 @@ function VehicleRow({ vehicle }: { vehicle: VehicleResult }) {
         </Text>
       </View>
       <Text style={styles.resultType}>VEHICLE</Text>
-      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -309,7 +309,7 @@ function CrewRow({ crew }: { crew: CrewResult }) {
         </Text>
       </View>
       <Text style={styles.resultType}>{crew.is_public ? "PUBLIC" : "PRIVATE"}</Text>
-      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -337,7 +337,7 @@ function EventRow({ event }: { event: EventResult }) {
           {dateText} · {event.location_name}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -489,7 +489,7 @@ export default function SearchScreen() {
               maxLength={80}
               onChangeText={setQuery}
               placeholder="Drivers, vehicles, events, crews…"
-              placeholderTextColor={colors.textSubtle}
+              placeholderTextColor={colors.textQuiet}
               selectionColor={colors.primary}
               style={styles.searchInput}
               value={query}
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   sectionCount: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: typography.caption,
     fontWeight: "800",
   },
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   resultType: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.8,
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   retryText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: typography.caption,
     fontWeight: "900",
   },

@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     marginBottom: 8,
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: 10,
     fontWeight: '600',
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   },
   legal: {
     marginTop: spacing.xs,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.body,
     fontSize: 11,
     lineHeight: 16,

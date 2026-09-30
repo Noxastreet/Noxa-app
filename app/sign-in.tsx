@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   formError: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: typography.caption,
     fontWeight: '600',
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   switchLink: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontWeight: '600',
   },
   forgotButton: {
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   forgotText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: 12,
     fontWeight: '500',

@@ -448,7 +448,7 @@ export function MapDriverCard({
                   {car ?? 'Public vehicle'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+              <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
             </NoxaPressableSurface>
           ) : !error ? (
             <Text style={styles.loadingText}>
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   vehicleEyebrow: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   error: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: typography.caption,
     lineHeight: 15,
   },

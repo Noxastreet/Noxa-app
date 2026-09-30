@@ -345,7 +345,7 @@ function EventRow({ event }: { event: CrewEvent }) {
           {formatDrive(event.starts_at)} · {event.location_name}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={19} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={19} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
   },
   founderBlock: { flex: 1, minWidth: 0 },
   founderEyebrow: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     lineHeight: 10,
     fontWeight: "900",
@@ -1105,7 +1105,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   tabText: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "900",
@@ -1129,7 +1129,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.25,
   },
   sectionMeta: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "800",
@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   eventCopy: { flex: 1, minWidth: 0, gap: 2 },
   eventEyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 8,
     lineHeight: 10,
     fontWeight: "900",
@@ -1252,7 +1252,7 @@ const styles = StyleSheet.create({
   memberCopy: { flex: 1, minWidth: 0 },
   memberName: { color: colors.text, fontSize: 13, lineHeight: 17, fontWeight: "800" },
   memberRole: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 8,
     lineHeight: 11,
     fontWeight: "900",
@@ -1278,7 +1278,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   factLabel: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     lineHeight: 12,
     fontWeight: "900",

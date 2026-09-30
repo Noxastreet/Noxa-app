@@ -281,12 +281,12 @@ export default function EventChatScreen() {
                   <Text style={styles.pinnedLabel}>PINNED · EVENT ORGANIZER</Text>
                   <Text numberOfLines={3} style={styles.pinnedText}>{event.description}</Text>
                 </View>
-                <Pressable
+                <Pressable accessibilityRole="button" style={styles.noticeClose}
                   accessibilityLabel="Hide pinned note"
                   onPress={() => setPinnedVisible(false)}
                   hitSlop={8}
                 >
-                  <Ionicons name="close" size={17} color={colors.textSubtle} />
+                  <Ionicons name="close" size={17} color={colors.textQuiet} />
                 </Pressable>
               </View>
             ) : null}
@@ -303,7 +303,7 @@ export default function EventChatScreen() {
               </View>
               {messages.length === 0 ? (
                 <View style={styles.emptyChat}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={27} color={colors.textSubtle} />
+                  <Ionicons name="chatbubble-ellipses-outline" size={27} color={colors.textQuiet} />
                   <Text style={styles.emptyTitle}>START THE CONVERSATION</Text>
                   <Text style={styles.emptyText}>Share arrival updates and event details here.</Text>
                 </View>
@@ -350,7 +350,7 @@ export default function EventChatScreen() {
                 maxLength={2000}
                 multiline
                 placeholder="Message attendees…"
-                placeholderTextColor={colors.textSubtle}
+                placeholderTextColor={colors.textQuiet}
                 selectionColor={colors.primary}
                 style={styles.input}
               />
@@ -372,7 +372,7 @@ export default function EventChatScreen() {
                   <Ionicons
                     name="send"
                     size={17}
-                    color={draft.trim() ? colors.text : colors.textSubtle}
+                    color={draft.trim() ? colors.text : colors.textQuiet}
                   />
                 )}
               </Pressable>
@@ -386,6 +386,7 @@ export default function EventChatScreen() {
 }
 
 const styles = StyleSheet.create({
+  noticeClose: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   header: {
     minHeight: 66,
@@ -439,7 +440,7 @@ const styles = StyleSheet.create({
   },
   lifecycleDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary },
   lifecycleDotComplete: { backgroundColor: colors.success },
-  lifecycleText: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
+  lifecycleText: { color: colors.textAccent, fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
   lifecycleTextComplete: { color: colors.success },
   pinnedCard: {
     flexDirection: "row",
@@ -455,7 +456,7 @@ const styles = StyleSheet.create({
   },
   pinnedRail: { width: 5, alignSelf: "stretch", borderRadius: 3, backgroundColor: colors.primary },
   pinnedCopy: { flex: 1, gap: spacing.xxs },
-  pinnedLabel: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+  pinnedLabel: { color: colors.textAccent, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   pinnedText: { color: colors.textMuted, fontSize: 12, fontWeight: "600", lineHeight: 18 },
   messages: { flexGrow: 1, padding: spacing.sm, paddingBottom: spacing.lg },
   systemMessage: { alignItems: "center", paddingVertical: spacing.sm },
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     overflow: "hidden",
     borderRadius: radius.pill,
-    color: colors.primaryHover,
+    color: colors.textAccent,
     backgroundColor: colors.primarySubtle,
     fontSize: 9,
     fontWeight: "900",
@@ -488,7 +489,7 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.text, fontSize: 9, fontWeight: "900" },
   messageStack: { maxWidth: "78%", alignItems: "flex-start" },
   messageStackMine: { alignItems: "flex-end" },
-  senderName: { marginBottom: 3, color: colors.textSubtle, fontSize: 10, fontWeight: "700" },
+  senderName: { marginBottom: 3, color: colors.textQuiet, fontSize: 10, fontWeight: "700" },
   bubble: {
     paddingVertical: 9,
     paddingHorizontal: spacing.sm,
@@ -505,7 +506,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   messageText: { color: colors.text, fontSize: 14, fontWeight: "500", lineHeight: 20 },
-  messageTime: { marginTop: 3, color: colors.textSubtle, fontSize: 9, fontWeight: "600" },
+  messageTime: { marginTop: 3, color: colors.textQuiet, fontSize: 9, fontWeight: "600" },
   messageTimeMine: { textAlign: "right" },
   emptyChat: { flex: 1, minHeight: 260, alignItems: "center", justifyContent: "center", gap: spacing.xs },
   emptyTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 18, fontWeight: "900" },
@@ -548,7 +549,7 @@ const styles = StyleSheet.create({
   inlineError: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    color: colors.primaryHover,
+    color: colors.textAccent,
     backgroundColor: colors.primarySubtle,
     fontSize: 11,
     fontWeight: "700",
@@ -576,7 +577,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   stateText: { color: colors.textMuted, fontSize: 13, fontWeight: "600", lineHeight: 20, textAlign: "center" },
-  stateError: { padding: spacing.md, color: colors.primaryHover, textAlign: "center" },
+  stateError: { padding: spacing.md, color: colors.textAccent, textAlign: "center" },
   pressed: { opacity: 0.86, transform: [{ translateY: 1 }, { scale: 0.98 }] },
   disabled: { opacity: 0.5 },
 });

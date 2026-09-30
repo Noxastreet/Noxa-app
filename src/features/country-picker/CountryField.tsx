@@ -32,7 +32,7 @@ export function CountryField({ disabled = false, label = 'Country · optional', 
             {flagEmojiForCountryCode(country.code)}
           </Text>
         ) : (
-          <Ionicons color={colors.textSubtle} name="earth-outline" size={20} style={styles.placeholderIcon} />
+          <Ionicons color={colors.textQuiet} name="earth-outline" size={20} style={styles.placeholderIcon} />
         )}
         <Text numberOfLines={1} style={[styles.value, !country && styles.valuePlaceholder]}>
           {country ? country.name : 'Add your country'}
@@ -45,10 +45,10 @@ export function CountryField({ disabled = false, label = 'Country · optional', 
             hitSlop={8}
             onPress={() => onChange(null)}
             style={styles.clearButton}>
-            <Ionicons color={colors.textSubtle} name="close-circle" size={18} />
+            <Ionicons color={colors.textQuiet} name="close-circle" size={18} />
           </Pressable>
         ) : (
-          <Ionicons color={colors.textSubtle} name="chevron-forward" size={16} />
+          <Ionicons color={colors.textQuiet} name="chevron-forward" size={16} />
         )}
       </Pressable>
 
@@ -65,7 +65,7 @@ export function CountryField({ disabled = false, label = 'Country · optional', 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
   label: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.4,

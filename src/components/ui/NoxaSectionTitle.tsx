@@ -19,7 +19,7 @@ export function NoxaSectionTitle({ label, title }: NoxaSectionTitleProps) {
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xxs },
   label: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: typography.v2.label.fontSize,
     lineHeight: typography.v2.label.lineHeight,
     letterSpacing: typography.v2.label.letterSpacing,

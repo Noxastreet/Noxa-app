@@ -191,7 +191,7 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
             <Text style={styles.emptyGarageTitle}>Add your first vehicle</Text>
             <Text style={styles.emptyGarageText}>Make your automotive identity visible in NOXA.</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+          <Ionicons name="chevron-forward" size={18} color={colors.textQuiet} />
         </Pressable>
       </NoxaDetailReveal>
     );
@@ -301,7 +301,7 @@ function NoxaContext({ vehiclesCount }: { vehiclesCount: number }) {
               <Text style={styles.contextLabel}>{row.label}</Text>
               <Text style={styles.contextCaption}>{row.caption}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+            <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
           </Pressable>
         ))}
       </View>
@@ -376,7 +376,7 @@ function ProfilePosts({ posts, isLoading }: { posts: ProfilePost[]; isLoading: b
         <Pressable accessibilityRole="button" onPress={() => router.push('/post-editor')} style={({ pressed }) => [styles.momentEmpty, pressed && styles.pressed]}>
           <Ionicons name="camera-outline" size={20} color={colors.textMuted} />
           <Text style={styles.mutedText}>Share a photo when you want to.</Text>
-          <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+          <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
         </Pressable>
       )}
     </NoxaDetailReveal>
@@ -616,12 +616,12 @@ const styles = StyleSheet.create({
   inlineErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   inlineError: { flex: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   retryButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.button, backgroundColor: colors.primarySubtle },
-  retryText: { color: colors.primaryHover, fontSize: 9, fontWeight: '900' },
+  retryText: { color: colors.textAccent, fontSize: 9, fontWeight: '900' },
   section: { gap: spacing.sm },
   sectionEyebrow: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   sectionLink: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  sectionCaption: { marginTop: 2, color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
+  sectionCaption: { marginTop: 2, color: colors.textQuiet, fontSize: 9, fontWeight: '700' },
   vehicleCard: {
     height: 224,
     overflow: 'hidden',
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
   vehicleShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,6,10,0.35)' },
   vehicleTopRow: { position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   vehicleTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, minHeight: 30, borderRadius: radius.pill, backgroundColor: 'rgba(6,6,10,0.70)' },
-  vehicleTypeText: { color: colors.primaryHover, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
+  vehicleTypeText: { color: colors.textAccent, fontSize: 8, fontWeight: '900', letterSpacing: 0.8 },
   vehicleCount: { color: colors.text, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
   vehicleCopy: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md },
   vehicleTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 32, fontWeight: '900', textTransform: 'uppercase' },
@@ -683,5 +683,5 @@ const styles = StyleSheet.create({
   momentEmpty: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider },
   mutedText: { flex: 1, color: colors.textMuted, fontSize: typography.caption, fontWeight: '700' },
   logoutIcon: { backgroundColor: colors.primarySubtle },
-  logoutText: { flex: 1, color: colors.primaryHover, fontSize: typography.body, fontWeight: '800' },
+  logoutText: { flex: 1, color: colors.textAccent, fontSize: typography.body, fontWeight: '800' },
 });

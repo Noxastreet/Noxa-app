@@ -65,13 +65,13 @@ function SearchField({ onChangeText, placeholder, value }: { onChangeText: (valu
         autoCorrect={false}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.textSubtle}
+        placeholderTextColor={colors.textQuiet}
         style={styles.searchInput}
         value={value}
       />
       {value ? (
         <Pressable accessibilityLabel="Clear search" accessibilityRole="button" onPress={() => onChangeText('')}>
-          <Ionicons name="close-circle" size={18} color={colors.textSubtle} />
+          <Ionicons name="close-circle" size={18} color={colors.textQuiet} />
         </Pressable>
       ) : null}
     </View>
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sectionLabel: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   confirmEyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.1,

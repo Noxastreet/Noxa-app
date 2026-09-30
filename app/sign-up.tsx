@@ -317,18 +317,18 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   agreement: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.body,
     fontSize: 11,
     lineHeight: 17,
   },
   agreementLink: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },
   error: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: typography.caption,
     fontWeight: '600',
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   switchLink: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontWeight: '600',
   },
 });

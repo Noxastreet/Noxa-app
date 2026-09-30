@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
   body: { color: colors.textMuted, ...typography.v2.body },
   section: { gap: spacing.xs },
-  sectionLabel: { marginBottom: spacing.xs, color: colors.textSubtle, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  sectionLabel: { marginBottom: spacing.xs, color: colors.textQuiet, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
   optionRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
   optionCopy: { flex: 1, minWidth: 0 },
   optionTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
@@ -237,5 +237,5 @@ const styles = StyleSheet.create({
   emptyCopy: { color: colors.textMuted, fontSize: 13, lineHeight: 19, paddingVertical: spacing.sm },
   consentNote: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
   consentText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
-  error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
+  error: { color: colors.textAccent, fontSize: 13, fontWeight: '700' },
 });

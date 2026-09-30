@@ -649,7 +649,7 @@ export default function PostDetailsScreen() {
                     {post.location_name || profileHandle(author)}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+                <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
               </Pressable>
 
               <Image source={{ uri: post.image_url }} style={styles.postImage} />
@@ -725,7 +725,7 @@ export default function PostDetailsScreen() {
                   </View>
                 ) : (
                   <View style={styles.emptyComments}>
-                    <Ionicons name="chatbubbles-outline" size={25} color={colors.textSubtle} />
+                    <Ionicons name="chatbubbles-outline" size={25} color={colors.textQuiet} />
                     <Text style={styles.emptyTitle}>Start the conversation</Text>
                     <Text style={styles.emptyText}>Be the first driver to comment.</Text>
                   </View>
@@ -737,7 +737,7 @@ export default function PostDetailsScreen() {
           {error ? (
             <View style={styles.errorCard}>
               <Text style={styles.errorText}>{error}</Text>
-              <Pressable onPress={() => void loadPost(false)} style={styles.retryButton}>
+              <Pressable accessibilityRole="button" onPress={() => void loadPost(false)} style={styles.retryButton}>
                 <Text style={styles.retryText}>RETRY</Text>
               </Pressable>
             </View>
@@ -749,7 +749,7 @@ export default function PostDetailsScreen() {
             {replyTarget ? (
               <View style={styles.replyingRow}>
                 <Text style={styles.replyingText}>Replying to {profileName(replyTarget)}</Text>
-                <Pressable accessibilityLabel="Cancel reply" onPress={() => setReplyTarget(null)}>
+                <Pressable accessibilityRole="button" style={styles.replyCancel} accessibilityLabel="Cancel reply" onPress={() => setReplyTarget(null)}>
                   <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                 </Pressable>
               </View>
@@ -931,6 +931,7 @@ function StateCard({
 }
 
 const styles = StyleSheet.create({
+  replyCancel: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   header: {
     minHeight: 66,
@@ -995,7 +996,7 @@ const styles = StyleSheet.create({
   metrics: { color: colors.text, fontSize: 13, fontWeight: "900" },
   caption: { color: colors.text, fontSize: 13, fontWeight: "600", lineHeight: 20 },
   captionAuthor: { fontWeight: "900" },
-  postDate: { color: colors.textSubtle, fontSize: 9, fontWeight: "800", letterSpacing: 0.7 },
+  postDate: { color: colors.textQuiet, fontSize: 9, fontWeight: "800", letterSpacing: 0.7 },
   commentsSection: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   commentsHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: 17, fontWeight: "900", letterSpacing: 0.8 },
@@ -1012,9 +1013,9 @@ const styles = StyleSheet.create({
   commentMain: { flex: 1, minWidth: 0 },
   commentBody: { color: colors.text, fontSize: 12, fontWeight: "600", lineHeight: 18 },
   commentAuthor: { fontWeight: "900" },
-  replyMention: { color: colors.primaryHover, fontWeight: "800" },
+  replyMention: { color: colors.textAccent, fontWeight: "800" },
   commentMetaRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
-  commentMeta: { color: colors.textSubtle, fontSize: 9, fontWeight: "800" },
+  commentMeta: { color: colors.textQuiet, fontSize: 9, fontWeight: "800" },
   replyButtonText: { color: colors.textMuted, fontSize: 9, fontWeight: "900" },
   commentLike: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
   emptyComments: {
@@ -1080,7 +1081,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderAccent,
     backgroundColor: colors.primarySubtle,
   },
-  errorText: { flex: 1, color: colors.primaryHover, fontSize: 11, fontWeight: "700", lineHeight: 17 },
+  errorText: { flex: 1, color: colors.textAccent, fontSize: 11, fontWeight: "700", lineHeight: 17 },
   retryButton: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   retryText: { color: colors.text, fontSize: 9, fontWeight: "900" },
   stateCard: { minHeight: 300, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },

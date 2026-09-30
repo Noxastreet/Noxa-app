@@ -530,7 +530,7 @@ export default function EditProfileScreen() {
                   <Text style={styles.settingsTitle}>Open Settings</Text>
                   <Text style={styles.settingsText}>Manage visibility, privacy and account controls separately.</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+                <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
               </Pressable>
             </Section>
           </ScrollView>
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.78, transform: [{ translateY: 1 }, { scale: 0.985 }] },
   fieldWrap: { gap: spacing.xs },
   section: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
-  sectionLabel: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
+  sectionLabel: { color: colors.textAccent, fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
   sectionTitle: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900" },
   sectionContent: { marginTop: spacing.xs, gap: spacing.md },
   loadingRow: { minHeight: 58, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm },
@@ -563,20 +563,20 @@ const styles = StyleSheet.create({
   photoCopy: { flex: 1, minWidth: 0 },
   previewName: { color: colors.text, fontFamily: typography.fontFamily.display, fontSize: typography.title, fontWeight: "900" },
   previewMeta: { marginTop: 2, color: colors.textMuted, fontSize: 11, fontWeight: "700" },
-  photoHint: { marginTop: spacing.sm, color: colors.textSubtle, fontSize: 9, fontWeight: "700" },
+  photoHint: { marginTop: spacing.sm, color: colors.textQuiet, fontSize: 9, fontWeight: "700" },
   avatarActions: { flexDirection: "row", gap: spacing.sm },
   avatarActionButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.button, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceSoft },
   avatarActionText: { color: colors.text, fontSize: 10, fontWeight: "900" },
   removeButton: { backgroundColor: colors.primarySubtle, borderColor: colors.borderAccent },
-  removeText: { color: colors.primaryHover, fontSize: 10, fontWeight: "900" },
+  removeText: { color: colors.textAccent, fontSize: 10, fontWeight: "900" },
   disabledAction: { opacity: 0.5 },
   bioInput: { minHeight: 118, paddingTop: spacing.md },
-  counter: { alignSelf: "flex-end", color: colors.textSubtle, fontSize: 10, fontWeight: "800" },
+  counter: { alignSelf: "flex-end", color: colors.textQuiet, fontSize: 10, fontWeight: "800" },
   helperText: { color: colors.textMuted, fontSize: typography.caption, fontWeight: "800" },
   lockedUsernameRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   lockedUsernameIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
   lockedUsernameCopy: { flex: 1, minWidth: 0 },
-  lockedUsernameLabel: { color: colors.textSubtle, fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
+  lockedUsernameLabel: { color: colors.textQuiet, fontSize: 9, fontWeight: "900", letterSpacing: 1.1 },
   lockedUsernameValue: { marginTop: 2, color: colors.text, fontSize: 14, fontWeight: "800" },
   lockedUsernameHint: { marginTop: 2, color: colors.textMuted, fontSize: 10, lineHeight: 15 },
   errorText: { color: colors.primary, fontSize: typography.caption, fontWeight: "800" },

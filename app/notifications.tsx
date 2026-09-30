@@ -63,17 +63,17 @@ const activityVisuals: Record<
   { color: string; icon: keyof typeof Ionicons.glyphMap; background: string }
 > = {
   crew: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     icon: 'people-outline',
     background: colors.primarySubtle,
   },
   drive: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     icon: 'navigate-outline',
     background: colors.primarySubtle,
   },
   event: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     icon: 'calendar-outline',
     background: colors.primarySubtle,
   },
@@ -216,7 +216,7 @@ function ActivityRow({
           </View>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
   },
   filterText: {
     paddingBottom: spacing.sm,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: '800',
   },
@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   sectionEyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 8,
     fontWeight: '900',
     letterSpacing: 1.1,
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   sectionCount: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.display,
     fontSize: typography.subtitle,
     fontWeight: '900',
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
   },
   activityMeta: {
     marginTop: spacing.xxs,
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 9,
     fontWeight: '800',
     textTransform: 'uppercase',

@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   errorText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: typography.caption,
     fontWeight: '700',
     lineHeight: 18,

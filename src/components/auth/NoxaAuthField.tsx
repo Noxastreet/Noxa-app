@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
 import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, TextInput } from 'react-native';
 
@@ -23,28 +22,18 @@ export function NoxaAuthField({
   style,
   ...props
 }: NoxaAuthFieldProps) {
-  useEffect(() => {
-    console.log(`[AuthField:${label}] mounted`);
-
-    return () => {
-      console.log(`[AuthField:${label}] unmounted`);
-    };
-  }, [label]);
-
   return (
     <NoxaInput
       {...props}
       error={error}
       label={label}
       onBlur={(event) => {
-        console.log(`[AuthField:${label}] blur`);
         onBlur?.(event);
       }}
       onFocus={(event) => {
-        console.log(`[AuthField:${label}] focus`);
         onFocus?.(event);
       }}
-      placeholderTextColor={colors.textSubtle}
+      placeholderTextColor={colors.textQuiet}
       style={style}
       trailing={
         onTogglePassword ? (

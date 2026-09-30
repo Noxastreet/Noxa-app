@@ -74,7 +74,7 @@ function PointRow({
           {point?.label ?? 'Choose an exact point'}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={17} color={colors.textSubtle} />
+      <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
     </Pressable>
   );
 }
@@ -241,12 +241,12 @@ const styles = StyleSheet.create({
   pointRow: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   pointIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   pointCopy: { flex: 1, minWidth: 0 },
-  pointLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase' },
+  pointLabel: { color: colors.textQuiet, fontSize: 10, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase' },
   pointValue: { marginTop: spacing.xxs, color: colors.text, fontSize: 14, fontWeight: '700', lineHeight: 20 },
   pointPlaceholder: { color: colors.textMuted, fontWeight: '600' },
   connector: { height: 18, width: 1, marginLeft: spacing.md + 20, backgroundColor: colors.borderStrong },
   pressed: { backgroundColor: colors.surfacePressed },
   note: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   noteText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
-  error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
+  error: { color: colors.textAccent, fontSize: 13, fontWeight: '700' },
 });

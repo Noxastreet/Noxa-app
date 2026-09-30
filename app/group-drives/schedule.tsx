@@ -54,7 +54,7 @@ function ScheduleChoice({
         <Text style={styles.choiceLabel}>{label}</Text>
         <Text style={styles.choiceCaption}>{caption}</Text>
       </View>
-      <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={21} color={active ? colors.primaryHover : colors.textSubtle} />
+      <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={21} color={active ? colors.primaryHover : colors.textQuiet} />
     </Pressable>
   );
 }
@@ -168,11 +168,11 @@ export default function GroupDriveScheduleScreen() {
       )}
       {mode === 'scheduled' && !loading ? (
         <View style={styles.pickers}>
-          <Pressable onPress={() => openPicker('date')} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" onPress={() => openPicker('date')} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
             <Text style={styles.pickerLabel}>DATE</Text>
             <Text style={styles.pickerValue}>{dateFormat.format(scheduledAt)}</Text>
           </Pressable>
-          <Pressable onPress={() => openPicker('time')} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" onPress={() => openPicker('time')} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
             <Text style={styles.pickerLabel}>TIME</Text>
             <Text style={styles.pickerValue}>{timeFormat.format(scheduledAt)}</Text>
           </Pressable>
@@ -198,9 +198,9 @@ export default function GroupDriveScheduleScreen() {
         <View style={styles.backdrop}>
           <View style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
-              <Pressable onPress={() => setPickerMode(null)}><Text style={styles.pickerAction}>Cancel</Text></Pressable>
+              <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={() => setPickerMode(null)}><Text style={styles.pickerAction}>Cancel</Text></Pressable>
               <Text style={styles.pickerTitle}>Select {pickerMode}</Text>
-              <Pressable onPress={commitPicker}><Text style={styles.pickerDone}>Done</Text></Pressable>
+              <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={commitPicker}><Text style={styles.pickerDone}>Done</Text></Pressable>
             </View>
             <DateTimePicker
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
@@ -219,6 +219,7 @@ export default function GroupDriveScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
+  pickerControl: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
   intro: { gap: spacing.sm, paddingTop: spacing.sm },
   title: { color: colors.text, fontFamily: typography.fontFamily.display, ...typography.v2.section, fontWeight: '900' },
@@ -233,18 +234,18 @@ const styles = StyleSheet.create({
   choiceCaption: { marginTop: 3, color: colors.textMuted, fontSize: 11, lineHeight: 16 },
   pickers: { flexDirection: 'row', gap: spacing.sm },
   picker: { flex: 1, minHeight: 72, justifyContent: 'center', padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
-  pickerLabel: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
+  pickerLabel: { color: colors.textQuiet, fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
   pickerValue: { marginTop: spacing.xs, color: colors.text, fontSize: 15, fontWeight: '800' },
   privacyNote: { flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primarySubtle },
   privacyCopy: { flex: 1 },
   privacyTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
   privacyBody: { marginTop: 3, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
   pressed: { opacity: 0.8 },
-  error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
+  error: { color: colors.textAccent, fontSize: 13, fontWeight: '700' },
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim },
   pickerSheet: { padding: spacing.lg, paddingBottom: spacing.xxl, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, backgroundColor: colors.surfaceRaised },
   pickerHeader: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pickerAction: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
-  pickerDone: { color: colors.primaryHover, fontSize: 14, fontWeight: '800' },
+  pickerDone: { color: colors.textAccent, fontSize: 14, fontWeight: '800' },
   pickerTitle: { color: colors.text, fontSize: 14, fontWeight: '800', textTransform: 'capitalize' },
 });

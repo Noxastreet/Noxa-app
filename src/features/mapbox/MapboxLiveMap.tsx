@@ -505,7 +505,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   isSelected={selectedDriverId === driver.user_id}
                   key={driver.user_id}
                 >
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: selectedDriverId === driver.user_id }}
                     accessibilityLabel={`${driver.label} is visible on the NOXA map`}
                     activeOpacity={0.82}
                     onPress={() => onDriverPress(driver.user_id)}
@@ -570,7 +570,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                   isSelected={selectedEvent?.id === event.id}
                   key={event.id}
                 >
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     accessibilityLabel={`${event.title} event`}
                     activeOpacity={0.82}
                     onPress={() => onEventPress(event)}

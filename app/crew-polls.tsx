@@ -259,7 +259,7 @@ function PollComposer({
         multiline
         onChangeText={setQuestion}
         placeholder="What should the crew decide?"
-        placeholderTextColor={colors.textSubtle}
+        placeholderTextColor={colors.textQuiet}
         selectionColor={colors.primary}
         style={[styles.field, styles.questionField]}
         value={question}
@@ -281,7 +281,7 @@ function PollComposer({
                 )
               }
               placeholder={`Option ${index + 1}`}
-              placeholderTextColor={colors.textSubtle}
+              placeholderTextColor={colors.textQuiet}
               selectionColor={colors.primary}
               style={[styles.field, styles.optionField]}
               value={option}
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   introCopy: { flex: 1 },
-  introEyebrow: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  introEyebrow: { color: colors.textAccent, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
   introTitle: {
     marginTop: 2,
     color: colors.text,
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
     fontSize: typography.title,
     fontWeight: "900",
   },
-  totalLabel: { color: colors.primaryHover, fontSize: 7, fontWeight: "900", letterSpacing: 0.8 },
+  totalLabel: { color: colors.textAccent, fontSize: 7, fontWeight: "900", letterSpacing: 0.8 },
   filters: {
     minHeight: 44,
     flexDirection: "row",
@@ -823,10 +823,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   filterButtonActive: { backgroundColor: colors.surfaceRaised },
-  filterText: { color: colors.textSubtle, fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
+  filterText: { color: colors.textQuiet, fontSize: 9, fontWeight: "900", letterSpacing: 0.8 },
   filterTextActive: { color: colors.text },
-  filterCount: { color: colors.textSubtle, fontSize: 9, fontWeight: "900" },
-  filterCountActive: { color: colors.primaryHover },
+  filterCount: { color: colors.textQuiet, fontSize: 9, fontWeight: "900" },
+  filterCountActive: { color: colors.textAccent },
   pollList: { gap: spacing.md },
   pollCard: {
     padding: spacing.lg,
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeClosed: { borderColor: colors.border, backgroundColor: colors.surfaceSoft },
   statusDot: { width: 6, height: 6, borderRadius: radius.pill, backgroundColor: colors.success },
-  statusDotClosed: { backgroundColor: colors.textSubtle },
+  statusDotClosed: { backgroundColor: colors.textQuiet },
   statusText: { color: colors.success, fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
   statusTextClosed: { color: colors.textMuted },
   closeButton: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingLeft: spacing.sm },
@@ -895,7 +895,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radius.pill,
     borderWidth: 1.5,
-    borderColor: colors.textSubtle,
+    borderColor: colors.textQuiet,
   },
   radioSelected: { borderColor: colors.primaryHover },
   radioDot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.primaryHover },
@@ -903,8 +903,8 @@ const styles = StyleSheet.create({
   optionLabelSelected: { color: colors.text },
   optionResult: { alignItems: "flex-end" },
   optionPercent: { color: colors.textMuted, fontSize: 12, fontWeight: "900" },
-  optionPercentSelected: { color: colors.primaryHover },
-  optionVotes: { marginTop: 1, color: colors.textSubtle, fontSize: 8, fontWeight: "900" },
+  optionPercentSelected: { color: colors.textAccent },
+  optionVotes: { marginTop: 1, color: colors.textQuiet, fontSize: 8, fontWeight: "900" },
   pollFooter: {
     flexDirection: "row",
     alignItems: "center",
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
   },
   voteCountRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   voteCount: { color: colors.textMuted, fontSize: 10, fontWeight: "700" },
-  voteHint: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
+  voteHint: { color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.7 },
   composer: {
     padding: spacing.lg,
     borderRadius: radius.hero,
@@ -926,7 +926,7 @@ const styles = StyleSheet.create({
     ...shadows.redGlow,
   },
   composerHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.lg },
-  composerEyebrow: { color: colors.primaryHover, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
+  composerEyebrow: { color: colors.textAccent, fontSize: 8, fontWeight: "900", letterSpacing: 1 },
   composerTitle: {
     marginTop: 2,
     color: colors.text,
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.surfaceSoft,
   },
-  fieldLabel: { marginTop: spacing.md, marginBottom: spacing.xs, color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
+  fieldLabel: { marginTop: spacing.md, marginBottom: spacing.xs, color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.9 },
   field: {
     minHeight: 48,
     paddingHorizontal: spacing.md,
@@ -955,20 +955,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   questionField: { minHeight: 92, paddingTop: spacing.md, textAlignVertical: "top" },
-  counter: { marginTop: 4, color: colors.textSubtle, fontSize: 8, fontWeight: "700", textAlign: "right" },
+  counter: { marginTop: 4, color: colors.textQuiet, fontSize: 8, fontWeight: "700", textAlign: "right" },
   optionFields: { gap: spacing.xs },
   optionFieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   optionNumber: { width: 26, height: 26, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.primarySubtle },
-  optionNumberText: { color: colors.primaryHover, fontSize: 9, fontWeight: "900" },
+  optionNumberText: { color: colors.textAccent, fontSize: 9, fontWeight: "900" },
   optionField: { flex: 1 },
   removeOption: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceSoft },
   addOption: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: spacing.sm, paddingVertical: spacing.xs },
-  addOptionText: { color: colors.primaryHover, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
+  addOptionText: { color: colors.textAccent, fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   durationRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   durationButton: { minHeight: 34, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSoft },
   durationButtonActive: { borderColor: colors.borderAccent, backgroundColor: colors.primarySubtle },
-  durationText: { color: colors.textSubtle, fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
-  durationTextActive: { color: colors.primaryHover },
+  durationText: { color: colors.textQuiet, fontSize: 8, fontWeight: "900", letterSpacing: 0.5 },
+  durationTextActive: { color: colors.textAccent },
   composerActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.lg },
   createPollButton: { flex: 1 },
   errorBanner: {

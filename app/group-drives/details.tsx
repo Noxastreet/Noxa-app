@@ -155,6 +155,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   privacyText: { flex: 1, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
-  error: { color: colors.primaryHover, fontSize: 13, fontWeight: '700' },
+  error: { color: colors.textAccent, fontSize: 13, fontWeight: '700' },
   footer: { marginTop: 'auto', paddingTop: spacing.lg },
 });

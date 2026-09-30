@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySubtle,
   },
   privateText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 7,
     fontWeight: "900",
     letterSpacing: 0.55,

@@ -230,11 +230,11 @@ export function MapboxEventLocationPicker({ confirmLabel = "Confirm Location", h
         </View>
       ) : null}
       <View style={[styles.footer, { bottom: insets.bottom + spacing.md }]}>
-        <Pressable disabled={isLocating || hasError} onPress={onUseCurrentLocation} style={({ pressed }) => [styles.locateButton, pressed && styles.pressed, (isLocating || hasError) && styles.disabled]}>
+        <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(isLocating || hasError) }} disabled={isLocating || hasError} onPress={onUseCurrentLocation} style={({ pressed }) => [styles.locateButton, pressed && styles.pressed, (isLocating || hasError) && styles.disabled]}>
           {isLocating ? <ActivityIndicator color={colors.primaryHover} size="small" /> : <Ionicons name="navigate" size={16} color={colors.primaryHover} />}
           <Text style={styles.locateText}>{isLocating ? "Locating…" : "Use Current Location"}</Text>
         </Pressable>
-        <Pressable disabled={confirmDisabled} onPress={() => selected && onConfirm(selected)} style={({ pressed }) => [styles.confirmButton, pressed && styles.pressed, confirmDisabled && styles.disabled]}>
+        <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(confirmDisabled) }} disabled={confirmDisabled} onPress={() => selected && onConfirm(selected)} style={({ pressed }) => [styles.confirmButton, pressed && styles.pressed, confirmDisabled && styles.disabled]}>
           <Text style={styles.confirmText}>{confirmLabel}</Text>
         </Pressable>
       </View>
@@ -255,14 +255,14 @@ const styles = StyleSheet.create({
   searchOverlay: { position: "absolute", zIndex: 6, left: spacing.md, right: spacing.md, gap: spacing.xs },
   searchTrailing: { width: 44, minHeight: 54, alignItems: "center", justifyContent: "center" },
   searchResults: { maxHeight: 276, overflow: "hidden", borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(10,12,16,0.97)", ...shadows.card },
-  searchError: { paddingHorizontal: spacing.xs, color: colors.primaryHover, fontSize: 12, fontWeight: "700", lineHeight: 17 },
+  searchError: { paddingHorizontal: spacing.xs, color: colors.textAccent, fontSize: 12, fontWeight: "700", lineHeight: 17 },
   centerPin: { position: "absolute", left: "50%", top: "50%", width: 44, height: 58, alignItems: "center", marginLeft: -22, marginTop: -44 },
   pinHalo: { position: "absolute", top: 2, width: 44, height: 44, borderRadius: radius.pill, backgroundColor: "rgba(200,16,46,0.20)" },
   pinHead: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, borderWidth: 3, borderColor: colors.text, backgroundColor: colors.primary },
   pinStem: { width: 3, height: 14, backgroundColor: colors.text },
   footer: { position: "absolute", zIndex: 4, left: spacing.md, right: spacing.md, gap: spacing.sm, padding: spacing.sm, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: "rgba(10,12,16,0.94)", ...shadows.card },
   locateButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.primaryMuted },
-  locateText: { color: colors.primaryHover, fontSize: 12, fontWeight: "900" },
+  locateText: { color: colors.textAccent, fontSize: 12, fontWeight: "900" },
   confirmButton: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.primary },
   confirmText: { color: colors.text, fontSize: 13, fontWeight: "900", letterSpacing: 0.4 },
   pressed: { opacity: 0.84, transform: [{ scale: 0.99 }] },

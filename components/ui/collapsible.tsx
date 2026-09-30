@@ -13,7 +13,7 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
 
   return (
     <ThemedView>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: isOpen }}
         style={styles.heading}
         onPress={() => setIsOpen((value) => !value)}
         activeOpacity={0.8}>

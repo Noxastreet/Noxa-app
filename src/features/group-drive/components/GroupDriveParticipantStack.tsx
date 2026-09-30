@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   statusUnavailable: {
-    backgroundColor: colors.textSubtle,
+    backgroundColor: colors.textQuiet,
   },
   distanceLabel: {
     maxWidth: 52,
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   distanceLabelUnavailable: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
   },
   youLabel: {
     position: 'absolute',

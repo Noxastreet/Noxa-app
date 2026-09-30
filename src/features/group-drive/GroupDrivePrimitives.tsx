@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   factCopy: { flex: 1, minWidth: 0 },
   factLabel: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.2,

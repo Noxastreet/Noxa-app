@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   help: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: '700',
     textAlign: 'center',

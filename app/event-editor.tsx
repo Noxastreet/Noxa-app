@@ -791,7 +791,7 @@ export default function EventEditorScreen() {
               />
             </View>
             {form.endAt ? (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => updateField("endAt", null)}
                 style={({ pressed }) => [
                   styles.clearEnd,
@@ -890,7 +890,7 @@ export default function EventEditorScreen() {
           <View style={styles.modalBackdrop}>
             <View style={styles.pickerSheet}>
               <View style={styles.pickerHeader}>
-                <Pressable onPress={() => setPickerTarget(null)}>
+                <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={() => setPickerTarget(null)}>
                   <Text style={styles.pickerAction}>Cancel</Text>
                 </Pressable>
                 <Text style={styles.pickerTitle}>
@@ -898,7 +898,7 @@ export default function EventEditorScreen() {
                     ? "Select date"
                     : "Select time"}
                 </Text>
-                <Pressable onPress={commitPicker}>
+                <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={commitPicker}>
                   <Text style={styles.pickerDone}>Done</Text>
                 </Pressable>
               </View>
@@ -930,7 +930,7 @@ function PickerRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.pickerRow, pressed && styles.pressed]}
     >
@@ -970,7 +970,7 @@ function HostOption({
       <Ionicons
         name={active ? "checkmark-circle" : "ellipse-outline"}
         size={18}
-        color={active ? colors.primaryHover : colors.textSubtle}
+        color={active ? colors.primaryHover : colors.textQuiet}
       />
     </Pressable>
   );
@@ -1017,6 +1017,7 @@ function VisibilityOption({
 }
 
 const styles = StyleSheet.create({
+  pickerControl: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   editorHeader: {
     minHeight: 62,
@@ -1094,7 +1095,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryMuted,
   },
   previewBadgeText: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1,
@@ -1151,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   sectionHeading: { gap: spacing.xxs, marginBottom: spacing.xxs },
   eyebrow: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1.5,
@@ -1172,7 +1173,7 @@ const styles = StyleSheet.create({
   characterCount: {
     marginTop: -spacing.xs,
     textAlign: "right",
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: typography.caption,
     fontWeight: "700",
   },
@@ -1305,7 +1306,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   optionalText: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 1,
@@ -1347,7 +1348,7 @@ const styles = StyleSheet.create({
   hostOptionText: { flex: 1, color: colors.textMuted, fontSize: 13, fontWeight: "800" },
   hostOptionTextActive: { color: colors.text },
   hostHelper: { color: colors.textMuted, fontSize: 11, fontWeight: "700", lineHeight: 17 },
-  hostError: { color: colors.primaryHover, fontSize: 11, fontWeight: "700" },
+  hostError: { color: colors.textAccent, fontSize: 11, fontWeight: "700" },
   visibilityOptions: {
     flexDirection: "row",
     gap: spacing.sm,

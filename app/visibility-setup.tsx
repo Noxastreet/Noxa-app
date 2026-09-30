@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   headerLabel: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.body,
     fontSize: 10,
     fontWeight: '700',
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   kicker: {
-    color: colors.primaryHover,
+    color: colors.textAccent,
     fontFamily: typography.fontFamily.body,
     fontSize: 11,
     fontWeight: '800',
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   footerNote: {
-    color: colors.textSubtle,
+    color: colors.textQuiet,
     fontFamily: typography.fontFamily.body,
     fontSize: 12,
     lineHeight: 17,
