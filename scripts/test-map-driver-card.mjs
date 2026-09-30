@@ -183,3 +183,25 @@ profile.gesture.onPanResponderTerminate();
 profile.gesture.onPanResponderRelease(null, { dy: 20, vy: 0 });
 assert.equal(profile.pushes.length, 1, 'Interrupted card gestures must not navigate.');
 console.log('Map card navigation/interruption smoke passed.');
+
+const pendingConnection = defer();
+const focusRecovery = harness({ result: (query) => {
+  if (query.insert) return pendingConnection.promise;
+  return { data: query.table === 'profiles' ? { id: 'driver' } : query.table === 'crew_members' ? [] : null, error: null };
+} });
+const blur = focusRecovery.effects[0]();
+await new Promise((resolve) => setImmediate(resolve));
+focusRecovery.render();
+const connectPending = focusRecovery.callbacks[2]();
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(focusRecovery.states[4], true);
+blur();
+focusRecovery.render();
+focusRecovery.effects[0]();
+await new Promise((resolve) => setImmediate(resolve));
+assert.equal(focusRecovery.states[4], false, 'Refocus must reset a busy indicator owned by an older connection request.');
+pendingConnection.resolve({ data: null, error: null });
+await connectPending;
+assert.equal(focusRecovery.states[4], false);
+assert.equal(focusRecovery.states[2], 'none', 'An old connection response must not overwrite the fresh relationship.');
+console.log('Map card connection/focus recovery smoke passed.');
