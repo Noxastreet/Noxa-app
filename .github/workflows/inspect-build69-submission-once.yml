@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 5
     if: ${{ github.run_attempt == 1 }}
     steps:
-      - name: Read submission and Apple upload evidence
+      - name: Read final submission and Apple upload evidence
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         shell: bash
