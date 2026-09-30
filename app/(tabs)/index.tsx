@@ -48,7 +48,6 @@ import type {
 import {
   LIVE_DRIVE_TASK_NAME,
   getLiveDriveSession,
-  getSafeLiveDriveStartMessage,
   hasLiveDriveRuntimeAccess,
   requestLiveDrivePermissions,
   startLiveDriveSession,
@@ -57,6 +56,7 @@ import {
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
 import { getEventLifecycle, type EventCategory } from "@/src/lib/eventExperience";
+import { getSafeLiveDriveStartMessage } from "@/src/lib/liveDriveError";
 import {
   isJwtValidationError,
   refreshSupabaseSessionOnce,
