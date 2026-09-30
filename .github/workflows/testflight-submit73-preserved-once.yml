@@ -1,0 +1,284 @@
+name: Submit preserved exact-source Build 73 with installed config plugins
+on:
+  push:
+    branches: [ci/testflight-submit73-preserved-20260930]
+    paths: [.github/workflows/testflight-submit73-preserved-once.yml]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: testflight-build73-once-20260930
+  cancel-in-progress: false
+jobs:
+  native-prerequisite:
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Prove original submit skipped, production IPA and final native review passed
+        run: |
+          node --input-type=module <<'NODE'
+          const api=async path=>{
+            const response=await fetch('https://api.github.com/repos/Noxastreet/Noxa-app/'+path,{headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+process.env.GH_TOKEN,'X-GitHub-Api-Version':'2022-11-28'}});
+            if(!response.ok)throw new Error('Evidence read failed '+response.status);
+            return response.json();
+          };
+          const original=await api('actions/runs/36783662748');
+          if(original.head_sha!=='8870ba052354ec06095be272265bd54df508d2db')throw new Error('Wrong original delivery head');
+          const jobs=(await api('actions/runs/36783662748/jobs')).jobs;
+          const build=jobs.find(j=>j.id===110119794215);
+          for(const name of ['Build production IPA locally once','Verify IPA metadata','Preserve IPA before submit']){
+            if(!build?.steps?.some(s=>s.name===name&&s.conclusion==='success'))throw new Error('Missing same IPA evidence '+name);
+          }
+          const submit=jobs.find(j=>j.id===110132977842)?.steps?.find(s=>s.name==='Submit the preserved IPA exactly once without waiting in macOS queue');
+          if(submit?.conclusion!=='skipped')throw new Error('Original submit not proved skipped; never duplicate');
+          const native=await api('actions/runs/36783514352');
+          if(native.head_sha!=='607f71b2cc0b2a196b32b5e649ef874371965b96'||native.conclusion!=='success')throw new Error('Wrong final-source native PASS');
+          const file=await api('contents/audit-runtime-evidence/final-review.json?ref=ci%2Fnoxa-native-complete-labels-20260930');
+          const review=JSON.parse(Buffer.from(file.content,'base64').toString());
+          if(review.source!=='879bf6681f88a1a4756abd5ce9ce13130bbab3c6'||review.nativeRun!==36783514352||review.status!=='VERIFIED'||review.googleActionFullyVisible!==true)throw new Error('Wrong native visual self-review proof');
+          console.log('VERIFIED: final native PASS, actual full-label screenshot review, original submit SKIPPED; reuse same IPA without build/increment');
+          NODE
+  verify-build-submit:
+    name: Validate same IPA 73 and submit once
+    needs: native-prerequisite
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      CI: "1"
+      EXPECTED_CANDIDATE_SHA: "879bf6681f88a1a4756abd5ce9ce13130bbab3c6"
+      EXPECTED_WORKFLOW_PATH: ".github/workflows/testflight-submit73-preserved-once.yml"
+      EXPECTED_BUNDLE_ID: "com.karaketidis.noxa"
+      EXPECTED_APP_VERSION: "1.0.0"
+      EXPECTED_BUILD_NUMBER: "73"
+      EXPECTED_IPA_SHA256: "3b1ddbddd8a90567e9822101b6a63f9a01efc86f31dc7e33693ec6e64b1f8859"
+      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-build73-36783662748.ipa"
+    outputs:
+      submission_id: ${{ steps.submit.outputs.submission_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prove canonical source plus one continuation workflow only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(git diff --name-only "$EXPECTED_CANDIDATE_SHA" HEAD)" = "$EXPECTED_WORKFLOW_PATH"
+          test "$(gh api repos/Noxastreet/Noxa-app/branches/main --jq '.commit.sha')" = "$EXPECTED_CANDIDATE_SHA"
+          gh api "repos/Noxastreet/Noxa-app/actions/runs?head_sha=$EXPECTED_CANDIDATE_SHA&per_page=30" --jq '.workflow_runs[] | select(.name=="Quality" and .head_branch=="main" and .event=="push" and .conclusion=="success") | .id' > "$RUNNER_TEMP/quality-success"
+          test -s "$RUNNER_TEMP/quality-success"
+      - uses: actions/checkout@v4
+        with:
+          ref: 879bf6681f88a1a4756abd5ce9ce13130bbab3c6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Complete static and regression gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx tsc --noEmit
+          npm run lint
+          npx expo-doctor
+          npm run verify:auth-flow
+          node ./scripts/verify-delete-account-flow.mjs
+          npm run verify:supabase-migrations
+          npm run verify:interactions
+          npm run verify:ui-foundation
+          node ./scripts/test-ui-accessibility-interruption.mjs
+          node ./scripts/verify-surface-accessibility.mjs
+          node ./scripts/test-root-social-load-ownership.mjs
+          node ./scripts/test-vehicle-image-recovery.mjs
+          npm run verify:ui-root-screens
+          npm run verify:motion-foundation
+          npm run verify:motion-detail-navigation
+          npm run verify:motion-action-sheet
+          node ./scripts/verify-chat-window.mjs
+          node ./scripts/verify-live-drive-presence.mjs
+          node ./scripts/test-live-drive-offline-stop.mjs
+          node ./scripts/verify-map-location-revocation.mjs
+          npm run verify:home-map-disclosure
+          npm run verify:navigation-focus
+          npm run verify:route-motion-continuity
+          npm run verify:map-driver-card
+          npm run verify:map-selected-driver
+          npm run verify:map-camera-ownership
+          npm run verify:map-object-focus
+          npm run verify:home-map-performance
+          node ./scripts/verify-app-data-loading.mjs
+          node ./scripts/verify-notifications-reliability.mjs
+          node ./scripts/verify-post-flow-reliability.mjs
+          node ./scripts/verify-editor-save-navigation.mjs
+          node ./scripts/verify-social-list-race.mjs
+          npm run verify:quick-connect
+          npm run verify:quick-connect-motion
+          npm run test:quick-connect
+          node ./scripts/verify-media-cleanup.mjs
+          node ./scripts/verify-crew-lifecycle-ux.mjs
+          node ./scripts/verify-group-drive-invitation-push.mjs
+          node ./scripts/test-group-drive-account-isolation.mjs
+          npm run verify:group-drive-phase-1
+          npm run test:group-drive-phase-1
+          npm run verify:drive-together-quickflow
+          npm run verify:event-drive-together
+          npm run test:drive-together-quickflow
+          npm run verify:group-drive-phase-2
+          node ./scripts/verify-group-drive-end-to-end-ux.mjs
+          npm run verify:group-drive-phase-3a
+          npm run test:group-drive-phase-3a
+          npm run verify:group-drive-phase-3b
+          npm run test:group-drive-phase-3b
+          npm run verify:group-drive-phase-4a
+          npm run test:group-drive-phase-4a
+          npm run verify:group-drive-phase-4b
+          npm run test:group-drive-phase-4b
+          npm run verify:group-drive-phase-4c
+          npm run test:group-drive-phase-4c
+          npm run verify:group-drive-phase-5
+          npm run verify:mvp-completion
+
+      - name: Retrieve same preserved production IPA without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 36783662748 --repo Noxastreet/Noxa-app --name noxa-build73-ipa-36783662748 --dir artifacts
+          test -f "$IPA_PATH"
+      - name: Validate exact bytes and embedded native metadata again
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(shasum -a 256 "$IPA_PATH" | awk '{print $1}')"
+          test "$ACTUAL_SHA" = "$EXPECTED_IPA_SHA256"
+          node -e 'const m=require("./artifacts/ipa-metadata.json");if(m.source!==process.env.EXPECTED_CANDIDATE_SHA||m.bundle!==process.env.EXPECTED_BUNDLE_ID||m.version!==process.env.EXPECTED_APP_VERSION||m.build!==process.env.EXPECTED_BUILD_NUMBER)throw new Error("Wrong preserved source/metadata");console.log(JSON.stringify(m))'
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          unzip -q "$IPA_PATH" -d "$TMP_DIR"
+          APP_DIR="$(find "$TMP_DIR/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_DIR/Info.plist")" = "$EXPECTED_BUNDLE_ID"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_DIR/Info.plist")" = "$EXPECTED_APP_VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_DIR/Info.plist")" = "$EXPECTED_BUILD_NUMBER"
+          echo "VERIFIED: same preserved IPA 1.0.0 (73), exact source and SHA256"
+      - name: Verify actual remote sequence unchanged without increment
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx --yes eas-cli@24.7.0 build:version:get --platform ios --profile production --non-interactive --json > "$RUNNER_TEMP/remote-version.json"
+          node -e 'const x=require(process.env.RUNNER_TEMP+"/remote-version.json");if(String(x.buildNumber)!=="73")throw new Error("Production sequence changed; do not assume candidate");console.log("Confirmed current production sequence:",x.buildNumber)'
+      - name: Submit the preserved IPA exactly once without waiting in macOS queue
+        id: submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/Noxastreet/Noxa-app/branches/main --jq '.commit.sha')" = "$EXPECTED_CANDIDATE_SHA"
+          npx --yes eas-cli@24.7.0 submit --platform ios --profile production --path "$IPA_PATH" --non-interactive --no-wait 2>&1 | tee artifacts/submit-scheduled.log
+          node <<'NODE'
+          const fs=require('fs');
+          const log=fs.readFileSync('artifacts/submit-scheduled.log','utf8');
+          const ids=[...new Set([...log.matchAll(/\/submissions\/([0-9a-f-]{36})/gi)].map(m=>m[1]))];
+          if(ids.length!==1)throw new Error('Expected exactly one submission URL; inspect scheduled logs without resubmitting');
+          fs.writeFileSync('artifacts/submission-id.txt',ids[0]);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,'submission_id='+ids[0]+'\n');
+          console.log('Scheduled same IPA submission:',ids[0]);
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: noxa-build73-submit-scheduling-${{ github.run_id }}
+          path: |
+            artifacts/submit-scheduled.log
+            artifacts/submission-id.txt
+          retention-days: 3
+  monitor-same-submission:
+    needs: verify-build-submit
+    if: ${{ github.run_attempt == 1 && needs.verify-build-submit.outputs.submission_id != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      SUBMISSION_ID: ${{ needs.verify-build-submit.outputs.submission_id }}
+      EXPECTED_CANDIDATE_SHA: "879bf6681f88a1a4756abd5ce9ce13130bbab3c6"
+      EXPECTED_APP_VERSION: "1.0.0"
+      EXPECTED_BUILD_NUMBER: "73"
+    steps:
+      - name: Monitor the same EAS submission and require Apple upload evidence
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const endpoint = "https://api.expo.dev/graphql";
+          async function query(query) {
+            const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + process.env.EXPO_TOKEN }, body: JSON.stringify({ query }) });
+            const result = await response.json();
+            if (!response.ok || result.errors) throw new Error(JSON.stringify({status:response.status,errors:result.errors}));
+            return result.data;
+          }
+          const typeShape = "kind name ofType { kind name ofType { kind name ofType { kind name } } }";
+          const getType = async (name) => (await query('{ __type(name: '+JSON.stringify(name)+') { name fields { name type { '+typeShape+' } args { name defaultValue type { '+typeShape+' } } } } }')).__type;
+          const leaf = (type) => type.ofType ? leaf(type.ofType) : type;
+          const app = await getType("App");
+          if (!app) throw new Error("App schema unavailable");
+          const field = app.fields.find((f) => /^(submissions|recentSubmissions)$/.test(f.name));
+          if (!field) { console.log("Submission fields:", app.fields.filter(f=>/submi/i.test(f.name)).map(f=>f.name)); throw new Error("Submission list field unavailable"); }
+          console.log("Submission list:",field.name,"arguments:",field.args.map(a=>({name:a.name,type:leaf(a.type).name,required:a.type.kind==="NON_NULL",default:a.defaultValue})));
+          const args = [];
+          for (const arg of field.args) {
+            if (arg.name === "limit" || arg.name === "first") args.push(arg.name+":5");
+            else if (arg.name === "offset") args.push("offset:0");
+            else if (arg.name === "filter") args.push("filter:{}");
+            else if (arg.type.kind === "NON_NULL" && arg.defaultValue == null) throw new Error("Unsupported required argument: "+arg.name);
+          }
+          const node = await getType(leaf(field.type).name);
+          const safe = ["id","status","createdAt","updatedAt","completedAt","platform","appVersion","appBuildVersion","priority"];
+          const fields = node.fields.filter(f=>safe.includes(f.name)&&["SCALAR","ENUM"].includes(leaf(f.type).kind)).map(f=>f.name);
+          if (!fields.includes("status")) throw new Error("Submission status schema unavailable");
+          const body = "{ app { byId(appId: \"8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a\") { "+field.name+(args.length?"("+args.join(",")+")":"")+" { "+fields.join(" ")+" } } } }";
+          
+          const uploadType = await getType("AppStoreConnectBuildUpload");
+          console.log("App Store upload schema:",JSON.stringify(uploadType?.fields?.map(f=>({name:f.name,type:leaf(f.type).name}))));
+          const uploadFields = uploadType?.fields?.filter(f=>["SCALAR","ENUM"].includes(leaf(f.type).kind)&&!/(secret|token|key|url)/i.test(f.name)&&f.args.length===0).map(f=>f.name) ?? [];
+          const detailedBody = body.replace(fields.join(" "), fields.join(" ")+" logFiles"+(uploadFields.length?" appStoreConnectBuildUpload { "+uploadFields.join(" ")+" }":""));
+          let verified = false;
+          for(let attempt=0;attempt<340;attempt++){
+            const response=await query(detailedBody);
+            const current=response.app.byId.submissions.find(s=>s.id===process.env.SUBMISSION_ID);
+            if(!current)throw new Error('Expected SAME submission missing; never create another');
+            const {logFiles,...metadata}=current;
+            console.log('Same submission state:',JSON.stringify(metadata));
+            if(['ERRORED','CANCELED','CANCELLED'].includes(current.status))throw new Error('Submission terminal failure: '+current.status);
+            if(current.status==='FINISHED'){
+              let uploaded=false;
+              for(const url of Array.isArray(logFiles)?logFiles:logFiles?[logFiles]:[]){
+                const response=await fetch(url,{signal:AbortSignal.timeout(15000)});
+                if(!response.ok)continue;
+                const log=await response.text();
+                uploaded ||= /successfully uploaded.*App Store Connect/i.test(log) || /Submitted your app to Apple App Store Connect/i.test(log);
+              }
+              if(!uploaded)throw new Error('FINISHED submission has no Apple upload confirmation evidence');
+              requireEvidence(metadata);
+              verified=true;break;
+            }
+            await new Promise(resolve=>setTimeout(resolve,60000));
+          }
+          if(!verified)throw new Error('SAME submission still pending; continue read-only monitoring, never resubmit');
+          function requireEvidence(metadata){
+            if(metadata.appVersion && metadata.appVersion!==process.env.EXPECTED_APP_VERSION)throw new Error('Wrong submission app version');
+            if(metadata.appBuildVersion && String(metadata.appBuildVersion)!==process.env.EXPECTED_BUILD_NUMBER)throw new Error('Wrong submission build');
+            fs.writeFileSync('submission-evidence.json',JSON.stringify({source:process.env.EXPECTED_CANDIDATE_SHA,...metadata,appleUploadConfirmed:true},null,2));
+            console.log('VERIFIED: same production IPA successfully uploaded to App Store Connect');
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: noxa-build73-apple-upload-evidence-${{ github.run_id }}
+          path: submission-evidence.json
+          if-no-files-found: warn
+          retention-days: 7
