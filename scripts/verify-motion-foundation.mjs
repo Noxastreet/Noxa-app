@@ -73,9 +73,9 @@ assert(
 );
 
 assert(
-  /animation:\s*['"]fade['"]/.test(layout)
-    && /duration:\s*animations\.rootTab/.test(layout),
-  'Root tab navigation must use the canonical restrained fade transition.',
+  /animation:\s*['"]none['"]/.test(layout)
+    && !/transitionSpec\s*:/.test(layout),
+  'Root tab navigation must switch immediately without whole-screen fades or transition gaps.',
 );
 
 assert(
