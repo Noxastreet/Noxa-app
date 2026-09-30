@@ -59,7 +59,7 @@ jobs:
             if(!response.ok) { console.log("Submission logs not ready:",response.status); continue; }
             const log = await response.text();
             console.log("Apple successful upload text found:",/successfully uploaded.*App Store Connect/i.test(log));
-  console.log("Apple upload confirmation:",JSON.stringify([...new Set(log.match(/(?:Your binary has been )?successfully uploaded to App Store Connect!?/gi) ?? [])]));
+            console.log("Apple upload confirmation:",JSON.stringify([...new Set(log.match(/(?:Your binary has been )?successfully uploaded to App Store Connect!?/gi) ?? [])]));
             console.log("Apple submitted confirmation text found:",/Submitted your app to Apple App Store Connect/i.test(log));
           }
           
