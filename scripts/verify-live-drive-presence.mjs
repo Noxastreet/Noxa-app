@@ -213,9 +213,9 @@ assert(
 );
 assert(
   liveDriveError.includes("Platform.OS === 'ios'") &&
-    liveDrive.includes('Background location permission is required for Live Drive.') &&
+    liveDrive.includes('Allow background location so your 4-hour Live Drive session can continue.') &&
     !liveDrive.includes("from 'react-native'"),
-  'Low-level Live Drive must stay platform-UI independent while the UI mapper gives iOS-specific recovery guidance.',
+  'Low-level Live Drive must remain unchanged and platform-UI independent while the UI mapper gives iOS-specific recovery guidance.',
 );
 assert(
   visibilitySetup.includes("import { getSafeLiveDriveStartMessage } from '@/src/lib/liveDriveError';") &&
