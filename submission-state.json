@@ -1,4 +1,5 @@
 {
+  "source": "432d6bec798b1b7641120f151825ea2ceb5c29d1",
   "id": "ef7ed8cf-68dd-46ed-b847-cb976b91e996",
   "platform": "IOS",
   "status": "IN_QUEUE",
@@ -6,5 +7,6 @@
   "updatedAt": "2026-09-30T18:12:46.621Z",
   "completedAt": null,
   "priority": "NORMAL",
-  "appStoreConnectBuildUpload": null
+  "appStoreConnectBuildUpload": null,
+  "appleUploadConfirmed": false
 }
