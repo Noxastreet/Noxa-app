@@ -124,6 +124,15 @@ type RouteResult = {
 };
 type RouteStatus = "idle" | "loading" | "ready" | "error";
 type MapDataRequestState = "loading" | "ready" | "error";
+
+type MapCameraOwner =
+  | "free"
+  | "selection"
+  | "recenter"
+  | "route-context"
+  | "route-follow"
+  | "drive-context"
+  | "drive-follow";
 type MapLens = "all" | "mine";
 type LocationVisibilityMode = "crew" | "friends" | "global" | "ghost";
 
@@ -782,6 +791,11 @@ export default function LiveMapScreen() {
       ? normalizedFocusEventId
       : null;
   const isRouteMode = normalizedMapMode === "route" && Boolean(focusEventId);
+  const mapObjectSelectionLocked =
+    isRouteMode
+    || isRouteFocusMode
+    || driveTogetherPanelVisible
+    || Boolean(driveTogetherNavigation);
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
 
@@ -1954,6 +1968,7 @@ export default function LiveMapScreen() {
 
   const routeToEvent = useCallback((event: EventMarkerRow) => {
     if (driveTogetherNavigation) return;
+    setSelectedDriverId(null);
     setIsRouteFollowing(false);
     setIsRouteFocusMode(false);
     if (!hasValidCoordinates(event)) return;
@@ -1963,6 +1978,7 @@ export default function LiveMapScreen() {
 
   const selectEvent = useCallback(
     (event: EventMarkerRow) => {
+      setSelectedDriverId(null);
       setSelectedEvent(event);
       setIsCameraAwayFromUser(true);
       animateTo(eventRegion(event));
@@ -2093,6 +2109,7 @@ export default function LiveMapScreen() {
     (next: DriveTogetherNavigationOverlay | null) => {
       setDriveTogetherNavigation(next);
       if (next) {
+        setSelectedDriverId(null);
         setSelectedEvent(null);
         setIsRouteFollowing(false);
         setIsRouteFocusMode(false);
@@ -2198,7 +2215,7 @@ export default function LiveMapScreen() {
     [events],
   );
   const openDriverCard = useCallback((driverId: string) => {
-    if (isRouteFocusMode || driveTogetherPanelVisible) return;
+    if (mapObjectSelectionLocked) return;
 
     setVisibilityMenuOpen(false);
     setSelectedEvent(null);
@@ -2218,7 +2235,7 @@ export default function LiveMapScreen() {
         260,
       );
     }
-  }, [driveTogetherPanelVisible, isRouteFocusMode, mapboxDrivers]);
+  }, [mapObjectSelectionLocked, mapboxDrivers]);
 
   const inviteDriverToDriveTogether = useCallback((driverId: string) => {
     setSelectedDriverId(null);
@@ -2227,11 +2244,18 @@ export default function LiveMapScreen() {
   }, []);
   const selectMapboxEvent = useCallback(
     (event: MapboxEvent) => {
+      if (mapObjectSelectionLocked) return;
       const fullEvent = events.find((candidate) => candidate.id === event.id);
       if (fullEvent) selectEvent(fullEvent);
     },
-    [events, selectEvent],
+    [events, mapObjectSelectionLocked, selectEvent],
   );
+
+  const handleUserPan = useCallback(() => {
+    setIsCameraAwayFromUser(true);
+    setIsRouteFollowing(false);
+    setIsDriveTogetherFollowing(false);
+  }, []);
 
   const headerTop = insets.top + spacing.sm;
   const headerBottom = headerTop + 44;
@@ -2285,6 +2309,16 @@ export default function LiveMapScreen() {
   const effectiveFollowing = driveTogetherHasRoute
     ? isDriveTogetherFollowing
     : isRouteFollowing;
+  const cameraOwner: MapCameraOwner =
+    driveTogetherPanelVisible || Boolean(driveTogetherNavigation)
+      ? (isDriveTogetherFollowing ? "drive-follow" : "drive-context")
+      : isRouteMode || isRouteFocusMode
+        ? (isRouteFollowing ? "route-follow" : "route-context")
+        : selectedDriverId || selectedEvent
+          ? "selection"
+          : !isCameraAwayFromUser && Boolean(driverLocation)
+            ? "recenter"
+            : "free";
   const controlBottom =
     eventCardBottom +
     (isRouteMode && selectedEvent && !driveTogetherNavigation
@@ -2293,9 +2327,7 @@ export default function LiveMapScreen() {
         ? 196
         : spacing.sm);
   const showRecenter =
-    !selectedDriverId
-    && !isRouteFocusMode
-    && !driveTogetherPanelVisible
+    cameraOwner === "free"
     && !effectiveFollowing
     && (!driverLocation || isCameraAwayFromUser);
 
@@ -2318,7 +2350,7 @@ export default function LiveMapScreen() {
         }
         onMapPress={handleDriveTogetherMapPress}
         onUserLocationChange={handleMapboxUserLocation}
-        onUserPan={() => setIsCameraAwayFromUser(true)}
+        onUserPan={handleUserPan}
         onDriverPress={openDriverCard}
         onEventPress={selectMapboxEvent}
         route={effectiveRoute}

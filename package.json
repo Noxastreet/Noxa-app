@@ -39,7 +39,8 @@
     "verify:ui-root-screens": "node ./scripts/verify-ui-root-screens.mjs",
     "verify:motion-foundation": "node ./scripts/verify-motion-foundation.mjs",
     "verify:motion-detail-navigation": "node ./scripts/verify-detail-motion-navigation.mjs",
-    "verify:motion-action-sheet": "node ./scripts/verify-premium-action-sheet.mjs"
+    "verify:motion-action-sheet": "node ./scripts/verify-premium-action-sheet.mjs",
+    "verify:map-camera-ownership": "node ./scripts/verify-map-camera-ownership.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
