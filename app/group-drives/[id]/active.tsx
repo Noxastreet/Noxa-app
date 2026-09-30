@@ -368,6 +368,7 @@ export default function ActiveDriveScreen() {
         events={[]}
         route={mapRoute}
         selectedEventId={null}
+        selectedDriverId={selectedUserId}
         mapFilter="drivers"
         isRouteMode
         followUserLocation={followUser}
