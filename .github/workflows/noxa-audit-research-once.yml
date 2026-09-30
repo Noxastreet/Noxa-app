@@ -46,12 +46,18 @@ jobs:
           fs.writeFileSync('audit-evidence/sources.json',JSON.stringify(records,null,2));
           
           NODE
+      - name: Install ripgrep
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ripgrep
       - name: Inventory routes and runtime invariants
         run: |
           rg --files app src > audit-evidence/source-files.txt
+          rg -n 'figma[.]com/(design|file)' docs README.md > audit-evidence/figma-links.txt || true
           rg -n 'accessibilityLabel|accessibilityRole|accessibilityState|allowFontScaling|maxFontSizeMultiplier|useReducedMotion|Haptics|PanResponder|<Modal|<TextInput|KeyboardAvoidingView' app src > audit-evidence/interaction-inventory.txt
           rg -n 'MapView|watchPosition|startLocationUpdates|supabase.channel' app src > audit-evidence/protected-runtime-inventory.txt
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: noxa-official-design-audit-sources
           path: audit-evidence/
