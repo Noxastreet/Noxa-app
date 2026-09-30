@@ -27,6 +27,7 @@ import {
   NoxaPressableSurface,
   NoxaSurface,
 } from "@/src/components/ui";
+import { LiveDrivePermissionRecoverySheet } from "@/src/features/map/LiveDrivePermissionRecoverySheet";
 import { MapDriverCard } from "@/src/features/map/MapDriverCard";
 import {
   DriveTogetherMapLayer,
@@ -49,14 +50,17 @@ import {
   LIVE_DRIVE_TASK_NAME,
   getLiveDriveSession,
   hasLiveDriveRuntimeAccess,
-  requestLiveDrivePermissions,
   startLiveDriveSession,
   stopLiveDriveSession,
   updateLiveDriveVisibility,
   type LiveDriveVisibilityMode,
 } from "@/src/lib/liveDrive";
 import { getEventLifecycle, type EventCategory } from "@/src/lib/eventExperience";
-import { getSafeLiveDriveStartMessage } from "@/src/lib/liveDriveError";
+import {
+  getSafeLiveDriveStartMessage,
+  shouldOfferLiveDriveSettings,
+} from "@/src/lib/liveDriveError";
+import { requestRequiredLiveDrivePermissions } from "@/src/lib/liveDrivePermissionFlow";
 import {
   isJwtValidationError,
   refreshSupabaseSessionOnce,
@@ -802,6 +806,10 @@ export default function LiveMapScreen() {
   const [visibilityMenuOpen, setVisibilityMenuOpen] = useState(false);
   const [pendingVisibilityMode, setPendingVisibilityMode] =
     useState<LiveDriveVisibilityMode | null>(null);
+  const [
+    pendingLiveDrivePermissionRecovery,
+    setPendingLiveDrivePermissionRecovery,
+  ] = useState<{ mode: LiveDriveVisibilityMode; message: string } | null>(null);
   const [isStartingLiveDrive, setIsStartingLiveDrive] = useState(false);
   // Privacy: an already-active Live Drive audience never changes without an
   // explicit confirmation. This holds the proposed change only — nothing is
@@ -1120,6 +1128,7 @@ export default function LiveMapScreen() {
     async (mode: LiveDriveVisibilityMode) => {
       const startGeneration = ++liveDriveStartGenerationRef.current;
       setSharingError(null);
+      setPendingLiveDrivePermissionRecovery(null);
       setIsStartingLiveDrive(true);
       const { data: sessionData } = await supabase.auth.getSession();
       if (
@@ -1137,7 +1146,7 @@ export default function LiveMapScreen() {
         return;
       }
       try {
-        const initialLocation = await requestLiveDrivePermissions();
+        const initialLocation = await requestRequiredLiveDrivePermissions();
         if (
           !isMountedRef.current ||
           liveDriveStartGenerationRef.current !== startGeneration
@@ -1171,10 +1180,17 @@ export default function LiveMapScreen() {
         await stopLiveDriveSession(true).catch(() => undefined);
         await deletePresence(userId).catch(() => undefined);
         if (isMountedRef.current) {
+          const safeMessage = getSafeLiveDriveStartMessage(error);
           setIsVisibleOnMap(false);
           setVisibilityMode("ghost");
           setLiveDriveExpiresAt(null);
-          setSharingError(getSafeLiveDriveStartMessage(error));
+          setSharingError(safeMessage);
+          if (shouldOfferLiveDriveSettings(error)) {
+            setPendingLiveDrivePermissionRecovery({
+              mode,
+              message: safeMessage,
+            });
+          }
         }
       } finally {
         if (
@@ -1754,11 +1770,23 @@ export default function LiveMapScreen() {
           if (mapFocusedRef.current) {
             await Promise.all([loadMyDriverIds(), refreshActiveDrivers()]);
           }
+          const recovery = pendingLiveDrivePermissionRecovery;
+          if (recovery && isMountedRef.current) {
+            setPendingLiveDrivePermissionRecovery(null);
+            await startSharing(recovery.mode);
+          }
         })();
       }
     });
     return () => subscription.remove();
-  }, [loadDriverLocation, loadMyDriverIds, refreshActiveDrivers, restoreLiveDriveSession]);
+  }, [
+    loadDriverLocation,
+    loadMyDriverIds,
+    pendingLiveDrivePermissionRecovery,
+    refreshActiveDrivers,
+    restoreLiveDriveSession,
+    startSharing,
+  ]);
 
   useEffect(() => {
     if (!liveDriveExpiresAt) return;
@@ -2732,6 +2760,15 @@ export default function LiveMapScreen() {
         onPanelVisibilityChange={handleDriveTogetherPanelVisibilityChange}
         open={driveTogetherOpen}
         topOffset={headerBottom + spacing.md}
+      />
+
+      <LiveDrivePermissionRecoverySheet
+        message={
+          pendingLiveDrivePermissionRecovery?.message
+          ?? "Live Drive needs additional iPhone location access."
+        }
+        onCancel={() => setPendingLiveDrivePermissionRecovery(null)}
+        visible={pendingLiveDrivePermissionRecovery !== null}
       />
 
       <NoxaConfirmationSheet
