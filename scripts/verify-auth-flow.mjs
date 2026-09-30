@@ -92,6 +92,17 @@ requirePattern(
 );
 
 requirePattern(
+  'Recovery back action must dismiss to existing Sign In rather than duplicating it.',
+  forgotPassword,
+  /function backToSignIn\(\)\s*\{\s*router\.dismissTo\('\/sign-in'\);\s*\}/,
+);
+forbidPattern(
+  'Recovery must not always replace Sign In over an existing Sign In stack entry.',
+  forgotPassword,
+  /router\.replace\('\/sign-in'\)/,
+);
+
+requirePattern(
   'Recovery link handler must support implicit-flow sessions.',
   recoveryLinks,
   /supabase\.auth\.setSession\(/,

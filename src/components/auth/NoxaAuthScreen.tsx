@@ -71,7 +71,7 @@ export function NoxaAuthScreen({ children, footer, onBack, subtitle, title }: No
 
           <View style={styles.body}>
             <View style={styles.titleBlock}>
-              <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+              <Text accessibilityRole="header" maxFontSizeMultiplier={1.5} style={styles.title}>{title}</Text>
               <Text style={styles.subtitle}>{subtitle}</Text>
             </View>
             {children}
