@@ -6,7 +6,11 @@ import process from 'node:process';
 const root = process.cwd();
 const files = [
   'src/features/group-drive/runtime/nativeLocation.ts',
+  'src/features/group-drive/runtime/requiredLocationPermissions.ts',
+  'src/lib/backgroundLocationPermissionFlow.ts',
   'app/group-drives/[id]/location-sharing.tsx',
+  'app/group-drives/[id]/active.tsx',
+  'src/features/group-drive/DriveTogetherMapLayer.tsx',
   'app/_layout.tsx',
   'app.json',
   'src/lib/liveDrive.ts',
@@ -28,7 +32,11 @@ function gitBlobSha(text) {
 
 if (!failures.length) {
   const runtime = source('src/features/group-drive/runtime/nativeLocation.ts');
+  const requiredPermissions = source('src/features/group-drive/runtime/requiredLocationPermissions.ts');
+  const backgroundPermissionFlow = source('src/lib/backgroundLocationPermissionFlow.ts');
   const consentScreen = source('app/group-drives/[id]/location-sharing.tsx');
+  const activeScreen = source('app/group-drives/[id]/active.tsx');
+  const driveTogether = source('src/features/group-drive/DriveTogetherMapLayer.tsx');
   const layout = source('app/_layout.tsx');
   const appJson = source('app.json');
   const personalLiveDrive = source('src/lib/liveDrive.ts');
@@ -61,8 +69,24 @@ if (!failures.length) {
     failures.push('Phase 3B must not persist speed, accuracy, progress or ranking telemetry');
   }
 
-  if (!/const consent = acceptGroupDriveLocationDisclosure\(driveSessionId\);[\s\S]*await requestGroupDriveLocationPermissions\(\);[\s\S]*await startGroupDriveLocationSession\(consent\);/.test(consentScreen)) {
-    failures.push('consent screen must accept scoped disclosure before requesting permissions and starting writer');
+  if (!/const consent = acceptGroupDriveLocationDisclosure\(driveSessionId\);[\s\S]*await requestRequiredGroupDriveLocationPermissions\(\);[\s\S]*await startGroupDriveLocationSession\(consent\);/.test(consentScreen)) {
+    failures.push('consent screen must accept scoped disclosure before requesting required permissions and starting writer');
+  }
+
+  if (
+    !/await requestIosBackgroundLocationPreflight\(\);[\s\S]*return requestGroupDriveLocationPermissions\(\);/.test(requiredPermissions)
+    || !/Platform\.OS !== 'ios'[\s\S]*getBackgroundPermissionsAsync[\s\S]*canAskAgain !== false[\s\S]*requestBackgroundPermissionsAsync/.test(backgroundPermissionFlow)
+  ) {
+    failures.push('Group Drive must use the shared iOS background/Always preflight before its protected runtime validation');
+  }
+
+  for (const [label, file] of [
+    ['Active Drive', activeScreen],
+    ['Drive Together', driveTogether],
+  ]) {
+    if (!/requestRequiredGroupDriveLocationPermissions/.test(file)) {
+      failures.push(`${label} must use the required Group Drive permission flow`);
+    }
   }
   if (!/Join and Ready never enable (?:location )?sharing/.test(consentScreen)) {
     failures.push('consent screen must state that Join/Ready do not enable sharing');

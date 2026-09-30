@@ -11,3 +11,4 @@ export * from './routeProgress';
 export * from './simulation';
 export * from './quickRoomRealtime';
 export * from './useQuickDriveNavigation';
+export * from './requiredLocationPermissions';
