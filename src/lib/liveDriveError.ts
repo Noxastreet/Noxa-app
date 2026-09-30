@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 export function shouldOfferLiveDriveSettings(error: unknown) {
   if (Platform.OS !== 'ios') return false;
   const message = error instanceof Error ? error.message.toLowerCase() : '';
@@ -12,8 +14,6 @@ export function shouldOfferLiveDriveSettings(error: unknown) {
     || message.includes('when in use')
   );
 }
-
-import { Platform } from 'react-native';
 
 export function getSafeLiveDriveStartMessage(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
