@@ -386,7 +386,7 @@ export default function CanonicalEventsScreen() {
               myResponse: mine.get(event.id) ?? null,
             })),
           );
-        }).catch(() => { /* Optional attendance remains unavailable. */ });
+        }, () => { /* Optional attendance remains unavailable. */ });
     },
     [loadHeroProfiles],
   );
