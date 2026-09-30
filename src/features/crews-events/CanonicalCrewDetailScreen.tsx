@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 
-import { NoxaScreen } from "@/src/components/ui";
+import { NoxaIconButton, NoxaScreen } from "@/src/components/ui";
 import {
   EntityActionSheet,
   type EntityAction,
@@ -149,22 +149,22 @@ function CrewLogo({ crew, size = 58 }: { crew: Crew; size?: number }) {
 function CrewHeader({ onMore }: { onMore: () => void }) {
   return (
     <View style={styles.header}>
-      <Pressable
+      <NoxaIconButton
         accessibilityLabel="Go back"
-        accessibilityRole="button"
+        icon="chevron-back"
+        iconSize={23}
         onPress={() => router.back()}
-        style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-      >
-        <Ionicons name="chevron-back" size={23} color={colors.text} />
-      </Pressable>
-      <Pressable
+        size={44}
+        variant="overlay"
+      />
+      <NoxaIconButton
         accessibilityLabel="More crew actions"
-        accessibilityRole="button"
+        icon="ellipsis-horizontal"
+        iconSize={20}
         onPress={onMore}
-        style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-      >
-        <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
-      </Pressable>
+        size={44}
+        variant="overlay"
+      />
     </View>
   );
 }
