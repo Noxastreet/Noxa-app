@@ -2271,7 +2271,11 @@ export default function LiveMapScreen() {
   const driveTogetherEventDestinations = useMemo<DriveTogetherDestinationSeed[]>(
     () =>
       events
-        .filter(hasValidCoordinates)
+        .filter(
+          (event) =>
+            hasValidCoordinates(event)
+            && getEventLifecycle(event) !== "ended",
+        )
         .map((event) => ({
           id: event.id,
           latitude: event.latitude,
