@@ -1,24 +1,24 @@
-name: Read same build 71 submission and native diagnostics once
+name: Publish read-only SAME build 71 submission state
 on:
   push:
     branches: [ci/noxa-build71-diagnostics-20260930]
     paths: [.github/workflows/noxa-build71-diagnostics-once.yml]
 permissions:
   contents: write
-  actions: read
 jobs:
-  inspect:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  observe:
     if: ${{ github.run_attempt == 1 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+      SUBMISSION_ID: "ef7ed8cf-68dd-46ed-b847-cb976b91e996"
+      CANONICAL_SOURCE_SHA: "432d6bec798b1b7641120f151825ea2ceb5c29d1"
     steps:
-      - uses: actions/checkout@v4
-      - name: Read the same submission without resubmitting
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Follow only the already scheduled submission and publish evidence
         run: |
           node --input-type=module <<'NODE'
-          import fs from 'node:fs';
           const endpoint = "https://api.expo.dev/graphql";
           async function query(query) {
             const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + process.env.EXPO_TOKEN }, body: JSON.stringify({ query }) });
@@ -51,33 +51,38 @@ jobs:
           console.log("App Store upload schema:",JSON.stringify(uploadType?.fields?.map(f=>({name:f.name,type:leaf(f.type).name}))));
           const uploadFields = uploadType?.fields?.filter(f=>["SCALAR","ENUM"].includes(leaf(f.type).kind)&&!/(secret|token|key|url)/i.test(f.name)&&f.args.length===0).map(f=>f.name) ?? [];
           const detailedBody = body.replace(fields.join(" "), fields.join(" ")+" logFiles"+(uploadFields.length?" appStoreConnectBuildUpload { "+uploadFields.join(" ")+" }":""));
-          const response = await query(detailedBody);
-          const current = response.app.byId.submissions.find(s=>s.id==="ef7ed8cf-68dd-46ed-b847-cb976b91e996");
-          if (!current) throw new Error("Expected submission missing");
-          const {logFiles,...metadata} = current;
-          console.log("Current submission evidence:",JSON.stringify(metadata));
-          fs.writeFileSync('submission-state.json',JSON.stringify(metadata,null,2));
-          for (const url of Array.isArray(logFiles)?logFiles:logFiles?[logFiles]:[]) {
-            const response = await fetch(url,{signal:AbortSignal.timeout(15000)});
-            if(!response.ok) { console.log("Submission logs not ready:",response.status); continue; }
-            const log = await response.text();
-            console.log("Apple successful upload text found:",/successfully uploaded.*App Store Connect/i.test(log));
-            console.log("Apple upload confirmation:",JSON.stringify([...new Set(log.match(/(?:Your binary has been )?successfully uploaded to App Store Connect!?/gi) ?? [])]));
-            console.log("Apple submitted confirmation text found:",/Submitted your app to Apple App Store Connect/i.test(log));
+          
+          let previous = '';
+          async function publish(value) {
+            const root='https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/contents/submission-state.json';
+            const headers={Accept:'application/vnd.github+json',Authorization:'Bearer '+process.env.GH_TOKEN,'X-GitHub-Api-Version':'2022-11-28'};
+            const current=await fetch(root+'?ref=ci%2Fnoxa-build71-diagnostics-20260930',{headers});
+            const old=current.ok?await current.json():{};
+            const response=await fetch(root,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({branch:'ci/noxa-build71-diagnostics-20260930',sha:old.sha,message:'evidence: SAME build 71 submission '+value.status,content:Buffer.from(JSON.stringify(value,null,2)).toString('base64')})});
+            if(!response.ok)throw new Error('Evidence publication failed '+response.status);
           }
+          let finished=false;
+          for(let attempt=0;attempt<170;attempt++){
+            try{
+              const data=await query(detailedBody);
+              const current=data.app.byId.submissions.find(s=>s.id===process.env.SUBMISSION_ID);
+              if(!current)throw new Error('SAME submission missing; never resubmit');
+              const {logFiles,...metadata}=current;
+              let appleUploadConfirmed=false;
+              if(current.status==='FINISHED'){
+                for(const url of Array.isArray(logFiles)?logFiles:logFiles?[logFiles]:[]){
+                  const response=await fetch(url,{signal:AbortSignal.timeout(15000)});
+                  if(response.ok)appleUploadConfirmed ||= /successfully uploaded.*App Store Connect/i.test(await response.text());
+                }
+              }
+              const state={source:process.env.CANONICAL_SOURCE_SHA,...metadata,appleUploadConfirmed};
+              const stateKey=current.status+':'+appleUploadConfirmed;
+              console.log('SAME submission state:',JSON.stringify(state));
+              if(stateKey!==previous){await publish(state);previous=stateKey;}
+              if(['ERRORED','CANCELED','CANCELLED'].includes(current.status))throw new Error('Terminal submission state '+current.status);
+              if(current.status==='FINISHED'&&appleUploadConfirmed){finished=true;break;}
+            }catch(error){console.log('Read-only monitor recovery:',error.message);}
+            await new Promise(r=>setTimeout(r,60000));
+          }
+          if(!finished)throw new Error('SAME submission not confirmed; continue read-only monitoring, never resubmit');
           NODE
-      - name: Read existing anonymous native debug artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh run download 36755324504 --repo Noxastreet/Noxa-app --name noxa-hosted-ios-audit --dir native-evidence
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const fs=require('fs');
-            function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(dir+'/'+e.name):[dir+'/'+e.name]);}
-            for(const path of files('native-evidence').filter(p=>p.endsWith('.log'))){
-              const text=fs.readFileSync(path,'utf8');
-              const lines=text.split('\n').filter(l=>/Exception|ERROR|error|fail|timeout|timed out|crash|Fatal|Unable|Connection|tapOn|TapOn|http/i.test(l));
-              console.log('Native diagnostic '+path+': '+lines.slice(-80).join('\n'));
-            }
-            await github.rest.repos.createOrUpdateFileContents({owner:context.repo.owner,repo:context.repo.repo,path:'submission-state.json',branch:'ci/noxa-build71-diagnostics-20260930',message:'evidence: read-only same build 71 submission snapshot',content:fs.readFileSync('submission-state.json').toString('base64')});
