@@ -1,0 +1,24 @@
+name: NOXA production version evidence once
+on:
+  push:
+    branches: [ci/noxa-version-audit-20260930]
+    paths: [.github/workflows/noxa-version-audit-once.yml]
+permissions:
+  contents: read
+jobs:
+  production-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4b4ed715bb03765b2d4e7e8d131a74baa43f58ce
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Read remote iOS production version without incrementing
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@24.7.0 build:version:get --platform ios --profile production --non-interactive --json
