@@ -15,6 +15,7 @@ import {
 
 import {
   NoxaButton,
+  NoxaDetailReveal,
   NoxaIconButton,
   NoxaScreen,
   NoxaTopBar,
@@ -715,6 +716,7 @@ export default function CanonicalEventDetailScreen() {
       >
         <EventHeader onMore={() => setActionsOpen(true)} />
 
+        <NoxaDetailReveal>
         <Hero
           attendees={attendees}
           compact={compactLayout}
@@ -848,6 +850,7 @@ export default function CanonicalEventDetailScreen() {
             />
           </View>
         ) : null}
+        </NoxaDetailReveal>
       </ScrollView>
 
       <EntityActionSheet
