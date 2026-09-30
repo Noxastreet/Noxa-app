@@ -87,18 +87,6 @@ function usernameLabel(value: string | null | undefined) {
 
 function vehicleLabel(vehicle: VehiclePreview | null) {
   if (!vehicle) return null;
-  const openDetail = (kind: 'profile' | 'vehicle') => {
-    if (navigationPending.current || loading || error || unavailable) return;
-    if (kind === 'vehicle' && !vehicle) return;
-    navigationPending.current = true;
-    if (kind === 'vehicle' && vehicle) {
-      router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } });
-    } else if (relationship === 'self') {
-      router.push('/(tabs)/profile');
-    } else {
-      router.push({ pathname: '/driver-profile/[id]', params: { id: driverId } });
-    }
-  };
 
   const name = [vehicle.brand, vehicle.model].filter(Boolean).join(' ').trim();
   if (!name && !vehicle.year) return null;
@@ -304,6 +292,20 @@ export function MapDriverCard({
       if (version === requestVersion.current) setRelationshipLoading(false);
     }
   }, [driverId, error, loading, onRelationshipChange, relationship, unavailable]);
+
+  const openDetail = (kind: 'profile' | 'vehicle') => {
+    if (navigationPending.current || loading || error || unavailable) return;
+    if (kind === 'vehicle' && !vehicle) return;
+    navigationPending.current = true;
+    if (kind === 'vehicle' && vehicle) {
+      router.push({ pathname: '/vehicle-details', params: { id: vehicle.id } });
+    } else if (relationship === 'self') {
+      router.push('/(tabs)/profile');
+    } else {
+      router.push({ pathname: '/driver-profile/[id]', params: { id: driverId } });
+    }
+  };
+
 
   const name = isRelevant ? displayName(profile, unavailable || error ? null : fallbackProfile) : 'NOXA driver';
   const username = isRelevant && !unavailable && !error
