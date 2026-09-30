@@ -1932,9 +1932,10 @@ export default function LiveMapScreen() {
       setRouteStatus(nextRoute ? "ready" : "error");
       setRouteMessage(nextRoute ? null : nextMessage);
       if (nextRoute) {
+        const readyRoute = nextRoute;
         requestAnimationFrame(() =>
           fitRouteToMap(
-            nextRoute.coordinates,
+            readyRoute.coordinates,
             {
               latitude: selectedEvent.latitude,
               longitude: selectedEvent.longitude,
