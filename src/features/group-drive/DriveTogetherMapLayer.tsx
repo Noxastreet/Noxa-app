@@ -92,9 +92,19 @@ export type DriveTogetherNavigationOverlay = {
   status: string;
 };
 
+export type DriveTogetherDestinationSeed = {
+  id?: string | null;
+  latitude: number;
+  longitude: number;
+  label: string;
+  subtitle?: string | null;
+};
+
 type Props = {
   open: boolean;
   initialFriendId?: string | null;
+  initialDestination?: DriveTogetherDestinationSeed | null;
+  eventDestinations?: DriveTogetherDestinationSeed[];
   invitationId?: string | null;
   bottomOffset: number;
   bottomInset: number;
@@ -103,6 +113,7 @@ type Props = {
   following: boolean;
   onFollowingChange: (following: boolean) => void;
   onOpenChange: (open: boolean) => void;
+  onInitialDestinationConsumed?: () => void;
   onDriversChange: (drivers: MapboxDriver[]) => void;
   onNavigationChange: (navigation: DriveTogetherNavigationOverlay | null) => void;
   onPanelVisibilityChange: (visible: boolean) => void;
@@ -258,6 +269,8 @@ function FriendAvatar({ friend }: { friend: DriveProfile }) {
 export function DriveTogetherMapLayer({
   open,
   initialFriendId,
+  initialDestination = null,
+  eventDestinations = [],
   invitationId,
   bottomOffset,
   bottomInset,
@@ -269,6 +282,7 @@ export function DriveTogetherMapLayer({
   onDriversChange,
   onNavigationChange,
   onPanelVisibilityChange,
+  onInitialDestinationConsumed,
   onBeginMapPick,
   onEndMapPick,
 }: Props) {
@@ -287,6 +301,9 @@ export function DriveTogetherMapLayer({
   const [snapshot, setSnapshot] = useState<ActiveDriveRealtimeSnapshot | null>(null);
   const [connection, setConnection] = useState<ActiveDriveRealtimeConnection>('closed');
   const [invite, setInvite] = useState<PendingQuickDriveInvitation | null>(null);
+  const [driveStateResolved, setDriveStateResolved] = useState(false);
+  const [pendingExternalDestination, setPendingExternalDestination] =
+    useState<DriveTogetherDestinationSeed | null>(null);
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<DriveTogetherSheetSnap>('medium');
@@ -381,6 +398,7 @@ export function DriveTogetherMapLayer({
   useFocusEffect(
     useCallback(() => {
       let disposed = false;
+      setDriveStateResolved(false);
       void (async () => {
         try {
           const active = await findMyActiveQuickDriveId();
@@ -414,6 +432,8 @@ export function DriveTogetherMapLayer({
                 : 'Drive Together state could not be refreshed.',
             );
           }
+        } finally {
+          if (!disposed) setDriveStateResolved(true);
         }
       })();
 
@@ -458,6 +478,60 @@ export function DriveTogetherMapLayer({
       };
     }, [composerMode, panelOpen]),
   );
+
+  useEffect(() => {
+    if (!open || !driveStateResolved || !initialDestination) return;
+
+    const nextDestination: DriveDestination = {
+      latitude: initialDestination.latitude,
+      longitude: initialDestination.longitude,
+      label: initialDestination.label,
+      version: 1,
+      updatedByUserId: null,
+      updatedAt: null,
+    };
+
+    setPanelOpen(true);
+    setError(null);
+
+    if (roomId) {
+      setPendingExternalDestination(initialDestination);
+      setSheetSnap('medium');
+      onInitialDestinationConsumed?.();
+      return;
+    }
+
+    if (invite) {
+      setError('Finish the current Drive Together invitation before starting another room.');
+      onInitialDestinationConsumed?.();
+      return;
+    }
+
+    setDraftDestination(nextDestination);
+    setComposerMode('create-friends');
+    setSelectedFriendIds((current) =>
+      current.size > 0
+        ? current
+        : initialFriendId
+          ? new Set([initialFriendId])
+          : new Set(),
+    );
+    setSearchQuery('');
+    setSearchResults([]);
+    setSheetSnap('expanded');
+    if (!friendsLoaded) void loadFriends();
+    onInitialDestinationConsumed?.();
+  }, [
+    driveStateResolved,
+    friendsLoaded,
+    initialDestination,
+    initialFriendId,
+    invite,
+    loadFriends,
+    onInitialDestinationConsumed,
+    open,
+    roomId,
+  ]);
 
   useEffect(() => {
     const id = invitationId?.trim() || null;
@@ -1384,6 +1458,43 @@ export function DriveTogetherMapLayer({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             style={styles.searchResultsViewport}>
+            {!searchQuery.trim() && eventDestinations.length ? (
+              <>
+                <Text style={styles.destinationSectionLabel}>EVENTS</Text>
+                {eventDestinations.slice(0, 6).map((eventDestination) => (
+                  <Pressable
+                    key={eventDestination.id ?? eventDestination.label}
+                    onPress={() =>
+                      void selectDestination(
+                        {
+                          latitude: eventDestination.latitude,
+                          longitude: eventDestination.longitude,
+                        },
+                        eventDestination.label,
+                      )
+                    }
+                    style={({ pressed }) => [
+                      styles.placeRow,
+                      pressed && styles.pressed,
+                    ]}>
+                    <View style={styles.placeIcon}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.primaryHover} />
+                    </View>
+                    <View style={styles.flexCopy}>
+                      <Text numberOfLines={2} style={styles.placeTitle}>
+                        {eventDestination.label}
+                      </Text>
+                      {eventDestination.subtitle ? (
+                        <Text numberOfLines={1} style={styles.placeSubtitle}>
+                          {eventDestination.subtitle}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSubtle} />
+                  </Pressable>
+                ))}
+              </>
+            ) : null}
             {searchResults.map((place) => (
               <Pressable
                 key={place.id}
@@ -2017,6 +2128,43 @@ export function DriveTogetherMapLayer({
           </Animated.View>
         </DriveTogetherSheet>
       ) : null}
+
+      <NoxaConfirmationSheet
+        body={`Set ${pendingExternalDestination?.label ?? 'this event'} as the shared destination for the current Drive Together room?`}
+        confirmDisabled={!roomId || !pendingExternalDestination}
+        confirmTitle={isHost ? 'Set destination' : 'Request destination'}
+        eyebrow="EVENT DESTINATION"
+        footnote="Each driver keeps their own route from their current position to the same shared destination."
+        icon="calendar-outline"
+        onCancel={() => setPendingExternalDestination(null)}
+        onConfirm={() => {
+          if (!roomId || !pendingExternalDestination || working) return;
+          const next = {
+            latitude: pendingExternalDestination.latitude,
+            longitude: pendingExternalDestination.longitude,
+            label: pendingExternalDestination.label,
+          };
+          setWorking(true);
+          setError(null);
+          void proposeQuickDriveDestination(roomId, next)
+            .then(() => {
+              setPendingExternalDestination(null);
+              setComposerMode('room');
+              setSheetSnap('medium');
+              return refreshDetails(roomId);
+            })
+            .catch((destinationError) => {
+              setError(
+                destinationError instanceof Error
+                  ? destinationError.message
+                  : 'Event destination could not be applied.',
+              );
+            })
+            .finally(() => setWorking(false));
+        }}
+        title="Drive Together to this event?"
+        visible={Boolean(pendingExternalDestination && roomId)}
+      />
 
       <NoxaConfirmationSheet
         body={
