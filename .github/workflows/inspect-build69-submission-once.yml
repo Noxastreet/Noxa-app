@@ -1,0 +1,48 @@
+name: Inspect build 69 submission once
+on:
+  push:
+    branches: [ci/inspect-build69-submission-20260930]
+    paths: [.github/workflows/inspect-build69-submission-once.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ github.run_attempt == 1 }}
+    steps:
+      - name: Read EAS submission status
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const endpoint = "https://api.expo.dev/graphql";
+          async function query(query) {
+            const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + process.env.EXPO_TOKEN }, body: JSON.stringify({ query }) });
+            const result = await response.json();
+            if (!response.ok || result.errors) throw new Error(JSON.stringify({status:response.status,errors:result.errors}));
+            return result.data;
+          }
+          const typeShape = "kind name ofType { kind name ofType { kind name ofType { kind name } } }";
+          const getType = async (name) => (await query('{ __type(name: '+JSON.stringify(name)+') { name fields { name type { '+typeShape+' } args { name defaultValue type { '+typeShape+' } } } } }')).__type;
+          const leaf = (type) => type.ofType ? leaf(type.ofType) : type;
+          const app = await getType("App");
+          if (!app) throw new Error("App schema unavailable");
+          const field = app.fields.find((f) => /^(submissions|recentSubmissions)$/.test(f.name));
+          if (!field) { console.log("Submission fields:", app.fields.filter(f=>/submi/i.test(f.name)).map(f=>f.name)); throw new Error("Submission list field unavailable"); }
+          console.log("Submission list:",field.name,"arguments:",field.args.map(a=>({name:a.name,type:leaf(a.type).name,required:a.type.kind==="NON_NULL",default:a.defaultValue})));
+          const args = [];
+          for (const arg of field.args) {
+            if (arg.name === "limit" || arg.name === "first") args.push(arg.name+":5");
+            else if (arg.name === "offset") args.push("offset:0");
+            else if (arg.type.kind === "NON_NULL" && arg.defaultValue == null) throw new Error("Unsupported required argument: "+arg.name);
+          }
+          const node = await getType(leaf(field.type).name);
+          const safe = ["id","status","createdAt","updatedAt","completedAt","platform","appVersion","appBuildVersion"];
+          const fields = node.fields.filter(f=>safe.includes(f.name)&&["SCALAR","ENUM"].includes(leaf(f.type).kind)).map(f=>f.name);
+          if (!fields.includes("status")) throw new Error("Submission status schema unavailable");
+          const body = "{ app { byId(appId: \"8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a\") { "+field.name+(args.length?"("+args.join(",")+")":"")+" { "+fields.join(" ")+" } } } }";
+          console.log("Recent NOXA submissions:",JSON.stringify(await query(body)));
+          
+          NODE
