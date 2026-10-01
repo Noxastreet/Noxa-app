@@ -62,12 +62,23 @@ jobs:
           test -n "$WORKSPACE"
           xcodebuild -workspace "$WORKSPACE" -list
 
-      - name: Compile app and Live Activity extension for simulator
+      - name: Compile Live Activity extension for simulator
         run: |
-          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          PROJECT=$(find ios -maxdepth 1 -name "*.xcodeproj" | head -1)
           xcodebuild \
-            -workspace "$WORKSPACE" \
-            -scheme Noxa \
+            -project "$PROJECT" \
+            -target NoxaDriveActivity \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Compile ActivityKit Expo module for simulator
+        run: |
+          xcodebuild \
+            -project ios/Pods/Pods.xcodeproj \
+            -target NoxaLiveActivity \
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
