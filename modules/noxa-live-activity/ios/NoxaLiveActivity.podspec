@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.author         = 'NOXA'
   s.homepage       = 'https://noxastreetapp.com'
   s.license        = { :type => 'MIT' }
-  s.platforms      = { :ios => '16.2' }
+  s.platforms      = { :ios => '15.1' }
   s.source         = { :git => '' }
   s.static_framework = true
 
