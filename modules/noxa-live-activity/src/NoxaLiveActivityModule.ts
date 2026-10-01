@@ -17,6 +17,7 @@ type NoxaLiveActivityNativeModule = {
   startDriveActivity(state: NativeDriveLiveActivityState): Promise<string | null>;
   updateDriveActivity(state: NativeDriveLiveActivityState): Promise<boolean>;
   endDriveActivity(driveSessionId: string): Promise<boolean>;
+  endDriveActivitiesWithPrefixes(prefixes: string[]): Promise<boolean>;
   endAllDriveActivities(): Promise<boolean>;
 };
 
@@ -52,6 +53,10 @@ export async function updateNativeDriveActivity(state: NativeDriveLiveActivitySt
 
 export async function endNativeDriveActivity(driveSessionId: string) {
   return (await nativeModule()?.endDriveActivity(driveSessionId)) ?? false;
+}
+
+export async function endNativeDriveActivitiesWithPrefixes(prefixes: string[]) {
+  return (await nativeModule()?.endDriveActivitiesWithPrefixes(prefixes)) ?? false;
 }
 
 export async function endAllNativeDriveActivities() {
