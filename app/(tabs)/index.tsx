@@ -2240,6 +2240,9 @@ export default function LiveMapScreen() {
     (next: DriveTogetherNavigationOverlay | null) => {
       setDriveTogetherNavigation(next);
       if (next) {
+        setSelectedDriverId(null);
+        setSelectedEvent(null);
+
         const enteringDrive =
           driveTogetherFollowSessionRef.current !== next.driveSessionId;
         driveTogetherFollowSessionRef.current = next.driveSessionId;
@@ -2248,8 +2251,6 @@ export default function LiveMapScreen() {
           setIsDriveTogetherFollowing(true);
         }
 
-        setSelectedDriverId(null);
-        setSelectedEvent(null);
         setIsRouteFollowing(false);
         setIsRouteFocusMode(false);
         routeRequestIdRef.current += 1;
