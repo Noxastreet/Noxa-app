@@ -17,8 +17,14 @@ struct NoxaDriveActivityAttributes: ActivityAttributes {
 }
 
 private extension NoxaDriveActivityAttributes.ContentState {
-    var safeProgress: Double {
-        min(max(progress ?? 0, 0), 1)
+    var safeProgress: Double? {
+        guard let progress, progress.isFinite else { return nil }
+        return min(max(progress, 0), 1)
+    }
+
+    var participantLabel: String {
+        let count = max(1, participantCount)
+        return count == 1 ? "1 driver" : "\(count) drivers"
     }
 
     var etaLabel: String? {
@@ -71,10 +77,12 @@ struct NoxaDriveLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 6) {
-                        ProgressView(value: context.state.safeProgress)
-                            .tint(.red)
+                        if let progress = context.state.safeProgress {
+                            ProgressView(value: progress)
+                                .tint(.red)
+                        }
                         HStack {
-                            Label("\(max(1, context.state.participantCount))", systemImage: "person.2.fill")
+                            Label(context.state.participantLabel, systemImage: "person.2.fill")
                             Spacer()
                             if let distance = context.state.distanceLabel {
                                 Text(distance)
@@ -127,11 +135,13 @@ struct NoxaDriveLiveActivity: Widget {
                 .lineLimit(1)
                 .privacySensitive()
 
-            ProgressView(value: context.state.safeProgress)
-                .tint(.red)
+            if let progress = context.state.safeProgress {
+                ProgressView(value: progress)
+                    .tint(.red)
+            }
 
             HStack {
-                Label("\(max(1, context.state.participantCount)) drivers", systemImage: "person.2.fill")
+                Label(context.state.participantLabel, systemImage: "person.2.fill")
                 Spacer()
                 if let distance = context.state.distanceLabel {
                     Text(distance)
@@ -156,7 +166,7 @@ struct NoxaDriveLiveActivity: Widget {
         var pieces = ["NOXA Drive Together", state.destinationTitle]
         if let eta = state.etaLabel { pieces.append(eta) }
         if let distance = state.distanceLabel { pieces.append(distance) }
-        pieces.append("\(max(1, state.participantCount)) drivers")
+        pieces.append(state.participantLabel)
         return pieces.joined(separator: ", ")
     }
 }
