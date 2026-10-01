@@ -90,9 +90,10 @@ if (!/endAllGroupDriveLiveActivities/.test(layout)) {
 }
 
 for (const pattern of [
-  /event-route:/,
-  /quick-drive:/,
-  /pair-race:/,
+  /'event-route'/,
+  /'quick-drive'/,
+  /'pair-race'/,
+  /\`\$\{kind\}:\$\{id\}\`/,
   /syncNoxaNavigationLiveActivity/,
   /endNoxaNavigationLiveActivity/,
 ]) {
