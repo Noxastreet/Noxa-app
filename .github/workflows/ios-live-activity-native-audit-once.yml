@@ -1,0 +1,72 @@
+name: NOXA Drive Live Activity native audit once
+
+on:
+  push:
+    branches:
+      - feat/ios-drive-together-live-activity-20261001
+    paths:
+      - .github/workflows/ios-live-activity-native-audit-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: macos-latest
+    timeout-minutes: 55
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Static Live Activity contract
+        run: |
+          npx tsc --noEmit
+          npm run verify:ios-live-activity
+
+      - name: Generate iOS project with extension
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Verify generated Live Activity target and EAS extension declaration
+        run: |
+          test -d ios
+          grep -R "NoxaDriveActivity" ios/*.xcodeproj/project.pbxproj
+          grep -R "NSSupportsLiveActivities" ios
+          npx expo config --type prebuild --json > /tmp/expo-config.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/expo-config.json') as f:
+              config=json.load(f)
+          exts=(((config.get('extra') or {}).get('eas') or {}).get('build') or {}).get('experimental',{}).get('ios',{}).get('appExtensions',[])
+          assert any(e.get('targetName')=='NoxaDriveActivity' and e.get('bundleIdentifier')=='com.karaketidis.noxa.driveactivity' for e in exts), exts
+          print(exts)
+          PY
+
+      - name: Install CocoaPods
+        run: npx pod-install
+
+      - name: Print Xcode targets
+        run: |
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          test -n "$WORKSPACE"
+          xcodebuild -workspace "$WORKSPACE" -list
+
+      - name: Compile app and Live Activity extension for simulator
+        run: |
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme Noxa \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
