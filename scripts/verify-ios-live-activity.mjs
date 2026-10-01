@@ -14,6 +14,8 @@ const completion = read('src/features/group-drive/completion.ts');
 const layout = read('app/_layout.tsx');
 const mapScreen = read('app/(tabs)/index.tsx');
 const quickDriveLayer = read('src/features/group-drive/DriveTogetherMapLayer.tsx');
+const eventRouteRedirect = read('app/event-route/[id].tsx');
+const mapRedirect = read('app/map.tsx');
 
 if (!appJson.expo?.plugins?.some((plugin) => plugin === '@bacons/apple-targets')) {
   failures.push('Apple targets config plugin is not registered');
@@ -104,6 +106,13 @@ if (!/event-route/.test(target) || !/noxa:\/\/event-route\//.test(target) || !/n
 }
 if (!/NoxaLiveActivityDeepLinkBridge/.test(layout) || !/mapMode: 'route'/.test(layout)) {
   failures.push('Live Activity app deep links do not restore the active navigation context');
+}
+
+if (!/focusEventId: eventId/.test(eventRouteRedirect) || !/mapMode: 'route'/.test(eventRouteRedirect)) {
+  failures.push('Event route Live Activity URL does not resolve through a real Expo Router screen');
+}
+if (!/router\.replace\('\/\(tabs\)'\)/.test(mapRedirect)) {
+  failures.push('Map Live Activity URL does not resolve through a real Expo Router screen');
 }
 if (!/syncNoxaNavigationLiveActivity/.test(mapScreen) || !/eventRouteLiveActivityIdRef/.test(mapScreen)) {
   failures.push('Event route navigation does not synchronize the system Live Activity');
