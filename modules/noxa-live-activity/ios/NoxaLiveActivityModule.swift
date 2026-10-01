@@ -2,6 +2,7 @@ import ActivityKit
 import ExpoModulesCore
 import Foundation
 
+@available(iOS 16.2, *)
 struct NoxaDriveActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var destinationTitle: String
@@ -24,6 +25,7 @@ struct NoxaDriveLiveActivityStateRecord: Record {
     @Field var progress: Double? = nil
     @Field var status: String = "active"
 
+    @available(iOS 16.2, *)
     func contentState() -> NoxaDriveActivityAttributes.ContentState {
         NoxaDriveActivityAttributes.ContentState(
             destinationTitle: destinationTitle,
