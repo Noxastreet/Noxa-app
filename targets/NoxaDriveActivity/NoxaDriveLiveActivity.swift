@@ -1,4 +1,5 @@
 import ActivityKit
+import Foundation
 import SwiftUI
 import WidgetKit
 
