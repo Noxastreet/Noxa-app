@@ -47,6 +47,23 @@ for (const pattern of [
 ]) {
   if (!pattern.test(nativeModule)) failures.push(`native ActivityKit bridge missing ${pattern}`);
 }
+
+const sharedAttributeShape = [
+  /struct NoxaDriveActivityAttributes: ActivityAttributes/,
+  /struct ContentState: Codable, Hashable/,
+  /var destinationTitle: String/,
+  /var etaMinutes: Int\?/,
+  /var remainingDistanceMeters: Double\?/,
+  /var participantCount: Int/,
+  /var progress: Double\?/,
+  /var status: String/,
+  /var driveSessionId: String/,
+];
+for (const pattern of sharedAttributeShape) {
+  if (!pattern.test(target) || !pattern.test(nativeModule)) {
+    failures.push(`ActivityAttributes schema diverged between app and extension: ${pattern}`);
+  }
+}
 if (/CLLocationManager|startLocationUpdates|watchPosition|Supabase|Realtime/i.test(nativeModule + bridge)) {
   failures.push('Live Activity layer must not introduce location, Supabase, or realtime ownership');
 }
