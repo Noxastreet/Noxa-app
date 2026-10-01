@@ -2509,7 +2509,6 @@ export default function LiveMapScreen() {
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
-  const driveTogetherHasRoute = Boolean(driveTogetherNavigation?.route);
   const driveTogetherOwnsNavigation = Boolean(driveTogetherNavigation);
   const effectiveRoute = driveTogetherNavigation?.route ?? route;
   const effectiveRouteMode = driveTogetherOwnsNavigation || isRouteMode;
