@@ -11,6 +11,7 @@ export const colors = {
   borderAccent: 'rgba(200,16,46,0.34)',
   primary: '#C8102E',
   primaryHover: '#E01535',
+  routeActive: '#FF1744',
   primaryMuted: 'rgba(200,16,46,0.14)',
   primarySubtle: 'rgba(200,16,46,0.10)',
   text: '#F0F0F4',
