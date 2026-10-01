@@ -98,8 +98,8 @@ struct NoxaDriveLiveActivity: Widget {
                     .foregroundStyle(.red)
                     .accessibilityLabel(activityAccessibilityName(context.attributes.driveSessionId))
             } compactTrailing: {
-                Text(context.state.etaLabel ?? context.state.distanceLabel ?? "LIVE")
-                    .font(.caption2.bold())
+                Text(context.state.distanceLabel ?? "LIVE")
+                    .font(.caption.bold())
                     .monospacedDigit()
             } minimal: {
                 Image(systemName: "car.fill")
