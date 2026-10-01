@@ -1,6 +1,7 @@
 import {
   endAllNativeDriveActivities,
   endNativeDriveActivity,
+  endNativeDriveActivitiesWithPrefixes,
   isDriveLiveActivitySupported,
   startNativeDriveActivity,
   updateNativeDriveActivity,
@@ -184,6 +185,26 @@ export async function endNoxaNavigationLiveActivity(
   id: string,
 ) {
   return endGroupDriveLiveActivity(noxaLiveActivitySessionId(kind, id));
+}
+
+export async function endOrphanedNoxaRouteLiveActivities() {
+  try {
+    await endNativeDriveActivitiesWithPrefixes([
+      'event-route:',
+      'route:',
+    ]);
+  } catch {
+    // Route cleanup must never block the Map runtime.
+  } finally {
+    if (
+      currentDriveSessionId?.startsWith('event-route:')
+      || currentDriveSessionId?.startsWith('route:')
+    ) {
+      currentDriveSessionId = null;
+      lastNativeState = null;
+      lastNativeUpdateAt = 0;
+    }
+  }
 }
 
 export async function endGroupDriveLiveActivity(driveSessionId: string) {
