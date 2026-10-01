@@ -14,6 +14,45 @@ const MIN_UPDATE_INTERVAL_MS = 15_000;
 const DISTANCE_BUCKET_METERS = 250;
 const PROGRESS_BUCKET = 0.02;
 
+export type NoxaLiveActivityKind =
+  | 'drive-together'
+  | 'event-route'
+  | 'route'
+  | 'quick-drive'
+  | 'pair-race';
+
+export type NoxaNavigationLiveActivityInput = {
+  kind: NoxaLiveActivityKind;
+  id: string;
+  destinationTitle: string;
+  etaSeconds: number | null;
+  remainingDistanceMeters: number | null;
+  participantCount?: number;
+  progress?: number | null;
+};
+
+export function noxaLiveActivitySessionId(
+  kind: NoxaLiveActivityKind,
+  id: string,
+) {
+  return kind === 'drive-together' ? id : `${kind}:${id}`;
+}
+
+export function buildNoxaNavigationLiveActivityState(
+  input: NoxaNavigationLiveActivityInput,
+): NativeDriveLiveActivityState {
+  const etaSeconds = finiteOrNull(input.etaSeconds);
+  return {
+    driveSessionId: noxaLiveActivitySessionId(input.kind, input.id),
+    destinationTitle: input.destinationTitle.trim() || 'NOXA route',
+    etaMinutes: etaSeconds === null ? null : Math.max(0, Math.ceil(etaSeconds / 60)),
+    remainingDistanceMeters: finiteOrNull(input.remainingDistanceMeters),
+    participantCount: Math.max(1, input.participantCount ?? 1),
+    progress: finiteOrNull(input.progress),
+    status: 'active',
+  };
+}
+
 let currentDriveSessionId: string | null = null;
 let lastNativeState: NativeDriveLiveActivityState | null = null;
 let lastNativeUpdateAt = 0;
@@ -112,6 +151,9 @@ export async function syncGroupDriveLiveActivity(
 
   try {
     if (sessionChanged || currentDriveSessionId === null) {
+      if (currentDriveSessionId && currentDriveSessionId !== state.driveSessionId) {
+        await endNativeDriveActivity(currentDriveSessionId);
+      }
       const activityId = await startNativeDriveActivity(state);
       if (!activityId) return false;
       currentDriveSessionId = state.driveSessionId;
@@ -128,6 +170,20 @@ export async function syncGroupDriveLiveActivity(
   } catch {
     return false;
   }
+}
+
+
+export async function syncNoxaNavigationLiveActivity(
+  input: NoxaNavigationLiveActivityInput,
+) {
+  return syncGroupDriveLiveActivity(buildNoxaNavigationLiveActivityState(input));
+}
+
+export async function endNoxaNavigationLiveActivity(
+  kind: NoxaLiveActivityKind,
+  id: string,
+) {
+  return endGroupDriveLiveActivity(noxaLiveActivitySessionId(kind, id));
 }
 
 export async function endGroupDriveLiveActivity(driveSessionId: string) {
