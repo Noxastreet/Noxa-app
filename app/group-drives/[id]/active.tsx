@@ -234,6 +234,7 @@ export default function ActiveDriveScreen() {
       if (disposed) return;
       setLoading(false);
       setError(loadError instanceof Error ? loadError.message : 'Active Drive could not be opened.');
+      void endGroupDriveLiveActivity(driveSessionId);
     });
 
     return () => {
@@ -266,9 +267,14 @@ export default function ActiveDriveScreen() {
   const ownProgress = details
     ? progress.byUserId[details.currentUserId] ?? null
     : null;
+  const activeParticipantCount = snapshot?.participants.filter(
+    (participant) => participant.status === 'active',
+  ).length;
   const liveActivityState = useMemo(
-    () => details ? buildGroupDriveLiveActivityState(details, ownProgress) : null,
-    [details, ownProgress],
+    () => details
+      ? buildGroupDriveLiveActivityState(details, ownProgress, activeParticipantCount)
+      : null,
+    [activeParticipantCount, details, ownProgress],
   );
 
   useEffect(() => {
