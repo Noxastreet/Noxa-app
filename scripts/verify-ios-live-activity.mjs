@@ -133,6 +133,16 @@ if (!/activity\.attributes\.driveSessionId != record\.driveSessionId/.test(nativ
   failures.push('Native bridge does not enforce one active NOXA Live Activity');
 }
 
+if (!/endDriveActivitiesWithPrefixes/.test(nativeModule) || !/hasPrefix\(prefix\)/.test(nativeModule)) {
+  failures.push('Native bridge cannot remove orphaned route Live Activities');
+}
+if (!/endOrphanedNoxaRouteLiveActivities/.test(mapScreen)) {
+  failures.push('Map does not clear stale route Live Activities when no route is active');
+}
+if (!/Text\(context\.state\.distanceLabel \?\? "LIVE"\)[\s\S]*\.font\(\.caption\.bold\(\)\)/.test(target)) {
+  failures.push('Compact Dynamic Island must show bold remaining distance instead of ETA');
+}
+
 if (failures.length) {
   console.error('NOXA iOS Live Activity contract failed:');
   for (const failure of failures) console.error(`- ${failure}`);
