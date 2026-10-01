@@ -12,6 +12,8 @@ const lobby = read('app/group-drives/[id].tsx');
 const active = read('app/group-drives/[id]/active.tsx');
 const completion = read('src/features/group-drive/completion.ts');
 const layout = read('app/_layout.tsx');
+const mapScreen = read('app/(tabs)/index.tsx');
+const quickDriveLayer = read('src/features/group-drive/DriveTogetherMapLayer.tsx');
 
 if (!appJson.expo?.plugins?.some((plugin) => plugin === '@bacons/apple-targets')) {
   failures.push('Apple targets config plugin is not registered');
@@ -85,6 +87,40 @@ if (!/drive-together/.test(layout)) {
 }
 if (!/endAllGroupDriveLiveActivities/.test(layout)) {
   failures.push('Sign-out Live Activity cleanup is not wired');
+}
+
+for (const pattern of [
+  /event-route:/,
+  /quick-drive:/,
+  /pair-race:/,
+  /syncNoxaNavigationLiveActivity/,
+  /endNoxaNavigationLiveActivity/,
+]) {
+  if (!pattern.test(bridge)) failures.push(`Generic NOXA Live Activity bridge missing ${pattern}`);
+}
+if (!/event-route/.test(target) || !/noxa:\/\/event-route\//.test(target) || !/noxa:\/\/map/.test(target)) {
+  failures.push('Widget deep links are not aware of Event and map navigation contexts');
+}
+if (!/NoxaLiveActivityDeepLinkBridge/.test(layout) || !/mapMode: 'route'/.test(layout)) {
+  failures.push('Live Activity app deep links do not restore the active navigation context');
+}
+if (!/syncNoxaNavigationLiveActivity/.test(mapScreen) || !/eventRouteLiveActivityIdRef/.test(mapScreen)) {
+  failures.push('Event route navigation does not synchronize the system Live Activity');
+}
+if (!/quickDriveLiveActivityIdRef/.test(mapScreen) || !/driveTogetherNavigation\.driveSessionId/.test(mapScreen)) {
+  failures.push('Quick Drive navigation does not synchronize the system Live Activity');
+}
+for (const pattern of [
+  /driveSessionId: string/,
+  /destinationTitle: string/,
+  /remainingDurationSeconds: number \| null/,
+  /progress: number \| null/,
+  /participantCount: number/,
+]) {
+  if (!pattern.test(quickDriveLayer)) failures.push(`Quick Drive overlay missing Live Activity state: ${pattern}`);
+}
+if (!/activity\.attributes\.driveSessionId != record\.driveSessionId/.test(nativeModule)) {
+  failures.push('Native bridge does not enforce one active NOXA Live Activity');
 }
 
 if (failures.length) {
