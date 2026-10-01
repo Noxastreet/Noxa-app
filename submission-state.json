@@ -2,11 +2,11 @@
   "source": "879bf6681f88a1a4756abd5ce9ce13130bbab3c6",
   "id": "88312134-8dec-4255-8cf2-bc57fbb5ba7a",
   "platform": "IOS",
-  "status": "IN_PROGRESS",
+  "status": "FINISHED",
   "createdAt": "2026-09-30T22:55:44.144Z",
-  "updatedAt": "2026-10-01T01:16:16.709Z",
-  "completedAt": null,
+  "updatedAt": "2026-10-01T01:18:43.310Z",
+  "completedAt": "2026-10-01T01:18:42.480Z",
   "priority": "NORMAL",
   "appStoreConnectBuildUpload": null,
-  "appleUploadConfirmed": false
+  "appleUploadConfirmed": true
 }
