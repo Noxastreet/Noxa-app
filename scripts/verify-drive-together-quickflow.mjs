@@ -17,6 +17,10 @@ const destinationMigration = fs.readFileSync(
   'supabase/migrations/20260928130000_drive_together_shared_destination.sql',
   'utf8',
 );
+const arrivalGuardMigration = fs.readFileSync(
+  'supabase/migrations/20261001115500_guard_quick_drive_arrival.sql',
+  'utf8',
+);
 const api = fs.readFileSync('src/features/group-drive/api.ts', 'utf8');
 const layer = fs.readFileSync(
   'src/features/group-drive/DriveTogetherMapLayer.tsx',
@@ -101,6 +105,13 @@ assert(
     && /delete from public\.drive_sessions/.test(destinationMigration)
     && /drive_mode = 'quick'/.test(destinationMigration),
   'Quick rooms must auto-end ephemerally with no retained trip history.',
+);
+assert(
+  /create or replace function private\.noxa_prepare_drive_location_state\(\)/.test(arrivalGuardMigration)
+    && /direct_destination_meters > 75/.test(arrivalGuardMigration)
+    && /new\.status := 'moving'/.test(arrivalGuardMigration)
+    && /new\.remaining_distance_meters := greatest/.test(arrivalGuardMigration),
+  'Server state must reject impossible arrived rows that are geographically far from the shared destination.',
 );
 assert(
   /function public\.noxa_start_drive/.test(
