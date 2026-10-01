@@ -211,3 +211,5 @@ jobs:
           path: artifacts/testflight-submit.log
           if-no-files-found: warn
           retention-days: 7
+
+# credential bootstrap verified in run 36803616476
