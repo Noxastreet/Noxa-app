@@ -41,6 +41,7 @@ import {
 } from "@/src/features/group-drive/runtime/routeProgress";
 import {
   endNoxaNavigationLiveActivity,
+  endOrphanedNoxaRouteLiveActivities,
   syncNoxaNavigationLiveActivity,
 } from "@/src/features/group-drive/liveActivity";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
@@ -883,7 +884,13 @@ export default function LiveMapScreen() {
   useEffect(() => {
     const currentActivityId = eventRouteLiveActivityIdRef.current;
 
-    if (!isRouteMode || routeStatus === "error") {
+    if (!isRouteMode) {
+      eventRouteLiveActivityIdRef.current = null;
+      void endOrphanedNoxaRouteLiveActivities();
+      return;
+    }
+
+    if (routeStatus === "error") {
       if (currentActivityId) {
         eventRouteLiveActivityIdRef.current = null;
         void endNoxaNavigationLiveActivity("event-route", currentActivityId);
