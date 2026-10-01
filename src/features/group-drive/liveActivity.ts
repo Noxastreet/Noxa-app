@@ -37,26 +37,38 @@ function estimateEtaMinutes(
   const fullDistanceMeters = finiteOrNull(details.routeDistanceMeters);
   const remainingMeters = finiteOrNull(progress?.remainingMeters);
 
-  if (fullDurationSeconds === null || fullDurationSeconds < 0) return null;
-  if (remainingMeters !== null && fullDistanceMeters !== null && fullDistanceMeters > 0) {
-    return Math.max(0, Math.ceil((fullDurationSeconds * Math.min(1, remainingMeters / fullDistanceMeters)) / 60));
+  // A static route duration is not a truthful "remaining ETA" once the drive is
+  // active unless this device has current route progress. Do not fabricate motion.
+  if (
+    fullDurationSeconds === null
+    || fullDurationSeconds < 0
+    || fullDistanceMeters === null
+    || fullDistanceMeters <= 0
+    || remainingMeters === null
+  ) {
+    return null;
   }
-  return Math.max(0, Math.ceil(fullDurationSeconds / 60));
+
+  return Math.max(
+    0,
+    Math.ceil((fullDurationSeconds * Math.min(1, remainingMeters / fullDistanceMeters)) / 60),
+  );
 }
 
 export function buildGroupDriveLiveActivityState(
   details: GroupDriveDetails,
   ownProgress: DriveParticipantProgress | null,
+  activeParticipantCount?: number,
 ): NativeDriveLiveActivityState {
   return {
     driveSessionId: details.id,
     destinationTitle: destinationTitle(details),
     etaMinutes: estimateEtaMinutes(details, ownProgress),
-    remainingDistanceMeters: finiteOrNull(ownProgress?.remainingMeters)
-      ?? finiteOrNull(details.routeDistanceMeters),
+    remainingDistanceMeters: finiteOrNull(ownProgress?.remainingMeters),
     participantCount: Math.max(
       1,
-      details.participants.filter((participant) => participant.status === 'active').length,
+      activeParticipantCount
+        ?? details.participants.filter((participant) => participant.status === 'active').length,
     ),
     progress: finiteOrNull(ownProgress?.progressFraction),
     status: 'active',
