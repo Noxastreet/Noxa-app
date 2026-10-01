@@ -96,7 +96,7 @@ struct NoxaDriveLiveActivity: Widget {
             } compactLeading: {
                 Image(systemName: "car.fill")
                     .foregroundStyle(.red)
-                    .accessibilityLabel("NOXA Drive Together")
+                    .accessibilityLabel(activityAccessibilityName(context.attributes.driveSessionId))
             } compactTrailing: {
                 Text(context.state.etaLabel ?? context.state.distanceLabel ?? "LIVE")
                     .font(.caption2.bold())
@@ -119,7 +119,7 @@ struct NoxaDriveLiveActivity: Widget {
             HStack(spacing: 8) {
                 Image(systemName: "car.fill")
                     .foregroundStyle(.red)
-                Text("NOXA · DRIVE TOGETHER")
+                Text(activityTitle(context.attributes.driveSessionId))
                     .font(.caption.bold())
                     .tracking(0.8)
                 Spacer()
@@ -153,7 +153,39 @@ struct NoxaDriveLiveActivity: Widget {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilitySummary(context.state))
+        .accessibilityLabel(accessibilitySummary(context.state, driveSessionId: context.attributes.driveSessionId))
+    }
+
+    private func activityTitle(_ driveSessionId: String) -> String {
+        if driveSessionId.hasPrefix("event-route:") {
+            return "NOXA · EVENT ROUTE"
+        }
+        if driveSessionId.hasPrefix("route:") {
+            return "NOXA · ROUTE"
+        }
+        if driveSessionId.hasPrefix("quick-drive:") {
+            return "NOXA · DRIVE TOGETHER"
+        }
+        if driveSessionId.hasPrefix("pair-race:") {
+            return "NOXA · PAIR DRIVE"
+        }
+        return "NOXA · DRIVE TOGETHER"
+    }
+
+    private func activityAccessibilityName(_ driveSessionId: String) -> String {
+        if driveSessionId.hasPrefix("event-route:") {
+            return "NOXA Event Route"
+        }
+        if driveSessionId.hasPrefix("route:") {
+            return "NOXA Route"
+        }
+        if driveSessionId.hasPrefix("quick-drive:") {
+            return "NOXA Drive Together"
+        }
+        if driveSessionId.hasPrefix("pair-race:") {
+            return "NOXA Pair Drive"
+        }
+        return "NOXA Drive Together"
     }
 
     private func deepLink(_ driveSessionId: String) -> URL? {
@@ -172,9 +204,10 @@ struct NoxaDriveLiveActivity: Widget {
     }
 
     private func accessibilitySummary(
-        _ state: NoxaDriveActivityAttributes.ContentState
+        _ state: NoxaDriveActivityAttributes.ContentState,
+        driveSessionId: String
     ) -> String {
-        var pieces = ["NOXA Drive Together", state.destinationTitle]
+        var pieces = [activityAccessibilityName(driveSessionId), state.destinationTitle]
         if let eta = state.etaLabel { pieces.append(eta) }
         if let distance = state.distanceLabel { pieces.append(distance) }
         pieces.append(state.participantLabel)
