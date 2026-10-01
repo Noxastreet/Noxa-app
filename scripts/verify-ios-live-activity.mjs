@@ -139,8 +139,8 @@ if (!/endDriveActivitiesWithPrefixes/.test(nativeModule) || !/hasPrefix\(prefix\
 if (!/endOrphanedNoxaRouteLiveActivities/.test(mapScreen)) {
   failures.push('Map does not clear stale route Live Activities when no route is active');
 }
-if (!/Text\(context\.state\.distanceLabel \?\? "LIVE"\)[\s\S]*\.font\(\.caption\.bold\(\)\)/.test(target)) {
-  failures.push('Compact Dynamic Island must show bold remaining distance instead of ETA');
+if (!/compactDistanceLabel/.test(target) || !/Text\(context\.state\.compactDistanceLabel \?\? "LIVE"\)[\s\S]*\.font\(\.caption\.bold\(\)\)/.test(target)) {
+  failures.push('Compact Dynamic Island must show bold remaining distance in kilometers instead of ETA');
 }
 
 if (failures.length) {
