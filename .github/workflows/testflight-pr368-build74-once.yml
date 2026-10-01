@@ -1,4 +1,4 @@
-name: TestFlight PR368 Build 74 Once
+name: TestFlight PR368 Next Build Once
 
 on:
   push:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build-and-submit:
-    name: Build exact PR368 candidate 74 and submit same IPA
+    name: Build exact PR368 candidate and submit same IPA
     if: ${{ github.run_attempt == 1 }}
     runs-on: macos-latest
     timeout-minutes: 120
@@ -30,10 +30,10 @@ jobs:
       EXPECTED_BUNDLE_ID: "com.karaketidis.noxa"
       EXPECTED_EXTENSION_BUNDLE_ID: "com.karaketidis.noxa.driveactivity"
       EXPECTED_APP_VERSION: "1.0.0"
-      EXPECTED_PREVIOUS_BUILD_NUMBER: "73"
-      EXPECTED_BUILD_NUMBER: "74"
+      EXPO_APPLE_TEAM_ID: "V8H92SG76B"
+      EXPO_APPLE_TEAM_TYPE: "INDIVIDUAL"
       EXPECTED_WORKFLOW_PATH: ".github/workflows/testflight-pr368-build74-once.yml"
-      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-pr368-build74-${{ github.run_id }}.ipa"
+      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-pr368-next-${{ github.run_id }}.ipa"
 
     steps:
       - name: Check out delivery branch
@@ -45,8 +45,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_CANDIDATE_SHA"
-          test "$(git diff --name-only "$EXPECTED_CANDIDATE_SHA" HEAD)" = "$EXPECTED_WORKFLOW_PATH"
+          git merge-base --is-ancestor "$EXPECTED_CANDIDATE_SHA" HEAD
+          CHANGED="$(git diff --name-only "$EXPECTED_CANDIDATE_SHA" HEAD)"
+          test "$CHANGED" = "$EXPECTED_WORKFLOW_PATH"
 
       - name: Require exact open PR, unchanged main, green Quality, and native audit evidence
         env:
@@ -112,10 +113,12 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const v = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/remote-version.json','utf8'));
-          if (String(v.buildNumber) !== process.env.EXPECTED_PREVIOUS_BUILD_NUMBER) {
-            throw new Error('Remote production build sequence changed: ' + v.buildNumber);
-          }
-          console.log('Remote production build confirmed:', v.buildNumber);
+          const current = Number(v.buildNumber);
+          if (!Number.isInteger(current) || current < 1) throw new Error('Invalid remote production build number: ' + v.buildNumber);
+          const next = current + 1;
+          fs.appendFileSync(process.env.GITHUB_ENV, 'PREVIOUS_BUILD_NUMBER=' + current + '\n');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'EXPECTED_BUILD_NUMBER=' + next + '\n');
+          console.log('Remote production build confirmed:', current, 'next signed candidate:', next);
           NODE
 
       - name: Build signed production IPA locally once
@@ -184,9 +187,9 @@ jobs:
       - name: Preserve exact IPA and verification evidence
         uses: actions/upload-artifact@v4
         with:
-          name: noxa-pr368-build74-ipa-${{ github.run_id }}
+          name: noxa-pr368-next-ipa-${{ github.run_id }}
           path: |
-            artifacts/noxa-pr368-build74-${{ github.run_id }}.ipa
+            artifacts/noxa-pr368-next-${{ github.run_id }}.ipa
             artifacts/ipa-metadata.json
             artifacts/ipa-sha256.txt
           if-no-files-found: error
@@ -204,7 +207,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: noxa-pr368-build74-submit-${{ github.run_id }}
+          name: noxa-pr368-next-submit-${{ github.run_id }}
           path: artifacts/testflight-submit.log
           if-no-files-found: warn
           retention-days: 7
