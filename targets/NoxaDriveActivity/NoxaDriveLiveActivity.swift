@@ -157,7 +157,18 @@ struct NoxaDriveLiveActivity: Widget {
     }
 
     private func deepLink(_ driveSessionId: String) -> URL? {
-        URL(string: "noxa://drive-together/\(driveSessionId)")
+        if driveSessionId.hasPrefix("event-route:") {
+            let id = String(driveSessionId.dropFirst("event-route:".count))
+            return URL(string: "noxa://event-route/\(id)")
+        }
+
+        if driveSessionId.hasPrefix("route:")
+            || driveSessionId.hasPrefix("quick-drive:")
+            || driveSessionId.hasPrefix("pair-race:") {
+            return URL(string: "noxa://map")
+        }
+
+        return URL(string: "noxa://drive-together/\(driveSessionId)")
     }
 
     private func accessibilitySummary(
