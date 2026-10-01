@@ -1,0 +1,43 @@
+name: Bootstrap Apple Targets dependency once
+
+on:
+  push:
+    branches:
+      - feat/ios-drive-together-live-activity-20261001
+    paths:
+      - .github/workflows/bootstrap-apple-targets-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/ios-drive-together-live-activity-20261001
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install exact Apple targets plugin
+        run: npm install --save-dev --save-exact @bacons/apple-targets@5.0.0
+
+      - name: Commit dependency lock update
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No dependency changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "build(ios): add Apple targets config plugin"
+          git push origin HEAD:feat/ios-drive-together-live-activity-20261001
