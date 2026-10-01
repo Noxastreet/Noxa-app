@@ -1,0 +1,202 @@
+name: TestFlight PR368 Build 75 Signing Once
+
+on:
+  push:
+    branches:
+      - ci/testflight-pr368-build75-signing-20261001
+    paths:
+      - .github/workflows/testflight-pr368-build75-signing-once.yml
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: testflight-pr368-build75-signing-once-20261001
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit:
+    name: Sign exact PR368 as production build 75
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      CI: "1"
+      EXPECTED_CANDIDATE_SHA: "f6bd16aab67889830308c375bc2a67bc7ecf69e1"
+      EXPECTED_PR: "368"
+      EXPECTED_MAIN_SHA: "879bf6681f88a1a4756abd5ce9ce13130bbab3c6"
+      EXPECTED_BUILD_NUMBER: "75"
+      EXPECTED_APP_VERSION: "1.0.0"
+      EXPECTED_BUNDLE_ID: "com.karaketidis.noxa"
+      EXPECTED_EXTENSION_BUNDLE_ID: "com.karaketidis.noxa.driveactivity"
+      EXPECTED_WORKFLOW_PATH: ".github/workflows/testflight-pr368-build75-signing-once.yml"
+      EXPO_APPLE_TEAM_ID: "V8H92SG76B"
+      EXPO_APPLE_TEAM_TYPE: "INDIVIDUAL"
+      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-pr368-build75-${{ github.run_id }}.ipa"
+
+    steps:
+      - name: Check out delivery branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prove delivery branch is exact candidate plus workflow only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(git diff --name-only "$EXPECTED_CANDIDATE_SHA" HEAD)" = "$EXPECTED_WORKFLOW_PATH"
+
+      - name: Require exact open PR, unchanged main, and green evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/Noxastreet/Noxa-app/branches/main --jq '.commit.sha')" = "$EXPECTED_MAIN_SHA"
+          gh api repos/Noxastreet/Noxa-app/pulls/$EXPECTED_PR > "$RUNNER_TEMP/pr.json"
+          node - <<'NODE'
+          const fs = require('fs');
+          const pr = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/pr.json', 'utf8'));
+          if (pr.state !== 'open') throw new Error('PR #368 is not open');
+          if (pr.head.sha !== process.env.EXPECTED_CANDIDATE_SHA) throw new Error('PR #368 head changed');
+          if (pr.base.sha !== process.env.EXPECTED_MAIN_SHA) throw new Error('PR #368 base changed');
+          NODE
+          gh api "repos/Noxastreet/Noxa-app/actions/runs?head_sha=$EXPECTED_CANDIDATE_SHA&per_page=30" \
+            --jq '.workflow_runs[] | select(.name == "Quality" and .event == "pull_request" and .status == "completed" and .conclusion == "success") | .id' \
+            > "$RUNNER_TEMP/quality"
+          test -s "$RUNNER_TEMP/quality"
+          test "$(gh api repos/Noxastreet/Noxa-app/actions/runs/36799172270 --jq '.conclusion')" = "success"
+
+      - name: Check out exact product candidate
+        uses: actions/checkout@v4
+        with:
+          ref: f6bd16aab67889830308c375bc2a67bc7ecf69e1
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reconfirm Live Activity contract
+        run: npm run verify:ios-live-activity
+
+      - name: Require current remote build number 75
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes eas-cli@24.7.0 build:version:get --platform ios --profile production --non-interactive --json > "$RUNNER_TEMP/version.json"
+          node - <<'NODE'
+          const fs = require('fs');
+          const v = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/version.json','utf8'));
+          if (String(v.buildNumber) !== process.env.EXPECTED_BUILD_NUMBER) {
+            throw new Error('Expected remote build 75; actual remote build is ' + v.buildNumber);
+          }
+          console.log('Current remote production build:', v.buildNumber);
+          NODE
+
+      - name: Freeze build number at 75 for this runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const p = 'eas.json';
+          const eas = JSON.parse(fs.readFileSync(p, 'utf8'));
+          eas.build.production.autoIncrement = false;
+          fs.writeFileSync(p, JSON.stringify(eas, null, 2) + '\n');
+          NODE
+          test "$(git diff --name-only)" = "eas.json"
+
+      - name: Build signed IPA and provision Live Activity target
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_TEAM_ID: V8H92SG76B
+          EXPO_APPLE_TEAM_TYPE: INDIVIDUAL
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$IPA_PATH")"
+          EXPO_APPLE_TEAM_ID="$EXPO_APPLE_TEAM_ID" EXPO_APPLE_TEAM_TYPE="$EXPO_APPLE_TEAM_TYPE" \
+            npx --yes eas-cli@24.7.0 build --platform ios --profile production --local --non-interactive --output "$IPA_PATH"
+          test -f "$IPA_PATH"
+
+      - name: Verify exact signed IPA and widget extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          unzip -q "$IPA_PATH" -d "$TMP_DIR"
+          APP_DIR="$(find "$TMP_DIR/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          test -n "$APP_DIR"
+          APP_INFO="$APP_DIR/Info.plist"
+
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_INFO")" = "$EXPECTED_BUNDLE_ID"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_INFO")" = "$EXPECTED_APP_VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_INFO")" = "$EXPECTED_BUILD_NUMBER"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSSupportsLiveActivities' "$APP_INFO")" = "true"
+
+          EXT_DIR="$(find "$APP_DIR/PlugIns" -maxdepth 1 -type d -name '*.appex' -print -quit)"
+          test -n "$EXT_DIR"
+          EXT_INFO="$EXT_DIR/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$EXT_INFO")" = "$EXPECTED_EXTENSION_BUNDLE_ID"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$EXT_INFO")" = "com.apple.widgetkit-extension"
+
+          codesign --verify --deep --strict "$APP_DIR"
+          codesign --verify --strict "$EXT_DIR"
+
+          mkdir -p artifacts
+          shasum -a 256 "$IPA_PATH" > artifacts/ipa-sha256.txt
+          node - <<'NODE'
+          const fs = require('fs');
+          fs.writeFileSync('artifacts/ipa-metadata.json', JSON.stringify({
+            source: process.env.EXPECTED_CANDIDATE_SHA,
+            pr: Number(process.env.EXPECTED_PR),
+            version: process.env.EXPECTED_APP_VERSION,
+            build: process.env.EXPECTED_BUILD_NUMBER,
+            bundle: process.env.EXPECTED_BUNDLE_ID,
+            extensionBundle: process.env.EXPECTED_EXTENSION_BUNDLE_ID,
+            appleTeam: process.env.EXPO_APPLE_TEAM_ID,
+            liveActivities: true
+          }, null, 2));
+          NODE
+          echo "VERIFIED: signed app + NoxaDriveActivity extension embedded"
+
+      - name: Preserve exact verified IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-pr368-build75-verified-ipa-${{ github.run_id }}
+          path: |
+            artifacts/noxa-pr368-build75-${{ github.run_id }}.ipa
+            artifacts/ipa-metadata.json
+            artifacts/ipa-sha256.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Submit exact verified IPA to TestFlight once
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes eas-cli@24.7.0 submit --platform ios --profile production --path "$IPA_PATH" --non-interactive --no-wait 2>&1 | tee artifacts/testflight-submit.log
+          grep -E '/submissions/[0-9a-f-]{36}' artifacts/testflight-submit.log
+
+      - name: Preserve submit scheduling evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-pr368-build75-submit-${{ github.run_id }}
+          path: artifacts/testflight-submit.log
+          if-no-files-found: warn
+          retention-days: 7
