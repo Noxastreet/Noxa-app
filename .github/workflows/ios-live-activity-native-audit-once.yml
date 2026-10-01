@@ -1,6 +1,7 @@
 name: NOXA Drive Live Activity native audit once
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - feat/ios-drive-together-live-activity-20261001
