@@ -42,6 +42,19 @@ private extension NoxaDriveActivityAttributes.ContentState {
         }
         return String(format: "%.1f km", meters / 1_000)
     }
+
+    var compactDistanceLabel: String? {
+        guard let meters = remainingDistanceMeters, meters.isFinite, meters >= 0 else {
+            return nil
+        }
+        if meters < 100 {
+            return "<0.1 km"
+        }
+        if meters < 10_000 {
+            return String(format: "%.1f km", meters / 1_000)
+        }
+        return String(format: "%.0f km", meters / 1_000)
+    }
 }
 
 struct NoxaDriveLiveActivity: Widget {
@@ -98,7 +111,7 @@ struct NoxaDriveLiveActivity: Widget {
                     .foregroundStyle(.red)
                     .accessibilityLabel(activityAccessibilityName(context.attributes.driveSessionId))
             } compactTrailing: {
-                Text(context.state.distanceLabel ?? "LIVE")
+                Text(context.state.compactDistanceLabel ?? "LIVE")
                     .font(.caption.bold())
                     .monospacedDigit()
             } minimal: {
