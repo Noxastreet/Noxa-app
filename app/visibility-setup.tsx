@@ -184,7 +184,7 @@ export default function VisibilitySetupScreen() {
               </View>
               <View style={styles.detailCopy}>
                 <Text style={styles.detailTitle}>Temporary by default</Text>
-                <Text style={styles.detailBody}>Global sharing stops automatically after 4 hours.</Text>
+                <Text style={styles.detailBody}>Public sharing stops when you leave NOXA and never lasts more than 4 hours.</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -204,7 +204,7 @@ export default function VisibilitySetupScreen() {
               </View>
               <View style={styles.detailCopy}>
                 <Text style={styles.detailTitle}>Nothing starts automatically</Text>
-                <Text style={styles.detailBody}>NOXA asks for location access only after you choose Global.</Text>
+                <Text style={styles.detailBody}>NOXA asks for location access only after you choose Public.</Text>
               </View>
             </View>
           </View>
@@ -223,7 +223,7 @@ export default function VisibilitySetupScreen() {
             fullWidth
             loading={pendingChoice === 'global'}
             onPress={goGlobal}
-            title="Go Global for 4 hours"
+            title="Go Public"
           />
           <NoxaButton
             disabled={!userId || pendingChoice !== null}
