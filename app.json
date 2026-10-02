@@ -74,7 +74,7 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "NOXA uses your precise location for map positioning and only shares it after an explicit location-sharing action.",
-          "locationAlwaysAndWhenInUsePermission": "NOXA uses background location only while a Live Drive or an active Group Drive that you explicitly approved is sharing your position.",
+          "locationAlwaysAndWhenInUsePermission": "NOXA uses background location only while an active Group Drive that you explicitly approved is sharing your position.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
