@@ -72,7 +72,9 @@ function SupabaseAuthLifecycle() {
         supabase.auth.startAutoRefresh();
       } else {
         supabase.auth.stopAutoRefresh();
-        void stopAllLocationSharingForPrivacy();
+        if (state === 'background') {
+          void stopAllLocationSharingForPrivacy();
+        }
       }
     };
 
