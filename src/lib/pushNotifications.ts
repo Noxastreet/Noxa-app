@@ -59,9 +59,10 @@ async function ensureAndroidNotificationChannel() {
   });
 }
 
-async function ensureNotificationPermission() {
+async function ensureNotificationPermission(requestIfNeeded = false) {
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
+  if (!requestIfNeeded) return false;
 
   const requested = await Notifications.requestPermissionsAsync();
   return requested.granted;
@@ -107,17 +108,29 @@ export async function syncUpcomingEventReminders(userId: string) {
 
   await removeNoxaEventReminders();
 
-  const { data: attendanceRows, error: attendanceError } = await supabase
-    .from('event_attendees')
-    .select('event_id')
-    .eq('user_id', userId)
-    .eq('response', 'going')
-    .limit(32);
+  const [savedResult, organizedResult] = await Promise.all([
+    supabase
+      .from('saved_events')
+      .select('event_id')
+      .eq('user_id', userId)
+      .limit(64),
+    supabase
+      .from('events')
+      .select('id')
+      .eq('creator_id', userId)
+      .eq('status', 'scheduled')
+      .gt('starts_at', new Date().toISOString())
+      .limit(64),
+  ]);
 
-  if (attendanceError) throw attendanceError;
+  if (savedResult.error) throw savedResult.error;
+  if (organizedResult.error) throw organizedResult.error;
 
   const eventIds = Array.from(
-    new Set((attendanceRows ?? []).map((row) => row.event_id).filter(Boolean)),
+    new Set([
+      ...(savedResult.data ?? []).map((row) => row.event_id),
+      ...(organizedResult.data ?? []).map((row) => row.id),
+    ].filter(Boolean)),
   );
   if (eventIds.length === 0) return;
 
@@ -218,7 +231,7 @@ async function registerExpoToken(expoPushToken: string, accessToken: string) {
   }
 }
 
-export async function registerCurrentPushDevice() {
+export async function registerCurrentPushDevice(requestPermission = false) {
   if (!isNativeAppRuntime()) return null;
 
   await ensureAndroidNotificationChannel();
@@ -228,7 +241,7 @@ export async function registerCurrentPushDevice() {
   const session = sessionData.session;
   if (!session?.user) return null;
 
-  const permissionGranted = await ensureNotificationPermission();
+  const permissionGranted = await ensureNotificationPermission(requestPermission);
   if (!permissionGranted) return null;
 
   await syncUpcomingEventReminders(session.user.id);
@@ -243,6 +256,10 @@ export async function registerCurrentPushDevice() {
   ).data;
   await registerExpoToken(expoPushToken, session.access_token);
   return expoPushToken;
+}
+
+export async function requestEventReminderNotifications() {
+  return registerCurrentPushDevice(true);
 }
 
 export async function refreshCurrentPushDevice(
