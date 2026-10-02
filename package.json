@@ -49,6 +49,7 @@
     "verify:visibility-popover-motion": "node ./scripts/verify-visibility-popover-motion.mjs",
     "verify:quick-connect-motion": "node ./scripts/verify-quick-connect-motion.mjs",
     "verify:event-drive-together": "node ./scripts/verify-event-drive-together-bridge.mjs",
+    "verify:release-privacy-events": "node ./scripts/verify-release-privacy-events.mjs",
     "verify:ios-live-activity": "node ./scripts/verify-ios-live-activity.mjs"
   },
   "dependencies": {
