@@ -18,8 +18,9 @@ const migration = fs.readFileSync(
 );
 
 assert(
-  /nextState === "background"[\s\S]*stopSharing\(true\)/.test(map),
-  'Personal map presence must stop and clean up when the app enters background.',
+  /nextState === "inactive" \|\| nextState === "background"[\s\S]*startLiveDriveBackgroundUpdates\(\)/.test(map)
+    && /nextState === "active"[\s\S]*stopLiveDriveBackgroundUpdates\(\)/.test(map),
+  'Personal map presence must continue through the dedicated background task while the app is minimized.',
 );
 assert(
   /id: "global"[\s\S]*label: "Public"/.test(map),
