@@ -107,33 +107,71 @@ export async function syncUpcomingEventReminders(userId: string) {
 
   await removeNoxaEventReminders();
 
-  const { data: attendanceRows, error: attendanceError } = await supabase
-    .from('event_attendees')
-    .select('event_id')
-    .eq('user_id', userId)
-    .eq('response', 'going')
-    .limit(32);
+  // Event reminders are intentionally limited to explicit saves plus events
+  // organized by the current user. RSVP/attendance alone never schedules one.
+  const [savedResult, organizedResult] = await Promise.all([
+    supabase
+      .from('saved_events')
+      .select('event_id')
+      .eq('user_id', userId)
+      .limit(64),
+    supabase
+      .from('events')
+      .select('id,title,location_name,starts_at,status')
+      .eq('creator_id', userId)
+      .eq('status', 'scheduled')
+      .gt('starts_at', new Date().toISOString())
+      .order('starts_at', { ascending: true })
+      .limit(MAX_LOCAL_EVENT_REMINDERS),
+  ]);
 
-  if (attendanceError) throw attendanceError;
+  if (savedResult.error) throw savedResult.error;
+  if (organizedResult.error) throw organizedResult.error;
 
-  const eventIds = Array.from(
-    new Set((attendanceRows ?? []).map((row) => row.event_id).filter(Boolean)),
+  const savedIds = Array.from(
+    new Set((savedResult.data ?? []).map((row) => row.event_id).filter(Boolean)),
   );
-  if (eventIds.length === 0) return;
+
+  let savedEvents: {
+    id: string;
+    title: string;
+    location_name: string | null;
+    starts_at: string;
+    status: string;
+  }[] = [];
+
+  if (savedIds.length > 0) {
+    const savedEventsResult = await supabase
+      .from('events')
+      .select('id,title,location_name,starts_at,status')
+      .in('id', savedIds)
+      .eq('status', 'scheduled')
+      .gt('starts_at', new Date().toISOString())
+      .order('starts_at', { ascending: true })
+      .limit(MAX_LOCAL_EVENT_REMINDERS);
+
+    if (savedEventsResult.error) throw savedEventsResult.error;
+    savedEvents = savedEventsResult.data ?? [];
+  }
+
+  const byId = new Map<string, {
+    id: string;
+    title: string;
+    location_name: string | null;
+    starts_at: string;
+    status: string;
+  }>();
+
+  for (const event of [...savedEvents, ...(organizedResult.data ?? [])]) {
+    byId.set(event.id, event);
+  }
 
   const now = Date.now();
-  const { data: eventRows, error: eventError } = await supabase
-    .from('events')
-    .select('id,title,location_name,starts_at,status')
-    .in('id', eventIds)
-    .gt('starts_at', new Date(now).toISOString())
-    .eq('status', 'scheduled')
-    .order('starts_at', { ascending: true })
-    .limit(MAX_LOCAL_EVENT_REMINDERS);
+  const reminderEvents = [...byId.values()]
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+    .slice(0, MAX_LOCAL_EVENT_REMINDERS);
 
-  if (eventError) throw eventError;
-
-  for (const event of eventRows ?? []) {
+  for (const event of reminderEvents) {
     const date = reminderDate(event.starts_at, now);
     if (!date) continue;
 
@@ -158,6 +196,14 @@ export async function syncUpcomingEventReminders(userId: string) {
       trigger,
     });
   }
+}
+
+export async function requestAndRegisterCurrentPushDevice() {
+  if (!isNativeAppRuntime()) return null;
+  await ensureAndroidNotificationChannel();
+  const permissionGranted = await ensureNotificationPermission();
+  if (!permissionGranted) return null;
+  return registerCurrentPushDevice();
 }
 
 async function registerExpoToken(expoPushToken: string, accessToken: string) {
@@ -228,8 +274,10 @@ export async function registerCurrentPushDevice() {
   const session = sessionData.session;
   if (!session?.user) return null;
 
-  const permissionGranted = await ensureNotificationPermission();
-  if (!permissionGranted) return null;
+  // Never show the system permission prompt just because the main tabs mounted.
+  // The prompt is requested from a clear user action (saving/organizing an event).
+  const permissions = await Notifications.getPermissionsAsync();
+  if (!permissions.granted) return null;
 
   await syncUpcomingEventReminders(session.user.id);
 
