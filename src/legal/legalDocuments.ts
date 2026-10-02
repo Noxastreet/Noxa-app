@@ -49,9 +49,9 @@ export const privacyPolicy: LegalDocument = {
     {
       title: '4. Live Drive and location sharing',
       paragraphs: [
-        'Personal Live Drive is optional and starts only after you choose an audience and grant the required location permissions. Personal map presence is intended for foreground use: when NOXA enters the background, it returns to Ghost and attempts to remove the active personal presence. A personal session also expires after no more than four hours. Group Drive location sharing is separate, participant-scoped, and may use background location only while an active Group Drive that you explicitly approved is sharing your position.',
+        'Personal Live Drive is optional and starts only after you choose an audience and grant the required location permissions. During an active session, NOXA may collect and update your precise location while the app is open, minimized in the background, or the screen is locked. A personal session expires after no more than four hours. Group Drive location sharing remains separate and participant-scoped, with its own active-drive consent and access rules.',
         'Crew shares with authenticated users who belong to at least one crew with you. Friends shares only with authenticated users who mutually follow you. Public shares with all authenticated NOXA users. Ghost stops personal Live Drive and removes your active personal presence where the device can complete the request.',
-        'You can stop personal sharing at any time by selecting Ghost, leaving NOXA in the background, signing out, or disabling location access in device settings. An expired personal Live Drive record cannot be viewed under NOXA database access rules, even if device or network failure delays cleanup.',
+        'You can stop personal sharing at any time by selecting Ghost, signing out, or disabling location access in device settings. Force-closing NOXA stops device location updates; a bounded freshness window prevents stale personal presence from remaining visible while cleanup catches up. An expired personal Live Drive record cannot be viewed under NOXA database access rules, even if device or network failure delays cleanup.',
       ],
     },
     {
@@ -92,7 +92,7 @@ export const privacyPolicy: LegalDocument = {
       title: '8. Retention and deletion',
       paragraphs: [
         'Account, profile, and user content are generally retained while your account is active or as needed to provide NOXA. Content you delete is removed from active product views, subject to technical backup cycles and legal requirements.',
-        'Personal Live Drive sharing expires after no more than four hours. The active personal location row is designed to be deleted when you choose Ghost, the app enters the background, you sign out, or session cleanup completes. Expired location data is not visible to other users and may remain protected until later cleanup if a device is offline.',
+        'Personal Live Drive sharing expires after no more than four hours. The active personal location row is designed to be deleted when you choose Ghost, sign out, a cold app launch clears a prior process session, or session cleanup completes. If the app is force-closed before cleanup can run, location updates stop and the bounded freshness window prevents stale presence from remaining visible to other users.',
         'Event RSVP attendance responses are kept only while an event is upcoming or live. NOXA deletes event attendance rows after an event is completed, cancelled, or reaches its natural end, so the service does not keep a user-by-event attendance history.',
         'Account deletion started in Settings is designed to remove the authentication account, associated database records, and owned uploads from active systems immediately after password verification. Verified deletion requests sent to support are normally completed within 30 days. Limited records may be retained for security, fraud prevention, dispute resolution, or law, and residual copies may remain temporarily in protected backups until their normal expiry.',
       ],
@@ -168,7 +168,7 @@ export const termsOfService: LegalDocument = {
     {
       title: '5. Live Drive and location visibility',
       paragraphs: [
-        'Personal Live Drive is opt-in and shares precise location only with the audience you select while NOXA is in the foreground. Crew means shared-crew members, Friends means mutual followers, Public means all authenticated NOXA users, and Ghost stops personal sharing. Leaving the app returns personal presence to Ghost, and each personal session expires after no more than four hours.',
+        'Personal Live Drive is opt-in and shares precise location only with the audience you select. While a session is active, NOXA may keep that location current when the app is open, minimized in the background, or the screen is locked. Crew means shared-crew members, Friends means mutual followers, Public means all authenticated NOXA users, and Ghost stops personal sharing. Each personal session expires after no more than four hours; force-closing the app stops device updates and a cold launch returns personal presence to Ghost.',
         'Visibility controls reduce who can access a location but cannot prevent an authorized viewer from remembering, recording, or sharing what they see. Never use another person’s location to harass, track, threaten, or endanger them.',
       ],
     },
