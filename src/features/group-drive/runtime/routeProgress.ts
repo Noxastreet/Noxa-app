@@ -102,6 +102,50 @@ function haversineMeters(start: RouteCoordinate, end: RouteCoordinate) {
   return 2 * EARTH_RADIUS_METERS * Math.atan2(Math.sqrt(safeA), Math.sqrt(1 - safeA));
 }
 
+export function geodesicDistanceMeters(
+  startLatitude: number,
+  startLongitude: number,
+  endLatitude: number,
+  endLongitude: number,
+) {
+  if (
+    !Number.isFinite(startLatitude)
+    || !Number.isFinite(startLongitude)
+    || !Number.isFinite(endLatitude)
+    || !Number.isFinite(endLongitude)
+    || startLatitude < -90
+    || startLatitude > 90
+    || endLatitude < -90
+    || endLatitude > 90
+    || startLongitude < -180
+    || startLongitude > 180
+    || endLongitude < -180
+    || endLongitude > 180
+  ) {
+    return null;
+  }
+
+  return haversineMeters(
+    [startLongitude, startLatitude],
+    [endLongitude, endLatitude],
+  );
+}
+
+export function distanceToPreparedRouteEndMeters(
+  route: PreparedDriveRoute,
+  latitude: number,
+  longitude: number,
+) {
+  const lastSegment = route.segments[route.segments.length - 1];
+  if (!lastSegment) return null;
+  return geodesicDistanceMeters(
+    latitude,
+    longitude,
+    lastSegment.end[1],
+    lastSegment.end[0],
+  );
+}
+
 function projectToSegment(
   latitude: number,
   longitude: number,

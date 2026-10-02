@@ -81,21 +81,39 @@ function AuthDeepLinkBridge() {
   return null;
 }
 
-function DriveTogetherLiveActivityDeepLinkBridge() {
+function NoxaLiveActivityDeepLinkBridge() {
   const url = Linking.useLinkingURL();
 
   useEffect(() => {
     if (!url) return;
-    const match = url.match(
+
+    const driveMatch = url.match(
       /^noxa:\/\/drive-together\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i,
     );
-    const driveSessionId = match?.[1];
-    if (!driveSessionId) return;
+    const driveSessionId = driveMatch?.[1];
+    if (driveSessionId) {
+      router.push({
+        pathname: '/group-drives/[id]/active',
+        params: { id: driveSessionId },
+      });
+      return;
+    }
 
-    router.push({
-      pathname: '/group-drives/[id]/active',
-      params: { id: driveSessionId },
-    });
+    const eventRouteMatch = url.match(
+      /^noxa:\/\/event-route\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i,
+    );
+    const eventId = eventRouteMatch?.[1];
+    if (eventId) {
+      router.push({
+        pathname: '/(tabs)',
+        params: { focusEventId: eventId, mapMode: 'route' },
+      });
+      return;
+    }
+
+    if (/^noxa:\/\/map\/?$/i.test(url)) {
+      router.push('/(tabs)');
+    }
   }, [url]);
 
   return null;
@@ -127,7 +145,7 @@ export default function RootLayout() {
       <ThemeProvider value={noxaTheme}>
         <SupabaseAuthLifecycle />
         <AuthDeepLinkBridge />
-        <DriveTogetherLiveActivityDeepLinkBridge />
+        <NoxaLiveActivityDeepLinkBridge />
         <QuickConnectDeepLinkBridge />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />

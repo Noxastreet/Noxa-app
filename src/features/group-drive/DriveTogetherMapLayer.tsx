@@ -28,6 +28,8 @@ import {
   findMyActiveQuickDriveId,
   findMyHostedQuickDriveId,
   formatQuickRemainingDistance,
+  geodesicDistanceMeters,
+  QUICK_DRIVE_ARRIVAL_METERS,
   getGroupDriveLocationSession,
   getPendingQuickDriveInvitation,
   getQuickDriveInvitation,
@@ -85,9 +87,14 @@ type ComposerMode =
   | 'invite-drivers';
 
 export type DriveTogetherNavigationOverlay = {
+  driveSessionId: string;
+  destinationTitle: string;
   route: MapboxRoute | null;
   destination: LatLng | null;
   remainingDistanceMeters: number | null;
+  remainingDurationSeconds: number | null;
+  progress: number | null;
+  participantCount: number;
   nextInstruction: string | null;
   distanceToNextManeuverMeters: number | null;
   status: string;
@@ -768,11 +775,26 @@ export function DriveTogetherMapLayer({
   });
 
   useEffect(() => {
-    if (!roomActive || !destination) {
+    if (!roomActive || !destination || !roomId) {
       onNavigationChange(null);
       return;
     }
+
+    const activeParticipantCount = Math.max(
+      1,
+      details?.participants.filter((participant) => participant.status === 'active').length ?? 1,
+    );
+    const remainingDurationSeconds = navigation.route
+      ? Math.max(
+          0,
+          navigation.route.durationSeconds
+            * (1 - (navigation.projection?.progressFraction ?? 0)),
+        )
+      : null;
+
     onNavigationChange({
+      driveSessionId: roomId,
+      destinationTitle: destination.label,
       route: navigation.route
         ? { coordinates: navigation.route.coordinates }
         : null,
@@ -782,6 +804,9 @@ export function DriveTogetherMapLayer({
       },
       remainingDistanceMeters:
         navigation.projection?.remainingDistanceMeters ?? null,
+      remainingDurationSeconds,
+      progress: navigation.projection?.progressFraction ?? null,
+      participantCount: activeParticipantCount,
       nextInstruction:
         navigation.projection?.nextManeuver?.instruction ?? null,
       distanceToNextManeuverMeters:
@@ -790,11 +815,13 @@ export function DriveTogetherMapLayer({
     });
   }, [
     destination,
+    details?.participants,
     navigation.projection,
     navigation.route,
     navigation.status,
     onNavigationChange,
     roomActive,
+    roomId,
   ]);
 
   useEffect(() => {
@@ -930,10 +957,31 @@ export function DriveTogetherMapLayer({
           self
             ? navigation.projection?.remainingDistanceMeters ?? serverDistance
             : serverDistance;
+        const directDestinationDistance =
+          serverMatchesDestination && server
+            ? geodesicDistanceMeters(
+                server.latitude,
+                server.longitude,
+                destination.latitude,
+                destination.longitude,
+              )
+            : null;
+        const serverArrivalIsPlausible =
+          server?.status === 'arrived'
+          && directDestinationDistance !== null
+          && directDestinationDistance <= QUICK_DRIVE_ARRIVAL_METERS;
         const arrived =
           self
-            ? navigation.projection?.arrived || server?.status === 'arrived'
-            : server?.status === 'arrived';
+            ? Boolean(navigation.projection?.arrived) || serverArrivalIsPlausible
+            : serverArrivalIsPlausible;
+        const displayDistance =
+          !arrived
+          && ownDistance !== null
+          && ownDistance <= QUICK_DRIVE_ARRIVAL_METERS
+          && directDestinationDistance !== null
+          && directDestinationDistance > QUICK_DRIVE_ARRIVAL_METERS
+            ? directDestinationDistance
+            : ownDistance;
         const stale =
           !self
           && (
@@ -948,7 +996,7 @@ export function DriveTogetherMapLayer({
           avatarUrl: participant.profile?.avatarUrl ?? null,
           distanceLabel: arrived
             ? 'ARRIVED'
-            : formatQuickRemainingDistance(ownDistance),
+            : formatQuickRemainingDistance(displayDistance),
           stale,
           self,
         };

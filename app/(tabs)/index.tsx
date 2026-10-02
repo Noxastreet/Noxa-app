@@ -39,6 +39,11 @@ import {
   projectDriveLocation,
   type PreparedDriveRoute,
 } from "@/src/features/group-drive/runtime/routeProgress";
+import {
+  endNoxaNavigationLiveActivity,
+  endOrphanedNoxaRouteLiveActivities,
+  syncNoxaNavigationLiveActivity,
+} from "@/src/features/group-drive/liveActivity";
 import { MapboxLiveMapCompat } from "@/src/features/mapbox/MapboxLiveMapCompat";
 import type {
   LiveMapHandle,
@@ -763,6 +768,7 @@ export default function LiveMapScreen() {
   const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
   const [isDriveTogetherDestinationPicking, setIsDriveTogetherDestinationPicking] =
     useState(false);
+  const driveTogetherFollowSessionRef = useRef<string | null>(null);
   const driveTogetherMapPickHandlerRef = useRef<((point: LatLng) => void) | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -781,6 +787,8 @@ export default function LiveMapScreen() {
   const routeRequestKeyRef = useRef<string | null>(null);
   const routeRequestIdRef = useRef(0);
   const routeAbortControllerRef = useRef<AbortController | null>(null);
+  const eventRouteLiveActivityIdRef = useRef<string | null>(null);
+  const quickDriveLiveActivityIdRef = useRef<string | null>(null);
   const driverLocationRef = useRef<LatLng | null>(null);
   const lastMapboxLocationCommitRef = useRef(0);
   const eventsRef = useRef<EventMarkerRow[]>([]);
@@ -873,6 +881,45 @@ export default function LiveMapScreen() {
           route.durationSeconds * (1 - eventRouteProjection.progressFraction),
         )
       : route?.durationSeconds ?? null;
+
+  useEffect(() => {
+    const currentActivityId = eventRouteLiveActivityIdRef.current;
+
+    if (!isRouteMode) {
+      eventRouteLiveActivityIdRef.current = null;
+      void endOrphanedNoxaRouteLiveActivities();
+      return;
+    }
+
+    if (routeStatus === "error") {
+      if (currentActivityId) {
+        eventRouteLiveActivityIdRef.current = null;
+        void endNoxaNavigationLiveActivity("event-route", currentActivityId);
+      }
+      return;
+    }
+
+    if (routeStatus !== "ready" || !route || !selectedEvent) return;
+
+    eventRouteLiveActivityIdRef.current = selectedEvent.id;
+    void syncNoxaNavigationLiveActivity({
+      kind: "event-route",
+      id: selectedEvent.id,
+      destinationTitle: selectedEvent.title,
+      etaSeconds: routeRemainingDurationSeconds,
+      remainingDistanceMeters: routeRemainingDistanceMeters,
+      participantCount: 1,
+      progress: eventRouteProjection?.progressFraction ?? null,
+    });
+  }, [
+    eventRouteProjection?.progressFraction,
+    isRouteMode,
+    route,
+    routeRemainingDistanceMeters,
+    routeRemainingDurationSeconds,
+    routeStatus,
+    selectedEvent,
+  ]);
   const routeNextManeuver = useMemo(
     () =>
       nextEventManeuver(
@@ -2019,6 +2066,11 @@ export default function LiveMapScreen() {
   }, []);
 
   const closeRouteMode = useCallback(() => {
+    const activityId = eventRouteLiveActivityIdRef.current;
+    if (activityId) {
+      eventRouteLiveActivityIdRef.current = null;
+      void endNoxaNavigationLiveActivity("event-route", activityId);
+    }
     setIsRouteFollowing(false);
     setIsRouteFocusMode(false);
     routeRequestIdRef.current += 1;
@@ -2190,6 +2242,15 @@ export default function LiveMapScreen() {
       if (next) {
         setSelectedDriverId(null);
         setSelectedEvent(null);
+
+        const enteringDrive =
+          driveTogetherFollowSessionRef.current !== next.driveSessionId;
+        driveTogetherFollowSessionRef.current = next.driveSessionId;
+        if (enteringDrive) {
+          setIsCameraAwayFromUser(false);
+          setIsDriveTogetherFollowing(true);
+        }
+
         setIsRouteFollowing(false);
         setIsRouteFocusMode(false);
         routeRequestIdRef.current += 1;
@@ -2201,13 +2262,37 @@ export default function LiveMapScreen() {
         setRouteMessage(null);
         router.setParams({ mapMode: undefined, focusEventId: undefined });
       } else {
+        driveTogetherFollowSessionRef.current = null;
         setIsDriveTogetherFollowing(false);
       }
     },
     [],
   );
 
-  const nearbyDrivers = useMemo(
+  useEffect(() => {
+    const currentActivityId = quickDriveLiveActivityIdRef.current;
+
+    if (!driveTogetherNavigation) {
+      if (currentActivityId) {
+        quickDriveLiveActivityIdRef.current = null;
+        void endNoxaNavigationLiveActivity("quick-drive", currentActivityId);
+      }
+      return;
+    }
+
+    quickDriveLiveActivityIdRef.current = driveTogetherNavigation.driveSessionId;
+    void syncNoxaNavigationLiveActivity({
+      kind: "quick-drive",
+      id: driveTogetherNavigation.driveSessionId,
+      destinationTitle: driveTogetherNavigation.destinationTitle,
+      etaSeconds: driveTogetherNavigation.remainingDurationSeconds,
+      remainingDistanceMeters: driveTogetherNavigation.remainingDistanceMeters,
+      participantCount: driveTogetherNavigation.participantCount,
+      progress: driveTogetherNavigation.progress,
+    });
+  }, [driveTogetherNavigation]);
+
+    const nearbyDrivers = useMemo(
     () =>
       driverLocation
         ? activeDrivers.filter(
@@ -2424,10 +2509,10 @@ export default function LiveMapScreen() {
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
-  const driveTogetherHasRoute = Boolean(driveTogetherNavigation?.route);
+  const driveTogetherOwnsNavigation = Boolean(driveTogetherNavigation);
   const effectiveRoute = driveTogetherNavigation?.route ?? route;
-  const effectiveRouteMode = driveTogetherHasRoute || isRouteMode;
-  const effectiveFollowing = driveTogetherHasRoute
+  const effectiveRouteMode = driveTogetherOwnsNavigation || isRouteMode;
+  const effectiveFollowing = driveTogetherOwnsNavigation
     ? isDriveTogetherFollowing
     : isRouteFollowing;
   const cameraOwner: MapCameraOwner =
@@ -2465,7 +2550,7 @@ export default function LiveMapScreen() {
         followUserLocation={effectiveFollowing}
         mapFilter="all"
         onFollowUserLocationChange={
-          driveTogetherHasRoute
+          driveTogetherOwnsNavigation
             ? setIsDriveTogetherFollowing
             : setIsRouteFollowing
         }

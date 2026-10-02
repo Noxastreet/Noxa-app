@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -284,7 +284,30 @@ export default function ActiveDriveScreen() {
       void endGroupDriveLiveActivity(driveSessionId);
       return;
     }
-    void syncGroupDriveLiveActivity(liveActivityState);
+
+    let disposed = false;
+    const retryDelays = [1_500, 5_000];
+    const retryTimers: ReturnType<typeof setTimeout>[] = [];
+
+    const syncLiveActivity = async (retryIndex = 0) => {
+      const synced = await syncGroupDriveLiveActivity(liveActivityState);
+      if (!synced && !disposed && retryIndex < retryDelays.length) {
+        retryTimers.push(setTimeout(() => {
+          void syncLiveActivity(retryIndex + 1);
+        }, retryDelays[retryIndex]));
+      }
+    };
+
+    void syncLiveActivity();
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && !disposed) void syncLiveActivity();
+    });
+
+    return () => {
+      disposed = true;
+      appStateSubscription.remove();
+      retryTimers.forEach(clearTimeout);
+    };
   }, [details, driveSessionId, liveActivityState]);
 
   const locations = useMemo(

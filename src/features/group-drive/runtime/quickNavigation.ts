@@ -4,6 +4,7 @@ import type {
   DriveRouteResult,
 } from '../types';
 import {
+  distanceToPreparedRouteEndMeters,
   prepareDriveRoute,
   projectDriveLocation,
   type PreparedDriveRoute,
@@ -23,6 +24,7 @@ export type QuickNavigationLocation = {
 export type QuickNavigationProjection = {
   remainingDistanceMeters: number;
   distanceFromRouteMeters: number;
+  distanceToDestinationMeters: number;
   progressFraction: number;
   arrived: boolean;
   nextManeuver: DriveRouteManeuver | null;
@@ -82,11 +84,19 @@ export function projectQuickNavigation(
     maneuvers,
     projection.progressFraction,
   );
+  const directDestinationMeters =
+    distanceToPreparedRouteEndMeters(route, location.latitude, location.longitude)
+    ?? projection.remainingMeters;
+  const remainingDistanceMeters = Math.max(
+    projection.remainingMeters,
+    directDestinationMeters,
+  );
   return {
-    remainingDistanceMeters: projection.remainingMeters,
+    remainingDistanceMeters,
     distanceFromRouteMeters: projection.distanceFromRouteMeters,
+    distanceToDestinationMeters: directDestinationMeters,
     progressFraction: projection.progressFraction,
-    arrived: projection.remainingMeters <= QUICK_DRIVE_ARRIVAL_METERS,
+    arrived: directDestinationMeters <= QUICK_DRIVE_ARRIVAL_METERS,
     nextManeuver: nextManeuver?.maneuver ?? null,
     distanceToNextManeuverMeters: nextManeuver
       ? Math.max(

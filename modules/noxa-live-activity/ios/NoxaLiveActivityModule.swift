@@ -64,6 +64,15 @@ public final class NoxaLiveActivityModule: Module {
             }
 
             let content = ActivityContent(state: record.contentState(), staleDate: nil)
+
+            // NOXA owns at most one system Live Activity at a time. Switching
+            // from an Event route to Drive Together (or another route context)
+            // replaces the previous activity instead of stacking islands.
+            let activities = Activity<NoxaDriveActivityAttributes>.activities
+            for activity in activities where activity.attributes.driveSessionId != record.driveSessionId {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+
             if let existing = self.activity(for: record.driveSessionId) {
                 await existing.update(content)
                 return existing.id
@@ -95,6 +104,21 @@ public final class NoxaLiveActivityModule: Module {
             guard #available(iOS 16.2, *) else { return false }
             let matching = Activity<NoxaDriveActivityAttributes>.activities.filter {
                 $0.attributes.driveSessionId == driveSessionId
+            }
+            guard !matching.isEmpty else { return false }
+
+            for activity in matching {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+            return true
+        }
+
+        AsyncFunction("endDriveActivitiesWithPrefixes") { (prefixes: [String]) async -> Bool in
+            guard #available(iOS 16.2, *), !prefixes.isEmpty else { return false }
+            let matching = Activity<NoxaDriveActivityAttributes>.activities.filter { activity in
+                prefixes.contains { prefix in
+                    activity.attributes.driveSessionId.hasPrefix(prefix)
+                }
             }
             guard !matching.isEmpty else { return false }
 
