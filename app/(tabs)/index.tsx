@@ -185,8 +185,8 @@ const VISIBILITY_MODES: {
   },
   {
     id: "global",
-    label: "Global",
-    description: "Visible to everyone on NOXA",
+    label: "Public",
+    description: "Recommended · Visible to everyone on NOXA while the app is open",
     icon: "earth-outline",
   },
   {
@@ -1703,6 +1703,9 @@ export default function LiveMapScreen() {
     useCallback(() => {
       let isActive = true;
       mapFocusedRef.current = true;
+      if (!getLiveDriveSession()) {
+        setVisibilityMenuOpen(true);
+      }
       void loadMyDriverIds();
       void refreshActiveDrivers();
 
@@ -1814,6 +1817,9 @@ export default function LiveMapScreen() {
         void (async () => {
           await loadDriverLocation({ requestPermission: false });
           await restoreLiveDriveSession();
+          if (!getLiveDriveSession() && mapFocusedRef.current) {
+            setVisibilityMenuOpen(true);
+          }
           if (mapFocusedRef.current) {
             await Promise.all([loadMyDriverIds(), refreshActiveDrivers()]);
           }
