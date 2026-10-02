@@ -46,9 +46,9 @@ assert(
   'Personal presence must expose one foreground runtime access reconciliation check.',
 );
 assert(
-  /getForegroundPermissionsAsync\(\)[\s\S]*hasServicesEnabledAsync\(\)/.test(liveDrive)
-    && !/export async function hasLiveDriveRuntimeAccess\(\)[\s\S]*getBackgroundPermissionsAsync\(\)/.test(liveDrive),
-  'Personal runtime access must require foreground permission and Location Services, not background permission.',
+  /getForegroundPermissionsAsync\(\)[\s\S]*getBackgroundPermissionsAsync\(\)[\s\S]*hasServicesEnabledAsync\(\)/.test(liveDrive)
+    && /background\.status !== Location\.PermissionStatus\.GRANTED/.test(liveDrive),
+  'Personal runtime access must require foreground, background, and Location Services while minimized sharing is supported.',
 );
 assert(
   /PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000/.test(liveDrive) &&
@@ -63,13 +63,12 @@ const personalPermissionStart = liveDrive.indexOf('export async function request
 const personalPermissionEnd = liveDrive.indexOf('export async function hasLiveDriveRuntimeAccess()', personalPermissionStart);
 const personalPermissionSlice = liveDrive.slice(personalPermissionStart, personalPermissionEnd);
 assert(
-  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*const current = await getPreciseLocationSample\(\);[\s\S]*return current/.test(personalPermissionSlice)
-    && !personalPermissionSlice.includes('requestBackgroundPermissionsAsync'),
-  'Personal presence startup must validate a precise foreground sample without requesting background access.',
+  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*const current = await getPreciseLocationSample\(\);[\s\S]*requestBackgroundPermissionsAsync\(\)[\s\S]*return current/.test(personalPermissionSlice),
+  'Personal presence startup must validate a precise sample and obtain background access before minimized sharing starts.',
 );
 assert(
-  /TaskManager\.defineTask[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*hasPreciseLocationSample\(latestLocation\.coords\)[\s\S]*expireSession\(session\)/.test(liveDrive),
-  'The legacy personal background task must still fail closed until old sessions are cleaned up.',
+  /TaskManager\.defineTask[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*background\.status !== Location\.PermissionStatus\.GRANTED[\s\S]*hasPreciseLocationSample\(latestLocation\.coords\)[\s\S]*expireSession\(session\)/.test(liveDrive),
+  'The personal background task must fail closed when required location access or precision is revoked.',
 );
 assert(
   /buildPresencePayload[\s\S]*!hasPreciseLocationSample\(coords\)[\s\S]*return null/.test(liveDrive),
