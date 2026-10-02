@@ -8,9 +8,10 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
-import '@/src/features/group-drive/runtime/nativeLocation';
-import '@/src/lib/liveDrive';
 import { endAllGroupDriveLiveActivities } from '@/src/features/group-drive/liveActivity';
+import { stopGroupDriveLocationSharing } from '@/src/features/group-drive/runtime/locationSharingControl';
+import { getGroupDriveLocationSession } from '@/src/features/group-drive/runtime/nativeLocation';
+import { getLiveDriveSession, stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { supabase } from '@/src/lib/supabase';
 import {
   acceptPasswordRecoveryUrl,
@@ -29,6 +30,28 @@ const detailScreenOptions = {
   presentation: 'card' as const,
   contentStyle: { backgroundColor: colors.background },
 };
+
+let privacyStopPromise: Promise<void> | null = null;
+
+function stopAllLocationSharingForPrivacy() {
+  if (privacyStopPromise) return privacyStopPromise;
+
+  privacyStopPromise = (async () => {
+    const liveDriveSession = getLiveDriveSession();
+    const groupDriveSession = getGroupDriveLocationSession();
+
+    await Promise.allSettled([
+      liveDriveSession ? stopLiveDriveSession(true) : Promise.resolve(),
+      groupDriveSession
+        ? stopGroupDriveLocationSharing(groupDriveSession.driveSessionId)
+        : Promise.resolve(),
+    ]);
+  })().finally(() => {
+    privacyStopPromise = null;
+  });
+
+  return privacyStopPromise;
+}
 
 const noxaTheme = {
   ...DarkTheme,
@@ -49,9 +72,13 @@ function SupabaseAuthLifecycle() {
         supabase.auth.startAutoRefresh();
       } else {
         supabase.auth.stopAutoRefresh();
+        void stopAllLocationSharingForPrivacy();
       }
     };
 
+    // A previous process may have been killed before cleanup completed.
+    // Start every fresh app session in Ghost and remove any stale precise-location runtime.
+    void stopAllLocationSharingForPrivacy();
     syncAutoRefresh(AppState.currentState);
     const subscription = AppState.addEventListener('change', syncAutoRefresh);
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
