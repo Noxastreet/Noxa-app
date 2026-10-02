@@ -18,11 +18,11 @@ const migration = fs.readFileSync(
 );
 
 assert(
-  /nextState === "background"[sS]*stopSharing\(true\)/.test(map),
+  /nextState === "background"[\s\S]*stopSharing\(true\)/.test(map),
   'Personal map presence must stop and clean up when the app enters background.',
 );
 assert(
-  /id: "global"[sS]*label: "Public"/.test(map),
+  /id: "global"[\s\S]*label: "Public"/.test(map),
   'The public visibility choice must be presented as Public.',
 );
 assert(
@@ -49,7 +49,7 @@ assert(
   'RSVP/attendance alone must never schedule an event reminder.',
 );
 assert(
-  /registerCurrentPushDevice\(\)[sS]*Notifications\.getPermissionsAsync\(\)/.test(push),
+  /registerCurrentPushDevice\(\)[\s\S]*Notifications\.getPermissionsAsync\(\)/.test(push),
   'Main-tab push registration must check permission without automatically prompting.',
 );
 assert(
