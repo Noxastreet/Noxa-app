@@ -24,6 +24,9 @@ const routeProgress = compile('src/features/group-drive/runtime/routeProgress.ts
 const participantStack = compile('src/features/group-drive/runtime/participantStack.ts', {
   './routeProgress': routeProgress,
 });
+const quickNavigation = compile('src/features/group-drive/runtime/quickNavigation.ts', {
+  './routeProgress': routeProgress,
+});
 
 const geometry = {
   type: 'LineString',
@@ -46,6 +49,33 @@ assert.ok(Math.abs(start.remainingMeters - 2_000) < 0.001);
 assert.ok(Math.abs(middle.remainingMeters - 1_000) < 1);
 assert.ok(end.remainingMeters < 0.001);
 assert.ok(routeProgress.projectDriveLocation(route, 0.003, 0.01).distanceFromRouteMeters > 300);
+
+const farPastRouteEnd = quickNavigation.projectQuickNavigation(
+  route,
+  [],
+  { latitude: 3, longitude: 0.02, heading: null },
+);
+assert.ok(farPastRouteEnd, 'far off-route location should still produce a navigation projection');
+assert.equal(
+  farPastRouteEnd.arrived,
+  false,
+  'projection onto the route endpoint must never imply arrival while the device is geographically far away',
+);
+assert.ok(
+  farPastRouteEnd.remainingDistanceMeters > 300_000,
+  'remaining distance must preserve a truthful direct-distance floor when route projection snaps to the endpoint',
+);
+
+const physicallyAtDestination = quickNavigation.projectQuickNavigation(
+  route,
+  [],
+  { latitude: 0, longitude: 0.02, heading: null },
+);
+assert.equal(
+  physicallyAtDestination.arrived,
+  true,
+  'arrival is allowed when the device is physically at the route destination',
+);
 
 const row = (id, userId, longitude, latitude, updatedAt, status = 'moving') => ({
   id,
@@ -203,4 +233,4 @@ assert.deepEqual(window.visibleUserIds, ['user-1', 'user-2', 'user-7']);
 assert.equal(window.hiddenCount, 4);
 assert.equal(window.currentUserReserved, true);
 
-console.log('Group Drive Phase 4A route progress/stack smoke: PASS (44 checks)');
+console.log('Group Drive Phase 4A route progress/stack smoke: PASS (48 checks)');

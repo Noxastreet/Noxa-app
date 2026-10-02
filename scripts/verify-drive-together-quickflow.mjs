@@ -17,6 +17,10 @@ const destinationMigration = fs.readFileSync(
   'supabase/migrations/20260928130000_drive_together_shared_destination.sql',
   'utf8',
 );
+const arrivalGuardMigration = fs.readFileSync(
+  'supabase/migrations/20261001115500_guard_quick_drive_arrival.sql',
+  'utf8',
+);
 const api = fs.readFileSync('src/features/group-drive/api.ts', 'utf8');
 const layer = fs.readFileSync(
   'src/features/group-drive/DriveTogetherMapLayer.tsx',
@@ -101,6 +105,13 @@ assert(
     && /delete from public\.drive_sessions/.test(destinationMigration)
     && /drive_mode = 'quick'/.test(destinationMigration),
   'Quick rooms must auto-end ephemerally with no retained trip history.',
+);
+assert(
+  /create or replace function private\.noxa_prepare_drive_location_state\(\)/.test(arrivalGuardMigration)
+    && /direct_destination_meters > 75/.test(arrivalGuardMigration)
+    && /new\.status := 'moving'/.test(arrivalGuardMigration)
+    && /new\.remaining_distance_meters := greatest/.test(arrivalGuardMigration),
+  'Server state must reject impossible arrived rows that are geographically far from the shared destination.',
 );
 assert(
   /function public\.noxa_start_drive/.test(
@@ -195,6 +206,19 @@ assert(
   'Each device must calculate its own route, maneuver progress, and reroute state.',
 );
 assert(
+  /distanceToPreparedRouteEndMeters/.test(
+    fs.readFileSync('src/features/group-drive/runtime/quickNavigation.ts', 'utf8'),
+  )
+    && /Math\.max\([\s\S]*projection\.remainingMeters[\s\S]*directDestinationMeters/.test(
+      fs.readFileSync('src/features/group-drive/runtime/quickNavigation.ts', 'utf8'),
+    )
+    && /arrived:\s*directDestinationMeters <= QUICK_DRIVE_ARRIVAL_METERS/.test(
+      fs.readFileSync('src/features/group-drive/runtime/quickNavigation.ts', 'utf8'),
+    ),
+  'Drive Together arrival must be gated by physical distance to the destination, not route projection alone.',
+);
+
+assert(
   !/watchLocalNavigationLocation|readLocalNavigationLocation|watchPositionAsync|startLocationUpdatesAsync/.test(navigation),
   'Quick navigation must not create a second GPS watcher or background location task.',
 );
@@ -216,6 +240,22 @@ assert(
     && /onMapPress/.test(mapRuntime),
   'The existing Mapbox MapView must own destination rendering and map picking.',
 );
+assert(
+  /lineColor:\s*colors\.routeActive/.test(mapRuntime)
+    && /lineWidth:\s*7\.5/.test(mapRuntime)
+    && /routeActive:\s*'#FF1744'/.test(
+      fs.readFileSync('src/theme/colors.ts', 'utf8'),
+    ),
+  'Active navigation routes must use the high-visibility bright-red route treatment.',
+);
+assert(
+  /driveTogetherFollowSessionRef/.test(map)
+    && /driveTogetherOwnsNavigation = Boolean\(driveTogetherNavigation\)/.test(map)
+    && /effectiveRouteMode = driveTogetherOwnsNavigation \|\| isRouteMode/.test(map)
+    && /enteringDrive[\s\S]*setIsDriveTogetherFollowing\(true\)/.test(map),
+  'Drive Together must enter user-follow camera mode without fitting distant participants.',
+);
+
 assert(
   /DriveTogetherMapLayer/.test(map)
     && /accessibilityLabel="Drive Together"/.test(map)

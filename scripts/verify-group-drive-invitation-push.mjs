@@ -11,6 +11,14 @@ const migration = fs.readFileSync(
   'supabase/migrations/20260914185251_add_group_drive_invitation_notifications.sql',
   'utf8',
 );
+const copyMigration = fs.readFileSync(
+  'supabase/migrations/20261001114500_drive_together_invitation_copy.sql',
+  'utf8',
+);
+const notifications = fs.readFileSync(
+  'app/notifications.tsx',
+  'utf8',
+);
 const bridge = fs.readFileSync(
   'src/features/notifications/PushNotificationBridge.tsx',
   'utf8',
@@ -59,6 +67,15 @@ assert(
 assert(
   /data:\s*\{[\s\S]*\.\.\.notification\.data[\s\S]*kind: notification\.kind/.test(pushFunction),
   'Remote push delivery must preserve notification.data for native routing.',
+);
+assert(
+  /'Drive Together invitation'/.test(copyMigration)
+    && !/'Group Drive invitation'/.test(copyMigration),
+  'New Drive Together pushes must use the current product name.',
+);
+assert(
+  /subtitle:\s*'Drive Together invitation'/.test(notifications),
+  'In-app invitation copy must match the Drive Together push title.',
 );
 
 if (!process.exitCode) {

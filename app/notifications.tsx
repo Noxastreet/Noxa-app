@@ -417,7 +417,7 @@ export default function NotificationsScreen() {
           sourceId: drive.invitationId as string,
           kind: 'drive',
           title: drive.title,
-          subtitle: 'Group Drive invitation',
+          subtitle: 'Drive Together invitation',
           timestamp: drive.updatedAt,
           startsAt: drive.scheduledStartAt ?? undefined,
           imageUrl: null,

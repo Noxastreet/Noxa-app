@@ -768,6 +768,7 @@ export default function LiveMapScreen() {
   const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
   const [isDriveTogetherDestinationPicking, setIsDriveTogetherDestinationPicking] =
     useState(false);
+  const driveTogetherFollowSessionRef = useRef<string | null>(null);
   const driveTogetherMapPickHandlerRef = useRef<((point: LatLng) => void) | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -2241,6 +2242,15 @@ export default function LiveMapScreen() {
       if (next) {
         setSelectedDriverId(null);
         setSelectedEvent(null);
+
+        const enteringDrive =
+          driveTogetherFollowSessionRef.current !== next.driveSessionId;
+        driveTogetherFollowSessionRef.current = next.driveSessionId;
+        if (enteringDrive) {
+          setIsCameraAwayFromUser(false);
+          setIsDriveTogetherFollowing(true);
+        }
+
         setIsRouteFollowing(false);
         setIsRouteFocusMode(false);
         routeRequestIdRef.current += 1;
@@ -2252,6 +2262,7 @@ export default function LiveMapScreen() {
         setRouteMessage(null);
         router.setParams({ mapMode: undefined, focusEventId: undefined });
       } else {
+        driveTogetherFollowSessionRef.current = null;
         setIsDriveTogetherFollowing(false);
       }
     },
@@ -2498,10 +2509,10 @@ export default function LiveMapScreen() {
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
-  const driveTogetherHasRoute = Boolean(driveTogetherNavigation?.route);
+  const driveTogetherOwnsNavigation = Boolean(driveTogetherNavigation);
   const effectiveRoute = driveTogetherNavigation?.route ?? route;
-  const effectiveRouteMode = driveTogetherHasRoute || isRouteMode;
-  const effectiveFollowing = driveTogetherHasRoute
+  const effectiveRouteMode = driveTogetherOwnsNavigation || isRouteMode;
+  const effectiveFollowing = driveTogetherOwnsNavigation
     ? isDriveTogetherFollowing
     : isRouteFollowing;
   const cameraOwner: MapCameraOwner =
@@ -2539,7 +2550,7 @@ export default function LiveMapScreen() {
         followUserLocation={effectiveFollowing}
         mapFilter="all"
         onFollowUserLocationChange={
-          driveTogetherHasRoute
+          driveTogetherOwnsNavigation
             ? setIsDriveTogetherFollowing
             : setIsRouteFollowing
         }

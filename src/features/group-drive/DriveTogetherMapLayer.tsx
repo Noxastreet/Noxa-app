@@ -28,6 +28,8 @@ import {
   findMyActiveQuickDriveId,
   findMyHostedQuickDriveId,
   formatQuickRemainingDistance,
+  geodesicDistanceMeters,
+  QUICK_DRIVE_ARRIVAL_METERS,
   getGroupDriveLocationSession,
   getPendingQuickDriveInvitation,
   getQuickDriveInvitation,
@@ -955,10 +957,31 @@ export function DriveTogetherMapLayer({
           self
             ? navigation.projection?.remainingDistanceMeters ?? serverDistance
             : serverDistance;
+        const directDestinationDistance =
+          serverMatchesDestination && server
+            ? geodesicDistanceMeters(
+                server.latitude,
+                server.longitude,
+                destination.latitude,
+                destination.longitude,
+              )
+            : null;
+        const serverArrivalIsPlausible =
+          server?.status === 'arrived'
+          && directDestinationDistance !== null
+          && directDestinationDistance <= QUICK_DRIVE_ARRIVAL_METERS;
         const arrived =
           self
-            ? navigation.projection?.arrived || server?.status === 'arrived'
-            : server?.status === 'arrived';
+            ? Boolean(navigation.projection?.arrived) || serverArrivalIsPlausible
+            : serverArrivalIsPlausible;
+        const displayDistance =
+          !arrived
+          && ownDistance !== null
+          && ownDistance <= QUICK_DRIVE_ARRIVAL_METERS
+          && directDestinationDistance !== null
+          && directDestinationDistance > QUICK_DRIVE_ARRIVAL_METERS
+            ? directDestinationDistance
+            : ownDistance;
         const stale =
           !self
           && (
@@ -973,7 +996,7 @@ export function DriveTogetherMapLayer({
           avatarUrl: participant.profile?.avatarUrl ?? null,
           distanceLabel: arrived
             ? 'ARRIVED'
-            : formatQuickRemainingDistance(ownDistance),
+            : formatQuickRemainingDistance(displayDistance),
           stale,
           self,
         };
