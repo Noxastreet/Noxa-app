@@ -32,6 +32,7 @@ type LiveDriveTaskData = {
 let pendingCleanupTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingCleanupRetryIndex = 0;
 let backgroundStartPromise: Promise<boolean> | null = null;
+let sessionOwnedByCurrentProcess = false;
 
 function readStoredSession(): LiveDriveSession | null {
   try {
@@ -360,6 +361,10 @@ supabase.auth.onAuthStateChange((_event, session) => {
   }
 });
 
+export function isLiveDriveSessionOwnedByCurrentProcess() {
+  return sessionOwnedByCurrentProcess;
+}
+
 export function getLiveDriveSession() {
   const session = readStoredSession();
   if (!session) return null;
@@ -494,6 +499,7 @@ export async function startLiveDriveSession(
     expiresAt: new Date(Date.now() + LIVE_DRIVE_DURATION_MS).toISOString(),
   };
   storeSession(session);
+  sessionOwnedByCurrentProcess = true;
 
   try {
     // Foreground map location owns updates while NOXA is open. The same
@@ -511,6 +517,7 @@ export async function startLiveDriveSession(
 
     return session;
   } catch (error) {
+    sessionOwnedByCurrentProcess = false;
     storeSession(null);
     await stopNativeLocationUpdates().catch(() => undefined);
     try {
@@ -532,6 +539,7 @@ export async function updateLiveDriveVisibility(visibilityMode: LiveDriveVisibil
 
 export async function stopLiveDriveSession(deletePresence = true) {
   const session = readStoredSession();
+  sessionOwnedByCurrentProcess = false;
   if (deletePresence && session?.userId) {
     // Persist intent first so a force-quit cannot leave a hidden server row.
     persistPresenceCleanup(session);
