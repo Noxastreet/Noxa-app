@@ -1842,6 +1842,7 @@ export default function LiveMapScreen() {
     refreshActiveDrivers,
     restoreLiveDriveSession,
     startSharing,
+    stopSharing,
   ]);
 
   useEffect(() => {
