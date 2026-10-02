@@ -12,6 +12,10 @@ const lobby = read('app/group-drives/[id].tsx');
 const active = read('app/group-drives/[id]/active.tsx');
 const completion = read('src/features/group-drive/completion.ts');
 const layout = read('app/_layout.tsx');
+const mapScreen = read('app/(tabs)/index.tsx');
+const quickDriveLayer = read('src/features/group-drive/DriveTogetherMapLayer.tsx');
+const eventRouteRedirect = read('app/event-route/[id].tsx');
+const mapRedirect = read('app/map.tsx');
 
 if (!appJson.expo?.plugins?.some((plugin) => plugin === '@bacons/apple-targets')) {
   failures.push('Apple targets config plugin is not registered');
@@ -85,6 +89,58 @@ if (!/drive-together/.test(layout)) {
 }
 if (!/endAllGroupDriveLiveActivities/.test(layout)) {
   failures.push('Sign-out Live Activity cleanup is not wired');
+}
+
+for (const pattern of [
+  /'event-route'/,
+  /'quick-drive'/,
+  /'pair-race'/,
+  /\`\$\{kind\}:\$\{id\}\`/,
+  /syncNoxaNavigationLiveActivity/,
+  /endNoxaNavigationLiveActivity/,
+]) {
+  if (!pattern.test(bridge)) failures.push(`Generic NOXA Live Activity bridge missing ${pattern}`);
+}
+if (!/event-route/.test(target) || !/noxa:\/\/event-route\//.test(target) || !/noxa:\/\/map/.test(target)) {
+  failures.push('Widget deep links are not aware of Event and map navigation contexts');
+}
+if (!/NoxaLiveActivityDeepLinkBridge/.test(layout) || !/mapMode: 'route'/.test(layout)) {
+  failures.push('Live Activity app deep links do not restore the active navigation context');
+}
+
+if (!/focusEventId: eventId/.test(eventRouteRedirect) || !/mapMode: 'route'/.test(eventRouteRedirect)) {
+  failures.push('Event route Live Activity URL does not resolve through a real Expo Router screen');
+}
+if (!/router\.replace\('\/\(tabs\)'\)/.test(mapRedirect)) {
+  failures.push('Map Live Activity URL does not resolve through a real Expo Router screen');
+}
+if (!/syncNoxaNavigationLiveActivity/.test(mapScreen) || !/eventRouteLiveActivityIdRef/.test(mapScreen)) {
+  failures.push('Event route navigation does not synchronize the system Live Activity');
+}
+if (!/quickDriveLiveActivityIdRef/.test(mapScreen) || !/driveTogetherNavigation\.driveSessionId/.test(mapScreen)) {
+  failures.push('Quick Drive navigation does not synchronize the system Live Activity');
+}
+for (const pattern of [
+  /driveSessionId: string/,
+  /destinationTitle: string/,
+  /remainingDurationSeconds: number \| null/,
+  /progress: number \| null/,
+  /participantCount: number/,
+]) {
+  if (!pattern.test(quickDriveLayer)) failures.push(`Quick Drive overlay missing Live Activity state: ${pattern}`);
+}
+if (!/activity\.attributes\.driveSessionId != record\.driveSessionId/.test(nativeModule)) {
+  failures.push('Native bridge does not enforce one active NOXA Live Activity');
+}
+
+if (!/endDriveActivitiesWithPrefixes/.test(nativeModule) || !/hasPrefix\(prefix\)/.test(nativeModule)) {
+  failures.push('Native bridge cannot remove orphaned route Live Activities');
+}
+if (!/endOrphanedNoxaRouteLiveActivities/.test(mapScreen)) {
+  failures.push('Map does not clear stale route Live Activities when no route is active');
+}
+if (!/compactDistanceLabel/.test(target) || !/Text\(context\.state\.compactDistanceLabel \?\? "LIVE"\)[\s\S]*\.font\(\.caption\.bold\(\)\)/.test(target)) {
+  failures.push('Compact Dynamic Island must show bold remaining distance in kilometers instead of ETA');
 }
 
 if (failures.length) {

@@ -85,9 +85,14 @@ type ComposerMode =
   | 'invite-drivers';
 
 export type DriveTogetherNavigationOverlay = {
+  driveSessionId: string;
+  destinationTitle: string;
   route: MapboxRoute | null;
   destination: LatLng | null;
   remainingDistanceMeters: number | null;
+  remainingDurationSeconds: number | null;
+  progress: number | null;
+  participantCount: number;
   nextInstruction: string | null;
   distanceToNextManeuverMeters: number | null;
   status: string;
@@ -768,11 +773,26 @@ export function DriveTogetherMapLayer({
   });
 
   useEffect(() => {
-    if (!roomActive || !destination) {
+    if (!roomActive || !destination || !roomId) {
       onNavigationChange(null);
       return;
     }
+
+    const activeParticipantCount = Math.max(
+      1,
+      details?.participants.filter((participant) => participant.status === 'active').length ?? 1,
+    );
+    const remainingDurationSeconds = navigation.route
+      ? Math.max(
+          0,
+          navigation.route.durationSeconds
+            * (1 - (navigation.projection?.progressFraction ?? 0)),
+        )
+      : null;
+
     onNavigationChange({
+      driveSessionId: roomId,
+      destinationTitle: destination.label,
       route: navigation.route
         ? { coordinates: navigation.route.coordinates }
         : null,
@@ -782,6 +802,9 @@ export function DriveTogetherMapLayer({
       },
       remainingDistanceMeters:
         navigation.projection?.remainingDistanceMeters ?? null,
+      remainingDurationSeconds,
+      progress: navigation.projection?.progressFraction ?? null,
+      participantCount: activeParticipantCount,
       nextInstruction:
         navigation.projection?.nextManeuver?.instruction ?? null,
       distanceToNextManeuverMeters:
@@ -790,11 +813,13 @@ export function DriveTogetherMapLayer({
     });
   }, [
     destination,
+    details?.participants,
     navigation.projection,
     navigation.route,
     navigation.status,
     onNavigationChange,
     roomActive,
+    roomId,
   ]);
 
   useEffect(() => {
