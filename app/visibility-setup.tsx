@@ -172,8 +172,8 @@ export default function VisibilitySetupScreen() {
               Be part of the live map
             </Text>
             <Text maxFontSizeMultiplier={1.6} style={styles.body}>
-              Let nearby drivers discover you while you use NOXA. Your personal map
-              presence returns to Ghost when the app goes to the background.
+              Let nearby drivers discover you while Live Drive is active. If you
+              minimize NOXA, your selected visibility keeps updating in the background.
             </Text>
           </View>
 
@@ -184,7 +184,7 @@ export default function VisibilitySetupScreen() {
               </View>
               <View style={styles.detailCopy}>
                 <Text style={styles.detailTitle}>Temporary by default</Text>
-                <Text style={styles.detailBody}>Public sharing stops when NOXA leaves the foreground and never lasts more than 4 hours.</Text>
+                <Text style={styles.detailBody}>Sharing continues while NOXA is minimized, ends when you choose Ghost, and never lasts more than 4 hours.</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -204,7 +204,7 @@ export default function VisibilitySetupScreen() {
               </View>
               <View style={styles.detailCopy}>
                 <Text style={styles.detailTitle}>Nothing starts automatically</Text>
-                <Text style={styles.detailBody}>NOXA asks for location access only after you choose Public.</Text>
+                <Text style={styles.detailBody}>NOXA asks for foreground and background location access only after you choose Public.</Text>
               </View>
             </View>
           </View>

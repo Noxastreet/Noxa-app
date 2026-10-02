@@ -31,6 +31,9 @@ type LiveDriveTaskData = {
 
 let pendingCleanupTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingCleanupRetryIndex = 0;
+let backgroundStartPromise: Promise<boolean> | null = null;
+let backgroundUpdatesRequested = false;
+let sessionOwnedByCurrentProcess = false;
 
 function readStoredSession(): LiveDriveSession | null {
   try {
@@ -279,6 +282,8 @@ function schedulePendingCleanupRetry(delayMs?: number) {
 }
 
 async function stopSessionAndCleanupPresence(session: LiveDriveSession) {
+  backgroundUpdatesRequested = false;
+  sessionOwnedByCurrentProcess = false;
   // Arm cleanup before clearing local state. If iOS terminates the process
   // between Ghost and the server DELETE, the next launch can still finish it.
   persistPresenceCleanup(session);
@@ -321,12 +326,15 @@ if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
       const latestLocation = data?.locations?.at(-1);
       if (!latestLocation) return;
 
-      const foreground = await Location.getForegroundPermissionsAsync().catch(
-        () => null,
-      );
+      const [foreground, background] = await Promise.all([
+        Location.getForegroundPermissionsAsync().catch(() => null),
+        Location.getBackgroundPermissionsAsync().catch(() => null),
+      ]);
       if (
         !foreground ||
+        !background ||
         !hasPreciseForegroundPermission(foreground) ||
+        background.status !== Location.PermissionStatus.GRANTED ||
         !hasPreciseLocationSample(latestLocation.coords)
       ) {
         await expireSession(session).catch(() => undefined);
@@ -356,6 +364,10 @@ supabase.auth.onAuthStateChange((_event, session) => {
   }
 });
 
+export function isLiveDriveSessionOwnedByCurrentProcess() {
+  return sessionOwnedByCurrentProcess;
+}
+
 export function getLiveDriveSession() {
   const session = readStoredSession();
   if (!session) return null;
@@ -367,6 +379,13 @@ export function getLiveDriveSession() {
 }
 
 export async function requestLiveDrivePermissions() {
+  if (!(await TaskManager.isAvailableAsync())) {
+    throw new Error('Background location is unavailable in this build.');
+  }
+  if (!(await Location.isBackgroundLocationAvailableAsync())) {
+    throw new Error('Background location is unavailable on this device.');
+  }
+
   const foreground = await Location.requestForegroundPermissionsAsync();
   if (!hasPreciseForegroundPermission(foreground)) {
     throw new Error('Precise location is required for Live Drive. Enable precise location in system settings.');
@@ -380,22 +399,106 @@ export async function requestLiveDrivePermissions() {
     throw new Error('Precise location is unavailable. Enable Precise Location and retry where GPS has a clear signal.');
   }
 
+  const background = await Location.requestBackgroundPermissionsAsync();
+  if (background.status !== Location.PermissionStatus.GRANTED) {
+    throw new Error('Allow background location for NOXA so Live Drive can stay active while the app is minimized.');
+  }
+
   return current;
 }
 
 export async function hasLiveDriveRuntimeAccess() {
   try {
-    const [foreground, servicesEnabled] = await Promise.all([
-      Location.getForegroundPermissionsAsync(),
-      Location.hasServicesEnabledAsync(),
-    ]);
-    if (!servicesEnabled || !hasPreciseForegroundPermission(foreground)) {
+    const [foreground, background, servicesEnabled, backgroundAvailable] =
+      await Promise.all([
+        Location.getForegroundPermissionsAsync(),
+        Location.getBackgroundPermissionsAsync(),
+        Location.hasServicesEnabledAsync(),
+        Location.isBackgroundLocationAvailableAsync(),
+      ]);
+    if (
+      !servicesEnabled ||
+      !backgroundAvailable ||
+      !hasPreciseForegroundPermission(foreground) ||
+      background.status !== Location.PermissionStatus.GRANTED
+    ) {
       return false;
     }
     return Boolean(await getPreciseLocationSample());
   } catch {
     return false;
   }
+}
+
+export async function startLiveDriveBackgroundUpdates() {
+  const session = getLiveDriveSession();
+  if (!session) return false;
+  backgroundUpdatesRequested = true;
+  if (backgroundStartPromise) return backgroundStartPromise;
+
+  const startPromise = (async () => {
+    if (!(await TaskManager.isAvailableAsync())) {
+      throw new Error('Background location is unavailable in this build.');
+    }
+    if (!(await Location.isBackgroundLocationAvailableAsync())) {
+      throw new Error('Background location is unavailable on this device.');
+    }
+
+    const [foreground, background, servicesEnabled] = await Promise.all([
+      Location.getForegroundPermissionsAsync(),
+      Location.getBackgroundPermissionsAsync(),
+      Location.hasServicesEnabledAsync(),
+    ]);
+    if (
+      !servicesEnabled ||
+      !hasPreciseForegroundPermission(foreground) ||
+      background.status !== Location.PermissionStatus.GRANTED
+    ) {
+      throw new Error('Background location permission is required for Live Drive.');
+    }
+
+    if (!backgroundUpdatesRequested) return false;
+
+    if (await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME)) {
+      return backgroundUpdatesRequested;
+    }
+
+    await Location.startLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME, {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 10_000,
+      distanceInterval: 10,
+      deferredUpdatesDistance: 15,
+      deferredUpdatesInterval: 15_000,
+      activityType: Location.ActivityType.AutomotiveNavigation,
+      pausesUpdatesAutomatically: false,
+      showsBackgroundLocationIndicator: true,
+      foregroundService: {
+        notificationTitle: 'NOXA Live Drive is active',
+        notificationBody: 'Keeping your selected map visibility current in the background.',
+        notificationColor: '#C8102E',
+        killServiceOnDestroy: true,
+      },
+    });
+    if (!backgroundUpdatesRequested) {
+      await stopNativeLocationUpdates().catch(() => undefined);
+      return false;
+    }
+    return true;
+  })();
+
+  backgroundStartPromise = startPromise;
+  try {
+    return await startPromise;
+  } finally {
+    if (backgroundStartPromise === startPromise) backgroundStartPromise = null;
+  }
+}
+
+export async function stopLiveDriveBackgroundUpdates() {
+  backgroundUpdatesRequested = false;
+  const pendingStart = backgroundStartPromise;
+  if (pendingStart) await pendingStart.catch(() => false);
+  await stopNativeLocationUpdates().catch(() => undefined);
 }
 
 export async function startLiveDriveSession(
@@ -409,11 +512,13 @@ export async function startLiveDriveSession(
     expiresAt: new Date(Date.now() + LIVE_DRIVE_DURATION_MS).toISOString(),
   };
   storeSession(session);
+  backgroundUpdatesRequested = false;
+  sessionOwnedByCurrentProcess = true;
 
   try {
-    // A previous app version may have left the old personal background task
-    // registered. Personal presence is foreground-only now, so stop it before
-    // publishing the new session.
+    // Foreground map location owns updates while NOXA is open. The same
+    // existing personal task is activated only when the app transitions away
+    // from the foreground, avoiding two simultaneous personal GPS writers.
     await stopNativeLocationUpdates().catch(() => undefined);
 
     const didPublishInitialPresence = await upsertLiveDrivePresence(
@@ -426,6 +531,7 @@ export async function startLiveDriveSession(
 
     return session;
   } catch (error) {
+    sessionOwnedByCurrentProcess = false;
     storeSession(null);
     await stopNativeLocationUpdates().catch(() => undefined);
     try {
@@ -447,6 +553,8 @@ export async function updateLiveDriveVisibility(visibilityMode: LiveDriveVisibil
 
 export async function stopLiveDriveSession(deletePresence = true) {
   const session = readStoredSession();
+  backgroundUpdatesRequested = false;
+  sessionOwnedByCurrentProcess = false;
   if (deletePresence && session?.userId) {
     // Persist intent first so a force-quit cannot leave a hidden server row.
     persistPresenceCleanup(session);

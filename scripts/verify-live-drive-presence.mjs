@@ -20,46 +20,43 @@ const permissionsSlice = liveDrive.slice(permissionsIndex, accessIndex);
 
 assert(permissionsIndex >= 0, 'Personal visibility permission flow must exist.');
 assert(
-  permissionsSlice.includes('Location.requestForegroundPermissionsAsync()'),
-  'Personal visibility must request foreground location only.',
+  permissionsSlice.includes('Location.requestForegroundPermissionsAsync()')
+    && permissionsSlice.includes('Location.requestBackgroundPermissionsAsync()')
+    && permissionsSlice.includes('Location.isBackgroundLocationAvailableAsync()'),
+  'Personal visibility must explicitly request the foreground and background location access required for minimized sharing.',
 );
 assert(
   permissionsSlice.includes('const current = await getPreciseLocationSample();')
     && permissionsSlice.includes('return current;'),
-  'Personal visibility must validate and return one precise foreground sample.',
+  'Personal visibility must validate and return one precise foreground sample before starting.',
 );
 assert(
-  !permissionsSlice.includes('requestBackgroundPermissionsAsync')
-    && !permissionsSlice.includes('getBackgroundPermissionsAsync')
-    && !permissionsSlice.includes('isBackgroundLocationAvailableAsync'),
-  'Personal visibility must never request or require background location.',
+  permissionFlow.includes('return requestLiveDrivePermissions();'),
+  'Personal visibility wrapper must delegate to the canonical Live Drive permission flow.',
 );
+
+const backgroundStartIndex = liveDrive.indexOf('export async function startLiveDriveBackgroundUpdates()');
+const backgroundStopIndex = liveDrive.indexOf('export async function stopLiveDriveBackgroundUpdates()', backgroundStartIndex);
+const backgroundSlice = liveDrive.slice(backgroundStartIndex, backgroundStopIndex);
 assert(
-  !permissionFlow.includes('requestIosBackgroundLocationPreflight')
-    && permissionFlow.includes('return requestLiveDrivePermissions();'),
-  'Personal visibility wrapper must not enter the iOS Always/background permission path.',
+  backgroundSlice.includes('Location.startLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME')
+    && backgroundSlice.includes('Location.ActivityType.AutomotiveNavigation')
+    && backgroundSlice.includes('Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME)'),
+  'Minimized personal visibility must reuse the existing dedicated Live Drive background task.',
 );
 
 const startIndex = liveDrive.indexOf('export async function startLiveDriveSession(');
 const visibilityIndex = liveDrive.indexOf('export async function updateLiveDriveVisibility(', startIndex);
 const startSlice = liveDrive.slice(startIndex, visibilityIndex);
-
 assert(
-  startSlice.includes('initialLocation: Location.LocationObject'),
-  'Personal visibility start must reuse the already-validated location sample.',
-);
-assert(
-  startSlice.includes('await stopNativeLocationUpdates().catch(() => undefined);'),
-  'Starting personal visibility must stop any legacy personal background task.',
-);
-assert(
-  startSlice.includes('await upsertLiveDrivePresence(')
+  startSlice.includes('initialLocation: Location.LocationObject')
+    && startSlice.includes('await upsertLiveDrivePresence(')
     && startSlice.includes('initialLocation.coords'),
-  'Personal visibility must publish its initial presence before succeeding.',
+  'Personal visibility start must publish the already-validated location sample before succeeding.',
 );
 assert(
   !startSlice.includes('startLocationUpdatesAsync'),
-  'Personal visibility must never start a background location writer.',
+  'Starting visibility in the foreground must not create a second GPS writer.',
 );
 
 const writeIndex = mapScreen.indexOf('const writePresencePayload = useCallback(');
@@ -69,29 +66,37 @@ assert(
   foregroundPresenceSlice.includes('!isAppForegroundRef.current')
     && foregroundPresenceSlice.includes('driverLocation')
     && foregroundPresenceSlice.includes('writePresencePayload(userId, payload)'),
-  'Personal presence updates must reuse the existing foreground Mapbox location stream.',
+  'Foreground personal presence must reuse the existing Mapbox location stream.',
 );
 assert(
   !foregroundPresenceSlice.includes('watchPositionAsync')
     && !foregroundPresenceSlice.includes('startLocationUpdatesAsync'),
-  'Map presence updates must not create a second GPS owner.',
+  'Foreground map presence must not create a second GPS owner.',
 );
 
 const appStateIndex = mapScreen.indexOf('AppState.addEventListener("change"');
-const appStateSlice = mapScreen.slice(appStateIndex, appStateIndex + 1800);
+const appStateSlice = mapScreen.slice(appStateIndex, appStateIndex + 2600);
 assert(
-  appStateSlice.includes('nextState === "background"')
-    && appStateSlice.includes('void stopSharing(true);'),
-  'Leaving NOXA must return personal presence to Ghost and request server cleanup.',
+  appStateSlice.includes('nextState === "inactive" || nextState === "background"')
+    && appStateSlice.includes('startLiveDriveBackgroundUpdates()')
+    && appStateSlice.includes('nextState === "active"')
+    && appStateSlice.includes('stopLiveDriveBackgroundUpdates()'),
+  'App lifecycle must hand location ownership from Mapbox to the existing background task while minimized, then back on foreground.',
+);
+assert(
+  !appStateSlice.includes('if (nextState === "background") {\\n        void stopSharing(true);'),
+  'Simply minimizing NOXA must not unconditionally switch personal visibility to Ghost.',
 );
 
-const restoreIndex = mapScreen.indexOf('const restoreLiveDriveSession = useCallback(async () => {');
-const restoreEnd = mapScreen.indexOf('const loadCurrentProfile = useCallback(', restoreIndex);
-const restoreSlice = mapScreen.slice(restoreIndex, restoreEnd);
 assert(
-  !restoreSlice.includes('hasStartedLocationUpdatesAsync')
-    && !restoreSlice.includes('LIVE_DRIVE_TASK_NAME'),
-  'Foreground restoration must not depend on the retired personal background task.',
+  mapScreen.includes('isLiveDriveSessionOwnedByCurrentProcess()')
+    && /storedSession[\s\S]{0,240}!isLiveDriveSessionOwnedByCurrentProcess\(\)[\s\S]{0,260}stopSharing\(true\)/.test(mapScreen),
+  'A cold process launch must fail safe to Ghost instead of silently restoring an old personal session.',
+);
+assert(
+  mapScreen.includes('const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000')
+    && mapScreen.includes('.gte("updated_at", since)'),
+  'Force-quit safety must also hide stale personal presence through the bounded active-driver freshness window.',
 );
 
 const stopIndex = liveDrive.indexOf('export async function stopLiveDriveSession(');
@@ -103,26 +108,21 @@ assert(
 );
 
 assert(
-  appJson.includes('"locationAlwaysAndWhenInUsePermission": "NOXA uses background location only while an active Group Drive'),
-  'Native background-location disclosure must be scoped to Group Drive.',
+  appJson.includes('Live Drive visibility or an active Group Drive'),
+  'Native background-location disclosure must cover both explicit personal Live Drive visibility and active Group Drive sharing.',
 );
 assert(
-  visibilitySetup.includes('Go Public')
-    && visibilitySetup.includes('returns to Ghost when the app goes to the background'),
-  'Visibility onboarding must explain Public and foreground-only personal presence.',
+  visibilitySetup.includes('minimize NOXA')
+    && visibilitySetup.includes('keeps updating in the background'),
+  'Visibility onboarding must explain that minimized NOXA keeps the selected audience active.',
 );
 
 assert(
-  !liveDriveError.includes('Set NOXA Location to Always')
-    && !liveDriveError.includes('Enable background location for NOXA'),
-  'Personal visibility recovery copy must not ask for background/Always access.',
-);
-assert(
-  liveDriveError.includes('Enable Precise Location for NOXA in iPhone Settings.')
-    && liveDriveError.includes('Allow Location for NOXA in iPhone Settings.'),
-  'Personal visibility must retain precise/foreground Settings recovery guidance.',
+  liveDriveError.includes('Set NOXA Location to Always')
+    && liveDriveError.includes('Allow background location for NOXA'),
+  'Personal visibility recovery must explain the background-location requirement.',
 );
 
 if (!process.exitCode) {
-  console.log('Personal foreground presence contract passed.');
+  console.log('Personal minimized/background presence contract passed.');
 }
