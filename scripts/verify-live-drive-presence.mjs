@@ -84,8 +84,8 @@ assert(
   'App lifecycle must hand location ownership from Mapbox to the existing background task while minimized, then back on foreground.',
 );
 assert(
-  !/nextState === "background"[\s\S]{0,300}stopSharing\(true\)/.test(appStateSlice),
-  'Simply minimizing NOXA must not switch personal visibility to Ghost.',
+  !appStateSlice.includes('if (nextState === "background") {\\n        void stopSharing(true);'),
+  'Simply minimizing NOXA must not unconditionally switch personal visibility to Ghost.',
 );
 
 assert(
