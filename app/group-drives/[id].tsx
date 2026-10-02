@@ -27,6 +27,10 @@ import {
   type DriveParticipant,
   type GroupDriveDetails,
 } from '@/src/features/group-drive';
+import {
+  buildGroupDriveLiveActivityState,
+  syncGroupDriveLiveActivity,
+} from '@/src/features/group-drive/liveActivity';
 import { readLocalNavigationLocation } from '@/src/features/group-drive/runtime/localNavigationLocation';
 import { colors, radius, spacing, typography } from '@/src/theme';
 
@@ -384,6 +388,15 @@ export default function GroupDriveViewScreen() {
     setError(null);
     try {
       await startDrive(drive.id);
+      await syncGroupDriveLiveActivity(
+        buildGroupDriveLiveActivityState(
+          { ...drive, status: 'active' },
+          null,
+          drive.participants.filter(
+            (participant) => participant.status === 'accepted' || participant.status === 'active',
+          ).length,
+        ),
+      );
       router.replace({ pathname: '/group-drives/[id]/active', params: { id: drive.id } });
     } catch (startError) {
       setError(startError instanceof Error ? startError.message : 'Group Drive could not be started.');

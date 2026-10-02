@@ -8,6 +8,7 @@ const target = read('targets/NoxaDriveActivity/NoxaDriveLiveActivity.swift');
 const targetConfig = read('targets/NoxaDriveActivity/expo-target.config.js');
 const nativeModule = read('modules/noxa-live-activity/ios/NoxaLiveActivityModule.swift');
 const bridge = read('src/features/group-drive/liveActivity.ts');
+const lobby = read('app/group-drives/[id].tsx');
 const active = read('app/group-drives/[id]/active.tsx');
 const completion = read('src/features/group-drive/completion.ts');
 const layout = read('app/_layout.tsx');
@@ -67,8 +68,14 @@ for (const pattern of sharedAttributeShape) {
 if (/CLLocationManager|startLocationUpdates|watchPosition|Supabase|Realtime/i.test(nativeModule + bridge)) {
   failures.push('Live Activity layer must not introduce location, Supabase, or realtime ownership');
 }
+if (!/startDrive\(drive\.id\)[\s\S]*syncGroupDriveLiveActivity/.test(lobby)) {
+  failures.push('Drive start does not bootstrap Live Activity before opening Active Drive');
+}
 if (!/syncGroupDriveLiveActivity/.test(active)) {
   failures.push('Active Drive does not synchronize Live Activity state');
+}
+if (!/retryDelays/.test(active) || !/AppState\.addEventListener/.test(active)) {
+  failures.push('Active Drive does not retry Live Activity bootstrap or recover on foreground');
 }
 if (!/endGroupDriveLiveActivity/.test(completion)) {
   failures.push('Group Drive completion does not end Live Activity');
