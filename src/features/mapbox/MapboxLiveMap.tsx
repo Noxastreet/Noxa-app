@@ -112,8 +112,22 @@ function eventIconName(
       return "navigate";
     case "track":
       return "speedometer";
+    case "autocross":
+      return "shuffle";
+    case "rally":
+      return "map";
+    case "drift":
+      return "sync";
+    case "drag":
+      return "rocket";
+    case "offroad":
+      return "trail-sign";
+    case "show":
+      return "star";
+    case "workshop":
+      return "build";
     default:
-      return "flag";
+      return "calendar";
   }
 }
 
