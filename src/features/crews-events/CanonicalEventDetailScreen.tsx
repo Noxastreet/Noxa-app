@@ -51,6 +51,10 @@ import {
   type EventResponse,
   uuidPattern,
 } from "@/src/lib/eventExperience";
+import {
+  requestEventReminderNotifications,
+  syncUpcomingEventReminders,
+} from "@/src/lib/pushNotifications";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -471,8 +475,17 @@ export default function CanonicalEventDetailScreen() {
           user_id: currentUserId,
         });
 
-    if (result.error) setError(result.error.message);
-    else setIsSaved((value) => !value);
+    if (result.error) {
+      setError(result.error.message);
+    } else {
+      const nextSaved = !isSaved;
+      setIsSaved(nextSaved);
+      if (nextSaved) {
+        void requestEventReminderNotifications().catch(() => undefined);
+      } else {
+        void syncUpcomingEventReminders(currentUserId).catch(() => undefined);
+      }
+    }
     setSaving(false);
   }, [currentUserId, event, isSaved, saving]);
 
@@ -537,6 +550,7 @@ export default function CanonicalEventDetailScreen() {
     }
 
     setIsDeleting(false);
+    void syncUpcomingEventReminders(currentUser.id).catch(() => undefined);
     router.replace("/(tabs)/events");
   }, [event, isDeleting]);
 
