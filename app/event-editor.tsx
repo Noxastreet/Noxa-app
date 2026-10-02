@@ -632,12 +632,13 @@ export default function EventEditorScreen() {
             </View>
           ) : null}
 
-          <View style={styles.sectionCard}>
+          <View style={[styles.sectionCard, styles.detailsCard]}>
             <View style={styles.sectionHeading}>
               <Text style={styles.eyebrow}>01 / DETAILS</Text>
               <Text style={styles.sectionTitle}>Make it unmistakable</Text>
             </View>
             <NoxaInput
+              compact
               label="Title"
               value={form.title}
               onChangeText={(value) => updateField("title", value)}
@@ -656,6 +657,10 @@ export default function EventEditorScreen() {
             <Text style={styles.characterCount}>
               {form.description.length} / 2000
             </Text>
+            <View style={styles.fieldHeader}>
+              <Text style={styles.fieldLabel}>TYPE</Text>
+              <Text style={styles.fieldHint}>CHOOSE ONE</Text>
+            </View>
             <View style={styles.categoryGrid}>
               {eventCategories.map((category) => {
                 const active = form.category === category.value;
@@ -673,7 +678,7 @@ export default function EventEditorScreen() {
                   >
                     <Ionicons
                       name={category.icon}
-                      size={17}
+                      size={15}
                       color={active ? colors.primaryHover : colors.textMuted}
                     />
                     <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
@@ -684,7 +689,8 @@ export default function EventEditorScreen() {
               })}
             </View>
             <NoxaInput
-              label="Capacity (optional)"
+              compact
+              label="Capacity · Optional"
               value={form.capacity}
               onChangeText={(value) => updateField("capacity", value.replace(/[^0-9]/g, ""))}
               placeholder="60"
@@ -1157,6 +1163,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadows.card,
   },
+  detailsCard: {
+    gap: 12,
+    padding: spacing.md,
+  },
   sectionHeading: { gap: spacing.xxs, marginBottom: spacing.xxs },
   eyebrow: {
     color: colors.textAccent,
@@ -1173,7 +1183,7 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", gap: spacing.sm },
   textArea: {
-    minHeight: 112,
+    minHeight: 92,
     paddingTop: spacing.md,
     textAlignVertical: "top",
   },
@@ -1181,8 +1191,26 @@ const styles = StyleSheet.create({
     marginTop: -spacing.xs,
     textAlign: "right",
     color: colors.textQuiet,
-    fontSize: typography.caption,
+    fontSize: 10,
     fontWeight: "700",
+  },
+  fieldHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  fieldLabel: {
+    color: colors.textQuiet,
+    fontSize: typography.v2.label.fontSize,
+    lineHeight: typography.v2.label.lineHeight,
+    letterSpacing: typography.v2.label.letterSpacing,
+    fontWeight: "800",
+  },
+  fieldHint: {
+    color: colors.textQuiet,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.9,
   },
   categoryGrid: {
     flexDirection: "row",
@@ -1190,14 +1218,14 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   categoryOption: {
-    minHeight: geometry.controlHeight.compact,
-    flexBasis: "47%",
+    minHeight: 40,
+    flexBasis: "30%",
     flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
+    gap: 5,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1209,9 +1237,9 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 9.5,
     fontWeight: "900",
-    letterSpacing: 0.8,
+    letterSpacing: 0.55,
   },
   categoryTextActive: { color: colors.text },
   pickerRow: {

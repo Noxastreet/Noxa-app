@@ -6,6 +6,7 @@ import { NoxaCutBackground } from './NoxaSurface';
 import { colors, geometry, spacing, typography } from '@/src/theme';
 
 type NoxaInputProps = TextInputProps & {
+  compact?: boolean;
   error?: string;
   hint?: string;
   label?: string;
@@ -13,6 +14,7 @@ type NoxaInputProps = TextInputProps & {
 };
 
 export function NoxaInput({
+  compact = false,
   error,
   hint,
   label,
@@ -28,7 +30,7 @@ export function NoxaInput({
   return (
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <View style={styles.shell}>
+      <View style={[styles.shell, compact && styles.shellCompact]}>
         <NoxaCutBackground
           borderColor={error ? colors.borderAccent : focused ? colors.borderStrong : colors.border}
           cut={geometry.cut.sm}
@@ -48,7 +50,7 @@ export function NoxaInput({
           }}
           placeholderTextColor={placeholderTextColor}
           selectionColor={colors.primary}
-          style={[styles.input, style]}
+          style={[styles.input, compact && styles.inputCompact, style]}
         />
         {trailing}
       </View>
@@ -78,12 +80,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
+  shellCompact: {
+    minHeight: geometry.controlHeight.compact,
+  },
   input: {
     flex: 1,
     minHeight: geometry.controlHeight.primary,
     paddingHorizontal: spacing.md,
     color: colors.text,
     fontSize: typography.body,
+  },
+  inputCompact: {
+    minHeight: geometry.controlHeight.compact,
   },
   error: { color: colors.textCritical, fontSize: typography.caption, fontWeight: '700' },
   hint: { color: colors.textMuted, fontSize: typography.caption },
