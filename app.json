@@ -14,7 +14,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "NOXA uses your precise location for map positioning and only shares it when you explicitly enable Live Drive or an active Group Drive."
+        "NSLocationWhenInUseUsageDescription": "NOXA uses your precise location for map positioning and only shares it when you explicitly enable Live Drive or an active Group Drive.",
+        "NSSupportsLiveActivities": true
       }
     },
     "android": {
@@ -78,7 +79,8 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,

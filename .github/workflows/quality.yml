@@ -162,6 +162,9 @@ jobs:
       - name: Event / Drive Together bridge contract
         run: npm run verify:event-drive-together
 
+      - name: iOS Drive Together Live Activity contract
+        run: npm run verify:ios-live-activity
+
       - name: Drive Together local database smoke
         run: npm run test:drive-together-quickflow
 

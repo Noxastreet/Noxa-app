@@ -48,7 +48,8 @@
     "verify:canonical-confirmations": "node ./scripts/verify-canonical-confirmations.mjs",
     "verify:visibility-popover-motion": "node ./scripts/verify-visibility-popover-motion.mjs",
     "verify:quick-connect-motion": "node ./scripts/verify-quick-connect-motion.mjs",
-    "verify:event-drive-together": "node ./scripts/verify-event-drive-together-bridge.mjs"
+    "verify:event-drive-together": "node ./scripts/verify-event-drive-together-bridge.mjs",
+    "verify:ios-live-activity": "node ./scripts/verify-ios-live-activity.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -92,6 +93,7 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@bacons/apple-targets": "5.0.0",
     "@electric-sql/pglite": "0.5.5",
     "@expo/ngrok": "^4.1.3",
     "@types/react": "~19.1.0",

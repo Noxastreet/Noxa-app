@@ -10,6 +10,7 @@ import 'react-native-reanimated';
 
 import '@/src/features/group-drive/runtime/nativeLocation';
 import '@/src/lib/liveDrive';
+import { endAllGroupDriveLiveActivities } from '@/src/features/group-drive/liveActivity';
 import { supabase } from '@/src/lib/supabase';
 import {
   acceptPasswordRecoveryUrl,
@@ -53,9 +54,15 @@ function SupabaseAuthLifecycle() {
 
     syncAutoRefresh(AppState.currentState);
     const subscription = AppState.addEventListener('change', syncAutoRefresh);
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        void endAllGroupDriveLiveActivities();
+      }
+    });
 
     return () => {
       subscription.remove();
+      authListener.subscription.unsubscribe();
       supabase.auth.stopAutoRefresh();
     };
   }, []);
@@ -69,6 +76,26 @@ function AuthDeepLinkBridge() {
   useEffect(() => {
     if (!url || !isPasswordRecoveryUrl(url)) return;
     void acceptPasswordRecoveryUrl(url);
+  }, [url]);
+
+  return null;
+}
+
+function DriveTogetherLiveActivityDeepLinkBridge() {
+  const url = Linking.useLinkingURL();
+
+  useEffect(() => {
+    if (!url) return;
+    const match = url.match(
+      /^noxa:\/\/drive-together\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i,
+    );
+    const driveSessionId = match?.[1];
+    if (!driveSessionId) return;
+
+    router.push({
+      pathname: '/group-drives/[id]/active',
+      params: { id: driveSessionId },
+    });
   }, [url]);
 
   return null;
@@ -100,6 +127,7 @@ export default function RootLayout() {
       <ThemeProvider value={noxaTheme}>
         <SupabaseAuthLifecycle />
         <AuthDeepLinkBridge />
+        <DriveTogetherLiveActivityDeepLinkBridge />
         <QuickConnectDeepLinkBridge />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />

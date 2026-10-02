@@ -12,6 +12,7 @@ import {
   emptyGroupDriveProgressState,
   emptyParticipantStackOrderState,
   getGroupDriveLocationSession,
+  getPendingGroupDriveServerAction,
   groupDriveLocations,
   loadActiveDriveRealtimeSnapshot,
   loadGroupDriveDetails,
@@ -32,6 +33,11 @@ import {
   watchLocalNavigationLocation,
   type LocalNavigationLocation,
 } from '@/src/features/group-drive/runtime/localNavigationLocation';
+import {
+  buildGroupDriveLiveActivityState,
+  endGroupDriveLiveActivity,
+  syncGroupDriveLiveActivity,
+} from '@/src/features/group-drive/liveActivity';
 import { MapboxLiveMapCompat } from '@/src/features/mapbox/MapboxLiveMapCompat';
 import type { LiveMapHandle, MapRegion, MapboxDriver, MapboxRoute } from '@/src/features/mapbox/types';
 import { geometry, colors, radius, spacing, typography } from '@/src/theme';
@@ -212,6 +218,7 @@ export default function ActiveDriveScreen() {
           if (disposed) return;
           setConnection('closed');
           setError('Your access to this Active Drive ended.');
+          void endGroupDriveLiveActivity(driveSessionId);
           void stopGroupDriveLocationSession().finally(() => {
             if (!disposed) router.replace('/group-drives');
           });
@@ -227,6 +234,7 @@ export default function ActiveDriveScreen() {
       if (disposed) return;
       setLoading(false);
       setError(loadError instanceof Error ? loadError.message : 'Active Drive could not be opened.');
+      void endGroupDriveLiveActivity(driveSessionId);
     });
 
     return () => {
@@ -255,6 +263,29 @@ export default function ActiveDriveScreen() {
     ),
     [details?.currentUserId, identities, order.order, progress.byUserId],
   );
+
+  const ownProgress = details
+    ? progress.byUserId[details.currentUserId] ?? null
+    : null;
+  const activeParticipantCount = snapshot?.participants.filter(
+    (participant) => participant.status === 'active',
+  ).length;
+  const liveActivityState = useMemo(
+    () => details
+      ? buildGroupDriveLiveActivityState(details, ownProgress, activeParticipantCount)
+      : null,
+    [activeParticipantCount, details, ownProgress],
+  );
+
+  useEffect(() => {
+    if (!details || !liveActivityState || details.status !== 'active') return;
+    const pending = getPendingGroupDriveServerAction(details.currentUserId, driveSessionId);
+    if (pending) {
+      void endGroupDriveLiveActivity(driveSessionId);
+      return;
+    }
+    void syncGroupDriveLiveActivity(liveActivityState);
+  }, [details, driveSessionId, liveActivityState]);
 
   const locations = useMemo(
     () => snapshot ? groupDriveLocations(snapshot.locations) : [],

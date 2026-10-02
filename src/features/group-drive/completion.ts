@@ -1,4 +1,5 @@
 import { supabase } from '@/src/lib/supabase';
+import { endGroupDriveLiveActivity } from './liveActivity';
 
 import {
   clearPendingGroupDriveServerAction,
@@ -59,6 +60,7 @@ async function stopLocalWriterAndStage(
   // Privacy first: once the user confirms Leave/End, this device must stop
   // publishing immediately instead of waiting for a network round-trip.
   await stopGroupDriveLocationSession();
+  await endGroupDriveLiveActivity(driveSessionId);
   return stagePendingGroupDriveServerAction(kind, driveSessionId);
 }
 
