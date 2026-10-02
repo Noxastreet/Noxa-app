@@ -51,6 +51,10 @@ import {
   type EventResponse,
   uuidPattern,
 } from "@/src/lib/eventExperience";
+import {
+  requestAndRegisterCurrentPushDevice,
+  syncUpcomingEventReminders,
+} from "@/src/lib/pushNotifications";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
@@ -79,6 +83,12 @@ function categoryLabel(event: EventExperienceRow) {
   if (event.category === "meet") return "CAR MEET";
   if (event.category === "drive") return "DRIVE";
   if (event.category === "track") return "TRACK";
+  if (event.category === "drift") return "DRIFT";
+  if (event.category === "drag") return "DRAG";
+  if (event.category === "rally") return "RALLY";
+  if (event.category === "offroad") return "OFF-ROAD";
+  if (event.category === "show") return "SHOW";
+  if (event.category === "social") return "SOCIAL";
   return "EVENT";
 }
 
@@ -461,8 +471,17 @@ export default function CanonicalEventDetailScreen() {
           user_id: currentUserId,
         });
 
-    if (result.error) setError(result.error.message);
-    else setIsSaved((value) => !value);
+    if (result.error) {
+      setError(result.error.message);
+    } else {
+      const nextSaved = !isSaved;
+      setIsSaved(nextSaved);
+      if (nextSaved) {
+        await requestAndRegisterCurrentPushDevice().catch(() => undefined);
+      } else {
+        await syncUpcomingEventReminders(currentUserId).catch(() => undefined);
+      }
+    }
     setSaving(false);
   }, [currentUserId, event, isSaved, saving]);
 
@@ -526,6 +545,7 @@ export default function CanonicalEventDetailScreen() {
       return;
     }
 
+    await syncUpcomingEventReminders(currentUser.id).catch(() => undefined);
     setIsDeleting(false);
     router.replace("/(tabs)/events");
   }, [event, isDeleting]);

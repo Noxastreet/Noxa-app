@@ -30,7 +30,7 @@ import { getEventLifecycle } from "@/src/lib/eventExperience";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
-type EventCategory = "meet" | "drive" | "track" | "social";
+type EventCategory = "meet" | "drive" | "track" | "drift" | "drag" | "rally" | "offroad" | "show" | "social";
 
 type EventRow = {
   id: string;
@@ -100,6 +100,12 @@ function eventType(event: EventRow) {
   if (event.category === "meet") return "CAR MEET";
   if (event.category === "drive") return "DRIVE";
   if (event.category === "track") return "TRACK";
+  if (event.category === "drift") return "DRIFT";
+  if (event.category === "drag") return "DRAG";
+  if (event.category === "rally") return "RALLY";
+  if (event.category === "offroad") return "OFF-ROAD";
+  if (event.category === "show") return "SHOW";
+  if (event.category === "social") return "SOCIAL";
   return "EVENT";
 }
 

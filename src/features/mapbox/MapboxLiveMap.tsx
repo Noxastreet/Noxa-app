@@ -112,6 +112,16 @@ function eventIconName(
       return "navigate";
     case "track":
       return "speedometer";
+    case "drift":
+      return "flame";
+    case "drag":
+      return "flash";
+    case "rally":
+      return "map";
+    case "offroad":
+      return "trail-sign";
+    case "show":
+      return "trophy";
     default:
       return "flag";
   }

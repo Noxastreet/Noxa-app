@@ -26,6 +26,7 @@ import {
 import { MapboxEventLocationPickerCompat } from "@/src/features/mapbox/MapboxEventLocationPickerCompat";
 import { NOXA_FALLBACK_COORDINATE } from "@/src/features/mapbox/config";
 import type { LatLng } from "@/src/features/mapbox/types";
+import { requestAndRegisterCurrentPushDevice } from "@/src/lib/pushNotifications";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
@@ -42,7 +43,7 @@ type EventForm = {
   latitude: number | null;
   longitude: number | null;
 };
-type EventCategory = "meet" | "drive" | "track" | "social";
+type EventCategory = "meet" | "drive" | "track" | "drift" | "drag" | "rally" | "offroad" | "show" | "social";
 type EventRow = {
   id: string;
   creator_id: string;
@@ -65,6 +66,11 @@ const eventCategories: { value: EventCategory; label: string; icon: keyof typeof
   { value: "meet", label: "MEET", icon: "people-outline" },
   { value: "drive", label: "DRIVE", icon: "navigate-outline" },
   { value: "track", label: "TRACK", icon: "speedometer-outline" },
+  { value: "drift", label: "DRIFT", icon: "flame-outline" },
+  { value: "drag", label: "DRAG", icon: "flash-outline" },
+  { value: "rally", label: "RALLY", icon: "map-outline" },
+  { value: "offroad", label: "OFF-ROAD", icon: "trail-sign-outline" },
+  { value: "show", label: "SHOW", icon: "trophy-outline" },
   { value: "social", label: "SOCIAL", icon: "cafe-outline" },
 ];
 
@@ -528,6 +534,7 @@ export default function EventEditorScreen() {
       return;
     }
     pendingCreateEventIdRef.current = null;
+    await requestAndRegisterCurrentPushDevice().catch(() => undefined);
     allowNavigationRef.current = true;
     savingRef.current = false;
     setSaving(false);

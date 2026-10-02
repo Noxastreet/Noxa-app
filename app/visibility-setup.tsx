@@ -172,8 +172,8 @@ export default function VisibilitySetupScreen() {
               Be part of the live map
             </Text>
             <Text maxFontSizeMultiplier={1.6} style={styles.body}>
-              Let nearby drivers discover you while you drive. Your location is
-              shared for up to 4 hours and can be turned off at any time.
+              Let nearby drivers discover you while you use NOXA. Your personal map
+              presence returns to Ghost when the app goes to the background.
             </Text>
           </View>
 
@@ -184,7 +184,7 @@ export default function VisibilitySetupScreen() {
               </View>
               <View style={styles.detailCopy}>
                 <Text style={styles.detailTitle}>Temporary by default</Text>
-                <Text style={styles.detailBody}>Global sharing stops automatically after 4 hours.</Text>
+                <Text style={styles.detailBody}>Public sharing stops when NOXA leaves the foreground and never lasts more than 4 hours.</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -204,7 +204,7 @@ export default function VisibilitySetupScreen() {
               </View>
               <View style={styles.detailCopy}>
                 <Text style={styles.detailTitle}>Nothing starts automatically</Text>
-                <Text style={styles.detailBody}>NOXA asks for location access only after you choose Global.</Text>
+                <Text style={styles.detailBody}>NOXA asks for location access only after you choose Public.</Text>
               </View>
             </View>
           </View>
@@ -223,7 +223,7 @@ export default function VisibilitySetupScreen() {
             fullWidth
             loading={pendingChoice === 'global'}
             onPress={goGlobal}
-            title="Go Global for 4 hours"
+            title="Go Public"
           />
           <NoxaButton
             disabled={!userId || pendingChoice !== null}
