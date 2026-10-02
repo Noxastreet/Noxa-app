@@ -1,0 +1,38 @@
+name: TestFlight Release 2026-10-02
+
+on:
+  push:
+    branches:
+      - release/testflight-20261002
+
+jobs:
+  build-and-submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v4
+        with:
+          ref: f48bef10413b295d7b51d45c041c88e172ae2d5c
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Verify Expo auth
+        shell: bash
+        run: |
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "EXPO_TOKEN_MISSING"
+            exit 20
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and submit iOS production
+        run: npx eas-cli@latest build --platform ios --profile production --non-interactive --auto-submit
