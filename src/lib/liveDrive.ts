@@ -32,6 +32,7 @@ type LiveDriveTaskData = {
 let pendingCleanupTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingCleanupRetryIndex = 0;
 let backgroundStartPromise: Promise<boolean> | null = null;
+let backgroundUpdatesRequested = false;
 let sessionOwnedByCurrentProcess = false;
 
 function readStoredSession(): LiveDriveSession | null {
@@ -281,6 +282,8 @@ function schedulePendingCleanupRetry(delayMs?: number) {
 }
 
 async function stopSessionAndCleanupPresence(session: LiveDriveSession) {
+  backgroundUpdatesRequested = false;
+  sessionOwnedByCurrentProcess = false;
   // Arm cleanup before clearing local state. If iOS terminates the process
   // between Ghost and the server DELETE, the next launch can still finish it.
   persistPresenceCleanup(session);
@@ -430,6 +433,7 @@ export async function hasLiveDriveRuntimeAccess() {
 export async function startLiveDriveBackgroundUpdates() {
   const session = getLiveDriveSession();
   if (!session) return false;
+  backgroundUpdatesRequested = true;
   if (backgroundStartPromise) return backgroundStartPromise;
 
   const startPromise = (async () => {
@@ -453,8 +457,10 @@ export async function startLiveDriveBackgroundUpdates() {
       throw new Error('Background location permission is required for Live Drive.');
     }
 
+    if (!backgroundUpdatesRequested) return false;
+
     if (await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME)) {
-      return true;
+      return backgroundUpdatesRequested;
     }
 
     await Location.startLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME, {
@@ -473,6 +479,10 @@ export async function startLiveDriveBackgroundUpdates() {
         killServiceOnDestroy: true,
       },
     });
+    if (!backgroundUpdatesRequested) {
+      await stopNativeLocationUpdates().catch(() => undefined);
+      return false;
+    }
     return true;
   })();
 
@@ -485,6 +495,9 @@ export async function startLiveDriveBackgroundUpdates() {
 }
 
 export async function stopLiveDriveBackgroundUpdates() {
+  backgroundUpdatesRequested = false;
+  const pendingStart = backgroundStartPromise;
+  if (pendingStart) await pendingStart.catch(() => false);
   await stopNativeLocationUpdates().catch(() => undefined);
 }
 
@@ -499,6 +512,7 @@ export async function startLiveDriveSession(
     expiresAt: new Date(Date.now() + LIVE_DRIVE_DURATION_MS).toISOString(),
   };
   storeSession(session);
+  backgroundUpdatesRequested = false;
   sessionOwnedByCurrentProcess = true;
 
   try {
@@ -539,6 +553,7 @@ export async function updateLiveDriveVisibility(visibilityMode: LiveDriveVisibil
 
 export async function stopLiveDriveSession(deletePresence = true) {
   const session = readStoredSession();
+  backgroundUpdatesRequested = false;
   sessionOwnedByCurrentProcess = false;
   if (deletePresence && session?.userId) {
     // Persist intent first so a force-quit cannot leave a hidden server row.
