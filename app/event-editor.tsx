@@ -42,7 +42,7 @@ type EventForm = {
   latitude: number | null;
   longitude: number | null;
 };
-type EventCategory = "meet" | "drive" | "track" | "social";
+type EventCategory = "meet" | "drive" | "track" | "social" | "autocross" | "rally" | "drift" | "drag" | "offroad" | "show" | "workshop";
 type EventRow = {
   id: string;
   creator_id: string;
@@ -66,6 +66,13 @@ const eventCategories: { value: EventCategory; label: string; icon: keyof typeof
   { value: "drive", label: "DRIVE", icon: "navigate-outline" },
   { value: "track", label: "TRACK", icon: "speedometer-outline" },
   { value: "social", label: "SOCIAL", icon: "cafe-outline" },
+  { value: "autocross", label: "AUTOCROSS", icon: "shuffle-outline" },
+  { value: "rally", label: "RALLY", icon: "map-outline" },
+  { value: "drift", label: "DRIFT", icon: "sync-outline" },
+  { value: "drag", label: "DRAG STRIP", icon: "rocket-outline" },
+  { value: "offroad", label: "OFF-ROAD", icon: "trail-sign-outline" },
+  { value: "show", label: "SHOW", icon: "star-outline" },
+  { value: "workshop", label: "WORKSHOP", icon: "build-outline" },
 ];
 
 const uuidPattern =
