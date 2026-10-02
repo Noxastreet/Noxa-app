@@ -52,7 +52,6 @@ import type {
   MapboxEvent,
 } from "@/src/features/mapbox/types";
 import {
-  LIVE_DRIVE_TASK_NAME,
   getLiveDriveSession,
   hasLiveDriveRuntimeAccess,
   startLiveDriveSession,
@@ -1171,6 +1170,34 @@ export default function LiveMapScreen() {
     [writePresencePayload],
   );
 
+  useEffect(() => {
+    const userId = sharingUserIdRef.current;
+    const session = getLiveDriveSession();
+    if (
+      !isAppForegroundRef.current
+      || !isVisibleOnMap
+      || !userId
+      || !session
+      || !driverLocation
+    ) {
+      return;
+    }
+
+    // Reuse the existing Mapbox user-location stream. Personal social presence
+    // never owns a background GPS task; it only publishes while NOXA is active.
+    const payload: PresenceLocationPayload = {
+      latitude: driverLocation.latitude,
+      longitude: driverLocation.longitude,
+      heading: null,
+      speed_mps: null,
+      accuracy_meters: null,
+      visibility_mode: visibilityModeRef.current,
+      share_expires_at: session.expiresAt,
+    };
+    latestPresencePayloadRef.current = payload;
+    void writePresencePayload(userId, payload);
+  }, [driverLocation, isVisibleOnMap, writePresencePayload]);
+
   const startSharing = useCallback(
     async (mode: LiveDriveVisibilityMode) => {
       const startGeneration = ++liveDriveStartGenerationRef.current;
@@ -1361,10 +1388,6 @@ export default function LiveMapScreen() {
           "Live Drive stopped because location access or GPS is unavailable.",
         );
       }
-      return;
-    }
-    if (!(await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME))) {
-      await stopSharing(true);
       return;
     }
     sharingUserIdRef.current = activeSession.userId;
