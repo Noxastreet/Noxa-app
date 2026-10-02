@@ -185,8 +185,8 @@ const VISIBILITY_MODES: {
   },
   {
     id: "global",
-    label: "Global",
-    description: "Visible to everyone on NOXA",
+    label: "Public",
+    description: "Visible to everyone on NOXA while the app is open",
     icon: "earth-outline",
   },
   {
@@ -1810,6 +1810,15 @@ export default function LiveMapScreen() {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       isAppForegroundRef.current = nextState === "active";
+
+      // Privacy-first social presence: leaving NOXA always returns the user to
+      // Ghost and removes the personal map-presence row. Group Drive location
+      // sharing is a separate, explicit session scoped only to its participants.
+      if (nextState === "background") {
+        void stopSharing(true);
+        return;
+      }
+
       if (nextState === "active") {
         void (async () => {
           await loadDriverLocation({ requestPermission: false });
@@ -2498,6 +2507,11 @@ export default function LiveMapScreen() {
       }
     : locationError
       ? { icon: "warning-outline" as const, message: locationError }
+      : !isVisibleOnMap
+        ? {
+            icon: "eye-off-outline" as const,
+            message: "You’re in Ghost. Switch to Public if you want other NOXA drivers to see you while the app is open.",
+          }
       : permissionDenied
         ? {
             icon: "location-outline" as const,
