@@ -10,6 +10,9 @@ export function shouldOfferLiveDriveSettings(error: unknown) {
     || message.includes('allow location')
     || message.includes('foreground')
     || message.includes('when in use')
+    || message.includes('background location')
+    || message.includes('background permission')
+    || message.includes('minimized')
   );
 }
 
@@ -25,6 +28,15 @@ export function getSafeLiveDriveStartMessage(error: unknown) {
     return Platform.OS === 'ios'
       ? 'Enable iPhone Location Services, then retry.'
       : 'Enable Location Services, then retry.';
+  }
+  if (
+    message.includes('background location')
+    || message.includes('background permission')
+    || message.includes('minimized')
+  ) {
+    return Platform.OS === 'ios'
+      ? 'Set NOXA Location to Always so visibility can continue when the app is minimized.'
+      : 'Allow background location for NOXA, then retry.';
   }
   if (
     message.includes('allow location')
