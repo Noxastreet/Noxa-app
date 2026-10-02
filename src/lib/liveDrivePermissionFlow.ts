@@ -1,9 +1,9 @@
 import { requestLiveDrivePermissions } from '@/src/lib/liveDrive';
 
 /**
- * Personal map presence is foreground-only. It needs precise When In Use
- * location access, but must never request background / Always permission.
- * Group Drive owns its separate explicit background-location permission flow.
+ * Personal map presence uses its existing dedicated Live Drive location task
+ * only while NOXA is minimized. Permission is requested only after the user
+ * explicitly chooses a non-Ghost audience.
  */
 export async function requestRequiredLiveDrivePermissions() {
   return requestLiveDrivePermissions();
