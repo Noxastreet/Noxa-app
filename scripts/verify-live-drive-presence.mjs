@@ -10,274 +10,119 @@ function assert(condition, message) {
 const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
 const liveDriveError = fs.readFileSync('src/lib/liveDriveError.ts', 'utf8');
 const permissionFlow = fs.readFileSync('src/lib/liveDrivePermissionFlow.ts', 'utf8');
-const backgroundPermissionFlow = fs.readFileSync(
-  'src/lib/backgroundLocationPermissionFlow.ts',
-  'utf8',
-);
-const permissionRecoverySheet = fs.readFileSync(
-  'src/features/map/LiveDrivePermissionRecoverySheet.tsx',
-  'utf8',
-);
-const visibilitySetup = fs.readFileSync('app/visibility-setup.tsx', 'utf8');
 const mapScreen = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
+const visibilitySetup = fs.readFileSync('app/visibility-setup.tsx', 'utf8');
+const appJson = fs.readFileSync('app.json', 'utf8');
 
-const helperIndex = liveDrive.indexOf('async function upsertLiveDrivePresence(');
-assert(helperIndex >= 0, 'Live Drive must have one shared presence upsert helper.');
-assert(
-  liveDrive.indexOf(".from('driver_locations').upsert(", helperIndex) > helperIndex,
-  'Presence writer must UPSERT driver_locations so a missing row can self-heal.',
-);
-assert(
-  liveDrive.indexOf("{ onConflict: 'user_id' }", helperIndex) > helperIndex,
-  'Presence upsert must conflict on user_id.',
-);
-assert(
-  liveDrive.indexOf('user_id: session.userId', helperIndex) > helperIndex,
-  'Presence upsert must explicitly bind the row to the active Live Drive user.',
-);
-assert(
-  liveDrive.indexOf('Date.parse(session.expiresAt) - LIVE_DRIVE_DURATION_MS') >= 0,
-  'Each Live Drive session must derive one stable share start from its four-hour expiry.',
-);
-assert(
-  liveDrive.indexOf('share_started_at: shareStartedAt') >= 0,
-  'Presence upserts must refresh share_started_at so an expired prior row cannot block restart.',
-);
-assert(
-  !liveDrive.includes(".from('driver_locations')\n        .update("),
-  'Background Live Drive must not rely on UPDATE-only writes.',
-);
-
-const preciseHelperIndex = liveDrive.indexOf('async function getPreciseLocationSample()');
 const permissionsIndex = liveDrive.indexOf('export async function requestLiveDrivePermissions()');
-assert(preciseHelperIndex >= 0, 'Live Drive must have one precise-location acquisition helper.');
+const accessIndex = liveDrive.indexOf('export async function hasLiveDriveRuntimeAccess()', permissionsIndex);
+const permissionsSlice = liveDrive.slice(permissionsIndex, accessIndex);
+
+assert(permissionsIndex >= 0, 'Personal visibility permission flow must exist.');
 assert(
-  liveDrive.indexOf('Location.getLastKnownPositionAsync({', preciseHelperIndex) > preciseHelperIndex &&
-    liveDrive.indexOf('maxAge: PRECISE_LOCATION_MAX_AGE_MS', preciseHelperIndex) > preciseHelperIndex &&
-    liveDrive.indexOf('requiredAccuracy: PRECISE_LOCATION_MAX_ACCURACY_METERS', preciseHelperIndex) > preciseHelperIndex,
-  'Live Drive must prefer a recent accurate iOS location sample before blocking on a new GPS fix.',
-);
-const balancedFixIndex = liveDrive.indexOf(
-  'accuracy: Location.Accuracy.Balanced',
-  preciseHelperIndex,
-);
-const highFixIndex = liveDrive.indexOf(
-  'accuracy: Location.Accuracy.High',
-  preciseHelperIndex,
+  permissionsSlice.includes('Location.requestForegroundPermissionsAsync()'),
+  'Personal visibility must request foreground location only.',
 );
 assert(
-  balancedFixIndex > preciseHelperIndex && highFixIndex > balancedFixIndex,
-  'Live Drive precise-location helper must try the proven iOS Balanced fix before escalating to High accuracy.',
+  permissionsSlice.includes('const current = await getPreciseLocationSample();')
+    && permissionsSlice.includes('return current;'),
+  'Personal visibility must validate and return one precise foreground sample.',
 );
 assert(
-  liveDrive.indexOf('if (hasPreciseLocationSample(balanced.coords)) return balanced;', preciseHelperIndex) >
-    preciseHelperIndex,
-  'Balanced iOS fixes must still pass the same precise-location validation before Live Drive can start.',
+  !permissionsSlice.includes('requestBackgroundPermissionsAsync')
+    && !permissionsSlice.includes('getBackgroundPermissionsAsync')
+    && !permissionsSlice.includes('isBackgroundLocationAvailableAsync'),
+  'Personal visibility must never request or require background location.',
 );
-assert(permissionsIndex >= 0, 'requestLiveDrivePermissions must exist.');
 assert(
-  liveDrive.indexOf('const current = await getPreciseLocationSample();', permissionsIndex) > permissionsIndex &&
-    liveDrive.indexOf('return current;', permissionsIndex) > permissionsIndex,
-  'Live Drive permissions must return the one validated precise sample.',
+  !permissionFlow.includes('requestIosBackgroundLocationPreflight')
+    && permissionFlow.includes('return requestLiveDrivePermissions();'),
+  'Personal visibility wrapper must not enter the iOS Always/background permission path.',
 );
 
 const startIndex = liveDrive.indexOf('export async function startLiveDriveSession(');
-const updateVisibilityIndex = liveDrive.indexOf(
-  'export async function updateLiveDriveVisibility(',
-  startIndex,
-);
-const startSlice = liveDrive.slice(startIndex, updateVisibilityIndex);
-const initialPresenceIndex = liveDrive.indexOf(
-  'const didPublishInitialPresence = await upsertLiveDrivePresence(',
-  startIndex,
-);
-const nativeStartIndex = liveDrive.indexOf(
-  'await Location.startLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME, {',
-  startIndex,
-);
-assert(startIndex >= 0, 'startLiveDriveSession must exist.');
+const visibilityIndex = liveDrive.indexOf('export async function updateLiveDriveVisibility(', startIndex);
+const startSlice = liveDrive.slice(startIndex, visibilityIndex);
+
 assert(
   startSlice.includes('initialLocation: Location.LocationObject'),
-  'startLiveDriveSession must receive the validated startup location.',
+  'Personal visibility start must reuse the already-validated location sample.',
 );
 assert(
-  !startSlice.includes('Location.getCurrentPositionAsync('),
-  'startLiveDriveSession must not request a second GPS fix after permissions already validated one.',
+  startSlice.includes('await stopNativeLocationUpdates().catch(() => undefined);'),
+  'Starting personal visibility must stop any legacy personal background task.',
 );
 assert(
-  initialPresenceIndex > startIndex &&
-    liveDrive.indexOf('initialLocation.coords', initialPresenceIndex) > initialPresenceIndex,
-  'Starting Live Drive must publish the validated startup sample before succeeding.',
+  startSlice.includes('await upsertLiveDrivePresence(')
+    && startSlice.includes('initialLocation.coords'),
+  'Personal visibility must publish its initial presence before succeeding.',
 );
 assert(
-  nativeStartIndex > initialPresenceIndex,
-  'Initial presence must exist before the background writer becomes the continuing source.',
-);
-const rollbackDeleteIndex = liveDrive.indexOf(
-  'await deleteLiveDrivePresence(userId, session.expiresAt);',
-  nativeStartIndex,
-);
-const rollbackQueueIndex = liveDrive.indexOf(
-  'queuePresenceCleanup(session);',
-  rollbackDeleteIndex,
-);
-assert(
-  rollbackDeleteIndex > nativeStartIndex && rollbackQueueIndex > rollbackDeleteIndex,
-  'Failed Live Drive startup must delete its scoped presence or queue retryable cleanup.',
+  !startSlice.includes('startLocationUpdatesAsync'),
+  'Personal visibility must never start a background location writer.',
 );
 
-const taskIndex = liveDrive.indexOf('TaskManager.defineTask<LiveDriveTaskData>(');
+const writeIndex = mapScreen.indexOf('const writePresencePayload = useCallback(');
+const startSharingIndex = mapScreen.indexOf('const startSharing = useCallback(', writeIndex);
+const foregroundPresenceSlice = mapScreen.slice(writeIndex, startSharingIndex);
 assert(
-  liveDrive.indexOf('await upsertLiveDrivePresence(session, latestLocation.coords)', taskIndex) >
-    taskIndex,
-  'Background Live Drive updates must use the self-healing presence upsert.',
+  foregroundPresenceSlice.includes('!isAppForegroundRef.current')
+    && foregroundPresenceSlice.includes('driverLocation')
+    && foregroundPresenceSlice.includes('writePresencePayload(userId, payload)'),
+  'Personal presence updates must reuse the existing foreground Mapbox location stream.',
+);
+assert(
+  !foregroundPresenceSlice.includes('watchPositionAsync')
+    && !foregroundPresenceSlice.includes('startLocationUpdatesAsync'),
+  'Map presence updates must not create a second GPS owner.',
 );
 
-const mapStartIndex = mapScreen.indexOf('const startSharing = useCallback(');
-const mapStartEndIndex = mapScreen.indexOf('const applyAudienceChange = useCallback(', mapStartIndex);
-const mapStartSlice = mapScreen.slice(mapStartIndex, mapStartEndIndex);
+const appStateIndex = mapScreen.indexOf('AppState.addEventListener("change"');
+const appStateSlice = mapScreen.slice(appStateIndex, appStateIndex + 1800);
 assert(
-  mapStartSlice.includes('const initialLocation = await requestRequiredLiveDrivePermissions();'),
-  'Map Live Drive start must run the required permission preflight before capturing the validated location.',
-);
-assert(
-  mapStartSlice.includes('initialLocation,') &&
-    mapStartSlice.includes('upsertPresence(userId, initialLocation.coords);'),
-  'Map Live Drive start must reuse the same validated sample for session and UI presence.',
-);
-assert(
-  !mapStartSlice.includes('Location.getCurrentPositionAsync('),
-  'Map Live Drive start must not request a redundant third GPS fix.',
+  appStateSlice.includes('nextState === "background"')
+    && appStateSlice.includes('void stopSharing(true);'),
+  'Leaving NOXA must return personal presence to Ghost and request server cleanup.',
 );
 
-const setupIndex = visibilitySetup.indexOf('const goGlobal = useCallback(async () => {');
-const setupStartIndex = visibilitySetup.indexOf(
-  "await startLiveDriveSession(userId, 'global', initialLocation);",
-  setupIndex,
-);
-const setupCompleteIndex = visibilitySetup.indexOf("completeSetup('global');", setupIndex);
+const restoreIndex = mapScreen.indexOf('const restoreLiveDriveSession = useCallback(async () => {');
+const restoreEnd = mapScreen.indexOf('const loadCurrentProfile = useCallback(', restoreIndex);
+const restoreSlice = mapScreen.slice(restoreIndex, restoreEnd);
 assert(
-  visibilitySetup.indexOf(
-    'const initialLocation = await requestRequiredLiveDrivePermissions();',
-    setupIndex,
-  ) > setupIndex &&
-    setupStartIndex > setupIndex &&
-    setupCompleteIndex > setupStartIndex,
-  'Visibility setup must reuse the validated location and only complete Global after session start succeeds.',
+  !restoreSlice.includes('hasStartedLocationUpdatesAsync')
+    && !restoreSlice.includes('LIVE_DRIVE_TASK_NAME'),
+  'Foreground restoration must not depend on the retired personal background task.',
 );
 
-
-const stopSessionIndex = liveDrive.indexOf('export async function stopLiveDriveSession(');
-const stopSessionSlice = liveDrive.slice(stopSessionIndex);
+const stopIndex = liveDrive.indexOf('export async function stopLiveDriveSession(');
+const stopSlice = liveDrive.slice(stopIndex);
 assert(
-  stopSessionSlice.indexOf('persistPresenceCleanup(session);') >= 0 &&
-    stopSessionSlice.indexOf('persistPresenceCleanup(session);') < stopSessionSlice.indexOf('storeSession(null);'),
-  'Ghost must persist cleanup intent before clearing the local Live Drive session.',
-);
-
-const mapLocationIndex = mapScreen.indexOf('const loadDriverLocation = useCallback(');
-const mapLocationEndIndex = mapScreen.indexOf('const deletePresence = useCallback(', mapLocationIndex);
-const mapLocationSlice = mapScreen.slice(mapLocationIndex, mapLocationEndIndex);
-assert(
-  mapScreen.includes('const locationPositionRequestRef = useRef<Promise<Location.LocationObject> | null>(null);') &&
-    mapLocationSlice.includes('let positionRequest = locationPositionRequestRef.current;') &&
-    mapLocationSlice.includes('locationPositionRequestRef.current = positionRequest;'),
-  'Foreground Map location calls must share one in-flight CoreLocation request.',
+  stopSlice.includes('persistPresenceCleanup(session);')
+    && stopSlice.indexOf('persistPresenceCleanup(session);') < stopSlice.indexOf('storeSession(null);'),
+  'Ghost must persist cleanup intent before clearing the local personal session.',
 );
 
 assert(
-  mapScreen.includes('const liveDriveStartGenerationRef = useRef(0);'),
-  'Map Live Drive startup must own a monotonic cancellation generation.',
-);
-const stopSharingIndex = mapScreen.indexOf('const stopSharing = useCallback(');
-const stopSharingEndIndex = mapScreen.indexOf('const writePresencePayload = useCallback(', stopSharingIndex);
-const stopSharingSlice = mapScreen.slice(stopSharingIndex, stopSharingEndIndex);
-assert(
-  stopSharingSlice.includes('liveDriveStartGenerationRef.current += 1;'),
-  'Ghost must invalidate any pending Live Drive startup before cleanup.',
+  appJson.includes('"locationAlwaysAndWhenInUsePermission": "NOXA uses background location only while an active Group Drive'),
+  'Native background-location disclosure must be scoped to Group Drive.',
 );
 assert(
-  mapStartSlice.includes('const startGeneration = ++liveDriveStartGenerationRef.current;') &&
-    mapStartSlice.includes('liveDriveStartGenerationRef.current !== startGeneration') &&
-    mapStartSlice.includes('currentSession?.expiresAt === liveDriveSession.expiresAt'),
-  'Stale Live Drive startup must be cancelled and only clean up the session it actually created.',
-);
-const mapUnmountIndex = mapScreen.indexOf('return () => {', mapScreen.indexOf('isMountedRef.current = true;'));
-assert(
-  mapScreen.indexOf('liveDriveStartGenerationRef.current += 1;', mapUnmountIndex) > mapUnmountIndex,
-  'Unmount/remount must invalidate an older pending Live Drive startup.',
-);
-
-
-
-assert(
-  liveDriveError.includes('export function getSafeLiveDriveStartMessage(error: unknown)') &&
-    liveDriveError.includes('export function shouldOfferLiveDriveSettings(error: unknown)'),
-  'Live Drive must expose shared safe startup messaging and iOS Settings recovery classification.',
-);
-assert(
-  liveDriveError.includes('Set NOXA Location to Always in iPhone Settings.') &&
-    liveDriveError.includes('Enable Precise Location for NOXA in iPhone Settings.') &&
-    liveDriveError.includes('Enable iPhone Location Services, then retry.'),
-  'Live Drive startup errors must distinguish background, precise-location, and system-location failures.',
-);
-assert(
-  liveDriveError.includes("Platform.OS !== 'ios'") &&
-    liveDrive.includes('Allow background location so your 4-hour Live Drive session can continue.') &&
-    !liveDrive.includes("from 'react-native'"),
-  'Low-level Live Drive must remain unchanged while the UI layer owns iOS-specific recovery guidance.',
+  visibilitySetup.includes('Go Public')
+    && visibilitySetup.includes('returns to Ghost when the app goes to the background'),
+  'Visibility onboarding must explain Public and foreground-only personal presence.',
 );
 
 assert(
-  permissionFlow.includes('await requestIosBackgroundLocationPreflight();') &&
-    permissionFlow.includes('return requestLiveDrivePermissions();'),
-  'Live Drive must use the shared background-location preflight before delegating final validation to the verified runtime.',
+  !liveDriveError.includes('Set NOXA Location to Always')
+    && !liveDriveError.includes('Enable background location for NOXA'),
+  'Personal visibility recovery copy must not ask for background/Always access.',
 );
 assert(
-  backgroundPermissionFlow.includes("Platform.OS !== 'ios'") &&
-    backgroundPermissionFlow.includes('Location.getBackgroundPermissionsAsync()') &&
-    backgroundPermissionFlow.includes('background?.status !== Location.PermissionStatus.GRANTED') &&
-    backgroundPermissionFlow.includes('background?.canAskAgain !== false') &&
-    backgroundPermissionFlow.includes('Location.requestBackgroundPermissionsAsync()'),
-  'Shared iOS permission preflight must proactively enter the native background/Always authorization path.',
-);
-assert(
-  !backgroundPermissionFlow.includes('startLocationUpdatesAsync') &&
-    !backgroundPermissionFlow.includes('driver_locations') &&
-    !backgroundPermissionFlow.includes('drive_location_state'),
-  'Shared permission preflight must not start GPS or publish any location.',
-);
-
-assert(
-  permissionRecoverySheet.includes('Linking.openSettings()') &&
-    permissionRecoverySheet.includes('confirmTitle="Open Settings"') &&
-    permissionRecoverySheet.includes('cancelTitle="Stay in Ghost"') &&
-    permissionRecoverySheet.includes('<NoxaConfirmationSheet'),
-  'iOS permission recovery must use the canonical NOXA confirmation surface and open system Settings explicitly.',
-);
-
-assert(
-  visibilitySetup.includes("from '@/src/lib/liveDrivePermissionFlow'") &&
-    visibilitySetup.includes('shouldOfferLiveDriveSettings') &&
-    visibilitySetup.includes('setPermissionRecoveryMessage(safeMessage)') &&
-    visibilitySetup.includes("AppState.addEventListener('change'") &&
-    visibilitySetup.includes('void goGlobal();'),
-  'Visibility setup must recover from iOS permission Settings and retry the user-approved Global start on return.',
-);
-assert(
-  mapStartSlice.includes('const safeMessage = getSafeLiveDriveStartMessage(error);') &&
-    mapStartSlice.includes('shouldOfferLiveDriveSettings(error)') &&
-    mapStartSlice.includes('setPendingLiveDrivePermissionRecovery({') &&
-    mapScreen.includes('await startSharing(recovery.mode);'),
-  'Map Live Drive must preserve the concrete failure, offer Settings recovery, and retry the requested audience after returning.',
-);
-assert(
-  mapScreen.includes(
-    '? "Live Drive is reconnecting. Your last visibility setting is preserved."\n          : sharingError,',
-  ),
-  'Map must show the sanitized concrete Live Drive startup reason instead of replacing it with one generic banner.',
+  liveDriveError.includes('Enable Precise Location for NOXA in iPhone Settings.')
+    && liveDriveError.includes('Allow Location for NOXA in iPhone Settings.'),
+  'Personal visibility must retain precise/foreground Settings recovery guidance.',
 );
 
 if (!process.exitCode) {
-  console.log('Live Drive initial-presence contract passed.');
+  console.log('Personal foreground presence contract passed.');
 }
