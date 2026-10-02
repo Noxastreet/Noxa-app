@@ -1,4 +1,4 @@
-export type EventCategory = "meet" | "drive" | "track" | "social";
+export type EventCategory = "meet" | "drive" | "track" | "social" | "autocross" | "rally" | "drift" | "drag" | "offroad" | "show" | "workshop";
 export type EventLifecycle = "upcoming" | "soon" | "live" | "completed" | "cancelled";
 export type EventFeedLifecycle = "scheduled" | "live" | "completed" | "cancelled";
 export type EventResponse = "going" | "maybe";
