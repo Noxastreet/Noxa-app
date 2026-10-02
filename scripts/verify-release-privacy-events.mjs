@@ -26,8 +26,9 @@ assert(
   'The public visibility choice must be presented as Public.',
 );
 assert(
-  /You’re in Ghost\. Switch to Public/.test(map),
-  'Ghost state must recommend Public without enabling it automatically.',
+  /Ghost mode · Location sharing off/.test(map)
+    && /setShowGhostToast\(false\)/.test(map),
+  'Ghost state must use a temporary compact notice without enabling Public automatically.',
 );
 
 const reminderStart = push.indexOf('export async function syncUpcomingEventReminders');
