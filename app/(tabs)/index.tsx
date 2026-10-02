@@ -54,7 +54,10 @@ import type {
 import {
   getLiveDriveSession,
   hasLiveDriveRuntimeAccess,
+  isLiveDriveSessionOwnedByCurrentProcess,
+  startLiveDriveBackgroundUpdates,
   startLiveDriveSession,
+  stopLiveDriveBackgroundUpdates,
   stopLiveDriveSession,
   updateLiveDriveVisibility,
   type LiveDriveVisibilityMode,
@@ -185,7 +188,7 @@ const VISIBILITY_MODES: {
   {
     id: "global",
     label: "Public",
-    description: "Visible to everyone on NOXA while the app is open",
+    description: "Visible to everyone while Live Drive is active",
     icon: "earth-outline",
   },
   {
@@ -1677,7 +1680,15 @@ export default function LiveMapScreen() {
   useEffect(() => {
     let isActive = true;
     isMountedRef.current = true;
-    void restoreLiveDriveSession();
+    const storedSession = getLiveDriveSession();
+    if (storedSession && !isLiveDriveSessionOwnedByCurrentProcess()) {
+      // A fresh JS process means the previous app instance ended. iOS does not
+      // guarantee a force-quit callback, so cold launch fails safe to Ghost and
+      // deletes any still-present server row before offering visibility again.
+      void stopSharing(true);
+    } else {
+      void restoreLiveDriveSession();
+    }
     void loadCurrentProfile();
     void loadMyDriverIds();
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -1835,16 +1846,26 @@ export default function LiveMapScreen() {
     const subscription = AppState.addEventListener("change", (nextState) => {
       isAppForegroundRef.current = nextState === "active";
 
-      // Privacy-first social presence: leaving NOXA always returns the user to
-      // Ghost and removes the personal map-presence row. Group Drive location
-      // sharing is a separate, explicit session scoped only to its participants.
-      if (nextState === "background") {
-        void stopSharing(true);
+      // Keep the selected audience alive while NOXA is minimized. Foreground
+      // Mapbox owns location while active; the existing personal background
+      // task takes over only when the app leaves the foreground.
+      if (nextState === "inactive" || nextState === "background") {
+        if (getLiveDriveSession()) {
+          void startLiveDriveBackgroundUpdates().catch(async () => {
+            await stopSharing(true);
+            if (isMountedRef.current) {
+              setSharingError(
+                "Live Drive stopped because background location is unavailable.",
+              );
+            }
+          });
+        }
         return;
       }
 
       if (nextState === "active") {
         void (async () => {
+          await stopLiveDriveBackgroundUpdates();
           await loadDriverLocation({ requestPermission: false });
           await restoreLiveDriveSession();
           if (mapFocusedRef.current) {
@@ -2949,7 +2970,7 @@ export default function LiveMapScreen() {
         confirmDisabled={!pendingVisibilityMode}
         confirmTitle="Start 4-hour session"
         eyebrow="BACKGROUND LOCATION"
-        footnote="Sharing stops after 4 hours, when you select Ghost, or when you sign out."
+        footnote="Sharing continues while NOXA is minimized. It stops after 4 hours, when you select Ghost, when you sign out, or after the app is fully closed and its live presence expires."
         icon="navigate"
         onCancel={() => setPendingVisibilityMode(null)}
         onConfirm={() => {
