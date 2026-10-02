@@ -26,6 +26,7 @@ import {
 import { MapboxEventLocationPickerCompat } from "@/src/features/mapbox/MapboxEventLocationPickerCompat";
 import { NOXA_FALLBACK_COORDINATE } from "@/src/features/mapbox/config";
 import type { LatLng } from "@/src/features/mapbox/types";
+import { requestEventReminderNotifications } from "@/src/lib/pushNotifications";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
@@ -538,6 +539,7 @@ export default function EventEditorScreen() {
     allowNavigationRef.current = true;
     savingRef.current = false;
     setSaving(false);
+    void requestEventReminderNotifications().catch(() => undefined);
     router.replace({
       pathname: "/event-details",
       params: { id: savedEventId },
