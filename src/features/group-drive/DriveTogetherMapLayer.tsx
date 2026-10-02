@@ -489,7 +489,7 @@ export function DriveTogetherMapLayer({
   );
 
   useEffect(() => {
-    if (!open || !driveStateResolved || !initialDestination) return;
+    if (!driveStateResolved || !initialDestination) return;
 
     const nextDestination: DriveDestination = {
       latitude: initialDestination.latitude,
@@ -885,6 +885,14 @@ export function DriveTogetherMapLayer({
       return;
     }
 
+    if (initialDestination) {
+      // A route/event already supplied the destination. Consume only the open
+      // trigger here; the dedicated destination effect moves directly to
+      // driver selection and must not be overwritten by the generic composer.
+      onOpenChange(false);
+      return;
+    }
+
     setComposerMode('create-destination');
     setDraftDestination(null);
     setSelectedFriendIds(initialFriendId ? new Set([initialFriendId]) : new Set());
@@ -892,7 +900,14 @@ export function DriveTogetherMapLayer({
     setSearchQuery('');
     setSearchResults([]);
     onOpenChange(false);
-  }, [initialFriendId, invite, onOpenChange, open, roomId]);
+  }, [
+    initialDestination,
+    initialFriendId,
+    invite,
+    onOpenChange,
+    open,
+    roomId,
+  ]);
 
   useEffect(() => {
     const destinationComposer =
@@ -1586,7 +1601,7 @@ export function DriveTogetherMapLayer({
     const title =
       composerMode === 'invite-drivers'
         ? 'Add drivers'
-        : 'Who is going?';
+        : 'Add drivers to your trip';
 
     return (
       <View style={styles.composer}>

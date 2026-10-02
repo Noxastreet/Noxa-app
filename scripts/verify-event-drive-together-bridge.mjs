@@ -43,11 +43,17 @@ assert(
 );
 
 assert(
-  /if \(!open \|\| !driveStateResolved \|\| !initialDestination\) return;/.test(layer)
+  /if \(!driveStateResolved \|\| !initialDestination\) return;/.test(layer)
     && /if \(roomId\)[\s\S]{0,180}setPendingExternalDestination\(initialDestination\)/.test(layer)
     && /setDraftDestination\(nextDestination\)[\s\S]{0,180}setComposerMode\('create-friends'\)/.test(layer)
     && /setSelectedFriendIds\([\s\S]{0,140}initialFriendId[\s\S]{0,140}new Set\(\)/.test(layer),
   'Destination bridge must reuse an existing room or skip directly to friend selection for a new room.',
+);
+
+assert(
+  /if \(initialDestination\) \{[\s\S]{0,260}onOpenChange\(false\);[\s\S]{0,80}return;/.test(layer)
+    && /Add drivers to your trip/.test(layer),
+  'A preselected Event route must not fall back to destination selection before showing drivers.',
 );
 
 assert(
