@@ -810,6 +810,7 @@ export default function LiveMapScreen() {
   const [isVisibleOnMap, setIsVisibleOnMap] = useState(false);
   const [visibilityMode, setVisibilityMode] =
     useState<LocationVisibilityMode>("ghost");
+  const [showGhostToast, setShowGhostToast] = useState(false);
   const [visibilityMenuOpen, setVisibilityMenuOpen] = useState(false);
   const [pendingVisibilityMode, setPendingVisibilityMode] =
     useState<LiveDriveVisibilityMode | null>(null);
@@ -1869,6 +1870,27 @@ export default function LiveMapScreen() {
   ]);
 
   useEffect(() => {
+    if (isVisibleOnMap || sharingError || locationError || permissionDenied) {
+      setShowGhostToast(false);
+      return;
+    }
+
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const showTimer = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      setShowGhostToast(true);
+      hideTimer = setTimeout(() => {
+        if (isMountedRef.current) setShowGhostToast(false);
+      }, 2800);
+    }, 180);
+
+    return () => {
+      clearTimeout(showTimer);
+      if (hideTimer) clearTimeout(hideTimer);
+    };
+  }, [isVisibleOnMap, locationError, permissionDenied, sharingError]);
+
+  useEffect(() => {
     if (!liveDriveExpiresAt) return;
     const interval = setInterval(() => {
       const now = Date.now();
@@ -2531,19 +2553,16 @@ export default function LiveMapScreen() {
       }
     : locationError
       ? { icon: "warning-outline" as const, message: locationError }
-      : !isVisibleOnMap
-        ? {
-            icon: "eye-off-outline" as const,
-            message: "You’re in Ghost. Switch to Public if you want other NOXA drivers to see you while the app is open.",
-          }
       : permissionDenied
         ? {
             icon: "location-outline" as const,
             message: "Location is off. Use Recenter to request access.",
           }
         : null;
+  const ghostToastVisible = !isVisibleOnMap && !activeNotice && showGhostToast;
   const noticesTop = headerBottom + spacing.sm;
-  const mapDataNoticeTop = noticesTop + (activeNotice ? 46 : 0);
+  const mapDataNoticeTop =
+    noticesTop + (activeNotice || ghostToastVisible ? 42 : 0);
   const eventCardBottom =
     insets.bottom + TAB_BAR_BOTTOM_GAP + TAB_BAR_HEIGHT + FLOATING_GAP;
   const routeCardBottom = eventCardBottom;
@@ -2772,6 +2791,30 @@ export default function LiveMapScreen() {
               variant="surface"
             />
           </View>
+        ) : null}
+
+        {!isRouteFocusMode && ghostToastVisible ? (
+          <Animated.View
+            entering={VISIBILITY_MENU_ENTER}
+            exiting={VISIBILITY_MENU_EXIT}
+            pointerEvents="none"
+            style={[styles.ghostToastWrap, { top: noticesTop }]}
+          >
+            <NoxaSurface
+              accessibilityLiveRegion="polite"
+              level="overlay"
+              style={styles.ghostToast}
+            >
+              <Ionicons
+                name="eye-off-outline"
+                size={14}
+                color={colors.primaryHover}
+              />
+              <Text style={styles.ghostToastText}>
+                Ghost mode · Location sharing off
+              </Text>
+            </NoxaSurface>
+          </Animated.View>
         ) : null}
 
         {!isRouteFocusMode && activeNotice ? (
@@ -3154,6 +3197,28 @@ const styles = StyleSheet.create({
     color: colors.textQuiet,
     fontSize: 8,
     fontWeight: "600",
+  },
+  ghostToastWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+  },
+  ghostToast: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    backgroundColor: "transparent",
+  },
+  ghostToastText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
   },
   mapNotice: {
     position: "absolute",
