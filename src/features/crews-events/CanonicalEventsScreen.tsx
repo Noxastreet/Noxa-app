@@ -30,7 +30,7 @@ import { getEventLifecycle } from "@/src/lib/eventExperience";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
 import { colors, radius, spacing, typography } from "@/src/theme";
 
-type EventCategory = "meet" | "drive" | "track" | "social";
+type EventCategory = "meet" | "drive" | "track" | "social" | "autocross" | "rally" | "drift" | "drag" | "offroad" | "show" | "workshop";
 
 type EventRow = {
   id: string;
@@ -97,10 +97,20 @@ function compactLocation(value: string) {
 }
 
 function eventType(event: EventRow) {
-  if (event.category === "meet") return "CAR MEET";
-  if (event.category === "drive") return "DRIVE";
-  if (event.category === "track") return "TRACK";
-  return "EVENT";
+  const labels: Record<EventCategory, string> = {
+    meet: "CAR MEET",
+    drive: "DRIVE",
+    track: "TRACK",
+    social: "SOCIAL",
+    autocross: "AUTOCROSS",
+    rally: "RALLY",
+    drift: "DRIFT",
+    drag: "DRAG STRIP",
+    offroad: "OFF-ROAD",
+    show: "CAR SHOW",
+    workshop: "WORKSHOP",
+  };
+  return labels[event.category] ?? "EVENT";
 }
 
 function urgency(event: EventRow) {
