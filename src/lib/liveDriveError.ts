@@ -4,9 +4,7 @@ export function shouldOfferLiveDriveSettings(error: unknown) {
   if (Platform.OS !== 'ios') return false;
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   return (
-    message.includes('background location')
-    || message.includes('always access')
-    || message.includes('precise location')
+    message.includes('precise location')
     || message.includes('precise gps fix')
     || message.includes('location services are off')
     || message.includes('allow location')
@@ -18,14 +16,6 @@ export function shouldOfferLiveDriveSettings(error: unknown) {
 export function getSafeLiveDriveStartMessage(error: unknown) {
   const message = error instanceof Error ? error.message.toLowerCase() : '';
 
-  if (message.includes('development or store build') || message.includes('expo go')) {
-    return 'Live Drive needs an installed development or store build. You are still in Ghost.';
-  }
-  if (message.includes('background location') || message.includes('always access')) {
-    return Platform.OS === 'ios'
-      ? 'Set NOXA Location to Always in iPhone Settings.'
-      : 'Enable background location for NOXA, then retry.';
-  }
   if (message.includes('precise location') || message.includes('precise gps fix')) {
     return Platform.OS === 'ios'
       ? 'Enable Precise Location for NOXA in iPhone Settings.'
@@ -45,5 +35,5 @@ export function getSafeLiveDriveStartMessage(error: unknown) {
       ? 'Allow Location for NOXA in iPhone Settings.'
       : 'Allow Location for NOXA, then retry.';
   }
-  return 'Live Drive could not start. Check Location settings and retry.';
+  return 'Personal map visibility could not start. Check Location settings and retry.';
 }

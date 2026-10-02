@@ -1,12 +1,10 @@
-import { requestIosBackgroundLocationPreflight } from '@/src/lib/backgroundLocationPermissionFlow';
 import { requestLiveDrivePermissions } from '@/src/lib/liveDrive';
 
 /**
- * Live Drive needs background location, not only foreground map access.
- * The shared iOS preflight enters the native Always authorization path; the
- * verified Live Drive runtime still performs final permission + GPS validation.
+ * Personal map presence is foreground-only. It needs precise When In Use
+ * location access, but must never request background / Always permission.
+ * Group Drive owns its separate explicit background-location permission flow.
  */
 export async function requestRequiredLiveDrivePermissions() {
-  await requestIosBackgroundLocationPreflight();
   return requestLiveDrivePermissions();
 }

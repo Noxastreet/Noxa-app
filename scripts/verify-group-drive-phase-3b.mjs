@@ -98,10 +98,14 @@ if (!failures.length) {
     failures.push('platform permission copy must disclose active Group Drive background location');
   }
 
-  const expectedPersonalLiveDriveBlob = '8343e319fd4c9152637e2e3d0c96a4891185752c';
-  const actualPersonalLiveDriveBlob = gitBlobSha(personalLiveDrive);
-  if (actualPersonalLiveDriveBlob !== expectedPersonalLiveDriveBlob) {
-    failures.push(`personal Live Drive changed unexpectedly (${actualPersonalLiveDriveBlob})`);
+  if (/GROUP_DRIVE_LOCATION_TASK_NAME|drive_location_state|noxa_upsert_drive_location/.test(personalLiveDrive)) {
+    failures.push('personal map presence must remain isolated from Group Drive location runtime');
+  }
+  if (/requestBackgroundPermissionsAsync/.test(personalLiveDrive.slice(
+    personalLiveDrive.indexOf('export async function requestLiveDrivePermissions()'),
+    personalLiveDrive.indexOf('export async function hasLiveDriveRuntimeAccess()'),
+  ))) {
+    failures.push('personal map presence must not request Group Drive background permission');
   }
 }
 
