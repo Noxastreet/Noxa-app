@@ -76,10 +76,20 @@ type GalleryItem = {
 const galleryBucket = "event-gallery";
 
 function categoryLabel(event: EventExperienceRow) {
-  if (event.category === "meet") return "CAR MEET";
-  if (event.category === "drive") return "DRIVE";
-  if (event.category === "track") return "TRACK";
-  return "EVENT";
+  const labels: Record<EventExperienceRow["category"], string> = {
+    meet: "CAR MEET",
+    drive: "DRIVE",
+    track: "TRACK",
+    social: "SOCIAL",
+    autocross: "AUTOCROSS",
+    rally: "RALLY",
+    drift: "DRIFT",
+    drag: "DRAG STRIP",
+    offroad: "OFF-ROAD",
+    show: "CAR SHOW",
+    workshop: "WORKSHOP",
+  };
+  return labels[event.category] ?? "EVENT";
 }
 
 function lifecycleUrgency(event: EventExperienceRow) {
