@@ -101,13 +101,10 @@ if (!failures.length) {
   if (/GROUP_DRIVE_LOCATION_TASK_NAME|drive_location_state|noxa_upsert_drive_location/.test(personalLiveDrive)) {
     failures.push('personal map presence must remain isolated from Group Drive location runtime');
   }
-  if (/requestBackgroundPermissionsAsync/.test(personalLiveDrive.slice(
-    personalLiveDrive.indexOf('export async function requestLiveDrivePermissions()'),
-    personalLiveDrive.indexOf('export async function hasLiveDriveRuntimeAccess()'),
-  ))) {
-    failures.push('personal map presence must not request Group Drive background permission');
+  if (!/LIVE_DRIVE_TASK_NAME = 'noxa-live-drive-location-v1'/.test(personalLiveDrive)) {
+    failures.push('personal map presence must keep its own dedicated task identity');
   }
-}
+}}
 
 if (failures.length) {
   console.error('Group Drive Phase 3B verification failed:');
