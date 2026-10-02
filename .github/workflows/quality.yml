@@ -120,6 +120,9 @@ jobs:
       - name: Notifications reliability contract
         run: node ./scripts/verify-notifications-reliability.mjs
 
+      - name: Release privacy, event reminder and taxonomy contract
+        run: npm run verify:release-privacy-events
+
       - name: Post flow reliability contract
         run: node ./scripts/verify-post-flow-reliability.mjs
 
