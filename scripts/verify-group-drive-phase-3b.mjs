@@ -104,7 +104,7 @@ if (!failures.length) {
   if (!/LIVE_DRIVE_TASK_NAME = 'noxa-live-drive-location-v1'/.test(personalLiveDrive)) {
     failures.push('personal map presence must keep its own dedicated task identity');
   }
-}}
+}
 
 if (failures.length) {
   console.error('Group Drive Phase 3B verification failed:');
