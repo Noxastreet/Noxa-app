@@ -367,13 +367,6 @@ export function getLiveDriveSession() {
 }
 
 export async function requestLiveDrivePermissions() {
-  if (!(await TaskManager.isAvailableAsync())) {
-    throw new Error('Background location requires a development or store build. It does not run in Expo Go.');
-  }
-  if (!(await Location.isBackgroundLocationAvailableAsync())) {
-    throw new Error('Background location is not available on this device.');
-  }
-
   const foreground = await Location.requestForegroundPermissionsAsync();
   if (!hasPreciseForegroundPermission(foreground)) {
     throw new Error('Precise location is required for Live Drive. Enable precise location in system settings.');
@@ -382,17 +375,9 @@ export async function requestLiveDrivePermissions() {
     throw new Error('Location services are off. Enable GPS to start Live Drive.');
   }
 
-  // Expo 54 cannot expose iOS accuracyAuthorization. Reduced Accuracy normally
-  // yields kilometer-scale uncertainty, so reject any sample that is not useful
-  // for driving before asking for background access.
   const current = await getPreciseLocationSample();
   if (!current) {
     throw new Error('Precise location is unavailable. Enable Precise Location and retry where GPS has a clear signal.');
-  }
-
-  const background = await Location.requestBackgroundPermissionsAsync();
-  if (background.status !== Location.PermissionStatus.GRANTED) {
-    throw new Error('Allow background location so your 4-hour Live Drive session can continue.');
   }
 
   return current;
@@ -400,16 +385,11 @@ export async function requestLiveDrivePermissions() {
 
 export async function hasLiveDriveRuntimeAccess() {
   try {
-    const [foreground, background, servicesEnabled] = await Promise.all([
+    const [foreground, servicesEnabled] = await Promise.all([
       Location.getForegroundPermissionsAsync(),
-      Location.getBackgroundPermissionsAsync(),
       Location.hasServicesEnabledAsync(),
     ]);
-    if (
-      !servicesEnabled ||
-      !hasPreciseForegroundPermission(foreground) ||
-      background.status !== Location.PermissionStatus.GRANTED
-    ) {
+    if (!servicesEnabled || !hasPreciseForegroundPermission(foreground)) {
       return false;
     }
     return Boolean(await getPreciseLocationSample());
@@ -431,9 +411,10 @@ export async function startLiveDriveSession(
   storeSession(session);
 
   try {
-    if (await Location.hasStartedLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME)) {
-      await Location.stopLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME);
-    }
+    // A previous app version may have left the old personal background task
+    // registered. Personal presence is foreground-only now, so stop it before
+    // publishing the new session.
+    await stopNativeLocationUpdates().catch(() => undefined);
 
     const didPublishInitialPresence = await upsertLiveDrivePresence(
       session,
@@ -443,22 +424,6 @@ export async function startLiveDriveSession(
       throw new Error('Live Drive needs a precise GPS fix before sharing can start.');
     }
 
-    await Location.startLocationUpdatesAsync(LIVE_DRIVE_TASK_NAME, {
-      accuracy: Location.Accuracy.High,
-      timeInterval: 15_000,
-      distanceInterval: 20,
-      deferredUpdatesDistance: 25,
-      deferredUpdatesInterval: 30_000,
-      activityType: Location.ActivityType.AutomotiveNavigation,
-      pausesUpdatesAutomatically: false,
-      showsBackgroundLocationIndicator: true,
-      foregroundService: {
-        notificationTitle: 'NOXA Live Drive is active',
-        notificationBody: 'Sharing your location for up to 4 hours. Select Ghost to stop.',
-        notificationColor: '#C8102E',
-        killServiceOnDestroy: true,
-      },
-    });
     return session;
   } catch (error) {
     storeSession(null);
