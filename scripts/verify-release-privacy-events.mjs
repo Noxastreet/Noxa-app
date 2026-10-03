@@ -32,8 +32,9 @@ assert(
   'Personal map presence must continue through the dedicated background task while the app is minimized.',
 );
 assert(
-  /startLiveDriveBackgroundUpdates\(\)\.catch[\s\S]{0,520}hasLiveDriveRuntimeAccess\(\)[\s\S]{0,360}visibility setting is preserved[\s\S]{0,520}startLiveDriveBackgroundUpdates\(\)\.catch\(\(\) => undefined\)/.test(map)
-    && /accessStillValid[\s\S]{0,900}await stopSharing\(true\)/.test(map),
+  /startLiveDriveBackgroundUpdates\(\)\.catch[\s\S]{0,520}hasLiveDriveRuntimeAccess\(\)[\s\S]{0,360}visibility setting is preserved/.test(map)
+    && /setTimeout\(\(\) => \{[\s\S]{0,900}startLiveDriveBackgroundUpdates\(\)[\s\S]{0,260}setSharingError\(null\)/.test(map)
+    && /accessStillValid[\s\S]{0,1200}await stopSharing\(true\)/.test(map),
   'A transient Android background-start failure must preserve Live Drive when permissions remain valid.',
 );
 assert(
