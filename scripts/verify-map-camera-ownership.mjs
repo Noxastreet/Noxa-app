@@ -58,4 +58,18 @@ assert(
   'Native Mapbox user gestures must remain authoritative over programmatic follow.',
 );
 
+assert(
+  /function DriveTogetherNavigationChrome[\s\S]*!following[\s\S]*accessibilityLabel="Recenter Drive Together navigation"[\s\S]*onPress=\{onRecenter\}/.test(home)
+    && /const recenterDriveTogether = useCallback[\s\S]{0,320}setIsDriveTogetherFollowing\(true\)/.test(home),
+  'Drive Together must expose Recenter after a manual pan and resume the existing follow camera.',
+);
+
+assert(
+  /COURSE_BEARING_ENTER_SPEED_MPS = 1\.5/.test(runtime)
+    && /COURSE_BEARING_EXIT_SPEED_MPS = 0\.8/.test(runtime)
+    && /setUseCourseBearing[\s\S]{0,260}COURSE_BEARING_EXIT_SPEED_MPS[\s\S]{0,140}COURSE_BEARING_ENTER_SPEED_MPS/.test(runtime)
+    && /puckBearing=\{isRouteMode && useCourseBearing \? "course" : "heading"\}/.test(runtime),
+  'The NOXA location arrow must use heading while stationary and course while moving, with hysteresis.',
+);
+
 console.log('PASS: NOXA Map camera ownership contract');
