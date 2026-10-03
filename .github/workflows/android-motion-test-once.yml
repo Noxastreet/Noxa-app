@@ -1,0 +1,63 @@
+name: Android Motion Test Build Once
+
+on:
+  push:
+    branches:
+      - ci/android-motion-test-20261003-v2
+    paths:
+      - .github/workflows/android-motion-test-once.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    name: Build installable Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout exact NOXA source
+        uses: actions/checkout@v4
+        with:
+          ref: 498e15f743c20bb3adee5e4d35708ff8e92ee298
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify project
+        run: |
+          npx tsc --noEmit
+          npm run lint
+          npx expo-doctor
+
+      - name: Create Android APK profile
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const eas = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+          eas.build['android-test'] = {
+            extends: 'production',
+            distribution: 'internal',
+            environment: 'production',
+            android: { buildType: 'apk' }
+          };
+          fs.writeFileSync('eas.json', JSON.stringify(eas, null, 2) + '\n');
+          NODE
+
+      - name: Build Android APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx --yes eas-cli@24.7.0 build \
+            --platform android \
+            --profile android-test \
+            --non-interactive \
+            --wait
