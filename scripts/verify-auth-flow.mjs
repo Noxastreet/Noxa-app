@@ -222,6 +222,11 @@ requirePattern(
   /if \(error\) return 'unknown'/,
 );
 requirePattern(
+  'Local onboarding storage failure must fall back to the server marker instead of skipping first-run.',
+  onboarding,
+  /hasCompletedOnboarding[\s\S]{0,420}catch \{[\s\S]{0,220}return false;/,
+);
+requirePattern(
   'Authenticated navigation must always route through the canonical first-run resolver.',
   authNavigation,
   /resetToAuthenticatedApp[\s\S]*router\.replace\('\/'\)/,
