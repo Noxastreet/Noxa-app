@@ -75,7 +75,7 @@ jobs:
           npm run lint
           npx expo-doctor
           npm run verify:ui-foundation
-          npm run verify:motion
+          npm run verify:motion-foundation
           npm run verify:interactions
           npm run verify:event-drive-together
           npm run verify:drive-together-motion
