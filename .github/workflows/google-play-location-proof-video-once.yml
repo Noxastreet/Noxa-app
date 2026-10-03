@@ -167,12 +167,14 @@ jobs:
               raise SystemExit("Review account authentication returned no session tokens")
 
           deep_link = f"noxa://auth/callback#access_token={access}&refresh_token={refresh}"
-          subprocess.check_call([
-              "adb","shell","am","start",
-              "-a","android.intent.action.VIEW",
-              "-d",deep_link,
-              os.environ["PACKAGE_NAME"],
-          ], stdout=subprocess.DEVNULL)
+          import shlex
+          package = os.environ["PACKAGE_NAME"]
+          remote = (
+              "am start -a android.intent.action.VIEW "
+              + "-d " + shlex.quote(deep_link) + " "
+              + "-p " + shlex.quote(package)
+          )
+          subprocess.check_call(["adb", "shell", remote], stdout=subprocess.DEVNULL)
           PY
 
           # Returning review account already has onboarding completed.
