@@ -19,11 +19,14 @@ export function hasCompletedOnboarding(userId: string) {
 }
 
 export async function markOnboardingComplete(userId: string) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .update({ onboarding_completed_at: new Date().toISOString() })
-    .eq('id', userId);
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
   if (error) throw error;
+  if (!data?.id) throw new Error('Onboarding completion was not persisted.');
 
   try {
     localStorage.setItem(getOnboardingKey(userId), 'complete');
@@ -42,10 +45,10 @@ export type OnboardingCompletionState =
 
 /**
  * Resolve first-run state across installs. The local flag remains the fast
- * path, while a persisted username is the server-side proof that the account
- * already completed NOXA identity setup. New auth users are created with a
- * profile row but without a username, so profile existence alone is not
- * enough to skip onboarding.
+ * path, while onboarding_completed_at is the server-side proof that the
+ * account already completed NOXA first-run setup. New auth users are created
+ * with a profile row but without that marker, so profile existence alone is
+ * not enough to skip onboarding.
  *
  * `unknown` deliberately does not mean "new user": a temporary network error
  * must never force an existing authenticated account back through onboarding.
