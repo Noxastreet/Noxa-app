@@ -735,6 +735,101 @@ function RouteFocusOverlay({
   );
 }
 
+function DriveTogetherNavigationChrome({
+  navigation,
+  following,
+  panelVisible,
+  topInset,
+  bottomInset,
+  onRecenter,
+  onOpenPanel,
+}: {
+  navigation: DriveTogetherNavigationOverlay;
+  following: boolean;
+  panelVisible: boolean;
+  topInset: number;
+  bottomInset: number;
+  onRecenter: () => void;
+  onOpenPanel: () => void;
+}) {
+  const instruction =
+    navigation.nextInstruction || `Continue to ${navigation.destinationTitle}`;
+  const instructionDistance =
+    navigation.distanceToNextManeuverMeters === null
+      ? null
+      : formatDistance(navigation.distanceToNextManeuverMeters);
+
+  return (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
+      <View style={[styles.driveNavigationTop, { top: topInset + spacing.sm }]}>
+        <NoxaSurface level="overlay" style={styles.driveNavigationInstruction}>
+          <View style={styles.routeFocusTurnIcon}>
+            <Ionicons name="navigate" size={24} color={colors.text} />
+          </View>
+          <View style={styles.routeFocusInstructionCopy}>
+            {instructionDistance ? (
+              <Text style={styles.routeFocusDistance}>{instructionDistance}</Text>
+            ) : null}
+            <Text numberOfLines={2} style={styles.routeFocusInstructionText}>
+              {instruction}
+            </Text>
+          </View>
+        </NoxaSurface>
+
+        <NoxaIconButton
+          accessibilityLabel="Open Drive Together"
+          icon="people-outline"
+          iconSize={20}
+          onPress={onOpenPanel}
+          size={44}
+          variant="overlay"
+        />
+      </View>
+
+      {!panelVisible ? (
+        <View style={[styles.driveNavigationBottom, { bottom: bottomInset + spacing.md }]}>
+          <TouchableOpacity
+            accessibilityLabel="Open Drive Together details"
+            accessibilityRole="button"
+            activeOpacity={0.82}
+            onPress={onOpenPanel}
+            style={styles.driveNavigationSummaryPressable}
+          >
+            <NoxaSurface level="overlay" style={styles.driveNavigationSummary}>
+              <Text numberOfLines={1} style={styles.routeFocusDestination}>
+                {navigation.destinationTitle}
+              </Text>
+              <View style={styles.routeFocusMetricRow}>
+                <Text style={styles.routeFocusMetricStrong}>
+                  {formatDistance(navigation.remainingDistanceMeters ?? 0)}
+                </Text>
+                <View style={styles.routeFocusDot} />
+                <Text style={styles.routeFocusMetricStrong}>
+                  {formatDuration(navigation.remainingDurationSeconds ?? 0)}
+                </Text>
+                <Text style={styles.driveNavigationDrivers}>
+                  {navigation.participantCount} drivers
+                </Text>
+              </View>
+            </NoxaSurface>
+          </TouchableOpacity>
+
+          {!following ? (
+            <NoxaIconButton
+              accessibilityLabel="Recenter Drive Together navigation"
+              icon="locate"
+              iconSize={20}
+              onPress={onRecenter}
+              size={50}
+              variant="overlay"
+            />
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
@@ -754,9 +849,12 @@ export default function LiveMapScreen() {
     useState<DriveTogetherDestinationSeed | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [isRouteFocusMode, setIsRouteFocusMode] = useState(false);
+  const [driveTogetherNavigation, setDriveTogetherNavigation] =
+    useState<DriveTogetherNavigationOverlay | null>(null);
 
   useEffect(() => {
-    const hideRootTabs = driveTogetherPanelVisible || isRouteFocusMode;
+    const hideRootTabs =
+      driveTogetherPanelVisible || Boolean(driveTogetherNavigation) || isRouteFocusMode;
     navigation.setOptions({
       tabBarStyle: hideRootTabs ? { display: "none" } : undefined,
     });
@@ -764,9 +862,12 @@ export default function LiveMapScreen() {
     return () => {
       navigation.setOptions({ tabBarStyle: undefined });
     };
-  }, [driveTogetherPanelVisible, isRouteFocusMode, navigation]);
-  const [driveTogetherNavigation, setDriveTogetherNavigation] =
-    useState<DriveTogetherNavigationOverlay | null>(null);
+  }, [
+    driveTogetherNavigation,
+    driveTogetherPanelVisible,
+    isRouteFocusMode,
+    navigation,
+  ]);
   const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
   const [isDriveTogetherDestinationPicking, setIsDriveTogetherDestinationPicking] =
     useState(false);
@@ -2267,6 +2368,14 @@ export default function LiveMapScreen() {
     setIsRouteFollowing(true);
   }, []);
 
+  const recenterDriveTogether = useCallback(() => {
+    const point = driverLocationRef.current;
+    if (!point || !hasValidLatLng(point.latitude, point.longitude)) return;
+    setIsCameraAwayFromUser(false);
+    mapRef.current?.animateToRegion(pointRegion(point), 220);
+    setIsDriveTogetherFollowing(true);
+  }, []);
+
   const beginDriveTogetherMapPick = useCallback(
     (handler: (point: LatLng) => void) => {
       driveTogetherMapPickHandlerRef.current = handler;
@@ -2645,7 +2754,7 @@ export default function LiveMapScreen() {
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
-        {!isRouteFocusMode ? (
+        {!isRouteFocusMode && !driveTogetherNavigation ? (
           <View style={[styles.header, { top: headerTop }]}>
           <TouchableOpacity
             accessibilityLabel={`${
@@ -2715,7 +2824,7 @@ export default function LiveMapScreen() {
         </View>
         ) : null}
 
-        {!isRouteFocusMode && visibilityMenuOpen ? (
+        {!isRouteFocusMode && !driveTogetherNavigation && visibilityMenuOpen ? (
           <Animated.View
             entering={VISIBILITY_MENU_ENTER}
             exiting={VISIBILITY_MENU_EXIT}
@@ -2779,7 +2888,7 @@ export default function LiveMapScreen() {
           </Animated.View>
         ) : null}
 
-        {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
+        {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible && !driveTogetherNavigation ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -2916,6 +3025,18 @@ export default function LiveMapScreen() {
             onClose={() => setSelectedDriverId(null)}
             onInviteToDrive={inviteDriverToDriveTogether}
             onRelationshipChange={() => void loadMyDriverIds()}
+          />
+        ) : null}
+
+        {driveTogetherNavigation ? (
+          <DriveTogetherNavigationChrome
+            bottomInset={insets.bottom}
+            following={isDriveTogetherFollowing}
+            navigation={driveTogetherNavigation}
+            onOpenPanel={() => setDriveTogetherOpen(true)}
+            onRecenter={recenterDriveTogether}
+            panelVisible={driveTogetherPanelVisible}
+            topInset={insets.top}
           />
         ) : null}
 
@@ -3375,6 +3496,47 @@ const styles = StyleSheet.create({
   },
   eventPrimaryButton: {
     flex: 1.35,
+  },
+  driveNavigationTop: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  driveNavigationInstruction: {
+    flex: 1,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: "transparent",
+  },
+  driveNavigationBottom: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  driveNavigationSummaryPressable: {
+    flex: 1,
+    minWidth: 0,
+  },
+  driveNavigationSummary: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: "transparent",
+  },
+  driveNavigationDrivers: {
+    marginLeft: "auto",
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
   },
   routeFocusTop: {
     position: "absolute",
