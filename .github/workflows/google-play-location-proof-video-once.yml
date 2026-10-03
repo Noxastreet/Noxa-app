@@ -1,0 +1,291 @@
+name: NOXA Google Play Location Proof Video Once
+
+on:
+  push:
+    branches:
+      - fix/release-blockers-20261003
+    paths:
+      - .github/workflows/google-play-location-proof-video-once.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: noxa-google-play-location-proof-video-20261003
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      REVIEW_EMAIL: google.play.review@noxastreetapp.com
+      REVIEW_PASSWORD: ${{ secrets.NOXA_GOOGLE_REVIEW_PASSWORD }}
+      APK_ARTIFACT_ID: "11270337798"
+      PACKAGE_NAME: com.karaketidis.noxa
+
+    steps:
+      - name: Verify review credential secret is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${REVIEW_PASSWORD:-}" ]; then
+            echo "::error::Missing repository secret NOXA_GOOGLE_REVIEW_PASSWORD"
+            exit 1
+          fi
+          echo "Review account email is configured; password is present and will not be printed."
+
+      - name: Download exact tested release-candidate APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/noxa-apk"
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${APK_ARTIFACT_ID}/zip" \
+            > "$RUNNER_TEMP/noxa-apk.zip"
+          unzip -q "$RUNNER_TEMP/noxa-apk.zip" -d "$RUNNER_TEMP/noxa-apk"
+          APK_PATH="$(find "$RUNNER_TEMP/noxa-apk" -type f -name '*.apk' | head -n 1)"
+          test -n "$APK_PATH"
+          echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+          echo "APK bytes: $(stat -c %s "$APK_PATH")"
+
+      - name: Prepare UI automation helper
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ui.py" <<'PY'
+          import re, subprocess, sys, time, xml.etree.ElementTree as ET
+
+          def dump():
+              for _ in range(8):
+                  subprocess.run(["adb","shell","uiautomator","dump","/sdcard/window.xml"],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                  p = subprocess.run(["adb","shell","cat","/sdcard/window.xml"],
+                                     capture_output=True, text=True)
+                  if p.returncode == 0 and "<hierarchy" in p.stdout:
+                      return ET.fromstring(p.stdout)
+                  time.sleep(0.5)
+              raise RuntimeError("Unable to dump Android UI")
+
+          def candidates(root, query):
+              q = query.lower()
+              found = []
+              for n in root.iter("node"):
+                  text = (n.attrib.get("text") or "")
+                  desc = (n.attrib.get("content-desc") or "")
+                  rid = (n.attrib.get("resource-id") or "")
+                  blob = " | ".join([text, desc, rid]).lower()
+                  if q in blob:
+                      found.append((n, text, desc, rid))
+              return found
+
+          def center(bounds):
+              m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds or "")
+              if not m:
+                  raise RuntimeError("Missing bounds")
+              x1,y1,x2,y2 = map(int,m.groups())
+              return (x1+x2)//2, (y1+y2)//2
+
+          mode, query = sys.argv[1], sys.argv[2]
+          deadline = time.time() + (float(sys.argv[3]) if len(sys.argv) > 3 else 12)
+          while time.time() < deadline:
+              root = dump()
+              hits = candidates(root, query)
+              if hits:
+                  if mode == "exists":
+                      sys.exit(0)
+                  if mode == "tap":
+                      # Prefer clickable/enabled match, otherwise first visible match.
+                      hits.sort(key=lambda item: (
+                          item[0].attrib.get("enabled") != "true",
+                          item[0].attrib.get("clickable") != "true"
+                      ))
+                      n,text,desc,rid = hits[0]
+                      x,y = center(n.attrib.get("bounds"))
+                      print(f"tap {query!r} at {x},{y}; text={text!r}; desc={desc!r}; id={rid!r}")
+                      subprocess.check_call(["adb","shell","input","tap",str(x),str(y)])
+                      sys.exit(0)
+              time.sleep(0.6)
+          print(f"UI query not found: {query}", file=sys.stderr)
+          sys.exit(2)
+          PY
+
+          cat > "$RUNNER_TEMP/capture.sh" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          UI="python3 $RUNNER_TEMP/ui.py"
+
+          echo "Installing NOXA APK"
+          adb install -r "$APK_PATH"
+
+          # Deterministic virtual GPS location, near Thessaloniki.
+          adb emu geo fix 22.9444 40.6401 || true
+          adb shell settings put secure location_mode 3 || true
+
+          # Start with no location grants so the recording shows the real consent flow.
+          adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_FINE_LOCATION || true
+          adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_COARSE_LOCATION || true
+          adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_BACKGROUND_LOCATION || true
+
+          echo "Launching app and signing in before recording"
+          adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
+          $UI tap "Sign In" 20
+          $UI tap "you@example.com" 15
+          adb shell input text 'google.play.review%40noxastreetapp.com'
+          $UI tap "Password" 10 || $UI tap "••••••••" 10
+          # Safely type the secret without logging it.
+          python3 - <<'PY'
+          import os, subprocess, shlex
+          value = os.environ["REVIEW_PASSWORD"]
+          # Android 'input text' treats %s as space; escape shell metacharacters.
+          # Use ADB keyboard events for common printable ASCII.
+          for ch in value:
+              if ch.isalnum():
+                  subprocess.check_call(["adb","shell","input","text",ch], stdout=subprocess.DEVNULL)
+              else:
+                  keymap = {
+                    "@":"KEYCODE_AT", ".":"KEYCODE_PERIOD", "-":"KEYCODE_MINUS",
+                    "_":"KEYCODE_MINUS", "!":"KEYCODE_1", "#":"KEYCODE_POUND",
+                    "$":"KEYCODE_4", "%":"KEYCODE_5", "&":"KEYCODE_7",
+                    "*":"KEYCODE_STAR", "+":"KEYCODE_PLUS", "=":"KEYCODE_EQUALS",
+                  }
+                  if ch in keymap:
+                      subprocess.check_call(["adb","shell","input","keyevent",keymap[ch]], stdout=subprocess.DEVNULL)
+                  else:
+                      subprocess.check_call(["adb","shell","input","text",ch], stdout=subprocess.DEVNULL)
+          PY
+          $UI tap "Sign In" 15
+
+          # Returning review account already has onboarding completed.
+          $UI exists "Search NOXA" 30
+
+          echo "Starting clean 30-second Google Play proof recording"
+          rm -f "$RUNNER_TEMP/noxa-location-proof.mp4"
+          adb shell screenrecord --bit-rate 6500000 --time-limit 30 /sdcard/noxa-location-proof.mp4 &
+          REC_PID=$!
+          sleep 1
+
+          # Open visibility chooser and select Public.
+          $UI tap "Visibility: Ghost" 12
+          sleep 1
+          $UI tap "Public. Visible to everyone while Live Drive is active" 12
+          sleep 1
+
+          # Prominent in-app disclosure required by Google Play policy.
+          $UI exists "Stay visible while driving?" 10
+          sleep 2
+          $UI tap "Continue" 10
+
+          # Foreground location runtime prompt.
+          if $UI exists "While using the app" 10; then
+            $UI tap "While using the app" 5
+          elif $UI exists "Allow only while using the app" 4; then
+            $UI tap "Allow only while using the app" 5
+          fi
+          sleep 2
+
+          # Android 11+ background location often requires Settings.
+          if $UI exists "Open Settings" 7; then
+            $UI tap "Open Settings" 5
+            sleep 2
+          fi
+
+          # If on app details, enter Permissions -> Location.
+          if $UI exists "Permissions" 4; then
+            $UI tap "Permissions" 5
+            sleep 1
+          fi
+          if $UI exists "Location" 4 && ! $UI exists "Allow all the time" 1; then
+            $UI tap "Location" 5
+            sleep 1
+          fi
+          if $UI exists "Allow all the time" 8; then
+            $UI tap "Allow all the time" 5
+            sleep 2
+          fi
+
+          # Return to NOXA. The app is designed to retry Public automatically.
+          adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
+          sleep 4
+
+          # If automatic retry has not yet finished, reopen chooser and select Public.
+          if ! $UI exists "Visibility: Public" 4; then
+            if $UI exists "Visibility: Ghost" 2; then
+              $UI tap "Visibility: Ghost" 4
+              $UI tap "Public. Visible to everyone while Live Drive is active" 5
+              if $UI exists "Stay visible while driving?" 3; then
+                $UI tap "Continue" 4
+              fi
+              sleep 4
+            fi
+          fi
+
+          # Demonstrate that location sharing continues in the background.
+          adb shell input keyevent KEYCODE_HOME
+          sleep 4
+          adb shell cmd statusbar expand-notifications || true
+          sleep 3
+          adb shell input keyevent KEYCODE_BACK || true
+          adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
+          sleep 3
+
+          # Stop recording early if still active.
+          kill "$REC_PID" >/dev/null 2>&1 || true
+          wait "$REC_PID" >/dev/null 2>&1 || true
+          sleep 1
+          adb pull /sdcard/noxa-location-proof.mp4 "$RUNNER_TEMP/noxa-location-proof.mp4"
+
+          # Save final UI + permission evidence for debugging.
+          adb shell dumpsys package "$PACKAGE_NAME" | grep -A20 "runtime permissions:" > "$RUNNER_TEMP/permissions.txt" || true
+          adb shell uiautomator dump /sdcard/final.xml >/dev/null 2>&1 || true
+          adb pull /sdcard/final.xml "$RUNNER_TEMP/final-ui.xml" >/dev/null 2>&1 || true
+
+          # Basic verification: video exists and background permission is granted.
+          test -s "$RUNNER_TEMP/noxa-location-proof.mp4"
+          grep -q "ACCESS_BACKGROUND_LOCATION: granted=true" "$RUNNER_TEMP/permissions.txt"
+          echo "Capture complete"
+          SH
+          chmod +x "$RUNNER_TEMP/capture.sh"
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
+
+      - name: Record Android background-location proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7_pro
+          disable-animations: true
+          disk-size: 8G
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: bash "$RUNNER_TEMP/capture.sh"
+
+      - name: Inspect recording metadata
+        if: always()
+        shell: bash
+        run: |
+          if [ -s "$RUNNER_TEMP/noxa-location-proof.mp4" ]; then
+            ffprobe -v error -show_entries format=duration,size -of default=nw=1 "$RUNNER_TEMP/noxa-location-proof.mp4" || true
+          fi
+          cat "$RUNNER_TEMP/permissions.txt" 2>/dev/null || true
+
+      - name: Upload Google Play proof video
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-google-play-background-location-proof
+          path: |
+            ${{ runner.temp }}/noxa-location-proof.mp4
+            ${{ runner.temp }}/permissions.txt
+            ${{ runner.temp }}/final-ui.xml
+          if-no-files-found: warn
+          retention-days: 7
