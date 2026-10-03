@@ -22,26 +22,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Show latest Android EAS build
+      - name: Diagnose latest Android EAS build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         shell: bash
         run: |
-          set -euo pipefail
-          npx --yes eas-cli@24.7.0 build:list --platform android --limit 5 --json > "$RUNNER_TEMP/builds.json"
-          cat "$RUNNER_TEMP/builds.json"
-          node <<'NODE'
-          const fs = require('fs');
-          const list = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/builds.json','utf8'));
-          const target = list.find(b => b.gitCommitHash === '3a4d687f6d4ea45d011cba53ba57b571fe276a4c') || list[0];
-          if (!target) throw new Error('No Android EAS build found');
-          const url = target.buildDetailsPageUrl || ('https://expo.dev/accounts/noxastreet/projects/Noxa/builds/' + target.id);
-          console.log('TARGET_BUILD_ID=' + target.id);
-          console.log('TARGET_STATUS=' + target.status);
-          console.log('TARGET_URL=' + url);
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-            '### Latest NOXA Android EAS build\n' +
-            '- Build ID: ' + target.id + '\n' +
-            '- Status: ' + target.status + '\n' +
-            '- Page: ' + url + '\n');
-          NODE
+          set +e
+          npx --yes eas-cli@24.7.0 build:list --platform android --limit 5 --json 2>&1 | tee "$RUNNER_TEMP/eas-status.txt"
+          CODE=${PIPESTATUS[0]}
+          echo "EAS_EXIT_CODE=$CODE"
+          cat "$RUNNER_TEMP/eas-status.txt"
+          exit 0
