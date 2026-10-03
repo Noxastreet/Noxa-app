@@ -193,83 +193,63 @@ jobs:
           fi
           $UI exists "Search NOXA" 35
 
-          echo "Starting clean 30-second Google Play proof recording"
+          echo "Starting optimized 30-second Google Play proof recording"
           rm -f "$RUNNER_TEMP/noxa-location-proof.mp4"
-          adb shell screenrecord --bit-rate 6500000 --time-limit 30 /sdcard/noxa-location-proof.mp4 &
+          adb shell screenrecord --size 720x1280 --bit-rate 6000000 --time-limit 30 /sdcard/noxa-location-proof.mp4 &
           REC_PID=$!
           sleep 1
 
-          # Open visibility chooser and select Public.
-          $UI tap "Visibility: Ghost" 12
-          sleep 1
-          $UI tap "Public. Visible to everyone while Live Drive is active" 12
-          sleep 1
+          # Coordinates are stable for the fixed Pixel 7 Pro emulator profile
+          # (1440x3120 input surface). Avoid repeated UI-dump waits so the full
+          # disclosure -> permission -> background-service story fits in <=30s.
 
-          # Prominent in-app disclosure required by Google Play policy.
-          $UI exists "Stay visible while driving?" 10
-          sleep 2
-          $UI tap "Continue" 10
-
-          # Foreground location runtime prompt.
-          if $UI exists "While using the app" 10; then
-            $UI tap "While using the app" 5
-          elif $UI exists "Allow only while using the app" 4; then
-            $UI tap "Allow only while using the app" 5
-          fi
+          # 1) User explicitly chooses Public from the map.
+          adb shell input tap 133 263
+          sleep 1
+          adb shell input tap 518 894
           sleep 2
 
-          # Android 11+ background location often requires Settings.
-          if $UI exists "Open Settings" 7; then
-            $UI tap "Open Settings" 5
-            sleep 2
-          fi
+          # 2) Hold NOXA's prominent disclosure long enough to be readable.
+          sleep 3
+          adb shell input tap 720 2896
+          sleep 2
 
-          # If on app details, enter Permissions -> Location.
-          if $UI exists "Permissions" 4; then
-            $UI tap "Permissions" 5
-            sleep 1
-          fi
-          if $UI exists "Location" 4 && ! $UI exists "Allow all the time" 1; then
-            $UI tap "Location" 5
-            sleep 1
-          fi
-          if $UI exists "Allow all the time" 8; then
-            $UI tap "Allow all the time" 5
-            sleep 2
-          fi
+          # 3) Android foreground precise-location prompt.
+          adb shell input tap 720 1906
+          sleep 3
 
-          # Return to NOXA. The app is designed to retry Public automatically.
+          # 4) Expo/Android 11+ moves background permission into Settings.
+          # Enter Noxa permissions, then Location, then choose Allow all the time.
+          adb shell input tap 345 2865
+          sleep 2
+          adb shell input tap 388 1613
+          sleep 2
+          adb shell input tap 448 1626
+          sleep 2
+
+          # 5) Return to NOXA. Public retries automatically with background access.
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE_NAME" | tail -n 1 | tr -d '\r')"
           adb shell am start -W -n "$ACTIVITY" >/dev/null
-          sleep 4
+          sleep 2
 
-          # If automatic retry has not yet finished, reopen chooser and select Public.
-          if ! $UI exists "Visibility: Public" 4; then
-            if $UI exists "Visibility: Ghost" 2; then
-              $UI tap "Visibility: Ghost" 4
-              $UI tap "Public. Visible to everyone while Live Drive is active" 5
-              if $UI exists "Stay visible while driving?" 3; then
-                $UI tap "Continue" 4
-              fi
-              sleep 4
-            fi
-          fi
-
-          # Demonstrate that location sharing continues in the background.
+          # 6) Put NOXA in the background. This starts the real location foreground
+          # service and its ongoing system notification.
           adb shell input keyevent KEYCODE_HOME
-          sleep 4
+          sleep 3
           adb shell cmd statusbar expand-notifications || true
-          sleep 3
-          adb shell input keyevent KEYCODE_BACK || true
-          ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE_NAME" | tail -n 1 | tr -d '\r')"
-          adb shell am start -W -n "$ACTIVITY" >/dev/null
-          sleep 3
+          sleep 2
 
-          # Stop recording early if still active.
+          # Stop at ~29s. The notification shade is the final proof that NOXA
+          # continues the user-started Live Drive while minimized.
           kill "$REC_PID" >/dev/null 2>&1 || true
           wait "$REC_PID" >/dev/null 2>&1 || true
           sleep 1
           adb pull /sdcard/noxa-location-proof.mp4 "$RUNNER_TEMP/noxa-location-proof.mp4"
+
+          # Close the shade and return to NOXA after recording for state checks.
+          adb shell input keyevent KEYCODE_BACK || true
+          adb shell am start -W -n "$ACTIVITY" >/dev/null
+          sleep 2
 
           # Save final UI + permission evidence for debugging.
           adb shell dumpsys package "$PACKAGE_NAME" | grep -A20 "runtime permissions:" > "$RUNNER_TEMP/permissions.txt" || true
