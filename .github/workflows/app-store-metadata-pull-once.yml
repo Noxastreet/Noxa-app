@@ -35,6 +35,12 @@ jobs:
           eas.submit.production.ios ||= {};
           eas.submit.production.ios.appleTeamId = 'V8H92SG76B';
           fs.writeFileSync('eas.json', JSON.stringify(eas, null, 2) + '\n');
+
+          const app = JSON.parse(fs.readFileSync('app.json','utf8'));
+          app.expo ||= {};
+          app.expo.ios ||= {};
+          app.expo.ios.appleTeamId = 'V8H92SG76B';
+          fs.writeFileSync('app.json', JSON.stringify(app, null, 2) + '\n');
           NODE
       - name: Pull current App Store metadata
         env:
