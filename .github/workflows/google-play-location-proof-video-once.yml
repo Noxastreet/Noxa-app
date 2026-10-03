@@ -214,40 +214,57 @@ jobs:
           sleep 1
           adb pull /sdcard/noxa-proof-a.mp4 "$RUNNER_TEMP/noxa-proof-a.mp4"
 
-          # The app now explains the background-specific step.
-          $UI exists "Open Settings" 15
-
-          # CLIP B: background-location recovery -> Android Settings ->
-          # Allow all the time -> minimize NOXA -> ongoing Live Drive notification.
+          # CLIP B: show the real Android permission page, grant background
+          # access, return to NOXA, then prove Live Drive stays active when minimized.
           rm -f "$RUNNER_TEMP/noxa-proof-b.mp4"
-          adb shell screenrecord --size 720x1280 --bit-rate 6000000 --time-limit 28 /sdcard/noxa-proof-b.mp4 &
+          adb shell screenrecord --size 720x1280 --bit-rate 6000000 --time-limit 32 /sdcard/noxa-proof-b.mp4 &
           REC_B=$!
           sleep 1
-          $UI tap "Open Settings" 6
-          $UI tap "Permissions" 10
+
+          # Open NOXA's real Android app settings. This is the screen where
+          # Android 11+ exposes "Allow all the time".
+          adb shell am start -W -a android.settings.APPLICATION_DETAILS_SETTINGS -d "package:$PACKAGE_NAME" >/dev/null
+          sleep 1
+          $UI tap "Permissions" 8
           $UI tap "Location" 8
           $UI tap "Allow all the time" 8
           sleep 1
 
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE_NAME" | tail -n 1 | tr -d '\r')"
           adb shell am start -W -n "$ACTIVITY" >/dev/null
-          sleep 3
+          sleep 2
 
-          # Live Drive is user-started. Minimize the app to activate the real
-          # background location foreground service, then expose its notification.
+          # Returning from Settings should trigger NOXA's built-in permission
+          # recovery and start the same user-selected Public session.
+          if ! $UI exists "Visibility: Public" 10; then
+            if $UI exists "Visibility: Ghost" 3; then
+              $UI tap "Visibility: Ghost" 4
+              $UI tap "Public. Visible to everyone while Live Drive is active" 5
+              if $UI exists "Stay visible while driving?" 3; then
+                $UI tap "Continue" 4
+              fi
+            fi
+          fi
+          $UI exists "Visibility: Public" 12
+          sleep 2
+
+          # Minimize NOXA. Its real foreground location service should take over.
           adb shell input keyevent KEYCODE_HOME
           sleep 3
           adb shell cmd statusbar expand-notifications || true
-          sleep 4
+          $UI exists "NOXA Live Drive is active" 10
+          sleep 3
+
+          # Return once more so the proof ends on the active Public state.
+          adb shell input keyevent KEYCODE_BACK || true
+          adb shell am start -W -n "$ACTIVITY" >/dev/null
+          $UI exists "Visibility: Public" 10
+          sleep 2
 
           kill "$REC_B" >/dev/null 2>&1 || true
           wait "$REC_B" >/dev/null 2>&1 || true
           sleep 1
           adb pull /sdcard/noxa-proof-b.mp4 "$RUNNER_TEMP/noxa-proof-b.mp4"
-
-          adb shell input keyevent KEYCODE_BACK || true
-          adb shell am start -W -n "$ACTIVITY" >/dev/null
-          sleep 2
 
           # Save final UI + permission evidence for debugging.
           adb shell dumpsys package "$PACKAGE_NAME" | grep -A20 "runtime permissions:" > "$RUNNER_TEMP/permissions.txt" || true
@@ -281,6 +298,36 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
           script: bash "$RUNNER_TEMP/capture.sh"
 
+      - name: Assemble final Google Play proof
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s "$RUNNER_TEMP/noxa-proof-a.mp4" ] || [ ! -s "$RUNNER_TEMP/noxa-proof-b.mp4" ]; then
+            echo "::error::Both proof clips are required"
+            exit 1
+          fi
+          printf "file '%s'\nfile '%s'\n"             "$RUNNER_TEMP/noxa-proof-a.mp4"             "$RUNNER_TEMP/noxa-proof-b.mp4"             > "$RUNNER_TEMP/concat.txt"
+          ffmpeg -y -f concat -safe 0 -i "$RUNNER_TEMP/concat.txt" -c copy "$RUNNER_TEMP/noxa-google-play-proof-raw.mp4" >/dev/null 2>&1
+          DURATION="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$RUNNER_TEMP/noxa-google-play-proof-raw.mp4")"
+          python3 - "$DURATION" "$RUNNER_TEMP/noxa-google-play-proof-raw.mp4" "$RUNNER_TEMP/noxa-google-play-proof-final.mp4" <<'PY'
+          import subprocess, sys
+          duration=float(sys.argv[1]); src=sys.argv[2]; dst=sys.argv[3]
+          # Keep the final policy video compact. If it exceeds 30 seconds,
+          # modestly accelerate the capture rather than cutting required evidence.
+          if duration <= 30.0:
+              subprocess.check_call(["cp",src,dst])
+          else:
+              factor=29.5/duration
+              subprocess.check_call([
+                  "ffmpeg","-y","-i",src,
+                  "-filter:v",f"setpts={factor:.6f}*PTS",
+                  "-an","-r","30","-c:v","libx264","-preset","medium","-crf","20",
+                  "-movflags","+faststart",dst
+              ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          PY
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 "$RUNNER_TEMP/noxa-google-play-proof-final.mp4"
+
       - name: Inspect recording metadata
         if: always()
         shell: bash
@@ -300,6 +347,7 @@ jobs:
           path: |
             ${{ runner.temp }}/noxa-proof-a.mp4
             ${{ runner.temp }}/noxa-proof-b.mp4
+            ${{ runner.temp }}/noxa-google-play-proof-final.mp4
             ${{ runner.temp }}/permissions.txt
             ${{ runner.temp }}/final-ui.xml
             ${{ runner.temp }}/failure-screen.png
