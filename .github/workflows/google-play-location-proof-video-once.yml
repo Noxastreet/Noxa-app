@@ -193,53 +193,58 @@ jobs:
           fi
           $UI exists "Search NOXA" 35
 
-          # Open the visibility menu before recording. This setup action is harmless;
-          # the recording begins immediately before the user selects Public.
+          # Prepare the user-trigger point before recording.
           $UI tap "Visibility: Ghost" 6
           $UI exists "Public. Visible to everyone while Live Drive is active" 5
 
-          echo "Starting concise 30-second Google Play proof recording"
-          rm -f "$RUNNER_TEMP/noxa-location-proof.mp4"
-          adb shell screenrecord --size 720x1280 --bit-rate 6000000 --time-limit 30 /sdcard/noxa-location-proof.mp4 &
-          REC_PID=$!
+          # CLIP A: real NOXA feature selection, prominent disclosure, and the
+          # Android foreground-location runtime prompt.
+          rm -f "$RUNNER_TEMP/noxa-proof-a.mp4"
+          adb shell screenrecord --size 720x1280 --bit-rate 6000000 --time-limit 18 /sdcard/noxa-proof-a.mp4 &
+          REC_A=$!
+          sleep 1
+          $UI tap "Public. Visible to everyone while Live Drive is active" 5
+          $UI exists "Stay visible while driving?" 5
+          sleep 4
+          $UI tap "Continue" 5
+          $UI tap "While using the app" 8
+          sleep 1
+          kill "$REC_A" >/dev/null 2>&1 || true
+          wait "$REC_A" >/dev/null 2>&1 || true
+          sleep 1
+          adb pull /sdcard/noxa-proof-a.mp4 "$RUNNER_TEMP/noxa-proof-a.mp4"
+
+          # The app now explains the background-specific step.
+          $UI exists "Open Settings" 15
+
+          # CLIP B: background-location recovery -> Android Settings ->
+          # Allow all the time -> minimize NOXA -> ongoing Live Drive notification.
+          rm -f "$RUNNER_TEMP/noxa-proof-b.mp4"
+          adb shell screenrecord --size 720x1280 --bit-rate 6000000 --time-limit 28 /sdcard/noxa-proof-b.mp4 &
+          REC_B=$!
+          sleep 1
+          $UI tap "Open Settings" 6
+          $UI tap "Permissions" 10
+          $UI tap "Location" 8
+          $UI tap "Allow all the time" 8
           sleep 1
 
-          # 1) User explicitly starts Public Live Drive.
-          $UI tap "Public. Visible to everyone while Live Drive is active" 4
-
-          # 2) NOXA's prominent disclosure, visible before any location permission.
-          $UI exists "Stay visible while driving?" 4
-          sleep 3
-          $UI tap "Continue" 4
-
-          # 3) Android precise foreground location.
-          $UI tap "While using the app" 7
-
-          # 4) Android background-location settings path.
-          # requestBackgroundPermissionsAsync opens the app-permission settings on API 35.
-          $UI tap "Permissions" 7
-          $UI tap "Location" 6
-          $UI tap "Allow all the time" 6
-          sleep 1
-
-          # 5) Return to NOXA. The existing consent flow retries Public automatically.
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE_NAME" | tail -n 1 | tr -d '\r')"
           adb shell am start -W -n "$ACTIVITY" >/dev/null
-          sleep 2
+          sleep 3
 
-          # 6) Minimize NOXA and show the real ongoing foreground-service notification.
+          # Live Drive is user-started. Minimize the app to activate the real
+          # background location foreground service, then expose its notification.
           adb shell input keyevent KEYCODE_HOME
           sleep 3
           adb shell cmd statusbar expand-notifications || true
-          sleep 3
+          sleep 4
 
-          # Keep the result within Google's recommended ~30-second window.
-          kill "$REC_PID" >/dev/null 2>&1 || true
-          wait "$REC_PID" >/dev/null 2>&1 || true
+          kill "$REC_B" >/dev/null 2>&1 || true
+          wait "$REC_B" >/dev/null 2>&1 || true
           sleep 1
-          adb pull /sdcard/noxa-location-proof.mp4 "$RUNNER_TEMP/noxa-location-proof.mp4"
+          adb pull /sdcard/noxa-proof-b.mp4 "$RUNNER_TEMP/noxa-proof-b.mp4"
 
-          # Close the shade and return to NOXA after recording for state checks.
           adb shell input keyevent KEYCODE_BACK || true
           adb shell am start -W -n "$ACTIVITY" >/dev/null
           sleep 2
@@ -249,8 +254,9 @@ jobs:
           adb shell uiautomator dump /sdcard/final.xml >/dev/null 2>&1 || true
           adb pull /sdcard/final.xml "$RUNNER_TEMP/final-ui.xml" >/dev/null 2>&1 || true
 
-          # Basic verification: video exists and background permission is granted.
-          test -s "$RUNNER_TEMP/noxa-location-proof.mp4"
+          # Basic verification: both real-device clips exist and background access is granted.
+          test -s "$RUNNER_TEMP/noxa-proof-a.mp4"
+          test -s "$RUNNER_TEMP/noxa-proof-b.mp4"
           grep -q "ACCESS_BACKGROUND_LOCATION: granted=true" "$RUNNER_TEMP/permissions.txt"
           echo "Capture complete"
           SH
@@ -279,9 +285,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          if [ -s "$RUNNER_TEMP/noxa-location-proof.mp4" ]; then
-            ffprobe -v error -show_entries format=duration,size -of default=nw=1 "$RUNNER_TEMP/noxa-location-proof.mp4" || true
-          fi
+          for video in "$RUNNER_TEMP/noxa-proof-a.mp4" "$RUNNER_TEMP/noxa-proof-b.mp4"; do
+            if [ -s "$video" ]; then
+              ls -lh "$video"
+            fi
+          done
           cat "$RUNNER_TEMP/permissions.txt" 2>/dev/null || true
 
       - name: Upload Google Play proof video
@@ -290,7 +298,8 @@ jobs:
         with:
           name: noxa-google-play-background-location-proof
           path: |
-            ${{ runner.temp }}/noxa-location-proof.mp4
+            ${{ runner.temp }}/noxa-proof-a.mp4
+            ${{ runner.temp }}/noxa-proof-b.mp4
             ${{ runner.temp }}/permissions.txt
             ${{ runner.temp }}/final-ui.xml
             ${{ runner.temp }}/failure-screen.png
