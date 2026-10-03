@@ -13,11 +13,11 @@ const editor = fs.readFileSync('app/event-editor.tsx', 'utf8');
 const detail = fs.readFileSync('src/features/crews-events/CanonicalEventDetailScreen.tsx', 'utf8');
 const eventExperience = fs.readFileSync('src/lib/eventExperience.ts', 'utf8');
 const migration = fs.readFileSync(
-  'supabase/migrations/20261002154500_expand_event_categories.sql',
+  'supabase/migrations/20261002125126_expand_event_categories.sql',
   'utf8',
 );
 const eventChatPushMigration = fs.readFileSync(
-  'supabase/migrations/20261003114500_add_event_chat_push_notifications.sql',
+  'supabase/migrations/20261003084115_add_event_chat_push_notifications.sql',
   'utf8',
 );
 const pushBridge = fs.readFileSync(
@@ -29,6 +29,11 @@ assert(
   /nextState === "inactive" \|\| nextState === "background"[\s\S]*startLiveDriveBackgroundUpdates\(\)/.test(map)
     && /nextState === "active"[\s\S]*stopLiveDriveBackgroundUpdates\(\)/.test(map),
   'Personal map presence must continue through the dedicated background task while the app is minimized.',
+);
+assert(
+  /startLiveDriveBackgroundUpdates\(\)\.catch[\s\S]{0,520}hasLiveDriveRuntimeAccess\(\)[\s\S]{0,360}visibility setting is preserved[\s\S]{0,520}startLiveDriveBackgroundUpdates\(\)\.catch\(\(\) => undefined\)/.test(map)
+    && /accessStillValid[\s\S]{0,900}await stopSharing\(true\)/.test(map),
+  'A transient Android background-start failure must preserve Live Drive when permissions remain valid.',
 );
 assert(
   /id: "global"[\s\S]*label: "Public"/.test(map),
