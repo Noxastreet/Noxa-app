@@ -2969,7 +2969,7 @@ export default function LiveMapScreen() {
         body={`NOXA collects and shares your precise location with ${pendingVisibility?.label.toLowerCase() ?? "your selected audience"} while the app is in the background, so they can see you on the live map.`}
         busy={isStartingLiveDrive}
         confirmDisabled={!pendingVisibilityMode}
-        confirmTitle="Start 4-hour session"
+        confirmTitle="Continue"
         eyebrow="BACKGROUND LOCATION"
         footnote="Sharing continues while NOXA is minimized. It stops after 4 hours, when you select Ghost, when you sign out, or after the app is fully closed and its live presence expires."
         icon="navigate"
@@ -2977,7 +2977,7 @@ export default function LiveMapScreen() {
         onConfirm={() => {
           if (pendingVisibilityMode) void startSharing(pendingVisibilityMode);
         }}
-        title="Start a 4-hour Live Drive?"
+        title="Stay visible while driving?"
         visible={pendingVisibilityMode !== null}
       />
 
