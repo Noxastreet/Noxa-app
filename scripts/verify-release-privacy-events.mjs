@@ -16,6 +16,14 @@ const migration = fs.readFileSync(
   'supabase/migrations/20261002154500_expand_event_categories.sql',
   'utf8',
 );
+const eventChatPushMigration = fs.readFileSync(
+  'supabase/migrations/20261003114500_add_event_chat_push_notifications.sql',
+  'utf8',
+);
+const pushBridge = fs.readFileSync(
+  'src/features/notifications/PushNotificationBridge.tsx',
+  'utf8',
+);
 
 assert(
   /nextState === "inactive" \|\| nextState === "background"[\s\S]*startLiveDriveBackgroundUpdates\(\)/.test(map)
@@ -62,6 +70,25 @@ assert(
 assert(
   /requestAndRegisterCurrentPushDevice/.test(editor),
   'Event organizers must register/sync reminders after saving an event.',
+);
+
+assert(
+  /'event_chat_message'/.test(eventChatPushMigration)
+    && /from public\.event_attendees/.test(eventChatPushMigration)
+    && /event_attendees\.user_id <> new\.sender_id/.test(eventChatPushMigration)
+    && /'messages'/.test(eventChatPushMigration),
+  'Event Chat push must fan out only to other event participants through message preferences.',
+);
+assert(
+  /'event_chat_id', new\.event_id/.test(eventChatPushMigration)
+    && /'event_id', new\.event_id/.test(eventChatPushMigration)
+    && /message_excerpt/.test(eventChatPushMigration),
+  'Event Chat push payload must carry the exact chat target and a short message preview.',
+);
+assert(
+  /const eventChatId = firstDataString\(data, 'event_chat_id', 'eventChatId'\)/.test(pushBridge)
+    && /pathname: '\/event-chat'/.test(pushBridge),
+  'Event Chat push taps must deep link into the exact Event Chat before generic event routing.',
 );
 
 for (const category of ['drift', 'drag', 'rally', 'offroad', 'show']) {
