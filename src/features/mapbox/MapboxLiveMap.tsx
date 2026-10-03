@@ -57,6 +57,8 @@ const ROUTE_FOLLOW_ZOOM = 16.5;
 const ROUTE_FOLLOW_PITCH = 54;
 const ROUTE_MODE_PITCH = 48;
 const DRIVER_CLUSTER_LIMIT = 80;
+const COURSE_BEARING_ENTER_SPEED_MPS = 1.5;
+const COURSE_BEARING_EXIT_SPEED_MPS = 0.8;
 const STANDARD_BASEMAP_CONFIG = {
   lightPreset: "night" as const,
   // Keep the aggregate flag for older Standard behavior, and explicitly
@@ -181,6 +183,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     const cameraRef = useRef<ElementRef<typeof Camera> | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [hasError, setHasError] = useState(false);
+    const [useCourseBearing, setUseCourseBearing] = useState(false);
 
     const driverFeatures = useMemo(
       () => createDriverFeatureCollection(activeDrivers, selectedDriverId),
@@ -366,6 +369,16 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           onUserLocationUpdate={(location) => {
             const latitude = Number(location.coords.latitude);
             const longitude = Number(location.coords.longitude);
+            const speed = Number(location.coords.speed);
+
+            if (Number.isFinite(speed) && speed >= 0) {
+              setUseCourseBearing((current) =>
+                current
+                  ? speed >= COURSE_BEARING_EXIT_SPEED_MPS
+                  : speed >= COURSE_BEARING_ENTER_SPEED_MPS,
+              );
+            }
+
             if (
               !onUserLocationChange
               || !Number.isFinite(latitude)
@@ -451,7 +464,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 
           <LocationPuck
             bearingImage={NOXA_LOCATION_ARROW_IMAGE}
-            puckBearing={isRouteMode ? "course" : "heading"}
+            puckBearing={isRouteMode && useCourseBearing ? "course" : "heading"}
             puckBearingEnabled
             pulsing={{ color: colors.primary, isEnabled: true, radius: 34 }}
             scale={isRouteMode ? 0.84 : 0.74}
