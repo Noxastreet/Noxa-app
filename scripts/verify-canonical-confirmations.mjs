@@ -40,7 +40,9 @@ assert(
 
 assert(
   (home.match(/<NoxaConfirmationSheet/g) ?? []).length === 2
-    && /Start a 4-hour Live Drive\?/.test(home)
+    && /Stay visible while driving\?/.test(home)
+    && /BACKGROUND LOCATION/.test(home)
+    && /Sharing continues while NOXA is minimized/.test(home)
     && /Change Live Drive audience\?/.test(home)
     && /applyAudienceChange\(pendingAudienceChange\.to\)/.test(home)
     && /startSharing\(pendingVisibilityMode\)/.test(home),
