@@ -173,7 +173,7 @@ assert(
 );
 assert(
   /useNavigation/.test(map)
-    && /const hideRootTabs = driveTogetherPanelVisible \|\| isRouteFocusMode/.test(map)
+    && /const hideRootTabs =[\s\S]{0,180}driveTogetherPanelVisible[\s\S]{0,120}Boolean\(driveTogetherNavigation\)[\s\S]{0,120}isRouteFocusMode/.test(map)
     && /tabBarStyle: hideRootTabs \? \{ display: "none" \} : undefined/.test(map),
   'Root navigation must hide while Drive Together or focused navigation owns the bottom chrome.',
 );
