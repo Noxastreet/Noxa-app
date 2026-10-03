@@ -106,7 +106,7 @@ export default function OnboardingScreen() {
       return;
     }
 
-    markOnboardingComplete(userId);
+    await markOnboardingComplete(userId);
     // Privacy/visibility remains a separate existing contract. Do not bypass it:
     // first-run onboarding must reach privacy before the Map.
     router.replace('/visibility-setup');
