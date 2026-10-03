@@ -45,7 +45,7 @@ assert(
 const pushBridge = fs.readFileSync('src/features/notifications/PushNotificationBridge.tsx', 'utf8');
 const pushNotifications = fs.readFileSync('src/lib/pushNotifications.ts', 'utf8');
 const eventChatPushMigration = fs.readFileSync(
-  'supabase/migrations/20261003114500_add_event_chat_push_notifications.sql',
+  'supabase/migrations/20261003084115_add_event_chat_push_notifications.sql',
   'utf8',
 );
 
