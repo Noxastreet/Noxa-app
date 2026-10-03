@@ -1,0 +1,122 @@
+name: NOXA Google Play Production Once
+
+on:
+  push:
+    branches:
+      - fix/release-blockers-20261003
+    paths:
+      - .github/workflows/google-play-production-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: noxa-google-play-production-once-20261003
+  cancel-in-progress: false
+
+jobs:
+  build-submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CI: "1"
+      EXPECTED_CANDIDATE_SHA: "3a4d687f6d4ea45d011cba53ba57b571fe276a4c"
+      EXPECTED_WORKFLOW_PATH: ".github/workflows/google-play-production-once.yml"
+
+    steps:
+      - name: Check out delivery branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Prove delivery commit only adds this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHANGED="$(git diff --name-only HEAD^ HEAD)"
+          printf 'Delivery-only files:\n%s\n' "${CHANGED:-<none>}"
+          test "$CHANGED" = "$EXPECTED_WORKFLOW_PATH"
+
+      - name: Check out exact release candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 3a4d687f6d4ea45d011cba53ba57b571fe276a4c
+          fetch-depth: 1
+
+      - name: Prove exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Recheck release blocker contract
+        run: |
+          npx tsc --noEmit
+          npm run verify:release-blockers
+
+      - name: Configure production Play submission for this runner only
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const eas = JSON.parse(fs.readFileSync('eas.json','utf8'));
+          eas.submit ||= {};
+          eas.submit.production ||= {};
+          eas.submit.production.android = {
+            track: 'production',
+            releaseStatus: 'completed'
+          };
+          fs.writeFileSync('eas.json', JSON.stringify(eas, null, 2) + '\n');
+          NODE
+          cat eas.json
+
+      - name: Build production AAB on EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes eas-cli@24.7.0 build             --platform android             --profile production             --non-interactive             --wait             --json > "$RUNNER_TEMP/android-build.json"
+
+          cat "$RUNNER_TEMP/android-build.json"
+          node <<'NODE'
+          const fs = require('fs');
+          const raw = fs.readFileSync(process.env.RUNNER_TEMP + '/android-build.json','utf8');
+          const data = JSON.parse(raw);
+          const build = Array.isArray(data) ? data[0] : data;
+          if (!build?.id) throw new Error('Android production build id missing');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'ANDROID_BUILD_ID=' + build.id + '\n');
+          const url = build.buildDetailsPageUrl || ('https://expo.dev/accounts/noxastreet/projects/Noxa/builds/' + build.id);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '### NOXA Google Play production build\n' +
+            '- Source SHA: ' + process.env.EXPECTED_CANDIDATE_SHA + '\n' +
+            '- Build ID: ' + build.id + '\n' +
+            '- Build page: ' + url + '\n');
+          NODE
+
+      - name: Submit AAB to Google Play production
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Submitting EAS build $ANDROID_BUILD_ID to Google Play production"
+          npx --yes eas-cli@24.7.0 submit             --platform android             --profile production             --id "$ANDROID_BUILD_ID"             --non-interactive             --wait
+
+      - name: Record Google Play submission success
+        shell: bash
+        run: |
+          {
+            echo "- Google Play submission: successful"
+            echo "- Track: production"
+            echo "- Release status: completed"
+          } >> "$GITHUB_STEP_SUMMARY"
