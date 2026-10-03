@@ -142,12 +142,11 @@ async function getPreciseLocationSample() {
   // The map itself uses Balanced successfully on iOS. Bound the one-shot fix
   // so Start 4 hour never leaves the UI waiting indefinitely. If Balanced
   // returns quickly but is too imprecise, make one bounded High-accuracy try.
-  let balanced: Location.LocationObject;
+  let balanced: Location.LocationObject | null = null;
   try {
     balanced = await getCurrentPositionWithTimeout(Location.Accuracy.Balanced);
   } catch (error) {
     if (error instanceof Error && error.message.includes('timed out')) throw error;
-    balanced = null as unknown as Location.LocationObject;
   }
   if (balanced && hasPreciseLocationSample(balanced.coords)) return balanced;
 
