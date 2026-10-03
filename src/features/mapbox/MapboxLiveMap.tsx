@@ -127,6 +127,29 @@ function eventIconName(
   }
 }
 
+function distanceBetweenMeters(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+  const earthRadius = 6_371_000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const latitudeDelta = toRadians(b.latitude - a.latitude);
+  const longitudeDelta = toRadians(b.longitude - a.longitude);
+  const latitude1 = toRadians(a.latitude);
+  const latitude2 = toRadians(b.latitude);
+  const h =
+    Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function formatDriverDistance(distanceMeters: number) {
+  if (!Number.isFinite(distanceMeters) || distanceMeters < 0) return null;
+  if (distanceMeters < 1000) {
+    const rounded = Math.max(10, Math.round(distanceMeters / 10) * 10);
+    return `${rounded} m`;
+  }
+  if (distanceMeters < 10_000) return `${(distanceMeters / 1000).toFixed(1)} km`;
+  return `${Math.round(distanceMeters / 1000)} km`;
+}
+
 if (MAPBOX_ACCESS_TOKEN) {
   Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
 }
@@ -507,41 +530,57 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           ) : null}
 
           {mapFilter !== "events" && !shouldClusterDrivers
-            ? activeDrivers.map((driver) => (
-                <MarkerView
-                  allowOverlap
-                  allowOverlapWithPuck
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  coordinate={toPosition(driver)}
-                  isSelected={selectedDriverId === driver.user_id}
-                  key={driver.user_id}
-                >
-                  <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: selectedDriverId === driver.user_id }}
-                    accessibilityLabel={`${driver.label} is visible on the NOXA map`}
-                    activeOpacity={0.82}
-                    onPress={() => onDriverPress(driver.user_id)}
-                    style={styles.driverHitTarget}
+            ? activeDrivers.map((driver) => {
+                const distanceLabel = driverLocation
+                  ? formatDriverDistance(distanceBetweenMeters(driverLocation, driver))
+                  : null;
+                return (
+                  <MarkerView
+                    allowOverlap
+                    allowOverlapWithPuck
+                    anchor={{ x: 0.27, y: 0.5 }}
+                    coordinate={toPosition(driver)}
+                    isSelected={selectedDriverId === driver.user_id}
+                    key={driver.user_id}
                   >
-                    <View style={[
-                      styles.driverMarker,
-                      driver.is_relevant && styles.driverMarkerRelevant,
-                      selectedDriverId === driver.user_id && styles.driverMarkerSelected,
-                      driver.is_dimmed && styles.driverMarkerDimmed,
-                    ]}>
-                    <View style={styles.driverMarkerAccent} />
-                    {driver.avatar_url ? (
-                      <Image
-                        contentFit="cover"
-                        source={{ uri: driver.avatar_url }}
-                        style={styles.driverAvatar}
-                      />
-                    ) : (
-                      <Ionicons name="car-sport" size={15} color={colors.text} />
-                    )}
-                    </View>
-                  </TouchableOpacity>
-                </MarkerView>
-              ))
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: selectedDriverId === driver.user_id }}
+                      accessibilityLabel={`${driver.label} is visible on the NOXA map`}
+                      activeOpacity={0.82}
+                      onPress={() => onDriverPress(driver.user_id)}
+                      style={styles.driverHitTarget}
+                    >
+                      <View style={styles.driverMarkerShell}>
+                        {distanceLabel ? (
+                          <View pointerEvents="none" style={styles.driverDistancePill}>
+                            <Text numberOfLines={1} style={styles.driverDistanceText}>
+                              {distanceLabel}
+                            </Text>
+                          </View>
+                        ) : null}
+                        <View style={[
+                          styles.driverMarker,
+                          driver.is_relevant && styles.driverMarkerRelevant,
+                          selectedDriverId === driver.user_id && styles.driverMarkerSelected,
+                          driver.is_dimmed && styles.driverMarkerDimmed,
+                        ]}>
+                          <View style={styles.driverMarkerAccent} />
+                          {driver.avatar_url ? (
+                            <Image
+                              contentFit="cover"
+                              source={{ uri: driver.avatar_url }}
+                              style={styles.driverAvatar}
+                            />
+                          ) : (
+                            <Ionicons name="person" size={15} color={colors.text} />
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </MarkerView>
+                );
+              })
             : null}
 
           {mapFilter !== "drivers" || isRouteMode ? (
@@ -676,7 +715,10 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 MapboxLiveMap.displayName = "MapboxLiveMap";
 
 const styles = StyleSheet.create({
-  driverHitTarget: { width: geometry.controlHeight.compact, height: geometry.controlHeight.compact, alignItems: 'center', justifyContent: 'center' },
+  driverHitTarget: { width: 82, height: geometry.controlHeight.compact, alignItems: 'flex-start', justifyContent: 'center' },
+  driverMarkerShell: { width: 82, height: geometry.controlHeight.compact, alignItems: 'flex-start', justifyContent: 'center', paddingLeft: 4 },
+  driverDistancePill: { position: 'absolute', left: 27, top: 10, minWidth: 44, height: 24, justifyContent: 'center', paddingLeft: 13, paddingRight: 8, borderRadius: radius.pill, backgroundColor: 'rgba(6,6,10,0.94)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  driverDistanceText: { color: colors.text, fontSize: 9, fontWeight: '900', letterSpacing: 0.1 },
   stateView: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
