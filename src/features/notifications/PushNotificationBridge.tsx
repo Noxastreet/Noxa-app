@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 import {
   refreshCurrentPushDevice,
-  registerCurrentPushDevice,
+  requestAndRegisterCurrentPushDevice,
   rememberCurrentAccessToken,
   unregisterLastPushDevice,
 } from '@/src/lib/pushNotifications';
@@ -86,7 +86,7 @@ export function PushNotificationBridge() {
   useEffect(() => {
     let mounted = true;
 
-    void registerCurrentPushDevice().catch((error) => {
+    void requestAndRegisterCurrentPushDevice().catch((error) => {
       if (mounted) {
         console.warn('[noxa-push] Push setup failed.', error);
       }
