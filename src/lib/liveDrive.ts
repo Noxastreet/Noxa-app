@@ -10,6 +10,7 @@ const LIVE_DRIVE_SESSION_KEY = 'noxa.live-drive-session.v1';
 const PENDING_LIVE_DRIVE_CLEANUP_KEY = 'noxa.live-drive-pending-cleanup.v1';
 const PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000;
 const PRECISE_LOCATION_MAX_AGE_MS = 60_000;
+const LIVE_DRIVE_GPS_FIX_TIMEOUT_MS = 6_000;
 const PENDING_CLEANUP_RETRY_DELAYS_MS = [5_000, 15_000, 30_000] as const;
 
 export type LiveDriveVisibilityMode = 'crew' | 'friends' | 'global';
@@ -112,6 +113,23 @@ function hasPreciseLocationSample(coords: Location.LocationObjectCoords) {
   );
 }
 
+async function getCurrentPositionWithTimeout(accuracy: Location.Accuracy) {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy }),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error('Live Drive GPS fix timed out.')),
+          LIVE_DRIVE_GPS_FIX_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
 async function getPreciseLocationSample() {
   const lastKnown = await Location.getLastKnownPositionAsync({
     maxAge: PRECISE_LOCATION_MAX_AGE_MS,
@@ -121,25 +139,23 @@ async function getPreciseLocationSample() {
     return lastKnown;
   }
 
-  // The map itself uses Balanced successfully on iOS. Prefer that faster fix
-  // first, then escalate to High only when the returned sample is still too
-  // imprecise for Live Drive. Reduced Accuracy remains rejected by the same
-  // < 1000 m validation below.
+  // The map itself uses Balanced successfully on iOS. Bound the one-shot fix
+  // so Start 4 hour never leaves the UI waiting indefinitely. If Balanced
+  // returns quickly but is too imprecise, make one bounded High-accuracy try.
+  let balanced: Location.LocationObject;
   try {
-    const balanced = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    if (hasPreciseLocationSample(balanced.coords)) return balanced;
-  } catch {
-    // Fall through to one High-accuracy attempt.
+    balanced = await getCurrentPositionWithTimeout(Location.Accuracy.Balanced);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('timed out')) throw error;
+    balanced = null as unknown as Location.LocationObject;
   }
+  if (balanced && hasPreciseLocationSample(balanced.coords)) return balanced;
 
   try {
-    const high = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
+    const high = await getCurrentPositionWithTimeout(Location.Accuracy.High);
     return hasPreciseLocationSample(high.coords) ? high : null;
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('timed out')) throw error;
     return null;
   }
 }
@@ -398,14 +414,14 @@ export async function requestLiveDrivePermissions() {
     throw new Error('Location services are off. Enable GPS to start Live Drive.');
   }
 
-  const current = await getPreciseLocationSample();
-  if (!current) {
-    throw new Error('Precise location is unavailable. Enable Precise Location and retry where GPS has a clear signal.');
-  }
-
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== Location.PermissionStatus.GRANTED) {
     throw new Error('Allow background location for NOXA so Live Drive can stay active while the app is minimized.');
+  }
+
+  const current = await getPreciseLocationSample();
+  if (!current) {
+    throw new Error('Precise location is unavailable. Enable Precise Location and retry where GPS has a clear signal.');
   }
 
   return current;
