@@ -13,8 +13,9 @@ export function hasCompletedOnboarding(userId: string) {
   try {
     return localStorage.getItem(getOnboardingKey(userId)) === 'complete';
   } catch {
-    // A storage failure must not keep an authenticated user out of the app.
-    return true;
+    // Local storage is only a fast path. Fall back to the canonical server
+    // marker so a genuinely new account can never skip onboarding.
+    return false;
   }
 }
 
