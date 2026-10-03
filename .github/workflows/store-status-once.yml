@@ -1,0 +1,51 @@
+name: NOXA Store Status Once
+
+on:
+  push:
+    branches:
+      - fix/release-blockers-20261003
+    paths:
+      - .github/workflows/store-status-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6dc951a61744e89331d90801d8fe984944e7d025
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Add store IDs for status tooling only
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const eas = JSON.parse(fs.readFileSync('eas.json','utf8'));
+          eas.submit ||= {};
+          eas.submit.production ||= {};
+          eas.submit.production.ios ||= {};
+          eas.submit.production.ios.ascAppId = '6811355257';
+          eas.submit.production.ios.appleTeamId = 'V8H92SG76B';
+          fs.writeFileSync('eas.json', JSON.stringify(eas, null, 2) + '\n');
+          NODE
+      - name: List recent iOS submissions
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest submit:list --platform ios --limit 10 --json --non-interactive
+      - name: Read live iOS App Store status
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest submit:status --platform ios --profile production --json --non-interactive
+      - name: List recent Android submissions
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest submit:list --platform android --limit 10 --json --non-interactive
