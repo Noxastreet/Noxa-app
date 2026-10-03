@@ -302,31 +302,38 @@ export default function EventEditorScreen() {
     [form.endAt, form.startAt],
   );
 
+  const commitPickerValue = useCallback(
+    (target: PickerTarget, value: Date) => {
+      setForm((current) => {
+        if (target === "startDate")
+          return {
+            ...current,
+            startAt: mergeDatePart(current.startAt, value),
+          };
+        if (target === "startTime")
+          return {
+            ...current,
+            startAt: mergeTimePart(current.startAt, value),
+          };
+        if (target === "endDate")
+          return {
+            ...current,
+            endAt: mergeDatePart(current.endAt ?? current.startAt, value),
+          };
+        return {
+          ...current,
+          endAt: mergeTimePart(current.endAt ?? current.startAt, value),
+        };
+      });
+      setPickerTarget(null);
+    },
+    [],
+  );
+
   const commitPicker = useCallback(() => {
     if (!pickerTarget) return;
-    setForm((current) => {
-      if (pickerTarget === "startDate")
-        return {
-          ...current,
-          startAt: mergeDatePart(current.startAt, draftDate),
-        };
-      if (pickerTarget === "startTime")
-        return {
-          ...current,
-          startAt: mergeTimePart(current.startAt, draftDate),
-        };
-      if (pickerTarget === "endDate")
-        return {
-          ...current,
-          endAt: mergeDatePart(current.endAt ?? current.startAt, draftDate),
-        };
-      return {
-        ...current,
-        endAt: mergeTimePart(current.endAt ?? current.startAt, draftDate),
-      };
-    });
-    setPickerTarget(null);
-  }, [draftDate, pickerTarget]);
+    commitPickerValue(pickerTarget, draftDate);
+  }, [commitPickerValue, draftDate, pickerTarget]);
 
   const getCurrentPoint = useCallback(async () => {
     const permission = await Location.requestForegroundPermissionsAsync();
@@ -894,40 +901,55 @@ export default function EventEditorScreen() {
             onUseCurrentLocation={useCurrentLocationInModal}
           />
         </Modal>
-        <Modal
-          animationType="fade"
-          transparent
-          visible={pickerTarget !== null}
-          onRequestClose={() => setPickerTarget(null)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.pickerSheet}>
-              <View style={styles.pickerHeader}>
-                <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={() => setPickerTarget(null)}>
-                  <Text style={styles.pickerAction}>Cancel</Text>
-                </Pressable>
-                <Text style={styles.pickerTitle}>
-                  {pickerTarget?.includes("Date")
-                    ? "Select date"
-                    : "Select time"}
-                </Text>
-                <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={commitPicker}>
-                  <Text style={styles.pickerDone}>Done</Text>
-                </Pressable>
+        {Platform.OS === "android" && pickerTarget ? (
+          <DateTimePicker
+            value={draftDate}
+            mode={pickerTarget.includes("Date") ? "date" : "time"}
+            display="default"
+            onChange={(event, selected) => {
+              if (event.type === "dismissed" || !selected) {
+                setPickerTarget(null);
+                return;
+              }
+              commitPickerValue(pickerTarget, selected);
+            }}
+          />
+        ) : (
+          <Modal
+            animationType="fade"
+            transparent
+            visible={pickerTarget !== null}
+            onRequestClose={() => setPickerTarget(null)}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.pickerSheet}>
+                <View style={styles.pickerHeader}>
+                  <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={() => setPickerTarget(null)}>
+                    <Text style={styles.pickerAction}>Cancel</Text>
+                  </Pressable>
+                  <Text style={styles.pickerTitle}>
+                    {pickerTarget?.includes("Date")
+                      ? "Select date"
+                      : "Select time"}
+                  </Text>
+                  <Pressable accessibilityRole="button" style={styles.pickerControl} onPress={commitPicker}>
+                    <Text style={styles.pickerDone}>Done</Text>
+                  </Pressable>
+                </View>
+                <DateTimePicker
+                  value={draftDate}
+                  mode={pickerTarget?.includes("Date") ? "date" : "time"}
+                  display="spinner"
+                  onChange={(_: unknown, selected?: Date) => {
+                    if (selected) setDraftDate(selected);
+                  }}
+                  themeVariant="dark"
+                  textColor={colors.text}
+                />
               </View>
-              <DateTimePicker
-                value={draftDate}
-                mode={pickerTarget?.includes("Date") ? "date" : "time"}
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(_: unknown, selected?: Date) => {
-                  if (selected) setDraftDate(selected);
-                }}
-                themeVariant="dark"
-                textColor={colors.text}
-              />
             </View>
-          </View>
-        </Modal>
+          </Modal>
+        )}
       </KeyboardAvoidingView>
     </NoxaScreen>
   );
