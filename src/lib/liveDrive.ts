@@ -9,7 +9,7 @@ export const LIVE_DRIVE_DURATION_MS = 4 * 60 * 60 * 1000;
 const LIVE_DRIVE_SESSION_KEY = 'noxa.live-drive-session.v1';
 const PENDING_LIVE_DRIVE_CLEANUP_KEY = 'noxa.live-drive-pending-cleanup.v1';
 const PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000;
-const PRECISE_LOCATION_MAX_AGE_MS = 15_000;
+const PRECISE_LOCATION_MAX_AGE_MS = 60_000;
 const PENDING_CLEANUP_RETRY_DELAYS_MS = [5_000, 15_000, 30_000] as const;
 
 export type LiveDriveVisibilityMode = 'crew' | 'friends' | 'global';
@@ -334,12 +334,16 @@ if (!TaskManager.isTaskDefined(LIVE_DRIVE_TASK_NAME)) {
         !foreground ||
         !background ||
         !hasPreciseForegroundPermission(foreground) ||
-        background.status !== Location.PermissionStatus.GRANTED ||
-        !hasPreciseLocationSample(latestLocation.coords)
+        background.status !== Location.PermissionStatus.GRANTED
       ) {
         await expireSession(session).catch(() => undefined);
         return;
       }
+      // Android can briefly deliver a coarse/stale sample while changing
+      // providers or moving between foreground/background. That is not a
+      // revocation of consent and must never silently turn the driver Ghost.
+      // Keep the active session and wait for the next precise sample.
+      if (!hasPreciseLocationSample(latestLocation.coords)) return;
 
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user.id !== session.userId) {
@@ -424,7 +428,10 @@ export async function hasLiveDriveRuntimeAccess() {
     ) {
       return false;
     }
-    return Boolean(await getPreciseLocationSample());
+    // Runtime access is about permission/capability, not whether the GPS
+    // happens to produce a fresh precise fix in this exact instant. A transient
+    // provider delay must not destroy an otherwise valid four-hour session.
+    return true;
   } catch {
     return false;
   }
