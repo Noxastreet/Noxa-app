@@ -21,7 +21,7 @@ if (!failures.length) {
 
   const requiredCompat = [
     ['Home progressive-disclosure scope missing', /mapFilter === "all"[\s\S]*!props\.isRouteMode/],
-    ['stranger avatar masking missing', /avatar_url: null/],
+    ['map marker avatar preservation missing', /avatar_url: driver\.avatar_url/],
     ['stranger vehicle masking missing', /vehicle_label: null/],
     ['stranger label masking missing', /label: "NOXA driver"/],
     ['driver marker must hand off directly to canonical card', /onDriverPress=\{props\.onDriverPress\}/],
@@ -32,6 +32,10 @@ if (!failures.length) {
 
   if (/selectedDriverId/.test(compat) || /View profile|Close driver preview/.test(compat)) {
     failures.push('Legacy duplicate driver preview must not remain inside MapboxLiveMapCompat');
+  }
+  const mapRuntime = source('src/features/mapbox/MapboxLiveMap.tsx');
+  if (!/formatDriverDistance/.test(mapRuntime) || !/driverDistancePill/.test(mapRuntime) || !/allowOverlapWithPuck/.test(mapRuntime)) {
+    failures.push('Driver map markers must keep profile-photo overlap and compact distance treatment');
   }
   if (!/!selectedDriverId \|\| !selectedDriver\?\.is_relevant/.test(home)
     || !/displayName: "NOXA driver"/.test(home)
