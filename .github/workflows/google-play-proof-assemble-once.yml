@@ -1,0 +1,84 @@
+name: NOXA Assemble Google Play Proof Once
+
+on:
+  push:
+    branches:
+      - fix/release-blockers-20261003
+    paths:
+      - .github/workflows/google-play-proof-assemble-once.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_ARTIFACT_ID: "11283675033"
+
+    steps:
+      - name: Install video tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Download captured proof clips
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/proof"
+          gh api             -H "Accept: application/vnd.github+json"             "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${SOURCE_ARTIFACT_ID}/zip"             > "$RUNNER_TEMP/proof.zip"
+          unzip -q "$RUNNER_TEMP/proof.zip" -d "$RUNNER_TEMP/proof"
+          ls -lh "$RUNNER_TEMP/proof"
+          test -s "$RUNNER_TEMP/proof/noxa-proof-a.mp4"
+          test -s "$RUNNER_TEMP/proof/noxa-proof-b.mp4"
+
+      - name: Assemble final proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          A="$RUNNER_TEMP/proof/noxa-proof-a.mp4"
+          B="$RUNNER_TEMP/proof/noxa-proof-b.mp4"
+          RAW="$RUNNER_TEMP/noxa-google-play-proof-raw.mp4"
+          FINAL="$RUNNER_TEMP/noxa-google-play-proof-final.mp4"
+
+          printf "file '%s'\nfile '%s'\n" "$A" "$B" > "$RUNNER_TEMP/concat.txt"
+          ffmpeg -y -f concat -safe 0 -i "$RUNNER_TEMP/concat.txt" -c copy "$RAW" >/dev/null 2>&1
+
+          DURATION="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$RAW")"
+          echo "Raw duration: $DURATION seconds"
+
+          python3 - "$DURATION" "$RAW" "$FINAL" <<'PY'
+          import subprocess, sys
+          duration=float(sys.argv[1]); src=sys.argv[2]; dst=sys.argv[3]
+          target=29.0
+          if duration <= target:
+              subprocess.check_call(["cp",src,dst])
+          else:
+              factor=target/duration
+              subprocess.check_call([
+                  "ffmpeg","-y","-i",src,
+                  "-filter:v",f"setpts={factor:.8f}*PTS",
+                  "-an","-r","30",
+                  "-c:v","libx264","-preset","medium","-crf","20",
+                  "-movflags","+faststart",dst
+              ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          PY
+
+          echo "Final:"
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 "$FINAL"
+          test -s "$FINAL"
+
+      - name: Upload final Google Play proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-google-play-proof-final
+          path: ${{ runner.temp }}/noxa-google-play-proof-final.mp4
+          if-no-files-found: error
+          retention-days: 7
