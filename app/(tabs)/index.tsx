@@ -1953,10 +1953,30 @@ export default function LiveMapScreen() {
       if (nextState === "inactive" || nextState === "background") {
         if (getLiveDriveSession()) {
           void startLiveDriveBackgroundUpdates().catch(async () => {
+            const accessStillValid = await hasLiveDriveRuntimeAccess();
+            if (accessStillValid && getLiveDriveSession()) {
+              if (isMountedRef.current) {
+                setSharingError(
+                  "Live Drive is reconnecting in the background. Your visibility setting is preserved.",
+                );
+              }
+              setTimeout(() => {
+                if (
+                  !isMountedRef.current
+                  || isAppForegroundRef.current
+                  || !getLiveDriveSession()
+                ) {
+                  return;
+                }
+                void startLiveDriveBackgroundUpdates().catch(() => undefined);
+              }, 1_500);
+              return;
+            }
+
             await stopSharing(true);
             if (isMountedRef.current) {
               setSharingError(
-                "Live Drive stopped because background location is unavailable.",
+                "Live Drive stopped because background location access is unavailable.",
               );
             }
           });
