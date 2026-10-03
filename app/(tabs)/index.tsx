@@ -2201,14 +2201,33 @@ export default function LiveMapScreen() {
     });
     if (point) {
       setIsCameraAwayFromUser(false);
-      if (isRouteFollowing) {
-        setIsRouteFollowing(false);
-        requestAnimationFrame(() => animateTo(pointRegion(point)));
+      const visibleNearbyDrivers = activeDrivers
+        .filter(
+          (driver) =>
+            distanceBetweenMeters(point, driver) <= NEARBY_RADIUS_METERS,
+        )
+        .map((driver) => ({
+          latitude: driver.latitude,
+          longitude: driver.longitude,
+        }));
+      const focusPoints = [point, ...visibleNearbyDrivers];
+
+      if (isRouteFollowing) setIsRouteFollowing(false);
+
+      // Recenter is a social-map action, not a "zoom onto my puck" action.
+      // Keep the driver visible while framing the people currently nearby.
+      if (focusPoints.length > 1) {
+        requestAnimationFrame(() =>
+          mapRef.current?.fitToCoordinates(focusPoints, {
+            animated: true,
+            edgePadding: { top: 150, right: 52, bottom: 250, left: 52 },
+          }),
+        );
       } else {
-        animateTo(pointRegion(point));
+        requestAnimationFrame(() => animateTo(pointRegion(point)));
       }
     }
-  }, [animateTo, isRouteFollowing, loadDriverLocation]);
+  }, [activeDrivers, animateTo, isRouteFollowing, loadDriverLocation]);
   const toggleRouteFollow = useCallback(() => {
     const point = driverLocationRef.current;
 
