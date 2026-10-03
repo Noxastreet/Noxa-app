@@ -97,7 +97,7 @@ export default function OnboardingScreen() {
     setPageIndex(index);
   }, []);
 
-  const finish = useCallback(() => {
+  const finish = useCallback(async () => {
     if (isFinishingRef.current || !userId) return;
 
     isFinishingRef.current = true;
