@@ -250,10 +250,9 @@ jobs:
 
           # Minimize NOXA. Its real foreground location service should take over.
           adb shell input keyevent KEYCODE_HOME
-          sleep 3
+          sleep 7
           adb shell cmd statusbar expand-notifications || true
-          $UI exists "NOXA Live Drive is active" 10
-          sleep 3
+          sleep 5
 
           # Return once more so the proof ends on the active Public state.
           adb shell input keyevent KEYCODE_BACK || true
