@@ -18,14 +18,19 @@ export function hasCompletedOnboarding(userId: string) {
   }
 }
 
-export function markOnboardingComplete(userId: string) {
+export async function markOnboardingComplete(userId: string) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (error) throw error;
+
   try {
     localStorage.setItem(getOnboardingKey(userId), 'complete');
-    return true;
   } catch {
-    // The caller can still continue into the app when local persistence is unavailable.
-    return false;
+    // Server completion is canonical. Local persistence is only a fast path.
   }
+  return true;
 }
 
 
@@ -52,14 +57,18 @@ export async function resolveOnboardingCompletion(
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('username')
+    .select('username,onboarding_completed_at')
     .eq('id', userId)
     .maybeSingle();
 
   if (error) return 'unknown';
 
-  if (data?.username?.trim()) {
-    markOnboardingComplete(userId);
+  if (data?.onboarding_completed_at) {
+    try {
+      localStorage.setItem(getOnboardingKey(userId), 'complete');
+    } catch {
+      // Server completion remains canonical.
+    }
     return 'profile';
   }
 
