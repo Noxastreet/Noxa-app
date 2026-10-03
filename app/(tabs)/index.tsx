@@ -3129,6 +3129,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
   header: {
     position: "absolute",
+    zIndex: 40,
+    elevation: 40,
     left: spacing.md,
     right: spacing.md,
     height: 44,
@@ -3253,12 +3255,16 @@ const styles = StyleSheet.create({
   },
   locationControlStack: {
     position: "absolute",
+    zIndex: 40,
+    elevation: 40,
     right: spacing.md,
     alignItems: "flex-end",
     gap: spacing.sm,
   },
   groupDriveControl: {
     position: "absolute",
+    zIndex: 40,
+    elevation: 40,
     left: spacing.md,
   },
   visibilityControl: {
@@ -3289,6 +3295,8 @@ const styles = StyleSheet.create({
   },
   visibilityMenuPosition: {
     position: "absolute",
+    zIndex: 60,
+    elevation: 60,
     left: spacing.md,
     width: 264,
   },
@@ -3343,6 +3351,8 @@ const styles = StyleSheet.create({
   },
   ghostToastWrap: {
     position: "absolute",
+    zIndex: 50,
+    elevation: 50,
     left: 0,
     right: 0,
     alignItems: "center",
@@ -3365,6 +3375,8 @@ const styles = StyleSheet.create({
   },
   mapNotice: {
     position: "absolute",
+    zIndex: 50,
+    elevation: 50,
     left: spacing.md,
     right: spacing.md,
     minHeight: 38,
@@ -3385,6 +3397,8 @@ const styles = StyleSheet.create({
   },
   mapDataNotice: {
     position: "absolute",
+    zIndex: 50,
+    elevation: 50,
     left: spacing.md,
     right: spacing.md,
     minHeight: 44,
@@ -3499,6 +3513,8 @@ const styles = StyleSheet.create({
   },
   driveNavigationTop: {
     position: "absolute",
+    zIndex: 70,
+    elevation: 70,
     left: spacing.md,
     right: spacing.md,
     flexDirection: "row",
@@ -3517,6 +3533,8 @@ const styles = StyleSheet.create({
   },
   driveNavigationBottom: {
     position: "absolute",
+    zIndex: 70,
+    elevation: 70,
     left: spacing.md,
     right: spacing.md,
     flexDirection: "row",
