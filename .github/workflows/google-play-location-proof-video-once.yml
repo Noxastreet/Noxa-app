@@ -117,6 +117,7 @@ jobs:
           #!/usr/bin/env bash
           set -euo pipefail
           UI="python3 $RUNNER_TEMP/ui.py"
+          trap 'adb exec-out screencap -p > "$RUNNER_TEMP/failure-screen.png" 2>/dev/null || true; adb shell uiautomator dump /sdcard/failure.xml >/dev/null 2>&1 || true; adb pull /sdcard/failure.xml "$RUNNER_TEMP/failure-ui.xml" >/dev/null 2>&1 || true' ERR
 
           echo "Installing NOXA APK"
           adb install -r "$APK_PATH"
@@ -130,37 +131,52 @@ jobs:
           adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_COARSE_LOCATION || true
           adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_BACKGROUND_LOCATION || true
 
-          echo "Launching app and signing in before recording"
+          echo "Launching app and creating a review session before recording"
           adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
-          $UI tap "Sign In" 20
-          $UI tap "you@example.com" 15
-          adb shell input text 'noxastreetapp+googleplay%40gmail.com'
-          $UI tap "Password" 10 || $UI tap "••••••••" 10
-          # Safely type the secret without logging it.
+
+          # Authenticate server-side with the review password, then hand the short-lived
+          # Supabase session to NOXA through its existing auth callback deep link.
+          # This avoids showing credentials or typing them into the video.
           python3 - <<'PY'
-          import os, subprocess, shlex
-          value = os.environ["REVIEW_PASSWORD"]
-          # Android 'input text' treats %s as space; escape shell metacharacters.
-          # Use ADB keyboard events for common printable ASCII.
-          for ch in value:
-              if ch.isalnum():
-                  subprocess.check_call(["adb","shell","input","text",ch], stdout=subprocess.DEVNULL)
-              else:
-                  keymap = {
-                    "@":"KEYCODE_AT", ".":"KEYCODE_PERIOD", "-":"KEYCODE_MINUS",
-                    "_":"KEYCODE_MINUS", "!":"KEYCODE_1", "#":"KEYCODE_POUND",
-                    "$":"KEYCODE_4", "%":"KEYCODE_5", "&":"KEYCODE_7",
-                    "*":"KEYCODE_STAR", "+":"KEYCODE_PLUS", "=":"KEYCODE_EQUALS",
-                  }
-                  if ch in keymap:
-                      subprocess.check_call(["adb","shell","input","keyevent",keymap[ch]], stdout=subprocess.DEVNULL)
-                  else:
-                      subprocess.check_call(["adb","shell","input","text",ch], stdout=subprocess.DEVNULL)
+          import json, os, subprocess, urllib.request
+
+          url = "https://wzfpwuyyaotvofdijhin.supabase.co/auth/v1/token?grant_type=password"
+          api_key = "sb_publishable_8LV9r7GTYuYOqSGGQebgNA_W6ea6_HK"
+          payload = json.dumps({
+              "email": os.environ["REVIEW_EMAIL"],
+              "password": os.environ["REVIEW_PASSWORD"],
+          }).encode()
+          req = urllib.request.Request(
+              url,
+              data=payload,
+              method="POST",
+              headers={
+                  "apikey": api_key,
+                  "content-type": "application/json",
+              },
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  body = json.loads(response.read().decode())
+          except Exception as exc:
+              raise SystemExit(f"Review account authentication failed: {type(exc).__name__}")
+
+          access = body.get("access_token")
+          refresh = body.get("refresh_token")
+          if not access or not refresh:
+              raise SystemExit("Review account authentication returned no session tokens")
+
+          deep_link = f"noxa://auth/callback#access_token={access}&refresh_token={refresh}"
+          subprocess.check_call([
+              "adb","shell","am","start",
+              "-a","android.intent.action.VIEW",
+              "-d",deep_link,
+              os.environ["PACKAGE_NAME"],
+          ], stdout=subprocess.DEVNULL)
           PY
-          $UI tap "Sign In" 15
 
           # Returning review account already has onboarding completed.
-          $UI exists "Search NOXA" 30
+          $UI exists "Search NOXA" 35
 
           echo "Starting clean 30-second Google Play proof recording"
           rm -f "$RUNNER_TEMP/noxa-location-proof.mp4"
@@ -287,5 +303,7 @@ jobs:
             ${{ runner.temp }}/noxa-location-proof.mp4
             ${{ runner.temp }}/permissions.txt
             ${{ runner.temp }}/final-ui.xml
+            ${{ runner.temp }}/failure-screen.png
+            ${{ runner.temp }}/failure-ui.xml
           if-no-files-found: warn
           retention-days: 7
