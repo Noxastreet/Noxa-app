@@ -1,7 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  FadeIn,
+  ReduceMotion,
+} from 'react-native-reanimated';
 
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { animations, colors, radius, spacing, typography } from '@/src/theme';
+
+const EMPTY_STATE_ENTER = FadeIn
+  .duration(animations.step)
+  .withInitialValues({
+    opacity: 0,
+    transform: [{ translateY: 8 }],
+  })
+  .reduceMotion(ReduceMotion.System);
 
 type NoxaEmptyStateProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -11,13 +23,13 @@ type NoxaEmptyStateProps = {
 
 export function NoxaEmptyState({ icon, title, body }: NoxaEmptyStateProps) {
   return (
-    <View style={styles.emptyState}>
+    <Animated.View entering={EMPTY_STATE_ENTER} style={styles.emptyState}>
       <View style={styles.iconWrap}>
         <Ionicons name={icon} size={26} color={colors.textMuted} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
-    </View>
+    </Animated.View>
   );
 }
 
