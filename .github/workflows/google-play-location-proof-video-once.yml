@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     env:
-      REVIEW_EMAIL: google.play.review@noxastreetapp.com
+      REVIEW_EMAIL: noxastreetapp+googleplay@gmail.com
       REVIEW_PASSWORD: ${{ secrets.NOXA_GOOGLE_REVIEW_PASSWORD }}
       APK_ARTIFACT_ID: "11270337798"
       PACKAGE_NAME: com.karaketidis.noxa
@@ -134,7 +134,7 @@ jobs:
           adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
           $UI tap "Sign In" 20
           $UI tap "you@example.com" 15
-          adb shell input text 'google.play.review%40noxastreetapp.com'
+          adb shell input text 'noxastreetapp+googleplay%40gmail.com'
           $UI tap "Password" 10 || $UI tap "••••••••" 10
           # Safely type the secret without logging it.
           python3 - <<'PY'
