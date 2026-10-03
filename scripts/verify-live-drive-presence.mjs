@@ -26,9 +26,17 @@ assert(
   'Personal visibility must explicitly request the foreground and background location access required for minimized sharing.',
 );
 assert(
-  permissionsSlice.includes('const current = await getPreciseLocationSample();')
+  permissionsSlice.includes('Location.requestBackgroundPermissionsAsync()')
+    && permissionsSlice.indexOf('Location.requestBackgroundPermissionsAsync()')
+      < permissionsSlice.indexOf('const current = await getPreciseLocationSample();')
     && permissionsSlice.includes('return current;'),
-  'Personal visibility must validate and return one precise foreground sample before starting.',
+  'Personal visibility must obtain background access before spending time on a foreground GPS fix.',
+);
+assert(
+  liveDrive.includes('LIVE_DRIVE_GPS_FIX_TIMEOUT_MS = 6_000')
+    && liveDrive.includes('getCurrentPositionWithTimeout')
+    && liveDrive.includes("reject(new Error('Live Drive GPS fix timed out.'))"),
+  'Start 4 hour must bound one-shot GPS acquisition instead of waiting indefinitely.',
 );
 assert(
   permissionFlow.includes('return requestLiveDrivePermissions();'),
@@ -121,6 +129,11 @@ assert(
   liveDriveError.includes('Set NOXA Location to Always')
     && liveDriveError.includes('Allow background location for NOXA'),
   'Personal visibility recovery must explain the background-location requirement.',
+);
+assert(
+  !liveDriveError.includes("if (Platform.OS !== 'ios') return false")
+    && liveDriveError.includes("message.includes('gps fix timed out')"),
+  'Android must also offer Settings recovery for permission failures, while GPS timeout stays a retry-only error.',
 );
 
 if (!process.exitCode) {
