@@ -776,14 +776,25 @@ function DriveTogetherNavigationChrome({
           </View>
         </NoxaSurface>
 
-        <NoxaIconButton
-          accessibilityLabel="Open Drive Together"
-          icon="people-outline"
-          iconSize={20}
-          onPress={onOpenPanel}
-          size={44}
-          variant="overlay"
-        />
+        {panelVisible && !following ? (
+          <NoxaIconButton
+            accessibilityLabel="Recenter Drive Together navigation"
+            icon="locate"
+            iconSize={20}
+            onPress={onRecenter}
+            size={44}
+            variant="overlay"
+          />
+        ) : (
+          <NoxaIconButton
+            accessibilityLabel="Open Drive Together"
+            icon="people-outline"
+            iconSize={20}
+            onPress={onOpenPanel}
+            size={44}
+            variant="overlay"
+          />
+        )}
       </View>
 
       {!panelVisible ? (
