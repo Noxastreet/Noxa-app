@@ -49,6 +49,7 @@ assert(
   /function DriveTogetherNavigationChrome/.test(home)
     && /Recenter Drive Together navigation/.test(home)
     && /setIsDriveTogetherFollowing\(true\)/.test(home)
+    && /panelVisible && !following/.test(home)
     && /Boolean\(driveTogetherNavigation\)/.test(home),
   'Drive Together must keep one map with navigation chrome and Recenter recovery.',
 );
@@ -85,7 +86,8 @@ assert(
 assert(
   /onboarding_completed_at/.test(onboarding)
     && /select\('id'\)/.test(onboarding)
-    && /Onboarding completion was not persisted/.test(onboarding),
+    && /Onboarding completion was not persisted/.test(onboarding)
+    && /catch \{[\s\S]{0,220}return false;/.test(onboarding),
   'Onboarding completion must be explicit server state and verify the row was persisted.',
 );
 
