@@ -1,0 +1,243 @@
+name: NOXA Release Candidate Build Once
+
+on:
+  push:
+    branches:
+      - fix/release-blockers-20261003
+    paths:
+      - .github/workflows/release-candidate-build-once.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: noxa-release-candidate-build-once-20261003
+  cancel-in-progress: false
+
+env:
+  CI: "1"
+  EXPECTED_CANDIDATE_SHA: "3a4d687f6d4ea45d011cba53ba57b571fe276a4c"
+  EXPECTED_WORKFLOW_PATH: ".github/workflows/release-candidate-build-once.yml"
+  EXPECTED_BUNDLE_ID: "com.karaketidis.noxa"
+  EXPECTED_APP_VERSION: "1.0.0"
+
+jobs:
+  preflight:
+    name: Prove exact green candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      candidate_sha: ${{ steps.candidate.outputs.sha }}
+    steps:
+      - name: Check out delivery branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Prove delivery commit is candidate plus workflow only
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARENT_SHA="$(git rev-parse HEAD^)"
+          echo "Delivery HEAD: $(git rev-parse HEAD)"
+          echo "Delivery parent: $PARENT_SHA"
+          echo "Expected candidate: $EXPECTED_CANDIDATE_SHA"
+
+          if [ "$PARENT_SHA" != "$EXPECTED_CANDIDATE_SHA" ]; then
+            echo "Delivery parent is not the exact release candidate."
+            exit 1
+          fi
+
+          CHANGED="$(git diff --name-only "$EXPECTED_CANDIDATE_SHA" HEAD)"
+          printf 'Delivery-only files:\n%s\n' "${CHANGED:-<none>}"
+          if [ "$CHANGED" != "$EXPECTED_WORKFLOW_PATH" ]; then
+            echo "Delivery commit contains product changes. Refusing to build."
+            exit 1
+          fi
+
+          echo "sha=$EXPECTED_CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Verify candidate Quality run is green
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/Noxastreet/Noxa-app/actions/runs?head_sha=$EXPECTED_CANDIDATE_SHA&per_page=50"             --jq '.workflow_runs[] | select(.name == "Quality" and .status == "completed" and .conclusion == "success") | .id'             > "$RUNNER_TEMP/quality-success"
+          test -s "$RUNNER_TEMP/quality-success"
+          echo "Verified green Quality run(s):"
+          cat "$RUNNER_TEMP/quality-success"
+
+  android:
+    name: Build production-env Android APK
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      APK_PATH: "${{ github.workspace }}/artifacts/noxa-release-candidate-${{ github.run_id }}.apk"
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.candidate_sha }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Recheck release blocker contract
+        run: |
+          npx tsc --noEmit
+          npm run verify:release-blockers
+
+      - name: Create ephemeral production-env APK profile
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const eas = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+          eas.build['release-test'] = {
+            distribution: 'internal',
+            environment: 'production',
+            autoIncrement: false,
+            android: { buildType: 'apk' }
+          };
+          fs.writeFileSync('eas.json', JSON.stringify(eas, null, 2) + '\n');
+          NODE
+          cat eas.json
+
+      - name: Build installable Android APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$APK_PATH")"
+          npx --yes eas-cli@24.7.0 build             --platform android             --profile release-test             --local             --non-interactive             --output "$APK_PATH"
+          test -f "$APK_PATH"
+          ls -lh "$APK_PATH"
+          file "$APK_PATH"
+
+      - name: Preserve Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-release-candidate-apk-${{ github.run_id }}
+          path: artifacts/noxa-release-candidate-${{ github.run_id }}.apk
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Record Android evidence
+        shell: bash
+        run: |
+          {
+            echo "### NOXA Android release-candidate APK"
+            echo "- Source SHA: $EXPECTED_CANDIDATE_SHA"
+            echo "- Environment: production"
+            echo "- Artifact: noxa-release-candidate-apk-${GITHUB_RUN_ID}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ios:
+    name: Build production iOS and submit TestFlight
+    needs: preflight
+    runs-on: macos-latest
+    timeout-minutes: 100
+    env:
+      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-release-candidate-${{ github.run_id }}.ipa"
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.candidate_sha }}
+          fetch-depth: 1
+
+      - name: Prove exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Recheck release blocker contract
+        run: |
+          npx tsc --noEmit
+          npm run verify:release-blockers
+
+      - name: Build production IPA
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$IPA_PATH")"
+          npx --yes eas-cli@24.7.0 build             --platform ios             --profile production             --local             --non-interactive             --output "$IPA_PATH"
+          test -f "$IPA_PATH"
+          ls -lh "$IPA_PATH"
+
+      - name: Verify IPA metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          unzip -q "$IPA_PATH" -d "$TMP_DIR"
+          APP_DIR="$(find "$TMP_DIR/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          INFO_PLIST="$APP_DIR/Info.plist"
+          test -f "$INFO_PLIST"
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")"
+          APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+          BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")"
+
+          echo "Bundle ID: $BUNDLE_ID"
+          echo "App version: $APP_VERSION"
+          echo "Build number: $BUILD_NUMBER"
+
+          test "$BUNDLE_ID" = "$EXPECTED_BUNDLE_ID"
+          test "$APP_VERSION" = "$EXPECTED_APP_VERSION"
+          test "$BUILD_NUMBER" -ge 70
+
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          {
+            echo "### NOXA iOS release candidate"
+            echo "- Source SHA: $EXPECTED_CANDIDATE_SHA"
+            echo "- Bundle ID: $BUNDLE_ID"
+            echo "- Version: $APP_VERSION"
+            echo "- Build number: $BUILD_NUMBER"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-release-candidate-ipa-${{ github.run_id }}
+          path: artifacts/noxa-release-candidate-${{ github.run_id }}.ipa
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Submit IPA to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@24.7.0 submit --platform ios --profile production --path "$IPA_PATH" --non-interactive --wait
+
+      - name: Record successful TestFlight upload
+        shell: bash
+        run: |
+          {
+            echo "- TestFlight upload: successful"
+            echo "- Submitted build number: $BUILD_NUMBER"
+          } >> "$GITHUB_STEP_SUMMARY"
