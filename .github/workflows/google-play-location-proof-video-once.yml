@@ -125,14 +125,16 @@ jobs:
           # Deterministic virtual GPS location, near Thessaloniki.
           adb emu geo fix 22.9444 40.6401 || true
           adb shell settings put secure location_mode 3 || true
+          adb shell settings put global hide_error_dialogs 1 || true
+          adb shell settings put global show_first_crash_dialog 0 || true
+          adb shell settings put global anr_show_background 0 || true
 
           # Start with no location grants so the recording shows the real consent flow.
           adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_FINE_LOCATION || true
           adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_COARSE_LOCATION || true
           adb shell pm revoke "$PACKAGE_NAME" android.permission.ACCESS_BACKGROUND_LOCATION || true
 
-          echo "Launching app and creating a review session before recording"
-          adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
+          echo "Creating a review session before recording"
 
           # Authenticate server-side with the review password, then hand the short-lived
           # Supabase session to NOXA through its existing auth callback deep link.
@@ -169,8 +171,9 @@ jobs:
           deep_link = f"noxa://auth/callback#access_token={access}&refresh_token={refresh}"
           import shlex
           package = os.environ["PACKAGE_NAME"]
+          subprocess.run(["adb", "shell", "am", "force-stop", package], check=False)
           remote = (
-              "am start -a android.intent.action.VIEW "
+              "am start -W -a android.intent.action.VIEW "
               + "-d " + shlex.quote(deep_link) + " "
               + "-p " + shlex.quote(package)
           )
@@ -178,6 +181,10 @@ jobs:
           PY
 
           # Returning review account already has onboarding completed.
+          sleep 5
+          if $UI exists "Wait" 2; then
+            $UI tap "Wait" 3 || true
+          fi
           $UI exists "Search NOXA" 35
 
           echo "Starting clean 30-second Google Play proof recording"
@@ -226,7 +233,8 @@ jobs:
           fi
 
           # Return to NOXA. The app is designed to retry Public automatically.
-          adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
+          ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE_NAME" | tail -n 1 | tr -d '\r')"
+          adb shell am start -W -n "$ACTIVITY" >/dev/null
           sleep 4
 
           # If automatic retry has not yet finished, reopen chooser and select Public.
@@ -247,7 +255,8 @@ jobs:
           adb shell cmd statusbar expand-notifications || true
           sleep 3
           adb shell input keyevent KEYCODE_BACK || true
-          adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1 >/dev/null
+          ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE_NAME" | tail -n 1 | tr -d '\r')"
+          adb shell am start -W -n "$ACTIVITY" >/dev/null
           sleep 3
 
           # Stop recording early if still active.
