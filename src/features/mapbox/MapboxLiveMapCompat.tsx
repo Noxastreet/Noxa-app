@@ -34,7 +34,7 @@ function safeHomeDriver(driver: MapboxDriver): MapboxDriver {
   return {
     ...driver,
     label: "NOXA driver",
-    avatar_url: null,
+    avatar_url: driver.avatar_url,
     vehicle_label: null,
   };
 }
