@@ -15,9 +15,12 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import Animated, {
-  FadeIn,
-  FadeOut,
+  Easing,
   ReduceMotion,
+  SlideInLeft,
+  SlideInRight,
+  SlideOutLeft,
+  SlideOutRight,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -37,12 +40,24 @@ import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { geometry, animations, colors, radius, spacing, typography } from '@/src/theme';
 
 type Mode = 'share' | 'connect';
+type QuickConnectTransitionDirection = 'forward' | 'back';
 
-const QUICK_CONNECT_STAGE_ENTER = FadeIn
-  .duration(animations.micro)
+const QUICK_CONNECT_STAGE_CURVE = Easing.bezier(0.22, 1, 0.36, 1);
+const QUICK_CONNECT_FORWARD_ENTER = SlideInRight
+  .duration(animations.sheet)
+  .easing(QUICK_CONNECT_STAGE_CURVE)
   .reduceMotion(ReduceMotion.System);
-const QUICK_CONNECT_STAGE_EXIT = FadeOut
-  .duration(animations.fast)
+const QUICK_CONNECT_FORWARD_EXIT = SlideOutLeft
+  .duration(animations.base)
+  .easing(QUICK_CONNECT_STAGE_CURVE)
+  .reduceMotion(ReduceMotion.System);
+const QUICK_CONNECT_BACK_ENTER = SlideInLeft
+  .duration(animations.sheet)
+  .easing(QUICK_CONNECT_STAGE_CURVE)
+  .reduceMotion(ReduceMotion.System);
+const QUICK_CONNECT_BACK_EXIT = SlideOutRight
+  .duration(animations.base)
+  .easing(QUICK_CONNECT_STAGE_CURVE)
   .reduceMotion(ReduceMotion.System);
 
 type CurrentProfile = {
@@ -122,6 +137,8 @@ export default function QuickConnectScreen() {
     normalizeParam(params.returnTo) === 'drive-together';
 
   const [mode, setMode] = useState<Mode>(initialMode);
+  const [stageTransitionDirection, setStageTransitionDirection] =
+    useState<QuickConnectTransitionDirection>('forward');
   const [profile, setProfile] = useState<CurrentProfile | null>(null);
   const [session, setSession] = useState<QuickConnectSession | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
@@ -138,6 +155,22 @@ export default function QuickConnectScreen() {
   const [redeeming, setRedeeming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const incomingHandledRef = useRef(false);
+  const stageTransitionFrameRef = useRef<number | null>(null);
+
+  const transitionStage = useCallback((
+    direction: QuickConnectTransitionDirection,
+    apply: () => void,
+  ) => {
+    if (stageTransitionFrameRef.current !== null) {
+      cancelAnimationFrame(stageTransitionFrameRef.current);
+      stageTransitionFrameRef.current = null;
+    }
+    setStageTransitionDirection(direction);
+    stageTransitionFrameRef.current = requestAnimationFrame(() => {
+      stageTransitionFrameRef.current = null;
+      apply();
+    });
+  }, []);
 
   const loadProfile = useCallback(async () => {
     const user = await getCurrentSessionUser();
@@ -182,10 +215,12 @@ export default function QuickConnectScreen() {
       if (!nextPreview) {
         throw new Error('This Quick Connect code is invalid or expired.');
       }
-      setPreview(nextPreview);
-      setScannerOpen(false);
-      setScannerLocked(false);
-      setMode('connect');
+      transitionStage('forward', () => {
+        setPreview(nextPreview);
+        setScannerOpen(false);
+        setScannerLocked(false);
+        setMode('connect');
+      });
     } catch (resolveError) {
       setError(
         resolveError instanceof Error
@@ -196,7 +231,7 @@ export default function QuickConnectScreen() {
     } finally {
       setResolving(false);
     }
-  }, []);
+  }, [transitionStage]);
 
   useEffect(() => {
     void loadProfile();
@@ -253,8 +288,8 @@ export default function QuickConnectScreen() {
     }
 
     setScannerLocked(false);
-    setScannerOpen(true);
-  }, [permission?.granted, requestPermission]);
+    transitionStage('forward', () => setScannerOpen(true));
+  }, [permission?.granted, requestPermission, transitionStage]);
 
   const addFriend = useCallback(async () => {
     if (!preview || redeeming) return;
@@ -270,8 +305,10 @@ export default function QuickConnectScreen() {
     setError(null);
     try {
       const result = await redeemQuickConnect(preview.sessionId);
-      setFriend(result);
-      setPreview(null);
+      transitionStage('forward', () => {
+        setFriend(result);
+        setPreview(null);
+      });
     } catch (redeemError) {
       setError(
         redeemError instanceof Error
@@ -281,7 +318,7 @@ export default function QuickConnectScreen() {
     } finally {
       setRedeeming(false);
     }
-  }, [preview, redeeming]);
+  }, [preview, redeeming, transitionStage]);
 
   const shareCode = useCallback(async () => {
     if (!session) return;
@@ -291,13 +328,34 @@ export default function QuickConnectScreen() {
   }, [session]);
 
   const resetConnect = useCallback(() => {
-    setPreview(null);
-    setFriend(null);
-    setError(null);
-    setCodeInput('');
-    setScannerOpen(false);
-    setScannerLocked(false);
-  }, []);
+    transitionStage('back', () => {
+      setPreview(null);
+      setFriend(null);
+      setError(null);
+      setCodeInput('');
+      setScannerOpen(false);
+      setScannerLocked(false);
+    });
+  }, [transitionStage]);
+
+  useEffect(
+    () => () => {
+      if (stageTransitionFrameRef.current !== null) {
+        cancelAnimationFrame(stageTransitionFrameRef.current);
+        stageTransitionFrameRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const stageEntering =
+    stageTransitionDirection === 'back'
+      ? QUICK_CONNECT_BACK_ENTER
+      : QUICK_CONNECT_FORWARD_ENTER;
+  const stageExiting =
+    stageTransitionDirection === 'back'
+      ? QUICK_CONNECT_BACK_EXIT
+      : QUICK_CONNECT_FORWARD_EXIT;
 
   const stageKey =
     mode === 'share'
@@ -333,8 +391,16 @@ export default function QuickConnectScreen() {
             accessibilityRole="button"
             accessibilityState={{ selected: mode === 'share' }}
             onPress={() => {
-              resetConnect();
-              setMode('share');
+              if (mode === 'share') return;
+              transitionStage('back', () => {
+                setPreview(null);
+                setFriend(null);
+                setError(null);
+                setCodeInput('');
+                setScannerOpen(false);
+                setScannerLocked(false);
+                setMode('share');
+              });
             }}
             style={[styles.segmentButton, mode === 'share' && styles.segmentButtonActive]}>
             <Ionicons
@@ -350,8 +416,16 @@ export default function QuickConnectScreen() {
             accessibilityRole="button"
             accessibilityState={{ selected: mode === 'connect' }}
             onPress={() => {
-              resetConnect();
-              setMode('connect');
+              if (mode === 'connect' && !preview && !friend && !scannerOpen) return;
+              transitionStage('forward', () => {
+                setPreview(null);
+                setFriend(null);
+                setError(null);
+                setCodeInput('');
+                setScannerOpen(false);
+                setScannerLocked(false);
+                setMode('connect');
+              });
             }}
             style={[styles.segmentButton, mode === 'connect' && styles.segmentButtonActive]}>
             <Ionicons
@@ -366,8 +440,8 @@ export default function QuickConnectScreen() {
         </View>
 
         <Animated.View
-          entering={QUICK_CONNECT_STAGE_ENTER}
-          exiting={QUICK_CONNECT_STAGE_EXIT}
+          entering={stageEntering}
+          exiting={stageExiting}
           key={stageKey}
           style={styles.stage}>
           {mode === 'share' ? (
@@ -575,8 +649,10 @@ export default function QuickConnectScreen() {
                     <Pressable accessibilityRole="button"
                       accessibilityLabel="Close scanner"
                       onPress={() => {
-                        setScannerOpen(false);
-                        setScannerLocked(false);
+                        transitionStage('back', () => {
+                          setScannerOpen(false);
+                          setScannerLocked(false);
+                        });
                       }}
                       style={styles.iconButton}>
                       <Ionicons name="close" size={20} color={colors.text} />
