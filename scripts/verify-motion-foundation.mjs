@@ -21,6 +21,8 @@ const layout = read('app/(tabs)/_layout.tsx');
 const map = read('app/(tabs)/index.tsx');
 const driverCard = read('src/features/map/MapDriverCard.tsx');
 const driveSheet = read('src/features/group-drive/components/DriveTogetherSheet.tsx');
+const emptyState = read('src/components/ui/NoxaEmptyState.tsx');
+const search = read('app/search.tsx');
 
 assert(
   /rootTab:\s*160/.test(animations)
@@ -108,8 +110,21 @@ assert(
 );
 
 assert(
+  /const EMPTY_STATE_ENTER = FadeIn[\s\S]{0,220}translateY:\s*8[\s\S]{0,180}ReduceMotion\.System/.test(emptyState)
+    && /<Animated\.View entering=\{EMPTY_STATE_ENTER\}/.test(emptyState),
+  'Canonical empty states must use one restrained Reduce Motion aware entrance.',
+);
+
+assert(
+  /const SEARCH_STATE_ENTER = FadeIn[\s\S]{0,220}translateY:\s*6[\s\S]{0,180}ReduceMotion\.System/.test(search)
+    && /const resultStageKey =/.test(search)
+    && /entering=\{SEARCH_STATE_ENTER\}[\s\S]{0,120}exiting=\{SEARCH_STATE_EXIT\}[\s\S]{0,120}key=\{resultStageKey\}/.test(search),
+  'Explore must animate semantic result-state changes without animating every result row.',
+);
+
+assert(
   !/watchPositionAsync|startLocationUpdatesAsync|Mapbox\.MapView|<MapView/.test(
-    [surface, button, iconButton, segmented, tabs, layout, driverCard].join('\n'),
+    [surface, button, iconButton, segmented, tabs, layout, driverCard, emptyState, search].join('\n'),
   ),
   'Motion foundation must not introduce Mapbox or GPS runtime primitives.',
 );

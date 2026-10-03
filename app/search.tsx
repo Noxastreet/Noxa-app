@@ -11,10 +11,26 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  ReduceMotion,
+} from "react-native-reanimated";
 
 import { NoxaEmptyState, NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
-import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { animations, geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
+
+const SEARCH_STATE_ENTER = FadeIn
+  .duration(animations.step)
+  .withInitialValues({
+    opacity: 0,
+    transform: [{ translateY: 6 }],
+  })
+  .reduceMotion(ReduceMotion.System);
+const SEARCH_STATE_EXIT = FadeOut
+  .duration(animations.fast)
+  .reduceMotion(ReduceMotion.System);
 
 type SearchFilter = "all" | "drivers" | "vehicles" | "crews" | "events";
 
@@ -474,6 +490,13 @@ export default function SearchScreen() {
     (showVehicles ? results.vehicles.length : 0) +
     (showCrews ? results.crews.length : 0) +
     (showEvents ? results.events.length : 0);
+  const resultStage =
+    isLoading && !hasAnyResults
+      ? "loading"
+      : visibleResultCount === 0
+        ? "empty"
+        : "results";
+  const resultStageKey = `${activeFilter}:${resultStage}`;
 
   return (
     <NoxaScreen padded={false}>
@@ -535,6 +558,10 @@ export default function SearchScreen() {
             />
           ) : null}
 
+          <Animated.View
+            entering={SEARCH_STATE_ENTER}
+            exiting={SEARCH_STATE_EXIT}
+            key={resultStageKey}>
           {isLoading && !hasAnyResults ? (
             <View style={styles.loadingState}>
               <ActivityIndicator color={colors.primary} />
@@ -609,6 +636,7 @@ export default function SearchScreen() {
               ) : null}
             </>
           )}
+          </Animated.View>
         </ScrollView>
       </View>
     </NoxaScreen>
