@@ -255,6 +255,18 @@ assert(
     && /enteringDrive[\s\S]*setIsDriveTogetherFollowing\(true\)/.test(map),
   'Drive Together must enter user-follow camera mode without fitting distant participants.',
 );
+assert(
+  /function DriveTogetherNavigationChrome/.test(map)
+    && /Recenter Drive Together navigation/.test(map)
+    && /setIsDriveTogetherFollowing\(true\)/.test(map)
+    && /!driveTogetherPanelVisible && !driveTogetherNavigation/.test(map),
+  'Drive Together must expose navigation chrome and restore follow mode after a manual map pan.',
+);
+assert(
+  /followPadding=\{\{[\s\S]{0,180}paddingTop: 110[\s\S]{0,180}paddingBottom: 260/.test(mapRuntime)
+    && /followUserMode=\{UserTrackingMode\.FollowWithCourse\}/.test(mapRuntime),
+  'Driving camera must keep forward-looking screen space and follow the user course.',
+);
 
 assert(
   /DriveTogetherMapLayer/.test(map)
