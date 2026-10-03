@@ -1512,6 +1512,7 @@ export default function LiveMapScreen() {
       setVisibilityMode(activeSession.visibilityMode);
       setLiveDriveExpiresAt(activeSession.expiresAt);
       setIsVisibleOnMap(true);
+      setSharingError(null);
       setLiveDriveClock(Date.now());
     }
   }, [stopSharing]);
@@ -1979,7 +1980,11 @@ export default function LiveMapScreen() {
                 ) {
                   return;
                 }
-                void startLiveDriveBackgroundUpdates().catch(() => undefined);
+                void startLiveDriveBackgroundUpdates()
+                  .then(() => {
+                    if (isMountedRef.current) setSharingError(null);
+                  })
+                  .catch(() => undefined);
               }, 1_500);
               return;
             }
