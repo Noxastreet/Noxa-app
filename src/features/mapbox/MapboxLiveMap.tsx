@@ -510,6 +510,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             ? activeDrivers.map((driver) => (
                 <MarkerView
                   allowOverlap
+                  allowOverlapWithPuck
                   anchor={{ x: 0.5, y: 0.5 }}
                   coordinate={toPosition(driver)}
                   isSelected={selectedDriverId === driver.user_id}
