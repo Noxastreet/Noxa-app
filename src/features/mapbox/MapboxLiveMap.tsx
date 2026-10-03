@@ -631,7 +631,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 id="noxa-route-casing"
                 style={{
                   lineCap: "round",
-                  lineColor: "rgba(18,3,5,0.96)",
+                  lineColor: "rgba(6,6,10,0.94)",
                   lineJoin: "round",
                   lineWidth: 13,
                 }}
