@@ -13,9 +13,12 @@ import {
   View,
 } from 'react-native';
 import Animated, {
-  FadeIn,
-  FadeOut,
+  Easing,
   ReduceMotion,
+  SlideInLeft,
+  SlideInRight,
+  SlideOutLeft,
+  SlideOutRight,
 } from 'react-native-reanimated';
 
 import {
@@ -86,6 +89,8 @@ type ComposerMode =
   | 'change-destination'
   | 'invite-drivers';
 
+type StageTransitionDirection = 'forward' | 'back';
+
 export type DriveTogetherNavigationOverlay = {
   driveSessionId: string;
   destinationTitle: string;
@@ -131,11 +136,22 @@ type Props = {
 
 const ROOM_DETAILS_RECONCILE_MS = 5_000;
 const LOCATION_STALE_MS = 45_000;
-const DRIVE_STAGE_ENTER = FadeIn
-  .duration(animations.micro)
+const DRIVE_STAGE_CURVE = Easing.bezier(0.22, 1, 0.36, 1);
+const DRIVE_STAGE_FORWARD_ENTER = SlideInRight
+  .duration(animations.sheet)
+  .easing(DRIVE_STAGE_CURVE)
   .reduceMotion(ReduceMotion.System);
-const DRIVE_STAGE_EXIT = FadeOut
-  .duration(animations.fast)
+const DRIVE_STAGE_FORWARD_EXIT = SlideOutLeft
+  .duration(animations.base)
+  .easing(DRIVE_STAGE_CURVE)
+  .reduceMotion(ReduceMotion.System);
+const DRIVE_STAGE_BACK_ENTER = SlideInLeft
+  .duration(animations.sheet)
+  .easing(DRIVE_STAGE_CURVE)
+  .reduceMotion(ReduceMotion.System);
+const DRIVE_STAGE_BACK_EXIT = SlideOutRight
+  .duration(animations.base)
+  .easing(DRIVE_STAGE_CURVE)
   .reduceMotion(ReduceMotion.System);
 
 function initials(name: string) {
@@ -316,6 +332,8 @@ export function DriveTogetherMapLayer({
   const [panelOpen, setPanelOpen] = useState(false);
   const [sheetSnap, setSheetSnap] = useState<DriveTogetherSheetSnap>('medium');
   const [composerMode, setComposerMode] = useState<ComposerMode>('room');
+  const [stageTransitionDirection, setStageTransitionDirection] =
+    useState<StageTransitionDirection>('forward');
   const [draftDestination, setDraftDestination] = useState<DriveDestination | null>(null);
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(() => new Set());
   const [searchQuery, setSearchQuery] = useState('');
@@ -334,6 +352,7 @@ export function DriveTogetherMapLayer({
   const previousDestinationVersionRef = useRef<number | null>(null);
   const autoFollowDestinationVersionRef = useRef<number | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stageTransitionFrameRef = useRef<number | null>(null);
 
   const roomActive =
     roomState?.status === 'active' || details?.status === 'active';
@@ -343,6 +362,22 @@ export function DriveTogetherMapLayer({
   const isHost = Boolean(
     details && details.hostId === details.currentUserId,
   );
+
+  const transitionComposerMode = useCallback((
+    nextMode: ComposerMode,
+    direction: StageTransitionDirection,
+  ) => {
+    if (stageTransitionFrameRef.current !== null) {
+      cancelAnimationFrame(stageTransitionFrameRef.current);
+      stageTransitionFrameRef.current = null;
+    }
+
+    setStageTransitionDirection(direction);
+    stageTransitionFrameRef.current = requestAnimationFrame(() => {
+      stageTransitionFrameRef.current = null;
+      setComposerMode(nextMode);
+    });
+  }, []);
 
   const loadFriends = useCallback(async () => {
     if (friendsLoading) return;
@@ -867,6 +902,10 @@ export function DriveTogetherMapLayer({
   useEffect(
     () => () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (stageTransitionFrameRef.current !== null) {
+        cancelAnimationFrame(stageTransitionFrameRef.current);
+        stageTransitionFrameRef.current = null;
+      }
       onEndMapPick();
     },
     [onEndMapPick],
@@ -1083,7 +1122,7 @@ export function DriveTogetherMapLayer({
 
     if (composerMode === 'create-destination') {
       setDraftDestination(next);
-      setComposerMode('create-friends');
+      transitionComposerMode('create-friends', 'forward');
       setSelectedFriendIds((current) =>
         current.size > 0
           ? current
@@ -1101,7 +1140,7 @@ export function DriveTogetherMapLayer({
       setError(null);
       try {
         await proposeQuickDriveDestination(roomId, next);
-        setComposerMode('room');
+        transitionComposerMode('room', 'back');
         setSheetSnap('medium');
       } catch (changeError) {
         setError(
@@ -1119,6 +1158,7 @@ export function DriveTogetherMapLayer({
     initialFriendId,
     loadFriends,
     roomId,
+    transitionComposerMode,
   ]);
 
   const choosePlace = useCallback((place: MapboxPlaceResult) => {
@@ -1275,20 +1315,20 @@ export function DriveTogetherMapLayer({
   ]);
 
   const openDestinationComposer = useCallback(() => {
-    setComposerMode('change-destination');
+    transitionComposerMode('change-destination', 'forward');
     setSearchQuery('');
     setSearchResults([]);
     setSheetSnap('expanded');
     setError(null);
-  }, []);
+  }, [transitionComposerMode]);
 
   const openInviteComposer = useCallback(() => {
-    setComposerMode('invite-drivers');
+    transitionComposerMode('invite-drivers', 'forward');
     setSelectedFriendIds(new Set());
     setSheetSnap('expanded');
     setError(null);
     if (!friendsLoaded) void loadFriends();
-  }, [friendsLoaded, loadFriends]);
+  }, [friendsLoaded, loadFriends, transitionComposerMode]);
 
   const inviteSelectedDrivers = useCallback(async () => {
     if (!roomId || selectedFriendIds.size < 1 || working) return;
@@ -1299,7 +1339,7 @@ export function DriveTogetherMapLayer({
         await inviteQuickDriveUser(roomId, userId);
       }
       setSelectedFriendIds(new Set());
-      setComposerMode('room');
+      transitionComposerMode('room', 'back');
       setSheetSnap('medium');
       await refreshDetails(roomId);
     } catch (inviteError) {
@@ -1315,6 +1355,7 @@ export function DriveTogetherMapLayer({
     refreshDetails,
     roomId,
     selectedFriendIds,
+    transitionComposerMode,
     working,
   ]);
 
@@ -1446,7 +1487,7 @@ export function DriveTogetherMapLayer({
           accessibilityLabel="Back"
           onPress={() => {
             if (composerMode === 'change-destination') {
-              setComposerMode('room');
+              transitionComposerMode('room', 'back');
               setSheetSnap('medium');
             } else {
               setDraftDestination(null);
@@ -1610,10 +1651,10 @@ export function DriveTogetherMapLayer({
             accessibilityLabel="Back"
             onPress={() => {
               if (composerMode === 'invite-drivers') {
-                setComposerMode('room');
+                transitionComposerMode('room', 'back');
                 setSheetSnap('medium');
               } else {
-                setComposerMode('create-destination');
+                transitionComposerMode('create-destination', 'back');
                 setSheetSnap('medium');
               }
             }}
@@ -2116,6 +2157,15 @@ export function DriveTogetherMapLayer({
     );
   };
 
+  const stageEntering =
+    stageTransitionDirection === 'back'
+      ? DRIVE_STAGE_BACK_ENTER
+      : DRIVE_STAGE_FORWARD_ENTER;
+  const stageExiting =
+    stageTransitionDirection === 'back'
+      ? DRIVE_STAGE_BACK_EXIT
+      : DRIVE_STAGE_FORWARD_EXIT;
+
   const stageKey =
     composerMode === 'create-destination'
       ? 'create-destination'
@@ -2163,8 +2213,8 @@ export function DriveTogetherMapLayer({
               : sheetSnap
           }>
           <Animated.View
-            entering={DRIVE_STAGE_ENTER}
-            exiting={DRIVE_STAGE_EXIT}
+            entering={stageEntering}
+            exiting={stageExiting}
             key={stageKey}
             style={styles.stage}>
             {composerMode === 'create-destination'
@@ -2183,7 +2233,9 @@ export function DriveTogetherMapLayer({
                         <Text style={styles.sheetTitle}>Choose a destination.</Text>
                         <PrimaryAction
                           icon="flag-outline"
-                          onPress={() => setComposerMode('create-destination')}
+                          onPress={() =>
+                            transitionComposerMode('create-destination', 'forward')
+                          }
                           title="Set destination"
                         />
                       </View>
@@ -2212,7 +2264,7 @@ export function DriveTogetherMapLayer({
           void proposeQuickDriveDestination(roomId, next)
             .then(() => {
               setPendingExternalDestination(null);
-              setComposerMode('room');
+              transitionComposerMode('room', 'back');
               setSheetSnap('medium');
               return refreshDetails(roomId);
             })
