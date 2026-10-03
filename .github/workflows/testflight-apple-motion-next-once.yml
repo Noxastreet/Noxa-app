@@ -1,0 +1,202 @@
+name: TestFlight Apple Motion Next Build Once
+
+on:
+  push:
+    branches:
+      - ci/testflight-apple-motion-next-20261003
+    paths:
+      - .github/workflows/testflight-apple-motion-next-once.yml
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: testflight-add-drivers-next-20261003
+  cancel-in-progress: false
+
+jobs:
+  build-submit:
+    name: Verify exact main, build next iOS, submit to TestFlight
+    if: ${{ github.run_attempt == 1 }}
+    runs-on: macos-latest
+    timeout-minutes: 150
+    env:
+      CI: "1"
+      EXPECTED_CANDIDATE_SHA: "66938f460a2995aec23ae1c893db2d0c22cc444a"
+      EXPECTED_WORKFLOW_PATH: ".github/workflows/testflight-apple-motion-next-once.yml"
+      EXPECTED_BUNDLE_ID: "com.karaketidis.noxa"
+      EXPECTED_EXTENSION_BUNDLE_ID: "com.karaketidis.noxa.driveactivity"
+      EXPECTED_APP_VERSION: "1.0.0"
+      IPA_PATH: "${{ github.workspace }}/artifacts/noxa-apple-motion-next-${{ github.run_id }}.ipa"
+
+    steps:
+      - name: Check out delivery branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Prove delivery branch is exact main plus workflow only
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARENT_SHA="$(git rev-parse HEAD^)"
+          test "$PARENT_SHA" = "$EXPECTED_CANDIDATE_SHA"
+          CHANGED="$(git diff --name-only "$EXPECTED_CANDIDATE_SHA" HEAD)"
+          test "$CHANGED" = "$EXPECTED_WORKFLOW_PATH"
+
+      - name: Require unchanged canonical main and green post-merge Quality
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_MAIN="$(gh api repos/Noxastreet/Noxa-app/branches/main --jq '.commit.sha')"
+          test "$CURRENT_MAIN" = "$EXPECTED_CANDIDATE_SHA"
+          gh api "repos/Noxastreet/Noxa-app/actions/runs?head_sha=$EXPECTED_CANDIDATE_SHA&per_page=30"             --jq '.workflow_runs[] | select(.name == "Quality" and .event == "push" and .head_branch == "main" and .status == "completed" and .conclusion == "success") | .id'             > "$RUNNER_TEMP/quality-success"
+          test -s "$RUNNER_TEMP/quality-success"
+
+      - name: Check out exact product source
+        uses: actions/checkout@v4
+        with:
+          ref: 66938f460a2995aec23ae1c893db2d0c22cc444a
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Re-run release-critical gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx tsc --noEmit
+          npm run lint
+          npx expo-doctor
+          npm run verify:ui-foundation
+          npm run verify:interactions
+          npm run verify:event-drive-together
+          npm run verify:drive-together-motion
+          npm run verify:drive-together-quickflow
+          node ./scripts/verify-live-drive-presence.mjs
+          node ./scripts/verify-map-location-revocation.mjs
+          npm run verify:release-privacy-events
+          npm run verify:ios-live-activity
+
+      - name: Resolve next remote iOS build number
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes eas-cli@24.7.0 build:version:get --platform ios --profile production --non-interactive --json > "$RUNNER_TEMP/remote-version.json"
+          node - <<'NODE'
+          const fs = require('fs');
+          const v = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/remote-version.json','utf8'));
+          const current = Number(v.buildNumber);
+          if (!Number.isInteger(current) || current < 1) throw new Error('Invalid remote iOS build number: ' + v.buildNumber);
+          const next = current + 1;
+          fs.appendFileSync(process.env.GITHUB_ENV, 'PREVIOUS_BUILD_NUMBER=' + current + '\n');
+          fs.appendFileSync(process.env.GITHUB_ENV, 'EXPECTED_BUILD_NUMBER=' + next + '\n');
+          console.log('Remote production build:', current, 'next candidate:', next);
+          NODE
+
+      - name: Build signed production IPA locally
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$IPA_PATH")"
+          npx --yes eas-cli@24.7.0 build --platform ios --profile production --local --non-interactive --output "$IPA_PATH"
+          test -f "$IPA_PATH"
+          ls -lh "$IPA_PATH"
+
+      - name: Verify exact IPA metadata and signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+          unzip -q "$IPA_PATH" -d "$TMP_DIR"
+
+          APP_DIR="$(find "$TMP_DIR/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          test -n "$APP_DIR"
+          APP_INFO="$APP_DIR/Info.plist"
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_INFO")"
+          APP_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_INFO")"
+          BUILD_NUMBER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_INFO")"
+          LIVE_ACTIVITIES="$(/usr/libexec/PlistBuddy -c 'Print :NSSupportsLiveActivities' "$APP_INFO")"
+
+          test "$BUNDLE_ID" = "$EXPECTED_BUNDLE_ID"
+          test "$APP_VERSION" = "$EXPECTED_APP_VERSION"
+          test "$BUILD_NUMBER" = "$EXPECTED_BUILD_NUMBER"
+          test "$LIVE_ACTIVITIES" = "true"
+
+          EXT_DIR="$(find "$APP_DIR/PlugIns" -maxdepth 1 -type d -name '*.appex' -print -quit)"
+          test -n "$EXT_DIR"
+          EXT_INFO="$EXT_DIR/Info.plist"
+          EXT_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$EXT_INFO")"
+          EXT_POINT="$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$EXT_INFO")"
+          test "$EXT_BUNDLE_ID" = "$EXPECTED_EXTENSION_BUNDLE_ID"
+          test "$EXT_POINT" = "com.apple.widgetkit-extension"
+
+          codesign --verify --deep --strict "$APP_DIR"
+          codesign --verify --strict "$EXT_DIR"
+
+          mkdir -p artifacts
+          shasum -a 256 "$IPA_PATH" > artifacts/ipa-sha256.txt
+          node - <<'NODE'
+          const fs = require('fs');
+          fs.writeFileSync('artifacts/ipa-metadata.json', JSON.stringify({
+            source: process.env.EXPECTED_CANDIDATE_SHA,
+            bundle: process.env.EXPECTED_BUNDLE_ID,
+            extensionBundle: process.env.EXPECTED_EXTENSION_BUNDLE_ID,
+            version: process.env.EXPECTED_APP_VERSION,
+            build: process.env.EXPECTED_BUILD_NUMBER,
+            previousBuild: process.env.PREVIOUS_BUILD_NUMBER,
+            liveActivities: true
+          }, null, 2));
+          NODE
+
+          {
+            echo "### NOXA next TestFlight build"
+            echo "- Source: $EXPECTED_CANDIDATE_SHA"
+            echo "- Previous remote build: $PREVIOUS_BUILD_NUMBER"
+            echo "- Built: $BUILD_NUMBER"
+            echo "- Bundle: $BUNDLE_ID"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve exact IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-apple-motion-next-ipa-${{ github.run_id }}
+          path: |
+            artifacts/noxa-apple-motion-next-${{ github.run_id }}.ipa
+            artifacts/ipa-metadata.json
+            artifacts/ipa-sha256.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Submit exact IPA to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes eas-cli@24.7.0 submit --platform ios --profile production --path "$IPA_PATH" --non-interactive --wait 2>&1 | tee artifacts/testflight-submit.log
+
+      - name: Preserve submission log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noxa-apple-motion-next-submit-${{ github.run_id }}
+          path: artifacts/testflight-submit.log
+          if-no-files-found: warn
+          retention-days: 7
