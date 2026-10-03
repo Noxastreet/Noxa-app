@@ -8,6 +8,7 @@ function assert(condition, message) {
 }
 
 const map = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
+const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
 const push = fs.readFileSync('src/lib/pushNotifications.ts', 'utf8');
 const editor = fs.readFileSync('app/event-editor.tsx', 'utf8');
 const detail = fs.readFileSync('src/features/crews-events/CanonicalEventDetailScreen.tsx', 'utf8');
@@ -35,6 +36,13 @@ assert(
     && /accessStillValid[\s\S]{0,900}await stopSharing\(true\)/.test(map),
   'A transient Android background-start failure must preserve Live Drive when permissions remain valid.',
 );
+assert(
+  /LIVE_DRIVE_GPS_FIX_TIMEOUT_MS = 6_000/.test(liveDrive)
+    && /Promise\.race\([\s\S]*Location\.getCurrentPositionAsync\(\{ accuracy \}\)[\s\S]*LIVE_DRIVE_GPS_FIX_TIMEOUT_MS/.test(liveDrive)
+    && /requestBackgroundPermissionsAsync\(\)[\s\S]*getPreciseLocationSample\(\)/.test(liveDrive),
+  'Live Drive startup must bound GPS acquisition and request background permission before waiting on a fresh fix.',
+);
+
 assert(
   /id: "global"[\s\S]*label: "Public"/.test(map),
   'The public visibility choice must be presented as Public.',
