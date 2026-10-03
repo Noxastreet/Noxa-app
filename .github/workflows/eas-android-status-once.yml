@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes eas-cli@24.7.0 build:list --platform android --limit 5 --json --non-interactive > "$RUNNER_TEMP/builds.json"
+          npx --yes eas-cli@24.7.0 build:list --platform android --limit 5 --json > "$RUNNER_TEMP/builds.json"
           cat "$RUNNER_TEMP/builds.json"
           node <<'NODE'
           const fs = require('fs');
