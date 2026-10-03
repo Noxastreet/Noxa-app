@@ -185,6 +185,12 @@ jobs:
           if $UI exists "Wait" 2; then
             $UI tap "Wait" 3 || true
           fi
+          # Notification permission is unrelated to the background-location proof.
+          # Resolve it before recording so the proof starts on the NOXA map.
+          if $UI exists "Allow Noxa to send you notifications?" 5; then
+            $UI tap "Allow" 5
+            sleep 2
+          fi
           $UI exists "Search NOXA" 35
 
           echo "Starting clean 30-second Google Play proof recording"
