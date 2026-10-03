@@ -24,6 +24,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Add Apple Team ID for metadata tooling only
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const eas = JSON.parse(fs.readFileSync('eas.json','utf8'));
+          eas.submit ||= {};
+          eas.submit.production ||= {};
+          eas.submit.production.ios ||= {};
+          eas.submit.production.ios.appleTeamId = 'V8H92SG76B';
+          fs.writeFileSync('eas.json', JSON.stringify(eas, null, 2) + '\n');
+          NODE
       - name: Pull current App Store metadata
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
