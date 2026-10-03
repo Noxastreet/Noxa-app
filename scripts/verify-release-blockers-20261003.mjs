@@ -57,7 +57,8 @@ assert(
 assert(
   /accessStillValid = await hasLiveDriveRuntimeAccess\(\)/.test(home)
     && /visibility setting is preserved/.test(home)
-    && /setTimeout\(\(\) => \{[\s\S]{0,700}startLiveDriveBackgroundUpdates\(\)/.test(home),
+    && /setTimeout\(\(\) => \{[\s\S]{0,900}startLiveDriveBackgroundUpdates\(\)[\s\S]{0,240}setSharingError\(null\)/.test(home)
+    && /restoreLiveDriveSession[\s\S]{0,1400}setSharingError\(null\)/.test(home),
   'A transient Android background-start failure must not immediately force Ghost.',
 );
 
