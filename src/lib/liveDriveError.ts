@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 
 export function shouldOfferLiveDriveSettings(error: unknown) {
-  if (Platform.OS !== 'ios') return false;
   const message = error instanceof Error ? error.message.toLowerCase() : '';
+  if (message.includes('gps fix timed out')) return false;
   return (
     message.includes('precise location')
     || message.includes('precise gps fix')
@@ -23,6 +23,9 @@ export function getSafeLiveDriveStartMessage(error: unknown) {
     return Platform.OS === 'ios'
       ? 'Enable Precise Location for NOXA in iPhone Settings.'
       : 'Enable precise location for NOXA, then retry.';
+  }
+  if (message.includes('gps fix timed out')) {
+    return 'GPS is taking too long to get a reliable fix. Move where the sky is clearer and retry.';
   }
   if (message.includes('location services are off')) {
     return Platform.OS === 'ios'

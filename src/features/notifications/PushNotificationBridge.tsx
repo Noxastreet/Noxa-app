@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 import {
   refreshCurrentPushDevice,
-  registerCurrentPushDevice,
+  requestAndRegisterCurrentPushDevice,
   rememberCurrentAccessToken,
   unregisterLastPushDevice,
 } from '@/src/lib/pushNotifications';
@@ -34,6 +34,12 @@ function openNotificationResponse(response: Notifications.NotificationResponse) 
   const data = rawData && typeof rawData === 'object'
     ? (rawData as Record<string, unknown>)
     : {};
+
+  const eventChatId = firstDataString(data, 'event_chat_id', 'eventChatId');
+  if (eventChatId) {
+    router.push({ pathname: '/event-chat', params: { id: eventChatId } });
+    return;
+  }
 
   const eventId = firstDataString(data, 'event_id', 'eventId');
   if (eventId) {
@@ -86,7 +92,7 @@ export function PushNotificationBridge() {
   useEffect(() => {
     let mounted = true;
 
-    void registerCurrentPushDevice().catch((error) => {
+    void requestAndRegisterCurrentPushDevice().catch((error) => {
       if (mounted) {
         console.warn('[noxa-push] Push setup failed.', error);
       }

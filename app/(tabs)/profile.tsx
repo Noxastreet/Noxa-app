@@ -263,54 +263,6 @@ function GarageFeature({ vehicle, vehiclesCount }: { vehicle: ProfileVehicle | n
   );
 }
 
-function NoxaContext({ vehiclesCount }: { vehiclesCount: number }) {
-  const rows = [
-    {
-      key: 'garage',
-      label: 'Garage',
-      caption: vehiclesCount === 1 ? '1 vehicle' : `${vehiclesCount} vehicles`,
-      icon: 'car-sport-outline' as const,
-      onPress: () => router.push('/(tabs)/garage'),
-    },
-    {
-      key: 'crews',
-      label: 'Crews',
-      caption: 'Your automotive community',
-      icon: 'people-outline' as const,
-      onPress: () => router.push('/(tabs)/crews'),
-    },
-    {
-      key: 'events',
-      label: 'Events',
-      caption: 'Meets and upcoming activity',
-      icon: 'calendar-outline' as const,
-      onPress: () => router.push('/(tabs)/events'),
-    },
-  ];
-
-  return (
-    <NoxaDetailReveal style={styles.section}>
-      <Text style={styles.sectionEyebrow}>YOUR NOXA</Text>
-      <View style={styles.contextList}>
-        {rows.map((row, index) => (
-          <Pressable
-            key={row.key}
-            accessibilityRole="button"
-            onPress={row.onPress}
-            style={({ pressed }) => [styles.contextRow, index < rows.length - 1 && styles.rowDivider, pressed && styles.pressed]}>
-            <View style={styles.contextIcon}><Ionicons name={row.icon} size={20} color={colors.text} /></View>
-            <View style={styles.contextCopy}>
-              <Text style={styles.contextLabel}>{row.label}</Text>
-              <Text style={styles.contextCaption}>{row.caption}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
-          </Pressable>
-        ))}
-      </View>
-    </NoxaDetailReveal>
-  );
-}
-
 function SocialContext({
   profileId,
   followersCount,
@@ -535,7 +487,6 @@ export default function ProfileScreen() {
         <TopBar />
         <Identity profile={profileData} isLoading={isProfileLoading} errorMessage={profileError} onRetry={loadProfile} />
         <GarageFeature vehicle={featuredVehicle} vehiclesCount={vehiclesCount} />
-        <NoxaContext vehiclesCount={vehiclesCount} />
         <SocialContext profileId={profileData?.id ?? null} followersCount={followersCount} followingCount={followingCount} />
         <ProfilePosts posts={posts} isLoading={isProfileLoading} />
         <AccountActions isSigningOut={isSigningOut} onSignOut={confirmSignOut} />

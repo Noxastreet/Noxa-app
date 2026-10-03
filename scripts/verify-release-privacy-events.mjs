@@ -8,12 +8,21 @@ function assert(condition, message) {
 }
 
 const map = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
+const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
 const push = fs.readFileSync('src/lib/pushNotifications.ts', 'utf8');
 const editor = fs.readFileSync('app/event-editor.tsx', 'utf8');
 const detail = fs.readFileSync('src/features/crews-events/CanonicalEventDetailScreen.tsx', 'utf8');
 const eventExperience = fs.readFileSync('src/lib/eventExperience.ts', 'utf8');
 const migration = fs.readFileSync(
-  'supabase/migrations/20261002154500_expand_event_categories.sql',
+  'supabase/migrations/20261002125126_expand_event_categories.sql',
+  'utf8',
+);
+const eventChatPushMigration = fs.readFileSync(
+  'supabase/migrations/20261003084115_add_event_chat_push_notifications.sql',
+  'utf8',
+);
+const pushBridge = fs.readFileSync(
+  'src/features/notifications/PushNotificationBridge.tsx',
   'utf8',
 );
 
@@ -22,6 +31,19 @@ assert(
     && /nextState === "active"[\s\S]*stopLiveDriveBackgroundUpdates\(\)/.test(map),
   'Personal map presence must continue through the dedicated background task while the app is minimized.',
 );
+assert(
+  /startLiveDriveBackgroundUpdates\(\)\.catch[\s\S]{0,520}hasLiveDriveRuntimeAccess\(\)[\s\S]{0,360}visibility setting is preserved/.test(map)
+    && /setTimeout\(\(\) => \{[\s\S]{0,900}startLiveDriveBackgroundUpdates\(\)[\s\S]{0,260}setSharingError\(null\)/.test(map)
+    && /accessStillValid[\s\S]{0,1200}await stopSharing\(true\)/.test(map),
+  'A transient Android background-start failure must preserve Live Drive when permissions remain valid.',
+);
+assert(
+  /LIVE_DRIVE_GPS_FIX_TIMEOUT_MS = 6_000/.test(liveDrive)
+    && /Promise\.race\([\s\S]*Location\.getCurrentPositionAsync\(\{ accuracy \}\)[\s\S]*LIVE_DRIVE_GPS_FIX_TIMEOUT_MS/.test(liveDrive)
+    && /requestBackgroundPermissionsAsync\(\)[\s\S]*getPreciseLocationSample\(\)/.test(liveDrive),
+  'Live Drive startup must bound GPS acquisition and request background permission before waiting on a fresh fix.',
+);
+
 assert(
   /id: "global"[\s\S]*label: "Public"/.test(map),
   'The public visibility choice must be presented as Public.',
@@ -62,6 +84,25 @@ assert(
 assert(
   /requestAndRegisterCurrentPushDevice/.test(editor),
   'Event organizers must register/sync reminders after saving an event.',
+);
+
+assert(
+  /'event_chat_message'/.test(eventChatPushMigration)
+    && /from public\.event_attendees/.test(eventChatPushMigration)
+    && /event_attendees\.user_id <> new\.sender_id/.test(eventChatPushMigration)
+    && /'messages'/.test(eventChatPushMigration),
+  'Event Chat push must fan out only to other event participants through message preferences.',
+);
+assert(
+  /'event_chat_id', new\.event_id/.test(eventChatPushMigration)
+    && /'event_id', new\.event_id/.test(eventChatPushMigration)
+    && /message_excerpt/.test(eventChatPushMigration),
+  'Event Chat push payload must carry the exact chat target and a short message preview.',
+);
+assert(
+  /const eventChatId = firstDataString\(data, 'event_chat_id', 'eventChatId'\)/.test(pushBridge)
+    && /pathname: '\/event-chat'/.test(pushBridge),
+  'Event Chat push taps must deep link into the exact Event Chat before generic event routing.',
 );
 
 for (const category of ['drift', 'drag', 'rally', 'offroad', 'show']) {

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   BackHandler,
   FlatList,
   Pressable,
@@ -97,7 +98,7 @@ export default function OnboardingScreen() {
     setPageIndex(index);
   }, []);
 
-  const finish = useCallback(() => {
+  const finish = useCallback(async () => {
     if (isFinishingRef.current || !userId) return;
 
     isFinishingRef.current = true;
@@ -106,10 +107,18 @@ export default function OnboardingScreen() {
       return;
     }
 
-    markOnboardingComplete(userId);
-    // Privacy/visibility remains a separate existing contract. Do not bypass it:
-    // first-run onboarding must reach privacy before the Map.
-    router.replace('/visibility-setup');
+    try {
+      await markOnboardingComplete(userId);
+      // Privacy/visibility remains a separate existing contract. Do not bypass it:
+      // first-run onboarding must reach privacy before the Map.
+      router.replace('/visibility-setup');
+    } catch {
+      isFinishingRef.current = false;
+      Alert.alert(
+        'Could not finish setup',
+        'NOXA could not save onboarding completion. Check your connection and try again.',
+      );
+    }
   }, [isReplay, userId]);
 
   const continueFromIntro = useCallback(() => {

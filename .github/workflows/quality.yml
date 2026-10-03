@@ -123,6 +123,9 @@ jobs:
       - name: Release privacy, event reminder and taxonomy contract
         run: npm run verify:release-privacy-events
 
+      - name: Final release-blocker regression contract
+        run: npm run verify:release-blockers
+
       - name: Post flow reliability contract
         run: node ./scripts/verify-post-flow-reliability.mjs
 

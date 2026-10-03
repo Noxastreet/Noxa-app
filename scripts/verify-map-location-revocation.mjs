@@ -63,7 +63,7 @@ const personalPermissionStart = liveDrive.indexOf('export async function request
 const personalPermissionEnd = liveDrive.indexOf('export async function hasLiveDriveRuntimeAccess()', personalPermissionStart);
 const personalPermissionSlice = liveDrive.slice(personalPermissionStart, personalPermissionEnd);
 assert(
-  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*const current = await getPreciseLocationSample\(\);[\s\S]*requestBackgroundPermissionsAsync\(\)[\s\S]*return current/.test(personalPermissionSlice),
+  /requestForegroundPermissionsAsync\(\)[\s\S]*hasPreciseForegroundPermission\(foreground\)[\s\S]*requestBackgroundPermissionsAsync\(\)[\s\S]*const current = await getPreciseLocationSample\(\);[\s\S]*return current/.test(personalPermissionSlice),
   'Personal presence startup must validate a precise sample and obtain background access before minimized sharing starts.',
 );
 assert(

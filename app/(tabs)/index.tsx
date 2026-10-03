@@ -735,6 +735,112 @@ function RouteFocusOverlay({
   );
 }
 
+function DriveTogetherNavigationChrome({
+  navigation,
+  following,
+  panelVisible,
+  topInset,
+  bottomInset,
+  onRecenter,
+  onOpenPanel,
+}: {
+  navigation: DriveTogetherNavigationOverlay;
+  following: boolean;
+  panelVisible: boolean;
+  topInset: number;
+  bottomInset: number;
+  onRecenter: () => void;
+  onOpenPanel: () => void;
+}) {
+  const instruction =
+    navigation.nextInstruction || `Continue to ${navigation.destinationTitle}`;
+  const instructionDistance =
+    navigation.distanceToNextManeuverMeters === null
+      ? null
+      : formatDistance(navigation.distanceToNextManeuverMeters);
+
+  return (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
+      <View style={[styles.driveNavigationTop, { top: topInset + spacing.sm }]}>
+        <NoxaSurface level="overlay" style={styles.driveNavigationInstruction}>
+          <View style={styles.routeFocusTurnIcon}>
+            <Ionicons name="navigate" size={24} color={colors.text} />
+          </View>
+          <View style={styles.routeFocusInstructionCopy}>
+            {instructionDistance ? (
+              <Text style={styles.routeFocusDistance}>{instructionDistance}</Text>
+            ) : null}
+            <Text numberOfLines={2} style={styles.routeFocusInstructionText}>
+              {instruction}
+            </Text>
+          </View>
+        </NoxaSurface>
+
+        {panelVisible && !following ? (
+          <NoxaIconButton
+            accessibilityLabel="Recenter Drive Together navigation"
+            icon="locate"
+            iconSize={20}
+            onPress={onRecenter}
+            size={44}
+            variant="overlay"
+          />
+        ) : (
+          <NoxaIconButton
+            accessibilityLabel="Open Drive Together"
+            icon="people-outline"
+            iconSize={20}
+            onPress={onOpenPanel}
+            size={44}
+            variant="overlay"
+          />
+        )}
+      </View>
+
+      {!panelVisible ? (
+        <View style={[styles.driveNavigationBottom, { bottom: bottomInset + spacing.md }]}>
+          <TouchableOpacity
+            accessibilityLabel="Open Drive Together details"
+            accessibilityRole="button"
+            activeOpacity={0.82}
+            onPress={onOpenPanel}
+            style={styles.driveNavigationSummaryPressable}
+          >
+            <NoxaSurface level="overlay" style={styles.driveNavigationSummary}>
+              <Text numberOfLines={1} style={styles.routeFocusDestination}>
+                {navigation.destinationTitle}
+              </Text>
+              <View style={styles.routeFocusMetricRow}>
+                <Text style={styles.routeFocusMetricStrong}>
+                  {formatDistance(navigation.remainingDistanceMeters ?? 0)}
+                </Text>
+                <View style={styles.routeFocusDot} />
+                <Text style={styles.routeFocusMetricStrong}>
+                  {formatDuration(navigation.remainingDurationSeconds ?? 0)}
+                </Text>
+                <Text style={styles.driveNavigationDrivers}>
+                  {navigation.participantCount} drivers
+                </Text>
+              </View>
+            </NoxaSurface>
+          </TouchableOpacity>
+
+          {!following ? (
+            <NoxaIconButton
+              accessibilityLabel="Recenter Drive Together navigation"
+              icon="locate"
+              iconSize={20}
+              onPress={onRecenter}
+              size={50}
+              variant="overlay"
+            />
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function LiveMapScreen() {
   const params = useLocalSearchParams<{
     focusEventId?: string | string[];
@@ -754,9 +860,12 @@ export default function LiveMapScreen() {
     useState<DriveTogetherDestinationSeed | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [isRouteFocusMode, setIsRouteFocusMode] = useState(false);
+  const [driveTogetherNavigation, setDriveTogetherNavigation] =
+    useState<DriveTogetherNavigationOverlay | null>(null);
 
   useEffect(() => {
-    const hideRootTabs = driveTogetherPanelVisible || isRouteFocusMode;
+    const hideRootTabs =
+      driveTogetherPanelVisible || Boolean(driveTogetherNavigation) || isRouteFocusMode;
     navigation.setOptions({
       tabBarStyle: hideRootTabs ? { display: "none" } : undefined,
     });
@@ -764,9 +873,12 @@ export default function LiveMapScreen() {
     return () => {
       navigation.setOptions({ tabBarStyle: undefined });
     };
-  }, [driveTogetherPanelVisible, isRouteFocusMode, navigation]);
-  const [driveTogetherNavigation, setDriveTogetherNavigation] =
-    useState<DriveTogetherNavigationOverlay | null>(null);
+  }, [
+    driveTogetherNavigation,
+    driveTogetherPanelVisible,
+    isRouteFocusMode,
+    navigation,
+  ]);
   const [isDriveTogetherFollowing, setIsDriveTogetherFollowing] = useState(false);
   const [isDriveTogetherDestinationPicking, setIsDriveTogetherDestinationPicking] =
     useState(false);
@@ -1400,6 +1512,7 @@ export default function LiveMapScreen() {
       setVisibilityMode(activeSession.visibilityMode);
       setLiveDriveExpiresAt(activeSession.expiresAt);
       setIsVisibleOnMap(true);
+      setSharingError(null);
       setLiveDriveClock(Date.now());
     }
   }, [stopSharing]);
@@ -1852,10 +1965,34 @@ export default function LiveMapScreen() {
       if (nextState === "inactive" || nextState === "background") {
         if (getLiveDriveSession()) {
           void startLiveDriveBackgroundUpdates().catch(async () => {
+            const accessStillValid = await hasLiveDriveRuntimeAccess();
+            if (accessStillValid && getLiveDriveSession()) {
+              if (isMountedRef.current) {
+                setSharingError(
+                  "Live Drive is reconnecting in the background. Your visibility setting is preserved.",
+                );
+              }
+              setTimeout(() => {
+                if (
+                  !isMountedRef.current
+                  || isAppForegroundRef.current
+                  || !getLiveDriveSession()
+                ) {
+                  return;
+                }
+                void startLiveDriveBackgroundUpdates()
+                  .then(() => {
+                    if (isMountedRef.current) setSharingError(null);
+                  })
+                  .catch(() => undefined);
+              }, 1_500);
+              return;
+            }
+
             await stopSharing(true);
             if (isMountedRef.current) {
               setSharingError(
-                "Live Drive stopped because background location is unavailable.",
+                "Live Drive stopped because background location access is unavailable.",
               );
             }
           });
@@ -2209,6 +2346,7 @@ export default function LiveMapScreen() {
       }
     }
   }, [animateTo, isRouteFollowing, loadDriverLocation]);
+
   const toggleRouteFollow = useCallback(() => {
     const point = driverLocationRef.current;
 
@@ -2264,6 +2402,14 @@ export default function LiveMapScreen() {
     setIsCameraAwayFromUser(false);
     mapRef.current?.animateToRegion(pointRegion(point), 220);
     setIsRouteFollowing(true);
+  }, []);
+
+  const recenterDriveTogether = useCallback(() => {
+    const point = driverLocationRef.current;
+    if (!point || !hasValidLatLng(point.latitude, point.longitude)) return;
+    setIsCameraAwayFromUser(false);
+    mapRef.current?.animateToRegion(pointRegion(point), 220);
+    setIsDriveTogetherFollowing(true);
   }, []);
 
   const beginDriveTogetherMapPick = useCallback(
@@ -2644,7 +2790,7 @@ export default function LiveMapScreen() {
       />
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
-        {!isRouteFocusMode ? (
+        {!isRouteFocusMode && !driveTogetherNavigation ? (
           <View style={[styles.header, { top: headerTop }]}>
           <TouchableOpacity
             accessibilityLabel={`${
@@ -2714,7 +2860,7 @@ export default function LiveMapScreen() {
         </View>
         ) : null}
 
-        {!isRouteFocusMode && visibilityMenuOpen ? (
+        {!isRouteFocusMode && !driveTogetherNavigation && visibilityMenuOpen ? (
           <Animated.View
             entering={VISIBILITY_MENU_ENTER}
             exiting={VISIBILITY_MENU_EXIT}
@@ -2778,7 +2924,7 @@ export default function LiveMapScreen() {
           </Animated.View>
         ) : null}
 
-        {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible ? (
+        {!selectedDriverId && !isRouteFocusMode && !selectedEvent && !driveTogetherPanelVisible && !driveTogetherNavigation ? (
           <View
             pointerEvents="box-none"
             style={[
@@ -2918,6 +3064,18 @@ export default function LiveMapScreen() {
           />
         ) : null}
 
+        {driveTogetherNavigation ? (
+          <DriveTogetherNavigationChrome
+            bottomInset={insets.bottom}
+            following={isDriveTogetherFollowing}
+            navigation={driveTogetherNavigation}
+            onOpenPanel={() => setDriveTogetherOpen(true)}
+            onRecenter={recenterDriveTogether}
+            panelVisible={driveTogetherPanelVisible}
+            topInset={insets.top}
+          />
+        ) : null}
+
         {isRouteFocusMode && selectedEvent && route ? (
           <RouteFocusOverlay
             arrived={routeArrived}
@@ -2958,7 +3116,7 @@ export default function LiveMapScreen() {
       <LiveDrivePermissionRecoverySheet
         message={
           pendingLiveDrivePermissionRecovery?.message
-          ?? "Live Drive needs additional iPhone location access."
+          ?? "Live Drive needs background location access to keep you visible when NOXA is minimized."
         }
         onCancel={() => setPendingLiveDrivePermissionRecovery(null)}
         visible={pendingLiveDrivePermissionRecovery !== null}
@@ -2968,7 +3126,7 @@ export default function LiveMapScreen() {
         body={`NOXA collects and shares your precise location with ${pendingVisibility?.label.toLowerCase() ?? "your selected audience"} while the app is in the background, so they can see you on the live map.`}
         busy={isStartingLiveDrive}
         confirmDisabled={!pendingVisibilityMode}
-        confirmTitle="Start 4-hour session"
+        confirmTitle="Continue"
         eyebrow="BACKGROUND LOCATION"
         footnote="Sharing continues while NOXA is minimized. It stops after 4 hours, when you select Ghost, when you sign out, or after the app is fully closed and its live presence expires."
         icon="navigate"
@@ -2976,7 +3134,7 @@ export default function LiveMapScreen() {
         onConfirm={() => {
           if (pendingVisibilityMode) void startSharing(pendingVisibilityMode);
         }}
-        title="Start a 4-hour Live Drive?"
+        title="Stay visible while driving?"
         visible={pendingVisibilityMode !== null}
       />
 
@@ -3007,6 +3165,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, overflow: "hidden", backgroundColor: colors.background },
   header: {
     position: "absolute",
+    zIndex: 40,
+    elevation: 40,
     left: spacing.md,
     right: spacing.md,
     height: 44,
@@ -3131,12 +3291,16 @@ const styles = StyleSheet.create({
   },
   locationControlStack: {
     position: "absolute",
+    zIndex: 40,
+    elevation: 40,
     right: spacing.md,
     alignItems: "flex-end",
     gap: spacing.sm,
   },
   groupDriveControl: {
     position: "absolute",
+    zIndex: 40,
+    elevation: 40,
     left: spacing.md,
   },
   visibilityControl: {
@@ -3167,6 +3331,8 @@ const styles = StyleSheet.create({
   },
   visibilityMenuPosition: {
     position: "absolute",
+    zIndex: 60,
+    elevation: 60,
     left: spacing.md,
     width: 264,
   },
@@ -3221,6 +3387,8 @@ const styles = StyleSheet.create({
   },
   ghostToastWrap: {
     position: "absolute",
+    zIndex: 50,
+    elevation: 50,
     left: 0,
     right: 0,
     alignItems: "center",
@@ -3243,6 +3411,8 @@ const styles = StyleSheet.create({
   },
   mapNotice: {
     position: "absolute",
+    zIndex: 50,
+    elevation: 50,
     left: spacing.md,
     right: spacing.md,
     minHeight: 38,
@@ -3263,6 +3433,8 @@ const styles = StyleSheet.create({
   },
   mapDataNotice: {
     position: "absolute",
+    zIndex: 50,
+    elevation: 50,
     left: spacing.md,
     right: spacing.md,
     minHeight: 44,
@@ -3374,6 +3546,51 @@ const styles = StyleSheet.create({
   },
   eventPrimaryButton: {
     flex: 1.35,
+  },
+  driveNavigationTop: {
+    position: "absolute",
+    zIndex: 70,
+    elevation: 70,
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  driveNavigationInstruction: {
+    flex: 1,
+    minHeight: 76,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: "transparent",
+  },
+  driveNavigationBottom: {
+    position: "absolute",
+    zIndex: 70,
+    elevation: 70,
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  driveNavigationSummaryPressable: {
+    flex: 1,
+    minWidth: 0,
+  },
+  driveNavigationSummary: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: "transparent",
+  },
+  driveNavigationDrivers: {
+    marginLeft: "auto",
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
   },
   routeFocusTop: {
     position: "absolute",

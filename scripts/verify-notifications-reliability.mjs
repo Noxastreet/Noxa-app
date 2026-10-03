@@ -44,6 +44,10 @@ assert(
 
 const pushBridge = fs.readFileSync('src/features/notifications/PushNotificationBridge.tsx', 'utf8');
 const pushNotifications = fs.readFileSync('src/lib/pushNotifications.ts', 'utf8');
+const eventChatPushMigration = fs.readFileSync(
+  'supabase/migrations/20261003084115_add_event_chat_push_notifications.sql',
+  'utf8',
+);
 
 assert(
   /addPushTokenListener\(\(devicePushToken\) => \{[\s\S]*refreshCurrentPushDevice\(devicePushToken\)/.test(pushBridge),
@@ -56,6 +60,19 @@ assert(
 assert(
   /pendingRegistration[\s\S]*pendingRegisteredExpoPushToken[\s\S]*pendingRegisteredAccessToken/.test(pushNotifications),
   'Push-device registration must deduplicate an identical in-flight registration.',
+);
+
+assert(
+  /event_chat_id[\s\S]*pathname: '\/event-chat'/.test(pushBridge),
+  'Event Chat push taps must open the exact Event Chat before generic event routing.',
+);
+assert(
+  /'event_chat_message'/.test(eventChatPushMigration)
+    && /after insert on public\.event_messages/.test(eventChatPushMigration)
+    && /event_attendees\.user_id <> new\.sender_id/.test(eventChatPushMigration)
+    && /'messages'/.test(eventChatPushMigration)
+    && /'event_chat_id', new\.event_id/.test(eventChatPushMigration),
+  'Event Chat messages must enqueue message-category pushes for other event participants only.',
 );
 
 if (!process.exitCode) {

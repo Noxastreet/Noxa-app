@@ -207,19 +207,24 @@ requirePattern(
 );
 
 requirePattern(
-  'Onboarding completion must reconcile against the server profile across installs.',
+  'Onboarding completion must reconcile against the explicit server marker across installs.',
   onboarding,
-  /resolveOnboardingCompletion[\s\S]*from\('profiles'\)[\s\S]*select\('username'\)/,
+  /resolveOnboardingCompletion[\s\S]*from\('profiles'\)[\s\S]*select\('username,onboarding_completed_at'\)/,
 );
 requirePattern(
-  'A persisted username must restore local onboarding completion for returning accounts.',
+  'A persisted onboarding marker must restore local completion for returning accounts.',
   onboarding,
-  /data\?\.username\?\.trim\(\)[\s\S]*markOnboardingComplete\(userId\)[\s\S]*return 'profile'/,
+  /data\?\.onboarding_completed_at[\s\S]*localStorage\.setItem\(getOnboardingKey\(userId\), 'complete'\)[\s\S]*return 'profile'/,
 );
 requirePattern(
   'A profile transport failure must remain unknown instead of being treated as a new account.',
   onboarding,
   /if \(error\) return 'unknown'/,
+);
+requirePattern(
+  'Local onboarding storage failure must fall back to the server marker instead of skipping first-run.',
+  onboarding,
+  /hasCompletedOnboarding[\s\S]{0,420}catch \{[\s\S]{0,220}return false;/,
 );
 requirePattern(
   'Authenticated navigation must always route through the canonical first-run resolver.',

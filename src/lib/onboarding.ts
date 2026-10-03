@@ -13,19 +13,28 @@ export function hasCompletedOnboarding(userId: string) {
   try {
     return localStorage.getItem(getOnboardingKey(userId)) === 'complete';
   } catch {
-    // A storage failure must not keep an authenticated user out of the app.
-    return true;
+    // Local storage is only a fast path. Fall back to the canonical server
+    // marker so a genuinely new account can never skip onboarding.
+    return false;
   }
 }
 
-export function markOnboardingComplete(userId: string) {
+export async function markOnboardingComplete(userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.id) throw new Error('Onboarding completion was not persisted.');
+
   try {
     localStorage.setItem(getOnboardingKey(userId), 'complete');
-    return true;
   } catch {
-    // The caller can still continue into the app when local persistence is unavailable.
-    return false;
+    // Server completion is canonical. Local persistence is only a fast path.
   }
+  return true;
 }
 
 
@@ -37,10 +46,10 @@ export type OnboardingCompletionState =
 
 /**
  * Resolve first-run state across installs. The local flag remains the fast
- * path, while a persisted username is the server-side proof that the account
- * already completed NOXA identity setup. New auth users are created with a
- * profile row but without a username, so profile existence alone is not
- * enough to skip onboarding.
+ * path, while onboarding_completed_at is the server-side proof that the
+ * account already completed NOXA first-run setup. New auth users are created
+ * with a profile row but without that marker, so profile existence alone is
+ * not enough to skip onboarding.
  *
  * `unknown` deliberately does not mean "new user": a temporary network error
  * must never force an existing authenticated account back through onboarding.
@@ -52,14 +61,18 @@ export async function resolveOnboardingCompletion(
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('username')
+    .select('username,onboarding_completed_at')
     .eq('id', userId)
     .maybeSingle();
 
   if (error) return 'unknown';
 
-  if (data?.username?.trim()) {
-    markOnboardingComplete(userId);
+  if (data?.onboarding_completed_at) {
+    try {
+      localStorage.setItem(getOnboardingKey(userId), 'complete');
+    } catch {
+      // Server completion remains canonical.
+    }
     return 'profile';
   }
 

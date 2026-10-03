@@ -780,11 +780,6 @@ export default function CanonicalEventDetailScreen() {
                 onPress={navigate}
               />
             </View>
-            <View style={styles.mapRouteLine}>
-              <View style={styles.mapRouteStart} />
-              <View style={styles.mapRouteTrack} />
-              <View style={styles.mapRouteEnd} />
-            </View>
             <Text style={styles.mapBrand}>NOXA NAVIGATION</Text>
           </View>
         </View>
@@ -933,10 +928,6 @@ const styles = StyleSheet.create({
   mapCard: { height: 176, overflow: "hidden", borderRadius: radius.lg, backgroundColor: "#0B1218" },
   mapOverlayTop: { position: "absolute", left: spacing.sm, right: spacing.sm, top: spacing.sm, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   mapMeta: { color: colors.text, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
-  mapRouteLine: { position: "absolute", left: 62, right: 62, bottom: 50, flexDirection: "row", alignItems: "center" },
-  mapRouteStart: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.text },
-  mapRouteTrack: { flex: 1, height: 3, backgroundColor: colors.primary },
-  mapRouteEnd: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, borderColor: colors.text, backgroundColor: colors.primary },
   mapBrand: { position: "absolute", left: spacing.sm, bottom: spacing.sm, color: colors.text, fontSize: 8, lineHeight: 10, fontWeight: "900", letterSpacing: 0.5 },
   goingCard: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.md },
   goingCopy: { flex: 1 },
