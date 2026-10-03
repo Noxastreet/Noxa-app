@@ -14,9 +14,18 @@ function assert(condition, message) {
 const screen = read('app/quick-connect.tsx');
 
 assert(
-  /const QUICK_CONNECT_STAGE_ENTER = FadeIn[\s\S]{0,140}duration\(animations\.micro\)[\s\S]{0,120}ReduceMotion\.System/.test(screen)
-    && /const QUICK_CONNECT_STAGE_EXIT = FadeOut[\s\S]{0,140}duration\(animations\.fast\)[\s\S]{0,120}ReduceMotion\.System/.test(screen),
-  'Quick Connect stage transitions must be short and Reduce Motion aware.',
+  /const QUICK_CONNECT_FORWARD_ENTER = SlideInRight[\s\S]{0,180}duration\(animations\.sheet\)[\s\S]{0,180}ReduceMotion\.System/.test(screen)
+    && /const QUICK_CONNECT_FORWARD_EXIT = SlideOutLeft[\s\S]{0,180}duration\(animations\.base\)[\s\S]{0,180}ReduceMotion\.System/.test(screen)
+    && /const QUICK_CONNECT_BACK_ENTER = SlideInLeft[\s\S]{0,180}duration\(animations\.sheet\)[\s\S]{0,180}ReduceMotion\.System/.test(screen)
+    && /const QUICK_CONNECT_BACK_EXIT = SlideOutRight[\s\S]{0,180}duration\(animations\.base\)[\s\S]{0,180}ReduceMotion\.System/.test(screen),
+  'Quick Connect stages must use directional push/pop motion and remain Reduce Motion aware.',
+);
+
+assert(
+  /const transitionStage = useCallback[\s\S]{0,650}setStageTransitionDirection\(direction\)[\s\S]{0,220}requestAnimationFrame/.test(screen)
+    && /transitionStage\('forward',[\s\S]{0,160}setScannerOpen\(true\)/.test(screen)
+    && /transitionStage\('back',[\s\S]{0,180}setScannerOpen\(false\)/.test(screen),
+  'Quick Connect must preserve navigation direction for forward and back stage changes.',
 );
 
 assert(
@@ -25,8 +34,8 @@ assert(
 );
 
 assert(
-  /<Animated\.View[\s\S]{0,220}entering=\{QUICK_CONNECT_STAGE_ENTER\}[\s\S]{0,140}exiting=\{QUICK_CONNECT_STAGE_EXIT\}[\s\S]{0,100}key=\{stageKey\}/.test(screen),
-  'Quick Connect must keep its screen shell stable while internal stages transition.',
+  /<Animated\.View[\s\S]{0,220}entering=\{stageEntering\}[\s\S]{0,140}exiting=\{stageExiting\}[\s\S]{0,100}key=\{stageKey\}/.test(screen),
+  'Quick Connect must keep its screen shell stable while directionally transitioning internal stages.',
 );
 
 assert(
