@@ -5,6 +5,12 @@ if (!PROJECT_REF || !API_KEY) {
   throw new Error('Missing NOXA_SUPABASE_PROJECT_REF or NOXA_SUPABASE_PUBLISHABLE_KEY');
 }
 
+const PRODUCTION_PROJECT_REF = 'wzfpwuyyaotvofdijhin';
+
+if (PROJECT_REF === PRODUCTION_PROJECT_REF) {
+  throw new Error('Refusing to run Realtime capacity probe against NOXA production Supabase.');
+}
+
 const TARGETS = [25, 50, 100, 150, 180, 195, 205, 220, 250];
 const JOIN_TIMEOUT_MS = 12000;
 const STAGE_HOLD_MS = 5000;
