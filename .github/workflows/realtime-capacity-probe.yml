@@ -1,0 +1,24 @@
+name: NOXA Realtime Capacity Probe
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  realtime-capacity-probe:
+    if: github.head_ref == 'loadtest/realtime-free-limit-20261005'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      NOXA_SUPABASE_PROJECT_REF: wzfpwuyyaotvofdijhin
+      NOXA_SUPABASE_PUBLISHABLE_KEY: sb_publishable_8LV9r7GTYuYOqSGGQebgNA_W6ea6_HK
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Open controlled Realtime connections
+        run: node scripts/loadtest-realtime-connections.mjs
