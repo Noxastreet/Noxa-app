@@ -5,15 +5,16 @@ if (!PROJECT_REF || !API_KEY) {
   throw new Error('Missing NOXA_SUPABASE_PROJECT_REF or NOXA_SUPABASE_PUBLISHABLE_KEY');
 }
 
-const TARGETS = [25, 50, 100, 150, 190, 205, 225, 250];
-const JOIN_TIMEOUT_MS = 8000;
-const STAGE_HOLD_MS = 8000;
-
+const TARGETS = [25, 50, 100, 150, 180, 195, 205, 220, 250];
+const JOIN_TIMEOUT_MS = 12000;
+const STAGE_HOLD_MS = 5000;
 const clients = [];
 let nextId = 0;
 let heartbeatRef = 1000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const aliveJoined = () => clients.filter((c) => c.joined && !c.closed).length;
+const failedCount = () => clients.filter((c) => c.failed).length;
 
 function realtimeUrl() {
   return `wss://${PROJECT_REF}.supabase.co/realtime/v1/websocket?apikey=${encodeURIComponent(API_KEY)}&vsn=1.0.0`;
@@ -37,18 +38,18 @@ function openClient() {
     clients.push(state);
 
     let settled = false;
-    const finish = (result) => {
+    const finish = () => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(result);
+      resolve(state);
     };
 
     const timer = setTimeout(() => {
       state.failed = true;
-      state.failure = 'join_timeout';
+      state.failure ||= 'join_timeout';
       try { ws.close(1000, 'join timeout'); } catch {}
-      finish(state);
+      finish();
     }, JOIN_TIMEOUT_MS);
 
     ws.onopen = () => {
@@ -72,21 +73,16 @@ function openClient() {
 
     ws.onmessage = (event) => {
       let message;
-      try {
-        message = JSON.parse(String(event.data));
-      } catch {
-        return;
-      }
+      try { message = JSON.parse(String(event.data)); } catch { return; }
 
       if (message.event === 'phx_reply' && message.ref === String(id)) {
         if (message.payload?.status === 'ok') {
           state.joined = true;
-          finish(state);
         } else {
           state.failed = true;
           state.failure = JSON.stringify(message.payload ?? {});
-          finish(state);
         }
+        finish();
       }
 
       if (message.event === 'phx_error') {
@@ -105,7 +101,7 @@ function openClient() {
       if (!state.joined) {
         state.failed = true;
         state.failure ||= `closed_${event.code}_${event.reason || 'no_reason'}`;
-        finish(state);
+        finish();
       }
     };
   });
@@ -115,52 +111,84 @@ const heartbeat = setInterval(() => {
   for (const client of clients) {
     const ws = client.ws;
     if (!client.joined || client.closed || !ws || ws.readyState !== WebSocket.OPEN) continue;
-    const ref = String(++heartbeatRef);
     try {
       ws.send(JSON.stringify({
         topic: 'phoenix',
         event: 'heartbeat',
         payload: {},
-        ref,
+        ref: String(++heartbeatRef),
         join_ref: null,
       }));
     } catch {}
   }
 }, 15000);
 
-function snapshot(target) {
-  const opened = clients.filter((c) => c.opened).length;
-  const joined = clients.filter((c) => c.joined && !c.closed).length;
-  const failed = clients.filter((c) => c.failed).length;
-  const closed = clients.filter((c) => c.closed).length;
-  const recentFailures = clients
-    .filter((c) => c.failed)
-    .slice(-10)
-    .map((c) => ({ id: c.id, failure: c.failure }));
-  return { target, attempted: clients.length, opened, joined, failed, closed, recentFailures };
+function snapshot(target, stageFailures = 0) {
+  return {
+    target,
+    attempted: clients.length,
+    opened: clients.filter((c) => c.opened).length,
+    joined_alive: aliveJoined(),
+    failed_total: failedCount(),
+    stage_failures: stageFailures,
+    closed: clients.filter((c) => c.closed).length,
+    recent_failures: clients.filter((c) => c.failed).slice(-8).map((c) => ({
+      id: c.id,
+      failure: c.failure,
+    })),
+  };
+}
+
+async function reachTarget(target) {
+  const failuresAtStart = failedCount();
+  let noProgressRounds = 0;
+  let attemptsThisStage = 0;
+
+  while (aliveJoined() < target) {
+    const before = aliveJoined();
+    const gap = target - before;
+    const batchSize = Math.min(before >= 150 ? 5 : 10, gap);
+    attemptsThisStage += batchSize;
+
+    await Promise.all(Array.from({ length: batchSize }, () => openClient()));
+    await sleep(before >= 150 ? 600 : 300);
+
+    const after = aliveJoined();
+    if (after <= before) noProgressRounds += 1;
+    else noProgressRounds = 0;
+
+    const stageFailures = failedCount() - failuresAtStart;
+
+    // Once near the documented Free-plan ceiling, stop if repeated new clients
+    // cannot increase the live connection count. This prevents a runaway test.
+    if (before >= 180 && (noProgressRounds >= 3 || stageFailures >= 15)) {
+      return { reached: false, stageFailures };
+    }
+
+    if (attemptsThisStage >= 100) {
+      return { reached: false, stageFailures };
+    }
+  }
+
+  await sleep(STAGE_HOLD_MS);
+  return { reached: true, stageFailures: failedCount() - failuresAtStart };
 }
 
 try {
-  console.log('NOXA realtime capacity probe');
+  console.log('NOXA realtime capacity probe v2');
   console.log(JSON.stringify({ project: PROJECT_REF, targets: TARGETS, writes: false }, null, 2));
 
   for (const target of TARGETS) {
-    const need = Math.max(0, target - clients.length);
-    if (need > 0) {
-      await Promise.all(Array.from({ length: need }, () => openClient()));
-    }
+    const result = await reachTarget(target);
+    console.log(`STAGE ${target}: ${JSON.stringify(snapshot(target, result.stageFailures))}`);
 
-    await sleep(STAGE_HOLD_MS);
-    const result = snapshot(target);
-    console.log(`STAGE ${target}: ${JSON.stringify(result)}`);
-
-    if (target >= 205 && result.failed > 0) {
-      console.log('CAPACITY_LIMIT_OBSERVED: stopping after first failure above documented Free-plan connection limit.');
+    if (!result.reached) {
+      console.log(`CAPACITY_LIMIT_OBSERVED: could not sustain target ${target}; stopping safely.`);
       break;
     }
   }
 
-  console.log('FINAL:', JSON.stringify(snapshot(clients.length), null, 2));
+  console.log('FINAL:', JSON.stringify(snapshot(aliveJoined()), null, 2));
 } finally {
   clearInterval(heartbeat);
   for (const client of clients) {
