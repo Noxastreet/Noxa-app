@@ -1,15 +1,15 @@
 name: NOXA Realtime Capacity Probe
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - loadtest/realtime-free-limit-20261005
 
 permissions:
   contents: read
 
 jobs:
   realtime-capacity-probe:
-    if: github.head_ref == 'loadtest/realtime-free-limit-20261005'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
