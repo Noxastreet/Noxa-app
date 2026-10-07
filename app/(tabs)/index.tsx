@@ -154,15 +154,15 @@ type LocationVisibilityMode = "crew" | "friends" | "global" | "ghost";
 const THESSALONIKI: LatLng = { latitude: 40.6401, longitude: 22.9444 };
 const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
 const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
-const DRIVER_LOCATION_MIN_WRITE_MS = 7000;
-const DRIVER_LIST_REFRESH_MS = 30 * 1000;
+const DRIVER_LOCATION_MIN_WRITE_MS = 10_000;
+const DRIVER_LIST_REFRESH_MS = 15 * 1000;
 const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
 const MAPBOX_LOCATION_STATE_MIN_MS = 750;
 const ROUTE_ARRIVAL_METERS = 45;
 const NEARBY_RADIUS_METERS = 25_000;
+const MAX_MAP_DRIVERS = 200;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-let driverLocationsMapChannelSequence = 0;
 
 const TAB_BAR_HEIGHT = 64;
 const TAB_BAR_BOTTOM_GAP = 0;
@@ -300,9 +300,18 @@ function hasValidCoordinates(
   );
 }
 
-function createDriverLocationsMapTopic() {
-  driverLocationsMapChannelSequence += 1;
-  return `driver-locations-map:${Date.now()}:${driverLocationsMapChannelSequence}`;
+function nearbyBounds(point: LatLng, radiusMeters: number) {
+  const latitudeDelta = radiusMeters / 111_320;
+  const longitudeMetersPerDegree =
+    111_320 * Math.max(Math.cos((point.latitude * Math.PI) / 180), 0.2);
+  const longitudeDelta = radiusMeters / longitudeMetersPerDegree;
+
+  return {
+    minLatitude: Math.max(-90, point.latitude - latitudeDelta),
+    maxLatitude: Math.min(90, point.latitude + latitudeDelta),
+    minLongitude: Math.max(-180, point.longitude - longitudeDelta),
+    maxLongitude: Math.min(180, point.longitude + longitudeDelta),
+  };
 }
 
 function mapDataErrorCode(error: unknown) {
@@ -920,7 +929,6 @@ export default function LiveMapScreen() {
   const activeDriversRefreshInFlightRef = useRef(false);
   const activeDriversRefreshQueuedRef = useRef(false);
   const activeDriversRef = useRef<ActiveDriver[]>([]);
-  const currentUserIdRef = useRef<string | null>(null);
   const mapFocusedRef = useRef(false);
   const [isVisibleOnMap, setIsVisibleOnMap] = useState(false);
   const [visibilityMode, setVisibilityMode] =
@@ -1709,8 +1717,20 @@ export default function LiveMapScreen() {
       }
 
       const userId = sessionData.session?.user.id;
-      currentUserIdRef.current = userId ?? null;
       if (!userId) {
+        if (
+          isMountedRef.current &&
+          activeDriversRequestIdRef.current === requestId
+        ) {
+          activeDriversRef.current = [];
+          setActiveDrivers([]);
+          setActiveDriversRequestState("ready");
+        }
+        return;
+      }
+
+      const origin = driverLocationRef.current;
+      if (!origin) {
         if (
           isMountedRef.current &&
           activeDriversRequestIdRef.current === requestId
@@ -1725,6 +1745,7 @@ export default function LiveMapScreen() {
       const since = new Date(
         Date.now() - ACTIVE_DRIVER_WINDOW_MS,
       ).toISOString();
+      const bounds = nearbyBounds(origin, NEARBY_RADIUS_METERS);
 
       const { data, error } = await supabase
         .from("driver_locations")
@@ -1733,7 +1754,12 @@ export default function LiveMapScreen() {
         )
         .gte("updated_at", since)
         .neq("user_id", userId)
-        .order("updated_at", { ascending: false });
+        .gte("latitude", bounds.minLatitude)
+        .lte("latitude", bounds.maxLatitude)
+        .gte("longitude", bounds.minLongitude)
+        .lte("longitude", bounds.maxLongitude)
+        .order("updated_at", { ascending: false })
+        .limit(MAX_MAP_DRIVERS);
 
       if (
         !isMountedRef.current ||
@@ -1808,7 +1834,6 @@ export default function LiveMapScreen() {
       (event, session) => {
         if (!isActive) return;
         if (event === "SIGNED_OUT" || !session) {
-          currentUserIdRef.current = null;
           activeDriversRef.current = [];
           setActiveDrivers([]);
           setCurrentProfile(null);
@@ -1857,100 +1882,11 @@ export default function LiveMapScreen() {
       const refreshInterval = setInterval(() => {
         if (isActive && isAppForegroundRef.current) void refreshActiveDrivers();
       }, DRIVER_LIST_REFRESH_MS);
-      const channel = supabase.channel(createDriverLocationsMapTopic());
-      channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "driver_locations" },
-        (payload) => {
-          if (!isActive || !isAppForegroundRef.current) return;
-          const nextRow = payload.new as Partial<ActiveDriverRow>;
-          const oldRow = payload.old as Partial<ActiveDriverRow>;
-          const userId =
-            typeof nextRow.user_id === "string"
-              ? nextRow.user_id
-              : typeof oldRow.user_id === "string"
-                ? oldRow.user_id
-                : null;
-          if (!userId) {
-            void refreshActiveDrivers();
-            return;
-          }
-          if (userId === currentUserIdRef.current) return;
-
-          if (payload.eventType === "DELETE") {
-            const nextDrivers = activeDriversRef.current.filter(
-              (driver) => driver.user_id !== userId,
-            );
-            if (nextDrivers.length !== activeDriversRef.current.length) {
-              activeDriversRef.current = nextDrivers;
-              setActiveDrivers(nextDrivers);
-            }
-            return;
-          }
-
-          const latitude =
-            typeof nextRow.latitude === "number" ? nextRow.latitude : Number.NaN;
-          const longitude =
-            typeof nextRow.longitude === "number" ? nextRow.longitude : Number.NaN;
-          const updatedAt =
-            typeof nextRow.updated_at === "string" ? nextRow.updated_at : null;
-          if (!updatedAt || !hasValidLatLng(latitude, longitude)) {
-            void refreshActiveDrivers();
-            return;
-          }
-
-          const driverIndex = activeDriversRef.current.findIndex(
-            (driver) => driver.user_id === userId,
-          );
-          if (driverIndex < 0) {
-            // New or newly-visible drivers still go through the authorized joined
-            // SELECT so profile disclosure remains governed by the existing query.
-            void refreshActiveDrivers();
-            return;
-          }
-
-          const current = activeDriversRef.current[driverIndex];
-          const currentUpdatedAt = Date.parse(current.updated_at);
-          const nextUpdatedAt = Date.parse(updatedAt);
-          if (
-            Number.isFinite(currentUpdatedAt) &&
-            Number.isFinite(nextUpdatedAt) &&
-            nextUpdatedAt <= currentUpdatedAt
-          ) {
-            return;
-          }
-
-          const nextDrivers = [...activeDriversRef.current];
-          nextDrivers[driverIndex] = {
-            ...current,
-            latitude,
-            longitude,
-            updated_at: updatedAt,
-          };
-          activeDriversRef.current = nextDrivers;
-          setActiveDrivers(nextDrivers);
-        },
-      );
-      channel.subscribe((status) => {
-        if (status === "SUBSCRIBED" && isActive) {
-          // Close the snapshot-to-subscription gap once, not on every location event.
-          void refreshActiveDrivers();
-        } else if (
-          status === "CHANNEL_ERROR" &&
-          isActive &&
-          isMountedRef.current
-        ) {
-          setSharingError(
-            (current) => current ?? "Live driver updates are reconnecting.",
-          );
-        }
-      });
-
       return () => {
         isActive = false;
         mapFocusedRef.current = false;
         clearInterval(refreshInterval);
-        void supabase.removeChannel(channel);
+        activeDriversRequestIdRef.current += 1;
       };
     }, [loadMyDriverIds, refreshActiveDrivers]),
   );
