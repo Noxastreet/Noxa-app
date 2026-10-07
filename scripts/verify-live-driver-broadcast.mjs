@@ -55,6 +55,11 @@ assert.equal(
   'Home Map must not restore the global driver_locations Postgres Changes subscription.',
 );
 
+assert.doesNotMatch(
+  migration,
+  /^\$;$/m,
+  'PL/pgSQL functions must use complete $ dollar delimiters.',
+);
 assert.match(
   migration,
   /add column if not exists broadcast_key uuid/,
