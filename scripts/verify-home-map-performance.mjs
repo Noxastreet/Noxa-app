@@ -9,55 +9,67 @@ function requireText(text, message) {
 
 requireText(
   'updated_at: string;\n  profile: ProfileMarkerRow | null;',
-  'Active driver state must preserve server measurement time for ordering/race protection.',
+  'Active driver state must preserve server measurement time.',
 );
 requireText(
-  'const activeDriversRef = useRef<ActiveDriver[]>([]);',
-  'Realtime location updates must have a current driver snapshot without forcing a SELECT.',
+  'const DRIVER_LOCATION_MIN_WRITE_MS = 10_000;',
+  'Personal Live Drive writes must be throttled to at least 10 seconds.',
 );
 requireText(
-  'mapFocusedRef.current = true;',
-  'driver_locations subscription must be scoped to focused Map lifecycle.',
+  'const DRIVER_LIST_REFRESH_MS = 15 * 1000;',
+  'Focused Map reconciliation must use the bounded 15 second polling cadence.',
 );
 requireText(
-  'mapFocusedRef.current = false;',
-  'focused Map lifecycle must be cleared on blur/unmount.',
+  'const MAX_MAP_DRIVERS = 200;',
+  'Home Map payload must have a hard driver cap.',
 );
 requireText(
-  'if (userId === currentUserIdRef.current) return;',
-  'own Live Drive writes must not trigger map driver list refetches.',
+  'function nearbyBounds(point: LatLng, radiusMeters: number)',
+  'Home Map must derive a server-side geographic bounding box.',
 );
 requireText(
-  'if (payload.eventType === "DELETE")',
-  'Realtime deletes must update the local driver list directly.',
+  '.gte("latitude", bounds.minLatitude)',
+  'Home Map driver query must filter minimum latitude on the server.',
 );
 requireText(
-  'nextDrivers[driverIndex] = {',
-  'known Realtime driver updates must update local state directly.',
+  '.lte("latitude", bounds.maxLatitude)',
+  'Home Map driver query must filter maximum latitude on the server.',
 );
 requireText(
-  'nextUpdatedAt <= currentUpdatedAt',
-  'older/out-of-order Realtime driver updates must not replace a newer marker.',
+  '.gte("longitude", bounds.minLongitude)',
+  'Home Map driver query must filter minimum longitude on the server.',
 );
 requireText(
-  'status === "SUBSCRIBED" && isActive',
-  'Map must close the initial snapshot-to-subscription gap once.',
+  '.lte("longitude", bounds.maxLongitude)',
+  'Home Map driver query must filter maximum longitude on the server.',
 );
 requireText(
-  '}, DRIVER_LIST_REFRESH_MS);',
-  'periodic safety reconciliation must remain in place while Map is focused.',
+  '.limit(MAX_MAP_DRIVERS);',
+  'Home Map driver query must cap returned rows.',
+);
+requireText(
+  'if (isActive && isAppForegroundRef.current) void refreshActiveDrivers();',
+  'Home Map polling must stop doing network work while the app is backgrounded.',
+);
+requireText(
+  'activeDriversRequestIdRef.current += 1;',
+  'Focused Map cleanup must invalidate an in-flight driver request.',
 );
 
 assert.equal(
-  source.includes(
-    '{ event: "*", schema: "public", table: "driver_locations" },\n      () => {\n        if (isActive) void refreshActiveDrivers();',
-  ),
+  source.includes('table: "driver_locations"'),
   false,
-  'Do not restore full driver SELECT on every driver_locations event.',
+  'Home Map must not subscribe globally to driver_locations Postgres Changes.',
+);
+assert.equal(
+  source.includes('createDriverLocationsMapTopic'),
+  false,
+  'Home Map must not create a dedicated Realtime topic for the global driver table.',
+);
+assert.equal(
+  source.includes('supabase.removeChannel(channel)'),
+  false,
+  'Home Map no longer owns a Realtime channel that requires channel cleanup.',
 );
 
-const channelCall = source.indexOf('const channel = supabase.channel(createDriverLocationsMapTopic());');
-const focusedLifecycle = source.lastIndexOf('useFocusEffect(', channelCall);
-assert.ok(channelCall >= 0 && focusedLifecycle >= 0, 'driver_locations channel must live inside useFocusEffect.');
-
-console.log('Home / Map F12 performance contract: PASS (12 checks)');
+console.log('Home / Map scaling contract: PASS (15 checks)');
