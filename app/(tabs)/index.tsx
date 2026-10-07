@@ -2143,6 +2143,171 @@ export default function LiveMapScreen() {
   ]);
 
   useEffect(() => {
+    if (!isMapFocused || !isAppForeground || !liveDriverBroadcastSignature) {
+      driverBroadcastTargetsRef.current.clear();
+      return;
+    }
+
+    const channels: RealtimeChannel[] = [];
+    const subscriptions = liveDriverBroadcastSignature
+      .split("|")
+      .map((entry) => entry.split(","))
+      .filter(
+        (parts): parts is [string, string] =>
+          parts.length === 2 &&
+          uuidPattern.test(parts[0]) &&
+          uuidPattern.test(parts[1]),
+      );
+
+    for (const [expectedUserId, broadcastKey] of subscriptions) {
+      const topic = createDriverBroadcastTopic(expectedUserId, broadcastKey);
+      if (!topic) continue;
+
+      const channel = supabase.channel(topic, {
+        config: { private: true },
+      });
+
+      channel.on(
+        "broadcast",
+        { event: DRIVER_BROADCAST_EVENT },
+        (message) => {
+          const payload = parseDriverBroadcastPayload(
+            (message as { payload?: unknown }).payload,
+          );
+          if (!payload || payload.user_id !== expectedUserId) return;
+
+          const current = activeDriversRef.current.find(
+            (driver) => driver.user_id === expectedUserId,
+          );
+          if (!current) return;
+
+          const existingTarget =
+            driverBroadcastTargetsRef.current.get(expectedUserId);
+          const payloadUpdatedAt = Date.parse(payload.updated_at);
+          const targetUpdatedAt = existingTarget
+            ? Date.parse(existingTarget.updatedAt)
+            : Number.NaN;
+
+          if (
+            Number.isFinite(targetUpdatedAt) &&
+            Number.isFinite(payloadUpdatedAt) &&
+            payloadUpdatedAt <= targetUpdatedAt
+          ) {
+            return;
+          }
+
+          driverBroadcastTargetsRef.current.set(expectedUserId, {
+            from: {
+              latitude: current.latitude,
+              longitude: current.longitude,
+            },
+            to: {
+              latitude: payload.latitude,
+              longitude: payload.longitude,
+            },
+            startedAt: Date.now(),
+            updatedAt: payload.updated_at,
+          });
+        },
+      );
+
+      channel.on(
+        "broadcast",
+        { event: DRIVER_BROADCAST_LEAVE_EVENT },
+        (message) => {
+          const payload = (message as { payload?: unknown }).payload;
+          if (!payload || typeof payload !== "object") return;
+          const userId = (payload as { user_id?: unknown }).user_id;
+          if (userId !== expectedUserId) return;
+
+          driverBroadcastTargetsRef.current.delete(expectedUserId);
+          const nextDrivers = activeDriversRef.current.filter(
+            (driver) => driver.user_id !== expectedUserId,
+          );
+          if (nextDrivers.length === activeDriversRef.current.length) return;
+          activeDriversRef.current = nextDrivers;
+          setActiveDrivers(nextDrivers);
+        },
+      );
+
+      channel.subscribe();
+      channels.push(channel);
+    }
+
+    return () => {
+      driverBroadcastTargetsRef.current.clear();
+      for (const channel of channels) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [
+    isAppForeground,
+    isMapFocused,
+    liveDriverBroadcastSignature,
+  ]);
+
+  useEffect(() => {
+    if (!isMapFocused || !isAppForeground) {
+      driverBroadcastTargetsRef.current.clear();
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (driverBroadcastTargetsRef.current.size === 0) return;
+
+      const now = Date.now();
+      const currentDrivers = activeDriversRef.current;
+      const activeIds = new Set(currentDrivers.map((driver) => driver.user_id));
+      let changed = false;
+
+      const nextDrivers = currentDrivers.map((driver) => {
+        const target = driverBroadcastTargetsRef.current.get(driver.user_id);
+        if (!target) return driver;
+
+        const progress = Math.min(
+          1,
+          Math.max(0, (now - target.startedAt) / DRIVER_BROADCAST_ANIMATION_MS),
+        );
+        const point = interpolateDriverPoint(target.from, target.to, progress);
+        const complete = progress >= 1;
+
+        if (complete) {
+          driverBroadcastTargetsRef.current.delete(driver.user_id);
+        }
+
+        if (
+          Math.abs(point.latitude - driver.latitude) < 0.0000001 &&
+          Math.abs(point.longitude - driver.longitude) < 0.0000001 &&
+          (!complete || driver.updated_at === target.updatedAt)
+        ) {
+          return driver;
+        }
+
+        changed = true;
+        return {
+          ...driver,
+          latitude: point.latitude,
+          longitude: point.longitude,
+          updated_at: complete ? target.updatedAt : driver.updated_at,
+        };
+      });
+
+      for (const userId of driverBroadcastTargetsRef.current.keys()) {
+        if (!activeIds.has(userId)) {
+          driverBroadcastTargetsRef.current.delete(userId);
+        }
+      }
+
+      if (changed) {
+        activeDriversRef.current = nextDrivers;
+        setActiveDrivers(nextDrivers);
+      }
+    }, DRIVER_BROADCAST_ANIMATION_TICK_MS);
+
+    return () => clearInterval(interval);
+  }, [isAppForeground, isMapFocused]);
+
+  useEffect(() => {
     if (isVisibleOnMap || sharingError || locationError || permissionDenied) {
       setShowGhostToast(false);
       return;
