@@ -1013,6 +1013,21 @@ export default function LiveMapScreen() {
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
 
+  const liveDriverBroadcastSignature = useMemo(() => {
+    if (!driverLocation) return "";
+    return activeDrivers
+      .filter((driver) => uuidPattern.test(driver.broadcast_key))
+      .map((driver) => ({
+        driver,
+        distance: distanceBetweenMeters(driverLocation, driver),
+      }))
+      .sort((first, second) => first.distance - second.distance)
+      .slice(0, MAX_LIVE_DRIVER_CHANNELS)
+      .map(({ driver }) => `${driver.user_id},${driver.broadcast_key}`)
+      .sort()
+      .join("|");
+  }, [activeDrivers, driverLocation]);
+
   const preparedEventRoute = useMemo(
     () => prepareEventRoute(route),
     [route],
