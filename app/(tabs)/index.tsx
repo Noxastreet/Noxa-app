@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
@@ -29,6 +30,17 @@ import {
 } from "@/src/components/ui";
 import { LiveDrivePermissionRecoverySheet } from "@/src/features/map/LiveDrivePermissionRecoverySheet";
 import { MapDriverCard } from "@/src/features/map/MapDriverCard";
+import {
+  createDriverBroadcastTopic,
+  DRIVER_BROADCAST_ANIMATION_MS,
+  DRIVER_BROADCAST_ANIMATION_TICK_MS,
+  DRIVER_BROADCAST_EVENT,
+  DRIVER_BROADCAST_LEAVE_EVENT,
+  DRIVER_BROADCAST_SEND_MS,
+  interpolateDriverPoint,
+  MAX_LIVE_DRIVER_CHANNELS,
+  parseDriverBroadcastPayload,
+} from "@/src/features/map/liveDriverBroadcast";
 import {
   DriveTogetherMapLayer,
   type DriveTogetherDestinationSeed,
@@ -86,6 +98,7 @@ type ActiveDriverRow = {
   latitude: number;
   longitude: number;
   updated_at: string;
+  broadcast_key: string;
   profiles: ProfileMarkerRow | ProfileMarkerRow[] | null;
 };
 type ActiveDriver = {
@@ -93,7 +106,14 @@ type ActiveDriver = {
   latitude: number;
   longitude: number;
   updated_at: string;
+  broadcast_key: string;
   profile: ProfileMarkerRow | null;
+};
+type DriverBroadcastAnimationTarget = {
+  from: LatLng;
+  to: LatLng;
+  startedAt: number;
+  updatedAt: string;
 };
 type PrimaryVehicleRow = {
   owner_id: string;
@@ -269,11 +289,13 @@ function normalizeActiveDriver(row: ActiveDriverRow): ActiveDriver | null {
   const profile = Array.isArray(row.profiles)
     ? (row.profiles[0] ?? null)
     : row.profiles;
+  if (!uuidPattern.test(row.broadcast_key)) return null;
   return {
     user_id: row.user_id,
     latitude: row.latitude,
     longitude: row.longitude,
     updated_at: row.updated_at,
+    broadcast_key: row.broadcast_key,
     profile,
   };
 }
@@ -920,6 +942,9 @@ export default function LiveMapScreen() {
   const locationPositionRequestRef = useRef<Promise<Location.LocationObject> | null>(null);
   const liveDriveStartGenerationRef = useRef(0);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
+  const [isAppForeground, setIsAppForeground] = useState(
+    AppState.currentState === "active",
+  );
   const sharingUserIdRef = useRef<string | null>(null);
   const visibilityModeRef = useRef<LocationVisibilityMode>("ghost");
   const latestPresencePayloadRef = useRef<PresenceLocationPayload | null>(null);
@@ -930,6 +955,14 @@ export default function LiveMapScreen() {
   const activeDriversRefreshQueuedRef = useRef(false);
   const activeDriversRef = useRef<ActiveDriver[]>([]);
   const mapFocusedRef = useRef(false);
+  const [isMapFocused, setIsMapFocused] = useState(false);
+  const [ownDriverBroadcastKey, setOwnDriverBroadcastKey] =
+    useState<string | null>(null);
+  const ownDriverBroadcastChannelRef = useRef<RealtimeChannel | null>(null);
+  const lastDriverBroadcastSentRef = useRef(0);
+  const driverBroadcastTargetsRef = useRef<
+    Map<string, DriverBroadcastAnimationTarget>
+  >(new Map());
   const [isVisibleOnMap, setIsVisibleOnMap] = useState(false);
   const [visibilityMode, setVisibilityMode] =
     useState<LocationVisibilityMode>("ghost");
