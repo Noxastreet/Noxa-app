@@ -249,7 +249,6 @@ create policy noxa_driver_broadcast_read
   using (
     realtime.messages.extension = 'broadcast'
     and realtime.messages.private is true
-    and realtime.messages.event in ('location', 'leave')
     and private.noxa_can_read_driver_broadcast((select realtime.topic()))
   );
 
@@ -328,9 +327,12 @@ begin
     );
   end if;
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end;
-$$;
+$;
 
 revoke all privileges
   on function private.noxa_broadcast_driver_location_change()
@@ -376,9 +378,12 @@ begin
   set broadcast_key = gen_random_uuid()
   where user_id in (first_user_id, second_user_id);
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end;
-$$;
+$;
 
 revoke all privileges
   on function private.noxa_rotate_relation_driver_broadcast_keys()
@@ -434,9 +439,12 @@ begin
     select new_user_id where new_user_id is not null
   );
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end;
-$$;
+$;
 
 revoke all privileges
   on function private.noxa_rotate_crew_driver_broadcast_keys()
