@@ -1243,7 +1243,10 @@ export default function LiveMapScreen() {
     async (deleteRow = true) => {
       liveDriveStartGenerationRef.current += 1;
       lastPresenceWriteRef.current = 0;
+      lastDriverBroadcastSentRef.current = 0;
       latestPresencePayloadRef.current = null;
+      driverBroadcastTargetsRef.current.clear();
+      setOwnDriverBroadcastKey(null);
       const userId = sharingUserIdRef.current;
       sharingUserIdRef.current = null;
       visibilityModeRef.current = "ghost";
@@ -1275,19 +1278,32 @@ export default function LiveMapScreen() {
       const write = presenceWriteQueueRef.current.then(async () => {
         if (!isMountedRef.current || sharingUserIdRef.current !== userId)
           return;
-        const { error } = await supabase.from("driver_locations").upsert(
-          {
-            user_id: userId,
-            ...payload,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id" },
-        );
+        const { data, error } = await supabase
+          .from("driver_locations")
+          .upsert(
+            {
+              user_id: userId,
+              ...payload,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" },
+          )
+          .select("broadcast_key")
+          .maybeSingle();
         if (error) {
           lastPresenceWriteRef.current = 0;
           if (isMountedRef.current)
             setSharingError("Could not update visibility. Retrying soon.");
           return;
+        }
+        const broadcastKey = (data as { broadcast_key?: string } | null)
+          ?.broadcast_key;
+        if (
+          broadcastKey &&
+          uuidPattern.test(broadcastKey) &&
+          isMountedRef.current
+        ) {
+          setOwnDriverBroadcastKey(broadcastKey);
         }
         if (isMountedRef.current) setSharingError(null);
       });
@@ -1482,10 +1498,21 @@ export default function LiveMapScreen() {
           latestPresencePayloadRef.current = nextPayload;
           await writePresencePayload(userId, nextPayload, true);
         } else {
-          await supabase
+          const { data } = await supabase
             .from("driver_locations")
             .update({ visibility_mode: mode })
-            .eq("user_id", userId);
+            .eq("user_id", userId)
+            .select("broadcast_key")
+            .maybeSingle();
+          const broadcastKey = (data as { broadcast_key?: string } | null)
+            ?.broadcast_key;
+          if (
+            broadcastKey &&
+            uuidPattern.test(broadcastKey) &&
+            isMountedRef.current
+          ) {
+            setOwnDriverBroadcastKey(broadcastKey);
+          }
         }
       } finally {
         audienceChangeInFlightRef.current = false;
@@ -1783,7 +1810,7 @@ export default function LiveMapScreen() {
       const { data, error } = await supabase
         .from("driver_locations")
         .select(
-          "user_id,latitude,longitude,updated_at,profiles(id,display_name,username,avatar_url)",
+          "user_id,latitude,longitude,updated_at,broadcast_key,profiles(id,display_name,username,avatar_url)",
         )
         .gte("updated_at", since)
         .neq("user_id", userId)
@@ -1818,9 +1845,26 @@ export default function LiveMapScreen() {
         if (!current) return driver;
         const currentUpdatedAt = Date.parse(current.updated_at);
         const fetchedUpdatedAt = Date.parse(driver.updated_at);
-        return Number.isFinite(currentUpdatedAt) &&
-          (!Number.isFinite(fetchedUpdatedAt) || currentUpdatedAt > fetchedUpdatedAt)
-          ? current
+        const target = driverBroadcastTargetsRef.current.get(driver.user_id);
+        const targetUpdatedAt = target ? Date.parse(target.updatedAt) : Number.NaN;
+        const freshestLocalUpdatedAt = Math.max(
+          Number.isFinite(currentUpdatedAt)
+            ? currentUpdatedAt
+            : Number.NEGATIVE_INFINITY,
+          Number.isFinite(targetUpdatedAt)
+            ? targetUpdatedAt
+            : Number.NEGATIVE_INFINITY,
+        );
+        return freshestLocalUpdatedAt >
+          (Number.isFinite(fetchedUpdatedAt)
+            ? fetchedUpdatedAt
+            : Number.NEGATIVE_INFINITY)
+          ? {
+              ...driver,
+              latitude: current.latitude,
+              longitude: current.longitude,
+              updated_at: current.updated_at,
+            }
           : driver;
       });
 
@@ -1868,7 +1912,9 @@ export default function LiveMapScreen() {
         if (!isActive) return;
         if (event === "SIGNED_OUT" || !session) {
           activeDriversRef.current = [];
+          driverBroadcastTargetsRef.current.clear();
           setActiveDrivers([]);
+          setOwnDriverBroadcastKey(null);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
           setPrimaryVehicleByUserId(new Map());
@@ -1890,6 +1936,7 @@ export default function LiveMapScreen() {
       liveDriveStartGenerationRef.current += 1;
       isMountedRef.current = false;
       mapFocusedRef.current = false;
+      setIsMapFocused(false);
       activeDriversRequestIdRef.current += 1;
       activeDriversRef.current = [];
       latestPresencePayloadRef.current = null;
@@ -1907,6 +1954,7 @@ export default function LiveMapScreen() {
     useCallback(() => {
       let isActive = true;
       mapFocusedRef.current = true;
+      setIsMapFocused(true);
       void loadMyDriverIds();
       void refreshActiveDrivers();
 
@@ -1916,6 +1964,7 @@ export default function LiveMapScreen() {
       return () => {
         isActive = false;
         mapFocusedRef.current = false;
+        setIsMapFocused(false);
         clearInterval(refreshInterval);
         activeDriversRequestIdRef.current += 1;
       };
@@ -1925,6 +1974,7 @@ export default function LiveMapScreen() {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       isAppForegroundRef.current = nextState === "active";
+      setIsAppForeground(nextState === "active");
 
       // Keep the selected audience alive while NOXA is minimized. Foreground
       // Mapbox owns location while active; the existing personal background
