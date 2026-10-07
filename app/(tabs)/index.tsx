@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
@@ -29,6 +30,17 @@ import {
 } from "@/src/components/ui";
 import { LiveDrivePermissionRecoverySheet } from "@/src/features/map/LiveDrivePermissionRecoverySheet";
 import { MapDriverCard } from "@/src/features/map/MapDriverCard";
+import {
+  createDriverBroadcastTopic,
+  DRIVER_BROADCAST_ANIMATION_MS,
+  DRIVER_BROADCAST_ANIMATION_TICK_MS,
+  DRIVER_BROADCAST_EVENT,
+  DRIVER_BROADCAST_LEAVE_EVENT,
+  DRIVER_BROADCAST_SEND_MS,
+  interpolateDriverPoint,
+  MAX_LIVE_DRIVER_CHANNELS,
+  parseDriverBroadcastPayload,
+} from "@/src/features/map/liveDriverBroadcast";
 import {
   DriveTogetherMapLayer,
   type DriveTogetherDestinationSeed,
@@ -86,6 +98,7 @@ type ActiveDriverRow = {
   latitude: number;
   longitude: number;
   updated_at: string;
+  broadcast_key: string;
   profiles: ProfileMarkerRow | ProfileMarkerRow[] | null;
 };
 type ActiveDriver = {
@@ -93,7 +106,14 @@ type ActiveDriver = {
   latitude: number;
   longitude: number;
   updated_at: string;
+  broadcast_key: string;
   profile: ProfileMarkerRow | null;
+};
+type DriverBroadcastAnimationTarget = {
+  from: LatLng;
+  to: LatLng;
+  startedAt: number;
+  updatedAt: string;
 };
 type PrimaryVehicleRow = {
   owner_id: string;
@@ -154,7 +174,7 @@ type LocationVisibilityMode = "crew" | "friends" | "global" | "ghost";
 const THESSALONIKI: LatLng = { latitude: 40.6401, longitude: 22.9444 };
 const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
 const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
-const DRIVER_LOCATION_MIN_WRITE_MS = 10_000;
+const DRIVER_LOCATION_MIN_WRITE_MS = 30_000;
 const DRIVER_LIST_REFRESH_MS = 15 * 1000;
 const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
 const MAPBOX_LOCATION_STATE_MIN_MS = 750;
@@ -269,11 +289,13 @@ function normalizeActiveDriver(row: ActiveDriverRow): ActiveDriver | null {
   const profile = Array.isArray(row.profiles)
     ? (row.profiles[0] ?? null)
     : row.profiles;
+  if (!uuidPattern.test(row.broadcast_key)) return null;
   return {
     user_id: row.user_id,
     latitude: row.latitude,
     longitude: row.longitude,
     updated_at: row.updated_at,
+    broadcast_key: row.broadcast_key,
     profile,
   };
 }
@@ -920,6 +942,9 @@ export default function LiveMapScreen() {
   const locationPositionRequestRef = useRef<Promise<Location.LocationObject> | null>(null);
   const liveDriveStartGenerationRef = useRef(0);
   const isAppForegroundRef = useRef(AppState.currentState === "active");
+  const [isAppForeground, setIsAppForeground] = useState(
+    AppState.currentState === "active",
+  );
   const sharingUserIdRef = useRef<string | null>(null);
   const visibilityModeRef = useRef<LocationVisibilityMode>("ghost");
   const latestPresencePayloadRef = useRef<PresenceLocationPayload | null>(null);
@@ -930,6 +955,14 @@ export default function LiveMapScreen() {
   const activeDriversRefreshQueuedRef = useRef(false);
   const activeDriversRef = useRef<ActiveDriver[]>([]);
   const mapFocusedRef = useRef(false);
+  const [isMapFocused, setIsMapFocused] = useState(false);
+  const [ownDriverBroadcastKey, setOwnDriverBroadcastKey] =
+    useState<string | null>(null);
+  const ownDriverBroadcastChannelRef = useRef<RealtimeChannel | null>(null);
+  const lastDriverBroadcastSentRef = useRef(0);
+  const driverBroadcastTargetsRef = useRef<
+    Map<string, DriverBroadcastAnimationTarget>
+  >(new Map());
   const [isVisibleOnMap, setIsVisibleOnMap] = useState(false);
   const [visibilityMode, setVisibilityMode] =
     useState<LocationVisibilityMode>("ghost");
@@ -979,6 +1012,21 @@ export default function LiveMapScreen() {
     || Boolean(driveTogetherNavigation);
   driverLocationRef.current = driverLocation;
   activeDriversRef.current = activeDrivers;
+
+  const liveDriverBroadcastSignature = useMemo(() => {
+    if (!driverLocation) return "";
+    return activeDrivers
+      .filter((driver) => uuidPattern.test(driver.broadcast_key))
+      .map((driver) => ({
+        driver,
+        distance: distanceBetweenMeters(driverLocation, driver),
+      }))
+      .sort((first, second) => first.distance - second.distance)
+      .slice(0, MAX_LIVE_DRIVER_CHANNELS)
+      .map(({ driver }) => `${driver.user_id},${driver.broadcast_key}`)
+      .sort()
+      .join("|");
+  }, [activeDrivers, driverLocation]);
 
   const preparedEventRoute = useMemo(
     () => prepareEventRoute(route),
@@ -1210,7 +1258,10 @@ export default function LiveMapScreen() {
     async (deleteRow = true) => {
       liveDriveStartGenerationRef.current += 1;
       lastPresenceWriteRef.current = 0;
+      lastDriverBroadcastSentRef.current = 0;
       latestPresencePayloadRef.current = null;
+      driverBroadcastTargetsRef.current.clear();
+      setOwnDriverBroadcastKey(null);
       const userId = sharingUserIdRef.current;
       sharingUserIdRef.current = null;
       visibilityModeRef.current = "ghost";
@@ -1242,19 +1293,32 @@ export default function LiveMapScreen() {
       const write = presenceWriteQueueRef.current.then(async () => {
         if (!isMountedRef.current || sharingUserIdRef.current !== userId)
           return;
-        const { error } = await supabase.from("driver_locations").upsert(
-          {
-            user_id: userId,
-            ...payload,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id" },
-        );
+        const { data, error } = await supabase
+          .from("driver_locations")
+          .upsert(
+            {
+              user_id: userId,
+              ...payload,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" },
+          )
+          .select("broadcast_key")
+          .maybeSingle();
         if (error) {
           lastPresenceWriteRef.current = 0;
           if (isMountedRef.current)
             setSharingError("Could not update visibility. Retrying soon.");
           return;
+        }
+        const broadcastKey = (data as { broadcast_key?: string } | null)
+          ?.broadcast_key;
+        if (
+          broadcastKey &&
+          uuidPattern.test(broadcastKey) &&
+          isMountedRef.current
+        ) {
+          setOwnDriverBroadcastKey(broadcastKey);
         }
         if (isMountedRef.current) setSharingError(null);
       });
@@ -1321,6 +1385,85 @@ export default function LiveMapScreen() {
     latestPresencePayloadRef.current = payload;
     void writePresencePayload(userId, payload);
   }, [driverLocation, isVisibleOnMap, writePresencePayload]);
+
+  useEffect(() => {
+    const userId = sharingUserIdRef.current;
+    const topic =
+      userId && ownDriverBroadcastKey
+        ? createDriverBroadcastTopic(userId, ownDriverBroadcastKey)
+        : null;
+
+    if (
+      !topic ||
+      !isVisibleOnMap ||
+      !isAppForeground
+    ) {
+      return;
+    }
+
+    const channel = supabase.channel(topic, {
+      config: { private: true },
+    });
+    ownDriverBroadcastChannelRef.current = channel;
+    lastDriverBroadcastSentRef.current = 0;
+    channel.subscribe();
+
+    return () => {
+      if (ownDriverBroadcastChannelRef.current === channel) {
+        ownDriverBroadcastChannelRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [
+    isAppForeground,
+    isVisibleOnMap,
+    ownDriverBroadcastKey,
+  ]);
+
+  useEffect(() => {
+    const userId = sharingUserIdRef.current;
+    const channel = ownDriverBroadcastChannelRef.current;
+    if (
+      !driverLocation ||
+      !userId ||
+      !channel ||
+      !ownDriverBroadcastKey ||
+      !isVisibleOnMap ||
+      !isAppForeground ||
+      !getLiveDriveSession()
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastDriverBroadcastSentRef.current < DRIVER_BROADCAST_SEND_MS) {
+      return;
+    }
+    lastDriverBroadcastSentRef.current = now;
+
+    void channel
+      .send({
+        type: "broadcast",
+        event: DRIVER_BROADCAST_EVENT,
+        payload: {
+          user_id: userId,
+          latitude: driverLocation.latitude,
+          longitude: driverLocation.longitude,
+          updated_at: new Date(now).toISOString(),
+        },
+      })
+      .then((status) => {
+        if (status !== "ok") lastDriverBroadcastSentRef.current = 0;
+      })
+      .catch(() => {
+        lastDriverBroadcastSentRef.current = 0;
+      });
+  }, [
+    driverLocation,
+    isAppForeground,
+    isVisibleOnMap,
+    ownDriverBroadcastKey,
+  ]);
 
   const startSharing = useCallback(
     async (mode: LiveDriveVisibilityMode) => {
@@ -1449,10 +1592,21 @@ export default function LiveMapScreen() {
           latestPresencePayloadRef.current = nextPayload;
           await writePresencePayload(userId, nextPayload, true);
         } else {
-          await supabase
+          const { data } = await supabase
             .from("driver_locations")
             .update({ visibility_mode: mode })
-            .eq("user_id", userId);
+            .eq("user_id", userId)
+            .select("broadcast_key")
+            .maybeSingle();
+          const broadcastKey = (data as { broadcast_key?: string } | null)
+            ?.broadcast_key;
+          if (
+            broadcastKey &&
+            uuidPattern.test(broadcastKey) &&
+            isMountedRef.current
+          ) {
+            setOwnDriverBroadcastKey(broadcastKey);
+          }
         }
       } finally {
         audienceChangeInFlightRef.current = false;
@@ -1750,7 +1904,7 @@ export default function LiveMapScreen() {
       const { data, error } = await supabase
         .from("driver_locations")
         .select(
-          "user_id,latitude,longitude,updated_at,profiles(id,display_name,username,avatar_url)",
+          "user_id,latitude,longitude,updated_at,broadcast_key,profiles(id,display_name,username,avatar_url)",
         )
         .gte("updated_at", since)
         .neq("user_id", userId)
@@ -1785,9 +1939,26 @@ export default function LiveMapScreen() {
         if (!current) return driver;
         const currentUpdatedAt = Date.parse(current.updated_at);
         const fetchedUpdatedAt = Date.parse(driver.updated_at);
-        return Number.isFinite(currentUpdatedAt) &&
-          (!Number.isFinite(fetchedUpdatedAt) || currentUpdatedAt > fetchedUpdatedAt)
-          ? current
+        const target = driverBroadcastTargetsRef.current.get(driver.user_id);
+        const targetUpdatedAt = target ? Date.parse(target.updatedAt) : Number.NaN;
+        const freshestLocalUpdatedAt = Math.max(
+          Number.isFinite(currentUpdatedAt)
+            ? currentUpdatedAt
+            : Number.NEGATIVE_INFINITY,
+          Number.isFinite(targetUpdatedAt)
+            ? targetUpdatedAt
+            : Number.NEGATIVE_INFINITY,
+        );
+        return freshestLocalUpdatedAt >
+          (Number.isFinite(fetchedUpdatedAt)
+            ? fetchedUpdatedAt
+            : Number.NEGATIVE_INFINITY)
+          ? {
+              ...driver,
+              latitude: current.latitude,
+              longitude: current.longitude,
+              updated_at: current.updated_at,
+            }
           : driver;
       });
 
@@ -1835,7 +2006,9 @@ export default function LiveMapScreen() {
         if (!isActive) return;
         if (event === "SIGNED_OUT" || !session) {
           activeDriversRef.current = [];
+          driverBroadcastTargetsRef.current.clear();
           setActiveDrivers([]);
+          setOwnDriverBroadcastKey(null);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
           setPrimaryVehicleByUserId(new Map());
@@ -1874,6 +2047,7 @@ export default function LiveMapScreen() {
     useCallback(() => {
       let isActive = true;
       mapFocusedRef.current = true;
+      setIsMapFocused(true);
       void loadMyDriverIds();
       void refreshActiveDrivers();
 
@@ -1883,6 +2057,7 @@ export default function LiveMapScreen() {
       return () => {
         isActive = false;
         mapFocusedRef.current = false;
+        setIsMapFocused(false);
         clearInterval(refreshInterval);
         activeDriversRequestIdRef.current += 1;
       };
@@ -1892,6 +2067,7 @@ export default function LiveMapScreen() {
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       isAppForegroundRef.current = nextState === "active";
+      setIsAppForeground(nextState === "active");
 
       // Keep the selected audience alive while NOXA is minimized. Foreground
       // Mapbox owns location while active; the existing personal background
@@ -1960,6 +2136,171 @@ export default function LiveMapScreen() {
     startSharing,
     stopSharing,
   ]);
+
+  useEffect(() => {
+    if (!isMapFocused || !isAppForeground || !liveDriverBroadcastSignature) {
+      driverBroadcastTargetsRef.current.clear();
+      return;
+    }
+
+    const channels: RealtimeChannel[] = [];
+    const subscriptions = liveDriverBroadcastSignature
+      .split("|")
+      .map((entry) => entry.split(","))
+      .filter(
+        (parts): parts is [string, string] =>
+          parts.length === 2 &&
+          uuidPattern.test(parts[0]) &&
+          uuidPattern.test(parts[1]),
+      );
+
+    for (const [expectedUserId, broadcastKey] of subscriptions) {
+      const topic = createDriverBroadcastTopic(expectedUserId, broadcastKey);
+      if (!topic) continue;
+
+      const channel = supabase.channel(topic, {
+        config: { private: true },
+      });
+
+      channel.on(
+        "broadcast",
+        { event: DRIVER_BROADCAST_EVENT },
+        (message) => {
+          const payload = parseDriverBroadcastPayload(
+            (message as { payload?: unknown }).payload,
+          );
+          if (!payload || payload.user_id !== expectedUserId) return;
+
+          const current = activeDriversRef.current.find(
+            (driver) => driver.user_id === expectedUserId,
+          );
+          if (!current) return;
+
+          const existingTarget =
+            driverBroadcastTargetsRef.current.get(expectedUserId);
+          const payloadUpdatedAt = Date.parse(payload.updated_at);
+          const targetUpdatedAt = existingTarget
+            ? Date.parse(existingTarget.updatedAt)
+            : Number.NaN;
+
+          if (
+            Number.isFinite(targetUpdatedAt) &&
+            Number.isFinite(payloadUpdatedAt) &&
+            payloadUpdatedAt <= targetUpdatedAt
+          ) {
+            return;
+          }
+
+          driverBroadcastTargetsRef.current.set(expectedUserId, {
+            from: {
+              latitude: current.latitude,
+              longitude: current.longitude,
+            },
+            to: {
+              latitude: payload.latitude,
+              longitude: payload.longitude,
+            },
+            startedAt: Date.now(),
+            updatedAt: payload.updated_at,
+          });
+        },
+      );
+
+      channel.on(
+        "broadcast",
+        { event: DRIVER_BROADCAST_LEAVE_EVENT },
+        (message) => {
+          const payload = (message as { payload?: unknown }).payload;
+          if (!payload || typeof payload !== "object") return;
+          const userId = (payload as { user_id?: unknown }).user_id;
+          if (userId !== expectedUserId) return;
+
+          driverBroadcastTargetsRef.current.delete(expectedUserId);
+          const nextDrivers = activeDriversRef.current.filter(
+            (driver) => driver.user_id !== expectedUserId,
+          );
+          if (nextDrivers.length === activeDriversRef.current.length) return;
+          activeDriversRef.current = nextDrivers;
+          setActiveDrivers(nextDrivers);
+        },
+      );
+
+      channel.subscribe();
+      channels.push(channel);
+    }
+
+    return () => {
+      driverBroadcastTargetsRef.current.clear();
+      for (const channel of channels) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [
+    isAppForeground,
+    isMapFocused,
+    liveDriverBroadcastSignature,
+  ]);
+
+  useEffect(() => {
+    if (!isMapFocused || !isAppForeground) {
+      driverBroadcastTargetsRef.current.clear();
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (driverBroadcastTargetsRef.current.size === 0) return;
+
+      const now = Date.now();
+      const currentDrivers = activeDriversRef.current;
+      const activeIds = new Set(currentDrivers.map((driver) => driver.user_id));
+      let changed = false;
+
+      const nextDrivers = currentDrivers.map((driver) => {
+        const target = driverBroadcastTargetsRef.current.get(driver.user_id);
+        if (!target) return driver;
+
+        const progress = Math.min(
+          1,
+          Math.max(0, (now - target.startedAt) / DRIVER_BROADCAST_ANIMATION_MS),
+        );
+        const point = interpolateDriverPoint(target.from, target.to, progress);
+        const complete = progress >= 1;
+
+        if (complete) {
+          driverBroadcastTargetsRef.current.delete(driver.user_id);
+        }
+
+        if (
+          Math.abs(point.latitude - driver.latitude) < 0.0000001 &&
+          Math.abs(point.longitude - driver.longitude) < 0.0000001 &&
+          (!complete || driver.updated_at === target.updatedAt)
+        ) {
+          return driver;
+        }
+
+        changed = true;
+        return {
+          ...driver,
+          latitude: point.latitude,
+          longitude: point.longitude,
+          updated_at: complete ? target.updatedAt : driver.updated_at,
+        };
+      });
+
+      for (const userId of driverBroadcastTargetsRef.current.keys()) {
+        if (!activeIds.has(userId)) {
+          driverBroadcastTargetsRef.current.delete(userId);
+        }
+      }
+
+      if (changed) {
+        activeDriversRef.current = nextDrivers;
+        setActiveDrivers(nextDrivers);
+      }
+    }, DRIVER_BROADCAST_ANIMATION_TICK_MS);
+
+    return () => clearInterval(interval);
+  }, [isAppForeground, isMapFocused]);
 
   useEffect(() => {
     if (isVisibleOnMap || sharingError || locationError || permissionDenied) {

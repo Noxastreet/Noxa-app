@@ -47,6 +47,7 @@ const required = [
   'remove_duplicate_activity_notification_triggers',
   'add_group_drive_invitation_notifications',
   'harden_driver_location_defaults_and_freshness',
+  'add_private_driver_broadcast',
 ];
 
 for (const name of required) {
@@ -78,5 +79,6 @@ before('complete_remote_push_dispatch', 'remove_duplicate_activity_notification_
 before('remove_duplicate_activity_notification_triggers', 'add_group_drive_invitation_notifications');
 before('group_drive_phase_1', 'add_group_drive_invitation_notifications');
 before('add_live_drive_background_sharing', 'harden_driver_location_defaults_and_freshness');
+before('harden_driver_location_defaults_and_freshness', 'add_private_driver_broadcast');
 
 console.log(`Supabase migration contract OK (${files.length} migrations).`);
