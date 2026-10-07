@@ -12,8 +12,8 @@ requireText(
   'Active driver state must preserve server measurement time and its private Broadcast key.',
 );
 requireText(
-  'const DRIVER_LOCATION_MIN_WRITE_MS = 10_000;',
-  'Personal Live Drive writes must be throttled to at least 10 seconds.',
+  'const DRIVER_LOCATION_MIN_WRITE_MS = 30_000;',
+  'Personal foreground Live Drive database writes must be throttled to 30 seconds.',
 );
 requireText(
   'const DRIVER_LIST_REFRESH_MS = 15 * 1000;',
