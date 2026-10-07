@@ -332,7 +332,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 revoke all privileges
   on function private.noxa_broadcast_driver_location_change()
@@ -383,7 +383,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 revoke all privileges
   on function private.noxa_rotate_relation_driver_broadcast_keys()
@@ -444,7 +444,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 revoke all privileges
   on function private.noxa_rotate_crew_driver_broadcast_keys()
