@@ -174,7 +174,7 @@ type LocationVisibilityMode = "crew" | "friends" | "global" | "ghost";
 const THESSALONIKI: LatLng = { latitude: 40.6401, longitude: 22.9444 };
 const DEFAULT_DELTA = { latitudeDelta: 0.075, longitudeDelta: 0.075 };
 const ACTIVE_DRIVER_WINDOW_MS = 2 * 60 * 1000;
-const DRIVER_LOCATION_MIN_WRITE_MS = 10_000;
+const DRIVER_LOCATION_MIN_WRITE_MS = 30_000;
 const DRIVER_LIST_REFRESH_MS = 15 * 1000;
 const ROUTE_REQUEST_TIMEOUT_MS = 14_000;
 const MAPBOX_LOCATION_STATE_MIN_MS = 750;
@@ -1396,7 +1396,6 @@ export default function LiveMapScreen() {
     if (
       !topic ||
       !isVisibleOnMap ||
-      !isMapFocused ||
       !isAppForeground
     ) {
       return;
@@ -1417,7 +1416,6 @@ export default function LiveMapScreen() {
     };
   }, [
     isAppForeground,
-    isMapFocused,
     isVisibleOnMap,
     ownDriverBroadcastKey,
   ]);
@@ -1431,7 +1429,6 @@ export default function LiveMapScreen() {
       !channel ||
       !ownDriverBroadcastKey ||
       !isVisibleOnMap ||
-      !isMapFocused ||
       !isAppForeground ||
       !getLiveDriveSession()
     ) {
@@ -1464,7 +1461,6 @@ export default function LiveMapScreen() {
   }, [
     driverLocation,
     isAppForeground,
-    isMapFocused,
     isVisibleOnMap,
     ownDriverBroadcastKey,
   ]);
