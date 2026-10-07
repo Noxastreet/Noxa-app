@@ -1844,7 +1844,6 @@ export default function LiveMapScreen() {
           }, 0);
           return;
         }
-        currentUserIdRef.current = session.user.id;
         setTimeout(() => {
           if (!isActive) return;
           void loadCurrentProfile();
@@ -1860,7 +1859,6 @@ export default function LiveMapScreen() {
       mapFocusedRef.current = false;
       activeDriversRequestIdRef.current += 1;
       activeDriversRef.current = [];
-      currentUserIdRef.current = null;
       latestPresencePayloadRef.current = null;
       sharingUserIdRef.current = null;
       authListener.subscription.unsubscribe();
