@@ -2034,7 +2034,6 @@ export default function LiveMapScreen() {
       liveDriveStartGenerationRef.current += 1;
       isMountedRef.current = false;
       mapFocusedRef.current = false;
-      setIsMapFocused(false);
       activeDriversRequestIdRef.current += 1;
       activeDriversRef.current = [];
       latestPresencePayloadRef.current = null;
