@@ -1386,6 +1386,89 @@ export default function LiveMapScreen() {
     void writePresencePayload(userId, payload);
   }, [driverLocation, isVisibleOnMap, writePresencePayload]);
 
+  useEffect(() => {
+    const userId = sharingUserIdRef.current;
+    const topic =
+      userId && ownDriverBroadcastKey
+        ? createDriverBroadcastTopic(userId, ownDriverBroadcastKey)
+        : null;
+
+    if (
+      !topic ||
+      !isVisibleOnMap ||
+      !isMapFocused ||
+      !isAppForeground
+    ) {
+      return;
+    }
+
+    const channel = supabase.channel(topic, {
+      config: { private: true },
+    });
+    ownDriverBroadcastChannelRef.current = channel;
+    lastDriverBroadcastSentRef.current = 0;
+    channel.subscribe();
+
+    return () => {
+      if (ownDriverBroadcastChannelRef.current === channel) {
+        ownDriverBroadcastChannelRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [
+    isAppForeground,
+    isMapFocused,
+    isVisibleOnMap,
+    ownDriverBroadcastKey,
+  ]);
+
+  useEffect(() => {
+    const userId = sharingUserIdRef.current;
+    const channel = ownDriverBroadcastChannelRef.current;
+    if (
+      !driverLocation ||
+      !userId ||
+      !channel ||
+      !ownDriverBroadcastKey ||
+      !isVisibleOnMap ||
+      !isMapFocused ||
+      !isAppForeground ||
+      !getLiveDriveSession()
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastDriverBroadcastSentRef.current < DRIVER_BROADCAST_SEND_MS) {
+      return;
+    }
+    lastDriverBroadcastSentRef.current = now;
+
+    void channel
+      .send({
+        type: "broadcast",
+        event: DRIVER_BROADCAST_EVENT,
+        payload: {
+          user_id: userId,
+          latitude: driverLocation.latitude,
+          longitude: driverLocation.longitude,
+          updated_at: new Date(now).toISOString(),
+        },
+      })
+      .then((status) => {
+        if (status !== "ok") lastDriverBroadcastSentRef.current = 0;
+      })
+      .catch(() => {
+        lastDriverBroadcastSentRef.current = 0;
+      });
+  }, [
+    driverLocation,
+    isAppForeground,
+    isMapFocused,
+    isVisibleOnMap,
+    ownDriverBroadcastKey,
+  ]);
+
   const startSharing = useCallback(
     async (mode: LiveDriveVisibilityMode) => {
       const startGeneration = ++liveDriveStartGenerationRef.current;
