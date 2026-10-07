@@ -8,8 +8,8 @@ function requireText(text, message) {
 }
 
 requireText(
-  'updated_at: string;\n  profile: ProfileMarkerRow | null;',
-  'Active driver state must preserve server measurement time.',
+  'updated_at: string;\n  broadcast_key: string;\n  profile: ProfileMarkerRow | null;',
+  'Active driver state must preserve server measurement time and its private Broadcast key.',
 );
 requireText(
   'const DRIVER_LOCATION_MIN_WRITE_MS = 10_000;',
@@ -66,10 +66,13 @@ assert.equal(
   false,
   'Home Map must not create a dedicated Realtime topic for the global driver table.',
 );
-assert.equal(
-  source.includes('supabase.removeChannel(channel)'),
-  false,
-  'Home Map no longer owns a Realtime channel that requires channel cleanup.',
+requireText(
+  'config: { private: true }',
+  'Any Home Map Realtime channels must use private Broadcast authorization.',
+);
+requireText(
+  'void supabase.removeChannel(channel);',
+  'Private Home Map Broadcast channels must be explicitly removed on cleanup.',
 );
 
-console.log('Home / Map scaling contract: PASS (15 checks)');
+console.log('Home / Map scaling contract: PASS (16 checks)');
