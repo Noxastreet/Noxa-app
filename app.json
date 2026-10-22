@@ -14,6 +14,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "NOXA accesses your photo library so you can choose a profile picture or upload photos of your vehicle to your Garage.",
         "NSLocationWhenInUseUsageDescription": "NOXA uses your precise location for map positioning and only shares it when you explicitly enable Live Drive or an active Group Drive.",
         "NSSupportsLiveActivities": true
       }
