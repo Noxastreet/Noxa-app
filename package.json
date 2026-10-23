@@ -51,7 +51,8 @@
     "verify:event-drive-together": "node ./scripts/verify-event-drive-together-bridge.mjs",
     "verify:release-privacy-events": "node ./scripts/verify-release-privacy-events.mjs",
     "verify:release-blockers": "node ./scripts/verify-release-blockers-20261003.mjs",
-    "verify:ios-live-activity": "node ./scripts/verify-ios-live-activity.mjs"
+    "verify:ios-live-activity": "node ./scripts/verify-ios-live-activity.mjs",
+    "verify:apple-review-privacy": "node ./scripts/verify-apple-review-privacy.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
