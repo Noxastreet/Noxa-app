@@ -346,9 +346,6 @@ export function DriveTogetherMapLayer({
   const [isSharingLocation, setIsSharingLocation] = useState(false);
 
   const explicitInvitationRef = useRef<string | null>(null);
-  const pendingHostConsentRef = useRef<ReturnType<
-    typeof acceptGroupDriveLocationDisclosure
-  > | null>(null);
   const previousDestinationVersionRef = useRef<number | null>(null);
   const autoFollowDestinationVersionRef = useRef<number | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -398,7 +395,6 @@ export function DriveTogetherMapLayer({
   }, [friendsLoading]);
 
   const clearRoom = useCallback(() => {
-    pendingHostConsentRef.current = null;
     previousDestinationVersionRef.current = null;
     autoFollowDestinationVersionRef.current = null;
     setPanelOpen(false);
@@ -712,40 +708,6 @@ export function DriveTogetherMapLayer({
       if (teardown) void teardown();
     };
   }, [clearRoom, onDriversChange, roomActive, roomId]);
-
-  useEffect(() => {
-    if (!roomId || !roomActive) return;
-    const consent = pendingHostConsentRef.current;
-    if (
-      !consent
-      || consent.driveSessionId !== roomId
-      || isSharingLocation
-      || sharingLocation
-    ) {
-      return;
-    }
-
-    setSharingLocation(true);
-    void startGroupDriveLocationSession(consent)
-      .then(() => {
-        pendingHostConsentRef.current = null;
-        setIsSharingLocation(true);
-      })
-      .catch((shareError) => {
-        pendingHostConsentRef.current = null;
-        setError(
-          shareError instanceof Error
-            ? shareError.message
-            : 'Location sharing could not be started.',
-        );
-      })
-      .finally(() => setSharingLocation(false));
-  }, [
-    isSharingLocation,
-    roomActive,
-    roomId,
-    sharingLocation,
-  ]);
 
   const driveDrivers = useMemo<MapboxDriver[]>(() => {
     if (!details || !snapshot) return [];
@@ -1201,13 +1163,12 @@ export function DriveTogetherMapLayer({
     setWorking(true);
     setError(null);
     try {
-      await requestRequiredGroupDriveLocationPermissions();
+      // Creating a room does not grant consent to share precise location.
+      // The host explicitly opts in from the active room controls.
       const created = await createQuickDriveRoom(
         [...selectedFriendIds],
         draftDestination,
       );
-      pendingHostConsentRef.current =
-        acceptGroupDriveLocationDisclosure(created.driveSessionId);
       setRoomId(created.driveSessionId);
       setInvite(null);
       setComposerMode('room');
@@ -1235,7 +1196,7 @@ export function DriveTogetherMapLayer({
     setWorking(true);
     setError(null);
     try {
-      await requestRequiredGroupDriveLocationPermissions();
+      // Accepting an invitation is separate from consenting to share.
       const changed = await respondToDriveInvitation(
         invite.invitationId,
         true,
@@ -1244,14 +1205,10 @@ export function DriveTogetherMapLayer({
         throw new Error('This invitation is no longer available.');
       }
 
-      const consent = acceptGroupDriveLocationDisclosure(
-        invite.driveSessionId,
-      );
       setRoomId(invite.driveSessionId);
       setInvite(null);
       setSheetSnap('collapsed');
-      await startGroupDriveLocationSession(consent);
-      setIsSharingLocation(true);
+      // Do not auto-publish on join. Sharing is a separate manual action.
       await refreshDetails(invite.driveSessionId);
     } catch (joinError) {
       setError(
@@ -1755,7 +1712,7 @@ export function DriveTogetherMapLayer({
         <View style={styles.stickyActions}>
           {composerMode === 'create-friends' ? (
             <Text style={styles.privacyNote}>
-              When the first driver joins, NOXA starts your private Drive Together location session so everyone can follow the shared route.
+              Creating or joining a Drive Together room does not share your location. After the drive becomes active, you can choose Share to enable precise location sharing with active participants.
             </Text>
           ) : null}
           <PrimaryAction
@@ -1915,19 +1872,19 @@ export function DriveTogetherMapLayer({
           <View style={styles.noticeCard}>
             <Ionicons name="location-outline" size={18} color={colors.primaryHover} />
             <View style={styles.flexCopy}>
-              <Text style={styles.noticeTitle}>Resume route sharing</Text>
+              <Text style={styles.noticeTitle}>Share your location (optional)</Text>
               <Text style={styles.noticeBody}>
-                Your room is live, but this device is not publishing its Drive Together position.
+                Your location is hidden. Share it with active participants only if you choose. Updates continue in the background until you stop sharing or the drive ends.
               </Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }} accessibilityLabel="Resume location sharing"
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }} accessibilityLabel="Share my location with Drive Together participants"
               disabled={sharingLocation}
               onPress={() => void enableSharing()}
               style={styles.inlineButton}>
               {sharingLocation ? (
                 <ActivityIndicator color={colors.text} size="small" />
               ) : (
-                <Text style={styles.inlineButtonText}>Resume</Text>
+                <Text style={styles.inlineButtonText}>Share</Text>
               )}
             </Pressable>
           </View>
