@@ -1,0 +1,108 @@
+name: Verify Apple Review iOS IPA (No Submit)
+
+# One-shot launch when this workflow is added to the review branch.
+# Can be re-run manually if EAS is still processing.
+on:
+  push:
+    branches:
+      - fix/apple-review-photo-permission-20261023
+    paths:
+      - .github/workflows/verify-apple-review-ipa.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ipa:
+    name: Inspect completed EAS binary permission strings
+    if: github.ref == 'refs/heads/fix/apple-review-photo-permission-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BUILD_ID: e6aad518-209a-40e8-be72-fa6813c31b52
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@v4
+
+      - name: Set up Node and EAS credentials
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Expo EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 16.17.0
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+
+      - name: Wait for existing EAS build (do not start another)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 22); do
+            eas build:view "$BUILD_ID" --json --non-interactive > "$RUNNER_TEMP/build.json"
+            set +e
+            node - "$RUNNER_TEMP/build.json" <<'NODE'
+          const fs = require('node:fs');
+          const build = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const status = String(build.status ?? '').toUpperCase();
+          console.log('EAS build status:', status);
+          if (status === 'FINISHED') process.exit(0);
+          if (['ERRORED', 'CANCELED'].includes(status)) process.exit(2);
+          process.exit(1);
+          NODE
+            state="$?"
+            set -e
+            if [ "$state" -eq 0 ]; then break; fi
+            if [ "$state" -eq 2 ]; then
+              echo "::error::EAS build failed or was canceled."
+              exit 1
+            fi
+            if [ "$attempt" -eq 22 ]; then
+              echo "::error::Build not finished in the verification window; re-run this workflow later."
+              exit 1
+            fi
+            sleep 60
+          done
+
+      - name: Download private IPA to temporary runner storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          IPA_URL="$(node - "$RUNNER_TEMP/build.json" <<'NODE'
+          const fs = require('node:fs');
+          const build = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const url = build.artifacts?.buildUrl ?? '';
+          if (!/^https:\/\//.test(url)) process.exit(2);
+          process.stdout.write(url);
+          NODE
+          )"
+          curl --fail --location --silent --show-error --retry 3 "$IPA_URL" --output "$RUNNER_TEMP/noxa-review.ipa"
+          echo "IPA downloaded to ephemeral runner."
+
+      - name: Check exact Info.plist in signed archive
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, plistlib, zipfile
+          from pathlib import Path
+          archive = Path(os.environ['RUNNER_TEMP']) / 'noxa-review.ipa'
+          with zipfile.ZipFile(archive) as z:
+              matches = [name for name in z.namelist() if name.startswith('Payload/') and name.endswith('.app/Info.plist')]
+              if len(matches) != 1:
+                  raise RuntimeError(f'Expected one iOS app Info.plist, found {len(matches)}')
+              plist = plistlib.loads(z.read(matches[0]))
+          config = json.loads(Path('app.json').read_text())
+          expected = config['expo']['ios']['infoPlist']['NSPhotoLibraryUsageDescription']
+          actual = plist.get('NSPhotoLibraryUsageDescription')
+          if actual != expected:
+              raise RuntimeError('Signed IPA photo library permission does not match source config')
+          if plist.get('CFBundleIdentifier') != 'com.karaketidis.noxa':
+              raise RuntimeError('Unexpected bundle ID')
+          print('Signed IPA Info.plist: PASS — photo permission text and bundle ID match.')
+          print('Version:', plist.get('CFBundleShortVersionString'))
+          print('Build:', plist.get('CFBundleVersion'))
+          PY
+          rm -f "$RUNNER_TEMP/noxa-review.ipa"
