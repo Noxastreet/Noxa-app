@@ -29,9 +29,11 @@ Related website PR: https://github.com/Noxastreet/noxa-website/pull/134 — MERG
 - Website PR #134 merged and published through Vercel, commit `668b5668b9468eac59ad11cebfc5fff8ffc212b9`. Verify privacy content again before App Review.
 - EAS Build `e6aad518-209a-40e8-be72-fa6813c31b52` (iOS build 90, source `009e8cee1777363028efa5419e078ea92f3ede1d`) **FAILED** with `XCODE_BUILD_ERROR`: Xcode 27.1 rejects pre-iOS-15 CocoaPods resource targets (SDWebImage, RNSVGFilters, MapboxMapsResources).
 - The `production.ios.image` in `eas.json` was pinned from `latest` (Xcode 27.1) to the Expo SDK 54 compatible `macos-sequoia-15.6-xcode-26.0`.
-- A corrected EAS build was **QUEUED** from source commit `d880cd6064442a33bf688cf1d8349e50ce71ea6b`, ID `653a5db5-0d86-425e-96ad-e7c9b289f081`, URL https://expo.dev/accounts/noxastreet/projects/Noxa/builds/653a5db5-0d86-425e-96ad-e7c9b289f081.
-- The one-shot TestFlight pipeline https://github.com/Noxastreet/Noxa-app/actions/runs/40135592033 checks the **exact** build, verifies its real signed IPA (native Info.plist, bundle ID and iOS build number), and **only then** runs EAS Submit for TestFlight. **This workflow never submits to App Store App Review.**
-- Do not claim the corrected EAS build is finished, the IPA verified, or uploaded to TestFlight until the one-shot pipeline completes successfully and EAS submission results are checked.
+- Corrected EAS build ID `653a5db5-0d86-425e-96ad-e7c9b289f081` **FINISHED successfully** with iOS build number **91** from source commit `d880cd6064442a33bf688cf1d8349e50ce71ea6b` (Xcode 26.0). https://expo.dev/accounts/noxastreet/projects/Noxa/builds/653a5db5-0d86-425e-96ad-e7c9b289f081
+- GitHub pipeline https://github.com/Noxastreet/Noxa-app/actions/runs/40135592033 downloaded the signed IPA and verified `CFBundleIdentifier=com.karaketidis.noxa`, `CFBundleVersion=91` and `NSPhotoLibraryUsageDescription` exactly matching the approved purpose string. Its **first** EAS Submit request failed with a GraphQL scheduling error; this was **not** an iOS or IPA problem.
+- One controlled retry with EAS CLI 25.3.0 checked that there were no existing submissions for the build, repeated signed IPA verification and successfully scheduled TestFlight upload: https://github.com/Noxastreet/Noxa-app/actions/runs/40136355463.
+- Submission ID `2eb1c2cb-2607-4f99-a602-a9d4de090c42` subsequently reported **FINISHED** in Expo's authenticated submission list, verified at https://github.com/Noxastreet/Noxa-app/actions/runs/40136592512. https://expo.dev/accounts/noxastreet/projects/Noxa/submissions/2eb1c2cb-2607-4f99-a602-a9d4de090c42
+- **App Store Connect/TestFlight processing and user-device QA have NOT been verified.** EAS Submit completion is NOT App Store Review submission and is not a public release.
 
 ## Acceptance checklist (A and B are distinct test accounts)
 
@@ -84,7 +86,7 @@ Do **not** send the response or submit the app until the placeholders are replac
 ## Remaining decision / external blockers
 
 - The mobile PR #388 is still a draft; its source code is not merged into `main`. Website PR #134 is merged and Vercel production deployment is READY.
-- Actual `Info.plist` / physical iOS builds / Apple App Store Connect build linkage not tested.
+- Signed build 91's `Info.plist` has been verified in CI. App Store Connect/TestFlight processing and physical iPhone/iPad tests are still pending.
 - Website is deployed but re-check external public `/privacy` content before final Apple submission.
 - Server migration requires tests and explicit production authorization.
 - Apple review submission and messages require product-owner approval.
