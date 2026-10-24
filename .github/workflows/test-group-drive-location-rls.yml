@@ -7,12 +7,12 @@ on:
     paths:
       - .github/workflows/test-group-drive-location-rls.yml
       - scripts/sql/test-group-drive-location-freshness.sql
-      - supabase/migrations/20261023181500_expire_stale_group_drive_location_reads.sql
+      - supabase/migrations/20261024222114_expire_stale_group_drive_location_reads.sql
   pull_request:
     paths:
       - .github/workflows/test-group-drive-location-rls.yml
       - scripts/sql/test-group-drive-location-freshness.sql
-      - supabase/migrations/20261023181500_expire_stale_group_drive_location_reads.sql
+      - supabase/migrations/20261024222114_expire_stale_group_drive_location_reads.sql
 
 permissions:
   contents: read
