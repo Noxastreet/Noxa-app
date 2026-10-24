@@ -37,6 +37,17 @@ assert.match(manualShare, /requestRequiredGroupDriveLocationPermissions\(\)/);
 assert.match(manualShare, /startGroupDriveLocationSession\(consent\)/);
 assert.match(layer, /Share your location \(optional\)/);
 assert.match(layer, /Share my location with Drive Together participants/);
+assert.doesNotMatch(layer, /title="Join & share"/, 'Joining Drive Together must not imply location consent');
+assert.match(layer, /title="Join drive"/);
+assert.match(layer, /accessibilityLabel="Stop sharing my Drive Together location"/);
+assert.match(layer, /accessibilityLabel="Retry clearing my last Drive Together location"/);
+assert.match(layer, /await stopGroupDriveLocationSharing\(roomId\)/, 'Stop button must request server cleanup');
+assert.match(layer, /await retryGroupDriveLocationCleanup\(roomId\)/, 'Retry must clear server position');
+assert.match(layer, /setIsSharingLocation\(false\)/);
+const sharingControl = read('src/features/group-drive/runtime/locationSharingControl.ts');
+assert.match(sharingControl, /await stopGroupDriveLocationSession\(\)/);
+assert.match(sharingControl, /'noxa_clear_my_drive_location'/);
+assert.match(sharingControl, /stagePendingGroupDriveServerAction\(/);
 
 const runtime = read('src/features/group-drive/runtime/nativeLocation.ts');
 assert.match(runtime, /CONSENT_MAX_AGE_MS = 10 \* 60 \* 1000/);
