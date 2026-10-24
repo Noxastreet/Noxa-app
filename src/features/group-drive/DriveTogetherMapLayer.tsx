@@ -24,6 +24,7 @@ import Animated, {
 import {
   acceptGroupDriveLocationDisclosure,
   cancelDrive,
+  clearPendingGroupDriveServerAction,
   createQuickDriveRoom,
   DriveTogetherParticipantRail,
   DriveTogetherSheet,
@@ -34,6 +35,7 @@ import {
   geodesicDistanceMeters,
   QUICK_DRIVE_ARRIVAL_METERS,
   getGroupDriveLocationSession,
+  getPendingGroupDriveServerAction,
   getPendingQuickDriveInvitation,
   getQuickDriveInvitation,
   groupDriveLocations,
@@ -45,10 +47,12 @@ import {
   loadQuickDriveRoomState,
   proposeQuickDriveDestination,
   requestRequiredGroupDriveLocationPermissions,
+  retryGroupDriveLocationCleanup,
   respondToDriveInvitation,
   respondToQuickDriveDestinationProposal,
   startGroupDriveLocationSession,
   stopGroupDriveLocationSession,
+  stopGroupDriveLocationSharing,
   subscribeToActiveDriveRealtime,
   subscribeToQuickDriveRoomState,
   useQuickDriveNavigation,
@@ -344,6 +348,7 @@ export function DriveTogetherMapLayer({
 
   const [sharingLocation, setSharingLocation] = useState(false);
   const [isSharingLocation, setIsSharingLocation] = useState(false);
+  const [cleanupPending, setCleanupPending] = useState(false);
 
   const explicitInvitationRef = useRef<string | null>(null);
   const previousDestinationVersionRef = useRef<number | null>(null);
@@ -406,6 +411,7 @@ export function DriveTogetherMapLayer({
     setPendingExternalDestination(null);
     setConnection('closed');
     setIsSharingLocation(false);
+    setCleanupPending(false);
     setComposerMode('room');
     setSelectedFriendIds(new Set());
     onDriversChange([]);
@@ -670,8 +676,16 @@ export function DriveTogetherMapLayer({
       .then((initial) => {
         if (disposed) return;
         setSnapshot(initial);
-        setIsSharingLocation(
-          getGroupDriveLocationSession()?.driveSessionId === roomId,
+        const localSession = getGroupDriveLocationSession();
+        const sharingNow = localSession?.driveSessionId === roomId
+          && localSession.userId === details?.currentUserId;
+        setIsSharingLocation(sharingNow);
+        setCleanupPending(
+          !sharingNow
+          && getPendingGroupDriveServerAction(
+            initial.participants.find((participant) => participant.userId === details?.currentUserId)?.userId ?? '',
+            roomId,
+          )?.kind === 'clear_location',
         );
         return subscribeToActiveDriveRealtime(roomId, {
           onSnapshot: (next) => {
@@ -1255,6 +1269,10 @@ export function DriveTogetherMapLayer({
       const consent = acceptGroupDriveLocationDisclosure(roomId);
       await requestRequiredGroupDriveLocationPermissions();
       await startGroupDriveLocationSession(consent);
+      if (details?.currentUserId) {
+        clearPendingGroupDriveServerAction(details.currentUserId, 'clear_location', roomId);
+      }
+      setCleanupPending(false);
       setIsSharingLocation(true);
     } catch (shareError) {
       setError(
@@ -1266,10 +1284,56 @@ export function DriveTogetherMapLayer({
       setSharingLocation(false);
     }
   }, [
+    details?.currentUserId,
     isSharingLocation,
     roomId,
     sharingLocation,
   ]);
+
+  const stopSharing = useCallback(async () => {
+    if (!roomId || sharingLocation || !isSharingLocation) return;
+    setSharingLocation(true);
+    setError(null);
+    try {
+      const result = await stopGroupDriveLocationSharing(roomId);
+      setIsSharingLocation(false);
+      setCleanupPending(!result.serverCleared);
+      if (!result.serverCleared) {
+        setError('Sharing stopped on this device. The last server position could remain visible until it expires. Retry cleanup when connected.');
+      }
+    } catch (stopError) {
+      setIsSharingLocation(false);
+      setCleanupPending(true);
+      setError(
+        stopError instanceof Error
+          ? stopError.message
+          : 'Location sharing stopped locally; server cleanup still needs confirmation.',
+      );
+    } finally {
+      setSharingLocation(false);
+    }
+  }, [isSharingLocation, roomId, sharingLocation]);
+
+  const retryCleanup = useCallback(async () => {
+    if (!roomId || sharingLocation || !cleanupPending) return;
+    setSharingLocation(true);
+    setError(null);
+    try {
+      const result = await retryGroupDriveLocationCleanup(roomId);
+      setCleanupPending(!result.serverCleared);
+      if (!result.serverCleared) {
+        setError('Server cleanup is still pending. Retry when connected.');
+      }
+    } catch (cleanupError) {
+      setError(
+        cleanupError instanceof Error
+          ? cleanupError.message
+          : 'Server cleanup could not be confirmed.',
+      );
+    } finally {
+      setSharingLocation(false);
+    }
+  }, [cleanupPending, roomId, sharingLocation]);
 
   const openDestinationComposer = useCallback(() => {
     transitionComposerMode('change-destination', 'forward');
@@ -1766,7 +1830,7 @@ export function DriveTogetherMapLayer({
           grow
           icon="navigate"
           onPress={() => void joinInvite()}
-          title="Join & share"
+          title="Join drive"
           working={working}
         />
       </View>
@@ -1868,23 +1932,57 @@ export function DriveTogetherMapLayer({
       <View style={styles.roomShell}>
         {header}
 
-        {roomActive && !isSharingLocation ? (
+        {roomActive && isSharingLocation ? (
           <View style={styles.noticeCard}>
-            <Ionicons name="location-outline" size={18} color={colors.primaryHover} />
+            <Ionicons name="navigate-circle-outline" size={18} color={colors.primaryHover} />
             <View style={styles.flexCopy}>
-              <Text style={styles.noticeTitle}>Share your location (optional)</Text>
+              <Text style={styles.noticeTitle}>Your location is shared</Text>
               <Text style={styles.noticeBody}>
-                Your location is hidden. Share it with active participants only if you choose. Updates continue in the background until you stop sharing or the drive ends.
+                Active participants can see your precise position until you stop sharing or the drive ends.
               </Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }} accessibilityLabel="Share my location with Drive Together participants"
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }}
+              accessibilityLabel="Stop sharing my Drive Together location"
               disabled={sharingLocation}
-              onPress={() => void enableSharing()}
+              onPress={() => void stopSharing()}
               style={styles.inlineButton}>
               {sharingLocation ? (
                 <ActivityIndicator color={colors.text} size="small" />
               ) : (
-                <Text style={styles.inlineButtonText}>Share</Text>
+                <Text style={styles.inlineButtonText}>Stop</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+
+        {roomActive && !isSharingLocation ? (
+          <View style={styles.noticeCard}>
+            <Ionicons name="location-outline" size={18} color={colors.primaryHover} />
+            <View style={styles.flexCopy}>
+              <Text style={styles.noticeTitle}>
+                {cleanupPending ? 'Location cleanup pending' : 'Share your location (optional)'}
+              </Text>
+              <Text style={styles.noticeBody}>
+                {cleanupPending
+                  ? 'Location publishing has stopped. Your last server position may still be visible until it expires. Retry cleanup when online.'
+                  : 'Your location is hidden. Share it with active participants only if you choose. Updates continue in the background until you stop sharing or the drive ends.'}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }}
+              accessibilityLabel={cleanupPending ? 'Retry clearing my last Drive Together location' : 'Share my location with Drive Together participants'}
+              disabled={sharingLocation}
+              onPress={() => void (cleanupPending ? retryCleanup() : enableSharing())}
+              style={styles.inlineButton}>
+              {sharingLocation ? (
+                <ActivityIndicator color={colors.text} size="small" />
+              ) : (
+                <Text style={styles.inlineButtonText}>
+                  {cleanupPending ? 'Retry' : 'Share'}
+                </Text>
               )}
             </Pressable>
           </View>
