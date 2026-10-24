@@ -22,7 +22,14 @@ Status: **PREPARATION ONLY — NOT READY TO RESUBMIT**
 - `supabase/migrations/20261023181500_expire_stale_group_drive_location_reads.sql`: drafted restrictive freshness RLS policy preventing other participants from reading Group Drive location rows older than two minutes (own row remains visible). **Not deployed.**
 - `scripts/verify-apple-review-privacy.mjs`: static regression checks. Run `npm run verify:apple-review-privacy`.
 
-Related website PR: https://github.com/Noxastreet/noxa-website/pull/134
+Related website PR: https://github.com/Noxastreet/noxa-website/pull/134 — MERGED 24 Oct 2026, production Vercel deployment READY (commit `668b5668b9468eac59ad11cebfc5fff8ffc212b9`).
+
+## 24 October 2026 progress
+
+- iOS production EAS build **QUEUED** from reviewed source commit `009e8cee1777363028efa5419e078ea92f3ede1d`. Build ID: `e6aad518-209a-40e8-be72-fa6813c31b52`; see https://expo.dev/accounts/noxastreet/projects/Noxa/builds/e6aad518-209a-40e8-be72-fa6813c31b52.
+- CI prebuild checks passed: `npm run verify:apple-review-privacy`, `npm run verify:drive-together-quickflow`, TypeScript check and Expo introspected `NSPhotoLibraryUsageDescription` match source.
+- GitHub Actions for iOS binary verification: `.github/workflows/verify-apple-review-ipa.yml` — verifies signed IPA permission text and bundle ID once EAS build finishes. **Do not mark complete until the action is green.**
+- Neither EAS Build nor IPA verification submits anything to App Store Connect or App Review. TestFlight upload is a later, separate step.
 
 ## Acceptance checklist (A and B are distinct test accounts)
 
@@ -74,8 +81,8 @@ Do **not** send the response or submit the app until the placeholders are replac
 
 ## Remaining decision / external blockers
 
-- The mobile PR and website PR are drafts. Main branches and production are unchanged.
+- The mobile PR #388 is still a draft; its source code is not merged into `main`. Website PR #134 is merged and Vercel production deployment is READY.
 - Actual `Info.plist` / physical iOS builds / Apple App Store Connect build linkage not tested.
-- Website privacy changes need review, merge and a successful deployment before Apple tests the public URL.
+- Website is deployed but re-check external public `/privacy` content before final Apple submission.
 - Server migration requires tests and explicit production authorization.
 - Apple review submission and messages require product-owner approval.
