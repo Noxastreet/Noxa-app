@@ -53,7 +53,7 @@ const runtime = read('src/features/group-drive/runtime/nativeLocation.ts');
 assert.match(runtime, /CONSENT_MAX_AGE_MS = 10 \* 60 \* 1000/);
 assert.match(runtime, /if \(!validConsent\(consent\)\)/);
 assert.match(runtime, /await assertPermissionsAlreadyGranted\(\)/);
-const rls = read('supabase/migrations/20261023181500_expire_stale_group_drive_location_reads.sql');
+const rls = read('supabase/migrations/20261024222114_expire_stale_group_drive_location_reads.sql');
 assert.match(rls, /create policy drive_location_state_fresh_for_viewers/);
 assert.match(rls, /as restrictive/);
 assert.match(rls, /updated_at >= now\(\) - interval '2 minutes'/);
