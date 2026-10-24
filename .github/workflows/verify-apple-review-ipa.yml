@@ -33,7 +33,7 @@ jobs:
       - name: Set up Expo EAS
         uses: expo/expo-github-action@v8
         with:
-          eas-version: 16.17.0
+          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
           packager: npm
 
@@ -42,11 +42,23 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 22); do
-            eas build:view "$BUILD_ID" --json > "$RUNNER_TEMP/build.json"
             set +e
-            node - "$RUNNER_TEMP/build.json" <<'NODE'
+            eas build:list --platform ios --limit 25 --json --non-interactive > "$RUNNER_TEMP/build-list.json"
+            fetch_state="$?"
+            set -e
+            if [ "$fetch_state" -ne 0 ]; then
+              echo "::warning::Could not read EAS build list. Will retry."
+              sleep 60
+              continue
+            fi
+            set +e
+            node - "$RUNNER_TEMP/build-list.json" "$RUNNER_TEMP/build.json" "$BUILD_ID" <<'NODE'
           const fs = require('node:fs');
-          const build = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const listed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const items = Array.isArray(listed) ? listed : (listed.builds ?? listed.data ?? []);
+          const build = items.find((item) => item.id === process.argv[4]);
+          if (!build) { console.log('Build not in recent EAS list'); process.exit(1); }
+          fs.writeFileSync(process.argv[3], JSON.stringify(build));
           const status = String(build.status ?? '').toUpperCase();
           console.log('EAS build status:', status);
           if (status === 'FINISHED') process.exit(0);
