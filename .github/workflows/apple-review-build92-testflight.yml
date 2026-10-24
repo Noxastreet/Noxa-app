@@ -1,0 +1,209 @@
+name: NOXA iOS Privacy Candidate - TestFlight Only
+
+# One-shot end-to-end QA build for the new manual Stop Sharing controls.
+# No public release and absolutely no App Store Review submission.
+on:
+  push:
+    branches:
+      - fix/apple-review-photo-permission-20261023
+    paths:
+      - .github/workflows/apple-review-build92-testflight.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: noxa-privacy-candidate-next-ios
+  cancel-in-progress: false
+
+jobs:
+  privacy-candidate:
+    name: Verify, build, inspect IPA, then send to TestFlight
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - name: Checkout exact release candidate
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Enforce private location controls and type safety
+        run: |
+          npm run verify:apple-review-privacy
+          npm run verify:drive-together-quickflow
+          node ./scripts/verify-surface-accessibility.mjs
+          npx tsc --noEmit
+
+      - name: Enforce database location isolation on temporary PostgreSQL only
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/sql/test-group-drive-location-freshness.sql
+
+      - name: Confirm signed iOS build requirements
+        shell: bash
+        run: |
+          npx expo config --type introspect --json > "$RUNNER_TEMP/expo-ios.json"
+          node - "$RUNNER_TEMP/expo-ios.json" <<'NODE'
+          const fs = require('node:fs');
+          const c = JSON.parse(fs.readFileSync('app.json','utf8'));
+          const eas = JSON.parse(fs.readFileSync('eas.json','utf8'));
+          const native = JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if (eas.build.production.ios.image !== 'macos-sequoia-15.6-xcode-26.0') throw Error('Unexpected iOS Xcode image');
+          if (eas.submit.production.ios.ascAppId !== '6811355257') throw Error('Wrong App Store Connect app');
+          if (native.ios.infoPlist.NSPhotoLibraryUsageDescription !== c.expo.ios.infoPlist.NSPhotoLibraryUsageDescription) throw Error('Native photo disclosure mismatch');
+          console.log('Expo iOS prebuild permission/config: PASS');
+          NODE
+
+      - name: Authenticate with existing Expo token
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 25.3.0
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+
+      - name: Queue exactly one signed iOS build
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Safety: refuse to queue twice for this exact Git SHA if job is retried.
+          eas build:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/prior-builds.json"
+          node - "$RUNNER_TEMP/prior-builds.json" "$GITHUB_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const entries = Array.isArray(data) ? data : (data.builds ?? data.data ?? []);
+          if (!Array.isArray(entries)) throw Error('Unrecognized build listing');
+          if (entries.some(b => b.gitCommitHash === process.argv[3] && b.platform === 'IOS' && b.buildProfile === 'production')) {
+            throw Error('This source commit already has an iOS build. Refusing duplicate paid build.');
+          }
+          NODE
+          eas build --platform ios --profile production --non-interactive --no-wait --message "NOXA privacy: explicit Stop Sharing; QA TestFlight only; source ${GITHUB_SHA:0:12}" | tee "$RUNNER_TEMP/noxa-build-start.txt"
+          node - "$RUNNER_TEMP/noxa-build-start.txt" "$GITHUB_ENV" <<'NODE'
+          const fs = require('node:fs');
+          const text = fs.readFileSync(process.argv[2],'utf8');
+          const matches = [...text.matchAll(/https:\/\/expo\.dev\/accounts\/noxastreet\/projects\/Noxa\/builds\/([0-9a-f-]{36})/ig)];
+          const id = matches.at(-1)?.[1];
+          if (!id) throw Error('Could not identify the newly queued EAS build. Do not guess its ID.');
+          fs.appendFileSync(process.argv[3], 'BUILD_ID=' + id + '\n');
+          console.log('Queued new iOS build:', id);
+          NODE
+
+      - name: Wait for exact EAS build to finish
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 50); do
+            eas build:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/build-list.json"
+            set +e
+            node - "$RUNNER_TEMP/build-list.json" "$RUNNER_TEMP/approved-build.json" "$BUILD_ID" "$GITHUB_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const entries = Array.isArray(data) ? data : (data.builds ?? data.data ?? []);
+          const b = entries.find(x => x.id === process.argv[4]);
+          if (!b) { console.error('Build not listed yet'); process.exit(1); }
+          if (b.gitCommitHash !== process.argv[5] || b.platform !== 'IOS' || b.buildProfile !== 'production') {
+            console.error('Unexpected EAS build identity, platform or source SHA'); process.exit(2);
+          }
+          const status = String(b.status ?? '').toUpperCase();
+          console.log('EAS build',b.id,'status',status);
+          if (['ERRORED','CANCELED'].includes(status)) {
+            console.error('Build failed:',String(b.error?.errorCode ?? '').slice(0,100));
+            console.error(String(b.error?.message ?? '').slice(0,800)); process.exit(2);
+          }
+          if (status !== 'FINISHED') process.exit(1);
+          if (!/^https:\/\//.test(b.artifacts?.buildUrl ?? '')) {
+            console.error('No signed IPA artifact URL'); process.exit(2);
+          }
+          fs.writeFileSync(process.argv[3],JSON.stringify({id:b.id,buildUrl:b.artifacts.buildUrl,appBuildVersion:b.appBuildVersion,gitCommitHash:b.gitCommitHash}));
+          NODE
+            status="$?"
+            set -e
+            if [ "$status" -eq 2 ]; then exit 1; fi
+            if [ "$status" -eq 0 ]; then exit 0; fi
+            if [ "$attempt" -eq 50 ]; then
+              echo "::error::EAS build did not finish during verification window."
+              exit 1
+            fi
+            sleep 60
+          done
+
+      - name: Download IPA privately and verify signed Info.plist
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="$(node - "$RUNNER_TEMP/approved-build.json" <<'NODE'
+          const fs=require('node:fs');
+          process.stdout.write(JSON.parse(fs.readFileSync(process.argv[2],'utf8')).buildUrl);
+          NODE
+          )"
+          curl --fail --location --silent --show-error --retry 3 --max-time 300 "$url" --output "$RUNNER_TEMP/review.ipa"
+          python3 - <<'PY'
+          import json,os,plistlib,zipfile
+          from pathlib import Path
+          path=Path(os.environ['RUNNER_TEMP'])/'review.ipa'
+          with zipfile.ZipFile(path) as z:
+              names=[n for n in z.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist')]
+              if len(names)!=1:
+                  raise RuntimeError('Expected exactly one app Info.plist')
+              native=plistlib.loads(z.read(names[0]))
+          config=json.loads(Path('app.json').read_text())
+          if native.get('NSPhotoLibraryUsageDescription')!=config['expo']['ios']['infoPlist']['NSPhotoLibraryUsageDescription']:
+              raise RuntimeError('Photo usage purpose differs in signed IPA')
+          if native.get('CFBundleIdentifier')!='com.karaketidis.noxa':
+              raise RuntimeError('Wrong signed bundle identifier')
+          version=str(native.get('CFBundleVersion',''))
+          if not version.isdecimal() or int(version)<=91:
+              raise RuntimeError('This build is not newer than previously tested iOS build 91')
+          print('Signed iOS binary: PASS. Build version:',version)
+          PY
+          rm -f "$RUNNER_TEMP/review.ipa"
+
+      - name: Refuse duplicate TestFlight submissions
+        shell: bash
+        run: |
+          eas submit:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/previous-submissions.json"
+          node - "$RUNNER_TEMP/previous-submissions.json" "$BUILD_ID" <<'NODE'
+          const fs=require('node:fs');
+          const data=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const entries=Array.isArray(data)?data:(data.submissions??data.data??[]);
+          if (!Array.isArray(entries)) throw Error('Unexpected submission listing');
+          if (entries.some(x=>JSON.stringify(x).includes(process.argv[3]))) throw Error('Existing submission found for this exact IPA; refusing duplicate');
+          console.log('Duplicate TestFlight submission guard: PASS');
+          NODE
+
+      - name: Schedule upload to TestFlight, NOT App Store Review
+        shell: bash
+        run: |
+          set -euo pipefail
+          eas submit --platform ios --profile production --id "$BUILD_ID" --non-interactive --no-wait | tee "$RUNNER_TEMP/noxa-submit.txt"
+          node - "$RUNNER_TEMP/noxa-submit.txt" <<'NODE'
+          const fs=require('node:fs');
+          const content=fs.readFileSync(process.argv[2],'utf8');
+          const id=content.match(/https:\/\/expo\.dev\/accounts\/noxastreet\/projects\/Noxa\/submissions\/([0-9a-f-]{36})/i)?.[1];
+          if(!id) throw Error('Submission status cannot be independently verified');
+          console.log('TestFlight upload scheduled; Expo submission ID:',id);
+          console.log('No App Store Review submission was requested.');
+          NODE
