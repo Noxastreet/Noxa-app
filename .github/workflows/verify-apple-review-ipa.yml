@@ -68,8 +68,25 @@ jobs:
           fs.writeFileSync(process.argv[3], JSON.stringify(build));
           const status = String(build.status ?? '').toUpperCase();
           console.log('EAS build status:', status);
+          if (['ERRORED', 'CANCELED'].includes(status)) {
+            const issue = build.error ?? build.buildError ?? null;
+            const safe = (value) => String(value ?? '').replace(/https?:\/\/\S+/g, '[link omitted]').slice(0, 900);
+            console.error('EAS build failure code:', safe(issue?.errorCode ?? issue?.code));
+            console.error('EAS build failure message:', safe(issue?.message ?? build.message));
+            console.error('EAS build job metadata:', JSON.stringify({
+              id: build.id,
+              platform: build.platform,
+              status: build.status,
+              appVersion: build.appVersion,
+              appBuildVersion: build.appBuildVersion,
+              createdAt: build.createdAt,
+              completedAt: build.completedAt,
+              buildProfile: build.buildProfile,
+              gitCommitHash: build.gitCommitHash,
+            }));
+            process.exit(2);
+          }
           if (status === 'FINISHED') process.exit(0);
-          if (['ERRORED', 'CANCELED'].includes(status)) process.exit(2);
           process.exit(1);
           NODE
             state="$?"
