@@ -1,0 +1,80 @@
+name: Apple Review iOS Build (No Submit)
+
+# One-shot attempt on adding this file to the review branch. Further builds
+# require an explicit workflow_dispatch, so no recurring paid EAS builds.
+on:
+  push:
+    branches:
+      - fix/apple-review-photo-permission-20261023
+    paths:
+      - .github/workflows/apple-review-ios-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-review-ios-build
+  cancel-in-progress: false
+
+jobs:
+  ios-build:
+    name: Validate and queue iOS binary (no Apple upload)
+    if: github.ref == 'refs/heads/fix/apple-review-photo-permission-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact reviewed source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apple privacy and Group Drive checks
+        run: |
+          npm run verify:apple-review-privacy
+          npm run verify:drive-together-quickflow
+          npx tsc --noEmit
+
+      - name: Validate resolved iOS photo permission
+        run: |
+          npx expo config --type introspect --json > "$RUNNER_TEMP/noxa-introspect.json"
+          node - "$RUNNER_TEMP/noxa-introspect.json" <<'NODE'
+          const fs = require('node:fs');
+          const resolved = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const config = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          const expected = config.expo.ios.infoPlist.NSPhotoLibraryUsageDescription;
+          const actual = resolved.ios?.infoPlist?.NSPhotoLibraryUsageDescription;
+          if (!actual || actual !== expected) {
+            throw new Error('Resolved iOS NSPhotoLibraryUsageDescription does not match reviewed text');
+          }
+          console.log('Resolved Expo iOS photo permission: PASS');
+          NODE
+
+      - name: Require existing Expo CI authentication
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::GitHub Actions secret EXPO_TOKEN is missing. Add it through GitHub repo Settings > Secrets and variables > Actions. Do not paste your token into chat."
+            exit 1
+          fi
+
+      - name: Set up Expo EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 16.17.0
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+
+      - name: Build iOS candidate in EAS cloud
+        run: |
+          eas whoami
+          eas build --platform ios --profile production --non-interactive --no-wait --message "NOXA Apple Review remediation - source ${GITHUB_SHA:0:12}; DO NOT SUBMIT"
+        # NEVER add --auto-submit or eas submit here.
