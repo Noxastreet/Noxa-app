@@ -24,12 +24,14 @@ Status: **PREPARATION ONLY — NOT READY TO RESUBMIT**
 
 Related website PR: https://github.com/Noxastreet/noxa-website/pull/134 — MERGED 24 Oct 2026, production Vercel deployment READY (commit `668b5668b9468eac59ad11cebfc5fff8ffc212b9`).
 
-## 24 October 2026 progress
+## 24–25 October 2026 build and TestFlight progress
 
-- iOS production EAS build **QUEUED** from reviewed source commit `009e8cee1777363028efa5419e078ea92f3ede1d`. Build ID: `e6aad518-209a-40e8-be72-fa6813c31b52`; see https://expo.dev/accounts/noxastreet/projects/Noxa/builds/e6aad518-209a-40e8-be72-fa6813c31b52.
-- CI prebuild checks passed: `npm run verify:apple-review-privacy`, `npm run verify:drive-together-quickflow`, TypeScript check and Expo introspected `NSPhotoLibraryUsageDescription` match source.
-- GitHub Actions for iOS binary verification: `.github/workflows/verify-apple-review-ipa.yml` — verifies signed IPA permission text and bundle ID once EAS build finishes. **Do not mark complete until the action is green.**
-- Neither EAS Build nor IPA verification submits anything to App Store Connect or App Review. TestFlight upload is a later, separate step.
+- Website PR #134 merged and published through Vercel, commit `668b5668b9468eac59ad11cebfc5fff8ffc212b9`. Verify privacy content again before App Review.
+- EAS Build `e6aad518-209a-40e8-be72-fa6813c31b52` (iOS build 90, source `009e8cee1777363028efa5419e078ea92f3ede1d`) **FAILED** with `XCODE_BUILD_ERROR`: Xcode 27.1 rejects pre-iOS-15 CocoaPods resource targets (SDWebImage, RNSVGFilters, MapboxMapsResources).
+- The `production.ios.image` in `eas.json` was pinned from `latest` (Xcode 27.1) to the Expo SDK 54 compatible `macos-sequoia-15.6-xcode-26.0`.
+- A corrected EAS build was **QUEUED** from source commit `d880cd6064442a33bf688cf1d8349e50ce71ea6b`, ID `653a5db5-0d86-425e-96ad-e7c9b289f081`, URL https://expo.dev/accounts/noxastreet/projects/Noxa/builds/653a5db5-0d86-425e-96ad-e7c9b289f081.
+- The one-shot TestFlight pipeline https://github.com/Noxastreet/Noxa-app/actions/runs/40135592033 checks the **exact** build, verifies its real signed IPA (native Info.plist, bundle ID and iOS build number), and **only then** runs EAS Submit for TestFlight. **This workflow never submits to App Store App Review.**
+- Do not claim the corrected EAS build is finished, the IPA verified, or uploaded to TestFlight until the one-shot pipeline completes successfully and EAS submission results are checked.
 
 ## Acceptance checklist (A and B are distinct test accounts)
 
