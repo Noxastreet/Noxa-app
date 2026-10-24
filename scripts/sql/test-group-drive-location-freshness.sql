@@ -75,7 +75,7 @@ USING (user_id = (SELECT auth.uid())
   OR NOT private.noxa_users_blocked((SELECT auth.uid()), user_id));
 
 -- Apply the actual PR migration to the isolated DB (no reimplementation).
-\i supabase/migrations/20261023181500_expire_stale_group_drive_location_reads.sql
+\i supabase/migrations/20261024222114_expire_stale_group_drive_location_reads.sql
 
 -- Prove that a RESTRICTIVE policy is installed, not a permissive OR bypass.
 DO $$
