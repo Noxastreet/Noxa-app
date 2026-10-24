@@ -1967,21 +1967,35 @@ export function DriveTogetherMapLayer({
                   : 'Your location is hidden. Share it with active participants only if you choose. Updates continue in the background until you stop sharing or the drive ends.'}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }}
-              accessibilityLabel={cleanupPending ? 'Retry clearing my last Drive Together location' : 'Share my location with Drive Together participants'}
-              disabled={sharingLocation}
-              onPress={() => void (cleanupPending ? retryCleanup() : enableSharing())}
-              style={styles.inlineButton}>
-              {sharingLocation ? (
-                <ActivityIndicator color={colors.text} size="small" />
-              ) : (
-                <Text style={styles.inlineButtonText}>
-                  {cleanupPending ? 'Retry' : 'Share'}
-                </Text>
-              )}
-            </Pressable>
+            {cleanupPending ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }}
+                accessibilityLabel="Retry clearing my last Drive Together location"
+                disabled={sharingLocation}
+                onPress={() => void retryCleanup()}
+                style={styles.inlineButton}>
+                {sharingLocation ? (
+                  <ActivityIndicator color={colors.text} size="small" />
+                ) : (
+                  <Text style={styles.inlineButtonText}>Retry</Text>
+                )}
+              </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: sharingLocation, busy: sharingLocation }}
+                accessibilityLabel="Share my location with Drive Together participants"
+                disabled={sharingLocation}
+                onPress={() => void enableSharing()}
+                style={styles.inlineButton}>
+                {sharingLocation ? (
+                  <ActivityIndicator color={colors.text} size="small" />
+                ) : (
+                  <Text style={styles.inlineButtonText}>Share</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         ) : null}
 
