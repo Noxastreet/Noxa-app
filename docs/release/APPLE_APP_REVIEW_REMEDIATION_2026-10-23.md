@@ -19,7 +19,7 @@ Status: **PREPARATION ONLY — NOT READY TO RESUBMIT**
 - `app.json`: identical custom photo permission example in native Info.plist and Expo ImagePicker configuration. **New native build required.**
 - `src/features/group-drive/DriveTogetherMapLayer.tsx`: separate location-sharing opt-in for hosts and invitees; joining/creating a room alone no longer starts sharing or requests Always permission.
 - `src/legal/legalDocuments.ts`: 18+ age declaration; existing active Live Drive background-sharing description retained.
-- `supabase/migrations/20261023181500_expire_stale_group_drive_location_reads.sql`: drafted restrictive freshness RLS policy preventing other participants from reading Group Drive location rows older than two minutes (own row remains visible). **Not deployed.**
+- `supabase/migrations/20261024222114_expire_stale_group_drive_location_reads.sql`: drafted restrictive freshness RLS policy preventing other participants from reading Group Drive location rows older than two minutes (own row remains visible). **Not deployed.**
 - `scripts/verify-apple-review-privacy.mjs`: static regression checks. Run `npm run verify:apple-review-privacy`.
 
 Related website PR: https://github.com/Noxastreet/noxa-website/pull/134 — MERGED 24 Oct 2026, production Vercel deployment READY (commit `668b5668b9468eac59ad11cebfc5fff8ffc212b9`).
