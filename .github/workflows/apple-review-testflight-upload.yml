@@ -53,7 +53,7 @@ jobs:
       - name: Authenticate EAS with existing robot token
         uses: expo/expo-github-action@v8
         with:
-          eas-version: 16.17.0
+          eas-version: 25.3.0
           token: ${{ secrets.EXPO_TOKEN }}
           packager: npm
 
@@ -148,9 +148,29 @@ jobs:
           PY
           rm -f "$RUNNER_TEMP/review.ipa"
 
+      - name: Refuse duplicate EAS submissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          eas submit:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/previous-submissions.json"
+          node - "$RUNNER_TEMP/previous-submissions.json" "$BUILD_ID" <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const items = Array.isArray(payload)
+            ? payload
+            : (payload.submissions ?? payload.data ?? []);
+          if (!Array.isArray(items)) throw new Error('Unexpected submissions response; refusing duplicate upload');
+          const matches = items.filter(x => JSON.stringify(x).includes(process.argv[3]));
+          if (matches.length) {
+            const statuses = matches.map(x => String(x.status ?? 'unknown')).join(', ');
+            throw new Error('A submission already exists for this IPA (statuses: ' + statuses + '). Inspect the Expo submissions dashboard before retrying.');
+          }
+          console.log('No existing EAS submissions for reviewed iOS build; a single retry is allowed.');
+          NODE
+
       - name: Upload verified build to TestFlight ONLY
         shell: bash
         run: |
           set -euo pipefail
-          eas submit --platform ios --profile production --id "$BUILD_ID" --non-interactive --no-wait --what-to-test "NOXA 1.0 privacy QA: confirm photo picker permission text, explicit Live Drive and Drive Together opt-in, Ghost mode, stop sharing, and user blocking. Not for public release."
+          eas submit --platform ios --profile production --id "$BUILD_ID" --non-interactive --no-wait
           echo "TestFlight upload handoff requested. THIS DOES NOT SUBMIT THE APP FOR APP STORE REVIEW."
