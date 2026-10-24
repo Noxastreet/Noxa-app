@@ -44,15 +44,20 @@ jobs:
         run: |
           set -euo pipefail
           for i in $(seq 1 20); do
-            eas submit:view "$SUBMISSION_ID" --platform ios --json > "$RUNNER_TEMP/expo-submission.json"
+            eas submit:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/expo-submission.json"
             set +e
             node - "$RUNNER_TEMP/expo-submission.json" "$SUBMISSION_ID" <<'NODE'
           const fs = require('node:fs');
           const obj = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          const submission = obj.submission ?? obj;
-          if (submission.id !== process.argv[3]) {
-            console.error('Unexpected EAS submission; refusing to report status.');
+          const items = Array.isArray(obj) ? obj : (obj.submissions ?? obj.data ?? []);
+          if (!Array.isArray(items)) {
+            console.error('Unexpected EAS submissions payload.');
             process.exit(2);
+          }
+          const submission = items.find(item => item.id === process.argv[3]);
+          if (!submission) {
+            console.log('Targeted submission is not in the last 50 results yet.');
+            process.exit(1);
           }
           const status = String(submission.status ?? '').toUpperCase();
           console.log('NOXA TestFlight upload status:', status);
