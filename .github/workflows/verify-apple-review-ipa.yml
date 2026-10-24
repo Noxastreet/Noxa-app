@@ -30,10 +30,18 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install project dependencies for EAS project resolution
+        run: npm ci
+
+      - name: Check resolved EAS project
+        run: |
+          node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync('app.json','utf8')); if(c.expo?.extra?.eas?.projectId!=='8c32a4c3-2d1f-4f1d-abba-0209cfeecb3a')process.exit(1)"
+          npx expo config --json > /dev/null
+
       - name: Set up Expo EAS
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 16.17.0
           token: ${{ secrets.EXPO_TOKEN }}
           packager: npm
 
@@ -47,9 +55,8 @@ jobs:
             fetch_state="$?"
             set -e
             if [ "$fetch_state" -ne 0 ]; then
-              echo "::warning::Could not read EAS build list. Will retry."
-              sleep 60
-              continue
+              echo "::error::Failed to query EAS project builds after npm ci. Check project auth and EAS CLI logs."
+              exit 1
             fi
             set +e
             node - "$RUNNER_TEMP/build-list.json" "$RUNNER_TEMP/build.json" "$BUILD_ID" <<'NODE'
