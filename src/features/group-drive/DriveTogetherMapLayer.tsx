@@ -677,15 +677,12 @@ export function DriveTogetherMapLayer({
         if (disposed) return;
         setSnapshot(initial);
         const localSession = getGroupDriveLocationSession();
-        const sharingNow = localSession?.driveSessionId === roomId
-          && localSession.userId === details?.currentUserId;
+        const sharingNow = localSession?.driveSessionId === roomId;
         setIsSharingLocation(sharingNow);
         setCleanupPending(
           !sharingNow
-          && getPendingGroupDriveServerAction(
-            initial.participants.find((participant) => participant.userId === details?.currentUserId)?.userId ?? '',
-            roomId,
-          )?.kind === 'clear_location',
+          && Boolean(details?.currentUserId)
+          && getPendingGroupDriveServerAction(details!.currentUserId, roomId)?.kind === 'clear_location',
         );
         return subscribeToActiveDriveRealtime(roomId, {
           onSnapshot: (next) => {
@@ -721,7 +718,7 @@ export function DriveTogetherMapLayer({
       disposed = true;
       if (teardown) void teardown();
     };
-  }, [clearRoom, onDriversChange, roomActive, roomId]);
+  }, [clearRoom, details?.currentUserId, onDriversChange, roomActive, roomId]);
 
   const driveDrivers = useMemo<MapboxDriver[]>(() => {
     if (!details || !snapshot) return [];
