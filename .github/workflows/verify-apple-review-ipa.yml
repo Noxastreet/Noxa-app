@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 22); do
-            eas build:view "$BUILD_ID" --json --non-interactive > "$RUNNER_TEMP/build.json"
+            eas build:view "$BUILD_ID" --json > "$RUNNER_TEMP/build.json"
             set +e
             node - "$RUNNER_TEMP/build.json" <<'NODE'
           const fs = require('node:fs');
