@@ -1,0 +1,77 @@
+name: Apple Review iOS Xcode 26 Retry (No Submit)
+
+# One-shot CI build. Trigger only when this file is added or changed;
+# never submit to Apple from here.
+on:
+  push:
+    branches: [fix/apple-review-photo-permission-20261023]
+    paths:
+      - .github/workflows/apple-review-ios-build-xcode26.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-review-ios-build-xcode26
+  cancel-in-progress: false
+
+jobs:
+  retry-ios:
+    name: Validate and queue iOS build on Xcode 26
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Assert Xcode 26 image and build only
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const profile = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+          const image = profile.build?.production?.ios?.image;
+          if (image !== 'macos-sequoia-15.6-xcode-26.0') {
+            throw new Error('Refusing EAS retry with unexpected iOS build image: ' + image);
+          }
+          if (profile.submit?.production?.ios?.ascAppId !== '6811355257') {
+            throw new Error('Unexpected App Store app identifier');
+          }
+          console.log('Pinned Xcode 26.0: PASS');
+          NODE
+      - name: Static regression tests
+        run: |
+          npm run verify:apple-review-privacy
+          npm run verify:drive-together-quickflow
+          npx tsc --noEmit
+      - name: Validate resolved native permissions
+        run: |
+          npx expo config --type introspect --json > "$RUNNER_TEMP/noxa-config.json"
+          node - "$RUNNER_TEMP/noxa-config.json" <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          const resolved = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const expected = config.expo.ios.infoPlist.NSPhotoLibraryUsageDescription;
+          if (resolved.ios?.infoPlist?.NSPhotoLibraryUsageDescription !== expected)
+            throw new Error('Incorrect native photo purpose string');
+          console.log('Native photo permission: PASS');
+          NODE
+      - name: Verify Expo CI token configured
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: test -n "$EXPO_TOKEN"
+      - name: Configure EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 16.17.0
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+      - name: Queue corrected signed iOS build
+        run: |
+          eas whoami
+          eas build --platform ios --profile production --non-interactive --no-wait --message "NOXA Apple privacy Xcode26 candidate: ${GITHUB_SHA:0:12} (TestFlight only after IPA QA)"

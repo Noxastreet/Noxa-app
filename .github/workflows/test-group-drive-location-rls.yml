@@ -1,0 +1,55 @@
+name: NOXA Group Drive Location RLS (Isolated)
+
+on:
+  push:
+    branches:
+      - fix/apple-review-photo-permission-20261023
+    paths:
+      - .github/workflows/test-group-drive-location-rls.yml
+      - scripts/sql/test-group-drive-location-freshness.sql
+      - supabase/migrations/20261024222114_expire_stale_group_drive_location_reads.sql
+  pull_request:
+    paths:
+      - .github/workflows/test-group-drive-location-rls.yml
+      - scripts/sql/test-group-drive-location-freshness.sql
+      - supabase/migrations/20261024222114_expire_stale_group_drive_location_reads.sql
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-postgres-rls:
+    name: Test fresh/stale locations, blocks and outsiders
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - name: Check out migration and fixture
+        uses: actions/checkout@v4
+
+      - name: Verify PostgreSQL tooling
+        run: psql --version
+
+      - name: Apply actual NOXA migration in isolated test database and assert RLS
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/sql/test-group-drive-location-freshness.sql
+
+      - name: Confirm production is untouched
+        run: echo "PASS - This workflow uses only the ephemeral GitHub Actions postgres:16 service"

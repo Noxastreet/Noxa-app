@@ -1,4 +1,4 @@
-export const LEGAL_EFFECTIVE_DATE = 'July 15, 2026';
+export const LEGAL_EFFECTIVE_DATE = 'October 23, 2026';
 export const NOXA_OPERATOR = 'SERGKEI KARAKETIDIS';
 export const SUPPORT_EMAIL = 'noxastreetapp@gmail.com';
 
@@ -31,7 +31,7 @@ export const privacyPolicy: LegalDocument = {
     {
       title: '2. Scope and age requirement',
       paragraphs: [
-        'This policy applies to the NOXA mobile application, its backend services, and the public NOXA legal pages. NOXA is not intended for anyone under 16, and we do not knowingly collect personal data from children under 16. If you believe a child has provided data, contact us so it can be removed.',
+        'This policy applies to the NOXA mobile application, its backend services, and the public NOXA legal pages. The NOXA: Car & Moto mobile app is intended for adults aged 18 or older. We do not knowingly offer mobile accounts to minors. If you believe a child has provided data, contact us so it can be removed.',
       ],
     },
     {
@@ -142,7 +142,7 @@ export const termsOfService: LegalDocument = {
     {
       title: '2. Eligibility',
       paragraphs: [
-        'You must be at least 16 to use NOXA. If you are under the age of legal majority where you live, you confirm that a parent or legal guardian permits your use. You may not use NOXA if applicable law prohibits you from receiving the service.',
+        'You must be at least 18 to use the NOXA mobile app. You may not use NOXA if applicable law prohibits you from receiving the service.',
       ],
     },
     {

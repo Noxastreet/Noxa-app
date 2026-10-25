@@ -1,0 +1,86 @@
+name: NOXA TestFlight Upload Status (Read Only)
+
+# This action ONLY checks the already scheduled Expo submission. It does not
+# create builds, submit app binaries, or request App Store Review.
+on:
+  push:
+    branches:
+      - fix/apple-review-photo-permission-20261023
+    paths:
+      - .github/workflows/apple-review-testflight-status.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-testflight-upload:
+    name: Check existing Expo submission without uploading
+    runs-on: ubuntu-latest
+    timeout-minutes: 26
+    env:
+      SUBMISSION_ID: 2eb1c2cb-2607-4f99-a602-a9d4de090c42
+    steps:
+      - name: Checkout NOXA (read only)
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Expo dependencies
+        run: npm ci
+
+      - name: Authenticate EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 25.3.0
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+
+      - name: Read Expo submission status
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 20); do
+            eas submit:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/expo-submission.json"
+            set +e
+            node - "$RUNNER_TEMP/expo-submission.json" "$SUBMISSION_ID" <<'NODE'
+          const fs = require('node:fs');
+          const obj = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const items = Array.isArray(obj) ? obj : (obj.submissions ?? obj.data ?? []);
+          if (!Array.isArray(items)) {
+            console.error('Unexpected EAS submissions payload.');
+            process.exit(2);
+          }
+          const submission = items.find(item => item.id === process.argv[3]);
+          if (!submission) {
+            console.log('Targeted submission is not in the last 50 results yet.');
+            process.exit(1);
+          }
+          const status = String(submission.status ?? '').toUpperCase();
+          console.log('NOXA TestFlight upload status:', status);
+          if (['FINISHED','SUCCESS'].includes(status)) process.exit(0);
+          if (['ERRORED','CANCELED','FAILED'].includes(status)) {
+            console.error('EAS submission is not successful. Open its details in Expo.');
+            process.exit(2);
+          }
+          process.exit(1);
+          NODE
+            state="$?"
+            set -e
+            if [ "$state" -eq 0 ]; then
+              echo "Expo reported successful submission to Apple. TestFlight availability still requires App Store Connect processing."
+              exit 0
+            fi
+            if [ "$state" -eq 2 ]; then
+              echo "::error::Expo submission failed, was canceled or returned unexpected data."
+              exit 1
+            fi
+            if [ "$i" -eq 20 ]; then
+              echo "::warning::Expo upload is still processing; inspect the submission URL later."
+              exit 0
+            fi
+            sleep 45
+          done

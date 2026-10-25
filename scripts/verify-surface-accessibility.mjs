@@ -35,7 +35,7 @@ for (const file of ['app', 'src', 'components'].flatMap(files)) {
 }
 assert.equal(missingRoles.length, 0, 'Interactive controls missing roles: ' + missingRoles.join(', '));
 const drive = fs.readFileSync('src/features/group-drive/DriveTogetherMapLayer.tsx', 'utf8');
-for (const label of ['Accept destination request', 'Decline destination request', 'Resume location sharing', 'Clear destination search']) {
+for (const label of ['Accept destination request', 'Decline destination request', 'Share my location with Drive Together participants', 'Stop sharing my Drive Together location', 'Retry clearing my last Drive Together location', 'Clear destination search']) {
   assert.ok(drive.includes('accessibilityLabel="' + label + '"'), label + ' must stay discoverable with a screen reader');
 }
 assert.ok(/accessibilityRole="checkbox" accessibilityState=\{\{ checked: selected \}\}/.test(drive), 'Driver invitation selection must expose checked state');

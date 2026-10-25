@@ -1,0 +1,176 @@
+name: NOXA Apple Review Candidate to TestFlight (Not App Review)
+
+# Single explicitly approved upload for this exact EAS build.
+# Creating this workflow on the private review branch starts it once.
+# Re-running this workflow may repeat an upload; check Expo submissions first.
+on:
+  push:
+    branches:
+      - fix/apple-review-photo-permission-20261023
+    paths:
+      - .github/workflows/apple-review-testflight-upload.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: noxa-testflight-build-653a5db5-0d86-425e-96ad-e7c9b289f081
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Validate IPA then upload exact build to TestFlight
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      BUILD_ID: 653a5db5-0d86-425e-96ad-e7c9b289f081
+      EXPECTED_GIT_COMMIT: d880cd6064442a33bf688cf1d8349e50ce71ea6b
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install project
+        run: npm ci
+
+      - name: Recheck privacy contract and App Store app ID
+        run: |
+          npm run verify:apple-review-privacy
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const p = JSON.parse(fs.readFileSync('eas.json', 'utf8'));
+          if (p.build?.production?.ios?.image !== 'macos-sequoia-15.6-xcode-26.0')
+            throw new Error('Refusing TestFlight upload from unexpected Xcode image');
+          if (p.submit?.production?.ios?.ascAppId !== '6811355257')
+            throw new Error('Refusing TestFlight upload to wrong App Store Connect app');
+          NODE
+
+      - name: Authenticate EAS with existing robot token
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: 25.3.0
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+
+      - name: Confirm the exact build finished successfully
+        shell: bash
+        run: |
+          set -euo pipefail
+          success=0
+          for attempt in $(seq 1 55); do
+            eas build:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/build-list.json"
+            set +e
+            node - "$RUNNER_TEMP/build-list.json" "$RUNNER_TEMP/approved-build.json" "$BUILD_ID" "$EXPECTED_GIT_COMMIT" <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const builds = Array.isArray(payload) ? payload : (payload.builds ?? payload.data ?? []);
+          const build = builds.find(b => b.id === process.argv[4]);
+          if (!build) { console.log('Expected build not found; will retry.'); process.exit(1); }
+          const status = String(build.status).toUpperCase();
+          console.log('Targeted EAS build:', build.id, status);
+          if (build.gitCommitHash !== process.argv[5]) {
+            console.error('The EAS build source commit does not match the reviewed candidate.');
+            process.exit(2);
+          }
+          if (build.platform !== 'IOS' || build.buildProfile !== 'production') {
+            console.error('Wrong platform/profile; refusing to submit.');
+            process.exit(2);
+          }
+          if (['ERRORED', 'CANCELED'].includes(status)) {
+            console.error('EAS build failed; refusing upload:', String(build.error?.errorCode ?? '').slice(0, 100));
+            process.exit(2);
+          }
+          if (status !== 'FINISHED') process.exit(1);
+          if (!/^https:\/\//.test(build.artifacts?.buildUrl ?? '')) {
+            console.error('Finished EAS build has no signed IPA artifact URL.');
+            process.exit(2);
+          }
+          fs.writeFileSync(process.argv[3], JSON.stringify({
+            id: build.id,
+            status,
+            buildUrl: build.artifacts.buildUrl,
+            appBuildVersion: build.appBuildVersion,
+            gitCommitHash: build.gitCommitHash,
+          }));
+          console.log('Exact reviewed signed iOS build is ready.');
+          NODE
+            state="$?"
+            set -e
+            if [ "$state" -eq 2 ]; then exit 1; fi
+            if [ "$state" -eq 0 ]; then success=1; break; fi
+            sleep 60
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "::error::Reviewed EAS build did not finish in the verification window."
+            exit 1
+          fi
+
+      - name: Download IPA securely into ephemeral runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          IPA_URL="$(node - "$RUNNER_TEMP/approved-build.json" <<'NODE'
+          const fs = require('node:fs');
+          const build = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          process.stdout.write(build.buildUrl);
+          NODE
+          )"
+          curl --fail --location --silent --show-error --retry 3 --max-time 300 "$IPA_URL" --output "$RUNNER_TEMP/review.ipa"
+          echo "Signed IPA downloaded to ephemeral CI storage (link omitted)."
+
+      - name: Validate real signed iOS Info.plist (hard gate)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, plistlib, zipfile
+          from pathlib import Path
+          path = Path(os.environ['RUNNER_TEMP']) / 'review.ipa'
+          with zipfile.ZipFile(path) as archive:
+              names = [n for n in archive.namelist() if n.startswith('Payload/') and n.endswith('.app/Info.plist')]
+              if len(names) != 1:
+                  raise RuntimeError(f'Expected exactly one signed app Info.plist, found {len(names)}')
+              native = plistlib.loads(archive.read(names[0]))
+          config = json.loads(Path('app.json').read_text())
+          expected = config['expo']['ios']['infoPlist']['NSPhotoLibraryUsageDescription']
+          if native.get('NSPhotoLibraryUsageDescription') != expected:
+              raise RuntimeError('Photo usage description does not match approved App Review text')
+          if native.get('CFBundleIdentifier') != 'com.karaketidis.noxa':
+              raise RuntimeError('Bundle ID does not match App Store Connect application')
+          actual_number = str(native.get('CFBundleVersion', ''))
+          if not actual_number.isdecimal() or int(actual_number) <= 89:
+              raise RuntimeError('Expected a signed iOS build newer than rejected build 89')
+          print('Verified signed IPA: bundle identifier, photo purpose string, and iOS build number', actual_number)
+          PY
+          rm -f "$RUNNER_TEMP/review.ipa"
+
+      - name: Refuse duplicate EAS submissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          eas submit:list --platform ios --limit 50 --json --non-interactive > "$RUNNER_TEMP/previous-submissions.json"
+          node - "$RUNNER_TEMP/previous-submissions.json" "$BUILD_ID" <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const items = Array.isArray(payload)
+            ? payload
+            : (payload.submissions ?? payload.data ?? []);
+          if (!Array.isArray(items)) throw new Error('Unexpected submissions response; refusing duplicate upload');
+          const matches = items.filter(x => JSON.stringify(x).includes(process.argv[3]));
+          if (matches.length) {
+            const statuses = matches.map(x => String(x.status ?? 'unknown')).join(', ');
+            throw new Error('A submission already exists for this IPA (statuses: ' + statuses + '). Inspect the Expo submissions dashboard before retrying.');
+          }
+          console.log('No existing EAS submissions for reviewed iOS build; a single retry is allowed.');
+          NODE
+
+      - name: Upload verified build to TestFlight ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          eas submit --platform ios --profile production --id "$BUILD_ID" --non-interactive --no-wait
+          echo "TestFlight upload handoff requested. THIS DOES NOT SUBMIT THE APP FOR APP STORE REVIEW."
