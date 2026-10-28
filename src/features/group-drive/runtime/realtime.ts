@@ -6,6 +6,7 @@ import type { DriveLocationState, DriveParticipantStatus, DriveSessionStatus } f
 import {
   emptyGroupDriveLocationSnapshot,
   reduceGroupDriveLocationState,
+  retainVisibleGroupDriveLocations,
   type GroupDriveLocationEvent,
   type GroupDriveLocationSnapshot,
 } from './locationState';
@@ -199,7 +200,17 @@ export async function subscribeToActiveDriveRealtime(
   };
 
   const publish = () => {
-    if (!closed && current) callbacks.onSnapshot(current);
+    if (closed || !current || !currentUserId) return;
+    // RLS cannot retract a row already cached by this client. Reconcile cache
+    // visibility on every heartbeat, even when no location event arrives.
+    const activeUserIds = new Set(current.participants
+      .filter((participant) => participant.status === 'active')
+      .map((participant) => participant.userId));
+    current = {
+      ...current,
+      locations: retainVisibleGroupDriveLocations(current.locations, activeUserIds, currentUserId),
+    };
+    callbacks.onSnapshot(current);
   };
 
   const handleSyncError = (error: unknown) => {
