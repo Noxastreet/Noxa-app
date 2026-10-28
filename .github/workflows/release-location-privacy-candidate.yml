@@ -1,6 +1,6 @@
 name: NOXA Release Location Privacy Candidate - TestFlight Only
 
-# One-shot end-to-end QA build for the new manual Stop Sharing controls.
+# Release candidate: verified Stop race fixes and two-minute cached-location eviction.
 # No public release and absolutely no App Store Review submission.
 on:
   push:
