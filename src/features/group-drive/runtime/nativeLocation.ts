@@ -31,6 +31,19 @@ export type GroupDriveLocationSession = {
 
 export type GroupDriveLocationPublishResult = 'published' | 'retry' | 'revoked';
 
+let runtimeGeneration = 0;
+let locationPublishQueue: Promise<unknown> = Promise.resolve();
+let locationStartInProgress = false;
+
+function ownsSession(session: GroupDriveLocationSession, generation: number) {
+  const current = readStoredSession();
+  return generation === runtimeGeneration
+    && current?.userId === session.userId
+    && current.driveSessionId === session.driveSessionId
+    && current.consentedAt === session.consentedAt
+    && current.activeExpiresAt === session.activeExpiresAt;
+}
+
 function readStoredSession(): GroupDriveLocationSession | null {
   try {
     const raw = localStorage.getItem(GROUP_DRIVE_LOCATION_SESSION_KEY);
@@ -106,6 +119,7 @@ async function stopNativeLocationUpdates() {
 }
 
 async function clearLocalRuntime() {
+  runtimeGeneration += 1;
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
 }
@@ -121,10 +135,12 @@ async function clearRemoteLocationAndRuntime(
   return true;
 }
 
-async function publishLocation(
+async function publishLocationNow(
   session: GroupDriveLocationSession,
   location: Location.LocationObject,
+  generation: number,
 ): Promise<GroupDriveLocationPublishResult> {
+  if (!ownsSession(session, generation)) return 'revoked';
   if (Date.now() >= Date.parse(session.activeExpiresAt)) {
     await clearLocalRuntime();
     return 'revoked';
@@ -133,6 +149,8 @@ async function publishLocation(
   if (!hasPreciseLocationSample(location.coords)) return 'retry';
 
   const { data: authData, error: authError } = await supabase.auth.getSession();
+  // Stop or a newer consent can invalidate this callback while auth is pending.
+  if (!ownsSession(session, generation)) return 'revoked';
   if (authError) return 'retry';
   if (authData.session?.user.id !== session.userId) {
     await clearLocalRuntime();
@@ -171,6 +189,16 @@ async function publishLocation(
     return 'revoked';
   }
   return 'retry';
+}
+
+function publishLocation(
+  session: GroupDriveLocationSession,
+  location: Location.LocationObject,
+): Promise<GroupDriveLocationPublishResult> {
+  const generation = runtimeGeneration;
+  const publish = locationPublishQueue.then(() => publishLocationNow(session, location, generation));
+  locationPublishQueue = publish.catch(() => undefined);
+  return publish;
 }
 
 if (!TaskManager.isTaskDefined(GROUP_DRIVE_LOCATION_TASK_NAME)) {
@@ -272,16 +300,24 @@ async function assertPermissionsAlreadyGranted() {
   }
 }
 
-export async function startGroupDriveLocationSession(consent: GroupDriveLocationConsent) {
+async function beginGroupDriveLocationSession(consent: GroupDriveLocationConsent) {
+  const generation = runtimeGeneration;
+  const assertCurrentStart = () => {
+    if (generation !== runtimeGeneration) {
+      throw new Error('Group Drive location sharing was cancelled.');
+    }
+  };
   if (!validConsent(consent)) {
     throw new Error('Confirm Group Drive location sharing before starting it.');
   }
   await assertPermissionsAlreadyGranted();
+  assertCurrentStart();
 
   const [{ data: authData, error: authError }, snapshot] = await Promise.all([
     supabase.auth.getUser(),
     loadActiveDriveRealtimeSnapshot(consent.driveSessionId),
   ]);
+  assertCurrentStart();
   if (authError || !authData.user) throw new Error('Sign in again to share Group Drive location.');
   if (!snapshot.activeExpiresAt || Date.now() >= Date.parse(snapshot.activeExpiresAt)) {
     throw new Error('This Group Drive is no longer active.');
@@ -298,6 +334,7 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
     const current = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
     });
+    assertCurrentStart();
     if (!hasPreciseLocationSample(current.coords)) {
       throw new Error('Group Drive needs a precise GPS fix before location sharing can start.');
     }
@@ -306,11 +343,13 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
     if (await Location.hasStartedLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME)) {
       await Location.stopLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME);
     }
+    assertCurrentStart();
 
     const initialPublish = await publishLocation(session, current);
     if (initialPublish === 'revoked') {
       throw new Error('Group Drive location access is no longer available.');
     }
+    assertCurrentStart();
 
     await Location.startLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME, {
       accuracy: Location.Accuracy.High,
@@ -328,15 +367,31 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
         killServiceOnDestroy: true,
       },
     });
+    if (generation !== runtimeGeneration) {
+      await stopNativeLocationUpdates().catch(() => undefined);
+      assertCurrentStart();
+    }
     return session;
   } catch (error) {
-    await clearLocalRuntime();
+    if (generation === runtimeGeneration) await clearLocalRuntime();
     throw error;
+  }
+}
+
+export async function startGroupDriveLocationSession(consent: GroupDriveLocationConsent) {
+  if (locationStartInProgress) throw new Error('Group Drive location startup is still finishing. Retry shortly.');
+  locationStartInProgress = true;
+  try {
+    return await beginGroupDriveLocationSession(consent);
+  } finally {
+    locationStartInProgress = false;
   }
 }
 
 export async function stopGroupDriveLocationSession() {
   await clearLocalRuntime();
+  // An issued request cannot be unsent. Final server cleanup must run after it.
+  await locationPublishQueue;
 }
 
 export async function clearGroupDriveLocationBeforeSignOut() {

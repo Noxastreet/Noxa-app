@@ -35,6 +35,7 @@ let pendingCleanupRetryIndex = 0;
 let backgroundStartPromise: Promise<boolean> | null = null;
 let backgroundUpdatesRequested = false;
 let sessionOwnedByCurrentProcess = false;
+let presencePublishQueue: Promise<unknown> = Promise.resolve();
 
 function readStoredSession(): LiveDriveSession | null {
   try {
@@ -205,17 +206,25 @@ async function upsertLiveDrivePresence(
 ) {
   const payload = buildPresencePayload(session, coords);
   if (!payload) return false;
+  const publish = presencePublishQueue.then(async () => {
+    const current = readStoredSession();
+    if (current?.userId !== session.userId
+      || current.expiresAt !== session.expiresAt
+      || current.visibilityMode !== session.visibilityMode
+      || Date.now() >= Date.parse(session.expiresAt)) return false;
+    const { error } = await supabase.from('driver_locations').upsert(
+      {
+        user_id: session.userId,
+        ...payload,
+      },
+      { onConflict: 'user_id' },
+    );
 
-  const { error } = await supabase.from('driver_locations').upsert(
-    {
-      user_id: session.userId,
-      ...payload,
-    },
-    { onConflict: 'user_id' },
-  );
-
-  if (error) throw error;
-  return true;
+    if (error) throw error;
+    return true;
+  });
+  presencePublishQueue = publish.catch(() => undefined);
+  return publish;
 }
 
 async function deleteLiveDrivePresence(
@@ -304,6 +313,7 @@ async function stopSessionAndCleanupPresence(session: LiveDriveSession) {
   persistPresenceCleanup(session);
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
+  await presencePublishQueue;
   try {
     await deleteLiveDrivePresence(session.userId, session.expiresAt);
     const pending = readPendingCleanup();
@@ -583,6 +593,7 @@ export async function stopLiveDriveSession(deletePresence = true) {
   }
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
+  await presencePublishQueue;
   if (!deletePresence || !session?.userId) return;
 
   try {

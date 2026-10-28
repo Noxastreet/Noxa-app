@@ -1275,6 +1275,9 @@ export default function LiveMapScreen() {
         setSharingError(null);
       }
       await stopLiveDriveSession(deleteRow).catch(() => undefined);
+      // Finish any foreground write already issued before the final delete.
+      // Queued writes see the cleared sharing owner and cannot start again.
+      await presenceWriteQueueRef.current.catch(() => undefined);
       if (deleteRow && userId) await deletePresence(userId).catch(() => undefined);
     },
     [deletePresence],
