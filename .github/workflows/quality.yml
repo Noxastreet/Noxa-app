@@ -117,6 +117,9 @@ jobs:
       - name: Private live driver Broadcast contract
         run: node ./scripts/verify-live-driver-broadcast.mjs
 
+      - name: Per-message driver Broadcast SQL authorization
+        run: node ./scripts/test-driver-broadcast-authorization.mjs
+
       - name: Apple App Review privacy contract
         run: npm run verify:apple-review-privacy
 
