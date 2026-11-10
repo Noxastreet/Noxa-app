@@ -36,6 +36,40 @@ let backgroundStartPromise: Promise<boolean> | null = null;
 let backgroundUpdatesRequested = false;
 let sessionOwnedByCurrentProcess = false;
 let presencePublishQueue: Promise<unknown> = Promise.resolve();
+let broadcastInFlight = false;
+
+export function broadcastLiveDriverLocation(
+  userId: string,
+  point: { latitude: number; longitude: number },
+): Promise<boolean> {
+  const session = getLiveDriveSession();
+  if (broadcastInFlight || session?.userId !== userId) return Promise.resolve(false);
+  broadcastInFlight = true;
+  const ownsSession = () => {
+    const current = readStoredSession();
+    return current?.userId === session.userId
+      && current.expiresAt === session.expiresAt
+      && current.visibilityMode === session.visibilityMode
+      && Date.now() < Date.parse(session.expiresAt);
+  };
+  const publish = presencePublishQueue.then(async () => {
+    if (!ownsSession()) return false;
+    const { data: authData, error: authError } = await supabase.auth.getSession();
+    if (authError || authData.session?.user.id !== userId || !ownsSession()) return false;
+    // The server checks this expected account again, chooses the current topic
+    // under a row lock, and rejects a stopped/stale/expired session. Never fall
+    // back to channel.send: its cached permissions cannot enforce revocation.
+    const { data, error } = await supabase.rpc('noxa_broadcast_my_driver_location', {
+      expected_user_id: userId,
+      sample_latitude: point.latitude,
+      sample_longitude: point.longitude,
+    });
+    return !error && data === true;
+  }).finally(() => { broadcastInFlight = false; });
+  // All Stop/Ghost/sign-out paths already drain this queue before final DELETE.
+  presencePublishQueue = publish.catch(() => undefined);
+  return publish;
+}
 
 function readStoredSession(): LiveDriveSession | null {
   try {

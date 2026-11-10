@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 const home = fs.readFileSync('app/(tabs)/index.tsx', 'utf8');
 const runtime = fs.readFileSync('src/features/map/liveDriverBroadcast.ts', 'utf8');
+const liveDrive = fs.readFileSync('src/lib/liveDrive.ts', 'utf8');
 const migration = fs.readFileSync(
   'supabase/migrations/20261007112000_add_private_driver_broadcast.sql',
   'utf8',
@@ -42,8 +43,14 @@ assert.match(
 assert.match(
   home,
   /event: DRIVER_BROADCAST_EVENT/,
-  'Foreground driver movement must use Broadcast rather than table-wide Postgres Changes.',
+  'Remote movement must still arrive over private Broadcast.',
 );
+assert.match(home, /broadcastLiveDriverLocation\(userId, driverLocation\)/,
+  'Foreground publication must use the Stop-aware server RPC publisher.');
+assert.doesNotMatch(home, /\.send\(/,
+  'Home must never fall back to direct client channel sends with cached permissions.');
+assert.match(liveDrive, /supabase\.rpc\('noxa_broadcast_my_driver_location'/,
+  'Each smooth coordinate must be authorized server-side.');
 assert.match(
   home,
   /interpolateDriverPoint/,

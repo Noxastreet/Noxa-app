@@ -64,6 +64,7 @@ import type {
   MapboxEvent,
 } from "@/src/features/mapbox/types";
 import {
+  broadcastLiveDriverLocation,
   getLiveDriveSession,
   hasLiveDriveRuntimeAccess,
   isLiveDriveSessionOwnedByCurrentProcess,
@@ -956,9 +957,6 @@ export default function LiveMapScreen() {
   const activeDriversRef = useRef<ActiveDriver[]>([]);
   const mapFocusedRef = useRef(false);
   const [isMapFocused, setIsMapFocused] = useState(false);
-  const [ownDriverBroadcastKey, setOwnDriverBroadcastKey] =
-    useState<string | null>(null);
-  const ownDriverBroadcastChannelRef = useRef<RealtimeChannel | null>(null);
   const lastDriverBroadcastSentRef = useRef(0);
   const driverBroadcastTargetsRef = useRef<
     Map<string, DriverBroadcastAnimationTarget>
@@ -1261,7 +1259,6 @@ export default function LiveMapScreen() {
       lastDriverBroadcastSentRef.current = 0;
       latestPresencePayloadRef.current = null;
       driverBroadcastTargetsRef.current.clear();
-      setOwnDriverBroadcastKey(null);
       const userId = sharingUserIdRef.current;
       sharingUserIdRef.current = null;
       visibilityModeRef.current = "ghost";
@@ -1296,7 +1293,7 @@ export default function LiveMapScreen() {
       const write = presenceWriteQueueRef.current.then(async () => {
         if (!isMountedRef.current || sharingUserIdRef.current !== userId)
           return;
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("driver_locations")
           .upsert(
             {
@@ -1305,23 +1302,12 @@ export default function LiveMapScreen() {
               updated_at: new Date().toISOString(),
             },
             { onConflict: "user_id" },
-          )
-          .select("broadcast_key")
-          .maybeSingle();
+          );
         if (error) {
           lastPresenceWriteRef.current = 0;
           if (isMountedRef.current)
             setSharingError("Could not update visibility. Retrying soon.");
           return;
-        }
-        const broadcastKey = (data as { broadcast_key?: string } | null)
-          ?.broadcast_key;
-        if (
-          broadcastKey &&
-          uuidPattern.test(broadcastKey) &&
-          isMountedRef.current
-        ) {
-          setOwnDriverBroadcastKey(broadcastKey);
         }
         if (isMountedRef.current) setSharingError(null);
       });
@@ -1391,82 +1377,17 @@ export default function LiveMapScreen() {
 
   useEffect(() => {
     const userId = sharingUserIdRef.current;
-    const topic =
-      userId && ownDriverBroadcastKey
-        ? createDriverBroadcastTopic(userId, ownDriverBroadcastKey)
-        : null;
-
-    if (
-      !topic ||
-      !isVisibleOnMap ||
-      !isAppForeground
-    ) {
-      return;
-    }
-
-    const channel = supabase.channel(topic, {
-      config: { private: true },
-    });
-    ownDriverBroadcastChannelRef.current = channel;
-    lastDriverBroadcastSentRef.current = 0;
-    channel.subscribe();
-
-    return () => {
-      if (ownDriverBroadcastChannelRef.current === channel) {
-        ownDriverBroadcastChannelRef.current = null;
-      }
-      void supabase.removeChannel(channel);
-    };
-  }, [
-    isAppForeground,
-    isVisibleOnMap,
-    ownDriverBroadcastKey,
-  ]);
-
-  useEffect(() => {
-    const userId = sharingUserIdRef.current;
-    const channel = ownDriverBroadcastChannelRef.current;
-    if (
-      !driverLocation ||
-      !userId ||
-      !channel ||
-      !ownDriverBroadcastKey ||
-      !isVisibleOnMap ||
-      !isAppForeground ||
-      !getLiveDriveSession()
-    ) {
-      return;
-    }
-
+    if (!driverLocation || !userId || !isVisibleOnMap || !isAppForeground
+      || audienceChangeInFlightRef.current || !getLiveDriveSession()) return;
     const now = Date.now();
-    if (now - lastDriverBroadcastSentRef.current < DRIVER_BROADCAST_SEND_MS) {
-      return;
-    }
+    if (now - lastDriverBroadcastSentRef.current < DRIVER_BROADCAST_SEND_MS) return;
     lastDriverBroadcastSentRef.current = now;
-
-    void channel
-      .send({
-        type: "broadcast",
-        event: DRIVER_BROADCAST_EVENT,
-        payload: {
-          user_id: userId,
-          latitude: driverLocation.latitude,
-          longitude: driverLocation.longitude,
-          updated_at: new Date(now).toISOString(),
-        },
-      })
-      .then((status) => {
-        if (status !== "ok") lastDriverBroadcastSentRef.current = 0;
-      })
-      .catch(() => {
-        lastDriverBroadcastSentRef.current = 0;
-      });
-  }, [
-    driverLocation,
-    isAppForeground,
-    isVisibleOnMap,
-    ownDriverBroadcastKey,
-  ]);
+    // Server chooses the current audience topic per message. No GPS is sent on
+    // a client channel whose old authorization can survive a block/rotation.
+    void broadcastLiveDriverLocation(userId, driverLocation)
+      .then((sent) => { if (!sent) lastDriverBroadcastSentRef.current = 0; })
+      .catch(() => { lastDriverBroadcastSentRef.current = 0; });
+  }, [driverLocation, isAppForeground, isVisibleOnMap]);
 
   const startSharing = useCallback(
     async (mode: LiveDriveVisibilityMode) => {
@@ -1595,21 +1516,10 @@ export default function LiveMapScreen() {
           latestPresencePayloadRef.current = nextPayload;
           await writePresencePayload(userId, nextPayload, true);
         } else {
-          const { data } = await supabase
+          await supabase
             .from("driver_locations")
             .update({ visibility_mode: mode })
-            .eq("user_id", userId)
-            .select("broadcast_key")
-            .maybeSingle();
-          const broadcastKey = (data as { broadcast_key?: string } | null)
-            ?.broadcast_key;
-          if (
-            broadcastKey &&
-            uuidPattern.test(broadcastKey) &&
-            isMountedRef.current
-          ) {
-            setOwnDriverBroadcastKey(broadcastKey);
-          }
+            .eq("user_id", userId);
         }
       } finally {
         audienceChangeInFlightRef.current = false;
@@ -2011,7 +1921,6 @@ export default function LiveMapScreen() {
           activeDriversRef.current = [];
           driverBroadcastTargetsRef.current.clear();
           setActiveDrivers([]);
-          setOwnDriverBroadcastKey(null);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
           setPrimaryVehicleByUserId(new Map());
