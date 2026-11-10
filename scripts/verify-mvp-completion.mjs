@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -36,7 +37,6 @@ if (!failures.length) {
   const garage = read(paths.garage);
   const profile = read(paths.profile);
   const settings = read(paths.settings);
-  const groupLocation = read(paths.groupLocation);
   const eas = read(paths.eas);
 
   // Garage primary vehicle invariant.
@@ -58,13 +58,18 @@ if (!failures.length) {
   if (/delete from public\.drive_location_state[\s\S]*user_id\s*<>|target_user_id|delete from public\.drive_location_state\s*;/.test(clearLocation)) {
     failures.push('self-location cleanup may delete another participant location');
   }
-  const pauseIndex = groupLocation.indexOf('await stopNativeLocationUpdates()');
-  const cleanupRpcIndex = groupLocation.indexOf("supabase.rpc('noxa_clear_my_drive_location'");
-  const finalClearIndex = groupLocation.lastIndexOf('storeSession(null)');
-  if (!(pauseIndex >= 0 && cleanupRpcIndex > pauseIndex && finalClearIndex > cleanupRpcIndex)) {
-    failures.push('pre-signout cleanup must pause writer, delete server row, then forget local session');
+  // Execute the actual runtime with controlled async gates. The old source
+  // pattern required restoring publish consent after failed logout, which can
+  // re-enable delayed callbacks. Retry state must now be cleanup-only.
+  try {
+    execFileSync(process.execPath, ['scripts/test-group-drive-signout-privacy.mjs'], {
+      cwd: root,
+      stdio: 'pipe',
+      timeout: 30_000,
+    });
+  } catch (error) {
+    failures.push(`pre-signout privacy regression failed: ${error.stderr?.toString() || error.message}`);
   }
-  requirePattern('pre-signout cleanup does not preserve retry state on failure', groupLocation, /if \(error \|\| data !== true\)[\s\S]*storeSession\(storedSession\)[\s\S]*throw new Error/);
   for (const [label, text] of [['Settings', settings], ['Profile', profile]]) {
     const clearIndex = text.indexOf('clearGroupDriveLocationBeforeSignOut()');
     const signOutIndex = text.indexOf("supabase.auth.signOut({ scope: 'local' })");
