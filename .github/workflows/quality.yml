@@ -120,6 +120,9 @@ jobs:
       - name: Per-message driver Broadcast SQL authorization
         run: node ./scripts/test-driver-broadcast-authorization.mjs
 
+      - name: Private driver Broadcast read-probe regression
+        run: node ./scripts/test-driver-broadcast-read-probe.mjs
+
       - name: Apple App Review privacy contract
         run: npm run verify:apple-review-privacy
 

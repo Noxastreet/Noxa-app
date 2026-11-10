@@ -8,9 +8,11 @@ function definition(file, name) {
   return source.slice(start, source.indexOf('$$;', start) + 3);
 }
 
-export function driverBroadcastFixtureSql({ realRealtime = false } = {}) {
+export function driverBroadcastFixtureSql({ realRealtime = false, applyReadProbeFix = true } = {}) {
   const migrations = fs.readdirSync('supabase/migrations').filter((name) => name.endsWith('_authorize_driver_broadcast_per_message.sql'));
   assert.equal(migrations.length, 1);
+  const readFixes = fs.readdirSync('supabase/migrations').filter((name) => name.endsWith('_fix_driver_broadcast_read_probe.sql'));
+  if (applyReadProbeFix) assert.equal(readFixes.length, 1);
   const authSql = realRealtime ? `
     create schema if not exists private;
     grant usage on schema private to authenticated;
@@ -29,7 +31,7 @@ export function driverBroadcastFixtureSql({ realRealtime = false } = {}) {
     alter table public.crew_members enable row level security;
     grant all on public.driver_locations,public.follows,public.user_blocks,public.crew_members to service_role;
   ` : `
-    create table realtime.messages (extension text,private boolean,event text,payload jsonb);
+    create table realtime.messages (extension text,private boolean,event text,payload jsonb,topic text);
     alter table realtime.messages enable row level security;
     grant insert,select on realtime.messages to authenticated;
     create function realtime.topic() returns text language sql stable as $$
@@ -60,6 +62,7 @@ export function driverBroadcastFixtureSql({ realRealtime = false } = {}) {
     definition('supabase/migrations/20260715131402_add_moderation_and_blocks.sql', 'noxa_users_blocked'),
     fs.readFileSync('supabase/migrations/20261007112000_add_private_driver_broadcast.sql', 'utf8'),
     fs.readFileSync(`supabase/migrations/${migrations[0]}`, 'utf8'),
+    applyReadProbeFix ? fs.readFileSync(`supabase/migrations/${readFixes[0]}`, 'utf8') : '',
     realRealtime ? `
       -- Local diagnostic only. Does not replace real Auth/Realtime internals.
       create function public.noxa_test_broadcast_access(test_topic text)

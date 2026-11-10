@@ -96,9 +96,9 @@ try {
   // A future broad send policy cannot accidentally reopen the driver channel.
   await db.exec('create policy test_generic_send on realtime.messages for insert to authenticated with check (true)');
   await db.query("select set_config('realtime.topic',$1,false)", [oldTopic]);
-  await assert.rejects(as('authenticated',owner,()=>db.exec("insert into realtime.messages values ('broadcast',true,'location','{}')")), /row-level security/);
+  await assert.rejects(as('authenticated',owner,()=>db.exec("insert into realtime.messages(extension,private,event,payload) values ('broadcast',true,'location','{}')")), /row-level security/);
   await db.query("select set_config('realtime.topic','other-topic',false)");
-  await as('authenticated',owner,()=>db.exec("insert into realtime.messages values ('broadcast',true,'other','{}')"));
+  await as('authenticated',owner,()=>db.exec("insert into realtime.messages(extension,private,event,payload) values ('broadcast',true,'other','{}')"));
   console.log('Driver Broadcast SQL: PASS (real migration/rotation triggers, ACL, actor isolation, block/friend/crew revocation, expiry/Stop, malformed input, restrictive send policy; transport stubbed)');
 } finally {
   await db.close();

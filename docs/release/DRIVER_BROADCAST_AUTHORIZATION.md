@@ -96,3 +96,26 @@ upload its generated local API credential file. Its containers are removed at en
 The existing hosted staging project could not be resumed: Supabase rejected the
 request because the account already has two active free projects. No hosted
 project was paused/deleted/upgraded, and no production migration was applied.
+
+## Read-probe compatibility defect found by the real transport test
+
+The first two real-Supabase runs failed for an authorized friend: the canonical
+visibility helper returned true and the authenticated publication RPC succeeded,
+but joining the private channel returned Unauthorized. Supabase's authorization
+implementation inserts a topic/extension probe without the messages.private flag.
+NOXA's existing SELECT policy required private IS TRUE, so the probe was invisible.
+Upstream implementation inspected:
+https://api.github.com/repos/supabase/realtime/contents/lib/realtime/tenants/authorization.ex
+
+The new append-only `fix_driver_broadcast_read_probe` migration removes that
+probe-incompatible flag condition, explicitly matches the row topic to the
+requested topic, and retains the existing helper for audience, rotating key,
+blocking, freshness and expiry. It grants no anonymous access and no direct
+client driver publication; #394's restrictive send policy remains.
+
+`test-driver-broadcast-read-probe.mjs` reproduces the original denial with a real
+RLS-filtered probe, then verifies authorized reads and outsider/topic/block/stale/
+expiry denial after the fix. Real WebSocket acceptance must pass on the fixed
+candidate before this gate can be treated as closed. The migration is NOT APPLIED
+to production. Fail-closed rollback is to remove the new driver read policy and
+pause private driver Broadcast reads pending review, leaving send restrictions.
