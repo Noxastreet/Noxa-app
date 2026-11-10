@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { prepareImageUpload } from '@/src/lib/prepareImageUpload';
 import { NoxaButton, NoxaScreen } from "@/src/components/ui";
 import { initials, uuidPattern } from "@/src/lib/eventExperience";
 import { supabase } from "@/src/lib/supabase";
@@ -61,15 +62,7 @@ function normalizeMimeType(mimeType?: string | null) {
     : mimeType?.toLowerCase();
 }
 
-function safeExtension(asset: ImagePicker.ImagePickerAsset, contentType: string) {
-  const fileExtension = asset.fileName?.split(".").pop()?.toLowerCase();
-  const uriExtension = asset.uri.split("?")[0]?.split(".").pop()?.toLowerCase();
-  const candidate = fileExtension || uriExtension;
-  if (candidate && ["jpg", "jpeg", "png", "webp", "heic", "heif"].includes(candidate)) {
-    return candidate === "jpg" ? "jpeg" : candidate;
-  }
-  return contentType.split("/")[1] ?? "jpeg";
-}
+
 
 export default function CrewGalleryScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -228,17 +221,16 @@ export default function CrewGalleryScreen() {
       ) {
         throw new Error("Choose a JPEG, PNG, WEBP, HEIC, or HEIF image.");
       }
-      const arrayBuffer = await fetch(pendingAsset.uri).then((response) => response.arrayBuffer());
+      const { arrayBuffer, contentType: uploadContentType, extension } = await prepareImageUpload(pendingAsset, maxImageBytes);
       if (arrayBuffer.byteLength > maxImageBytes) {
         throw new Error("Choose an image smaller than 10 MB.");
       }
-      const extension = safeExtension(pendingAsset, contentType);
       const suffix = Math.random().toString(36).slice(2, 10);
       uploadedPath = `${currentUserId}/${crewId}/${Date.now()}-${suffix}.${extension}`;
       const { error: uploadError } = await supabase.storage
         .from(crewGalleryBucket)
         .upload(uploadedPath, arrayBuffer, {
-          contentType,
+          contentType: uploadContentType,
           cacheControl: "3600",
           upsert: false,
         });
