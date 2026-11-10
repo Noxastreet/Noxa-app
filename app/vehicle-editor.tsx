@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { prepareImageUpload } from '@/src/lib/prepareImageUpload';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { NoxaButton, NoxaInput, NoxaScreen } from '@/src/components/ui';
@@ -203,18 +204,6 @@ function validateForm(form: VehicleForm): { errors: VehicleErrors; values?: Norm
 
 function normalizeMimeType(mimeType?: string | null) {
   return mimeType?.toLowerCase() === 'image/jpg' ? 'image/jpeg' : mimeType?.toLowerCase();
-}
-
-function getSafeExtension(asset: ImagePicker.ImagePickerAsset, contentType: string) {
-  const fromFileName = asset.fileName?.split('.').pop()?.toLowerCase();
-  const fromUri = asset.uri.split('?')[0]?.split('.').pop()?.toLowerCase();
-  const candidate = fromFileName || fromUri;
-
-  if (candidate && ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(candidate)) {
-    return candidate === 'jpg' ? 'jpeg' : candidate;
-  }
-
-  return contentType.split('/')[1] ?? 'jpeg';
 }
 
 function getPreviousOwnedVehicleImagePath(publicUrl: string | null, userId: string) {
@@ -508,17 +497,15 @@ export default function VehicleEditorScreen() {
       throw new Error('Please choose a JPEG, PNG, WEBP, HEIC, or HEIF image.');
     }
 
-    const arrayBuffer = await fetch(asset.uri).then((response) => response.arrayBuffer());
+    const { arrayBuffer, contentType: uploadContentType, extension } = await prepareImageUpload(asset, maxCoverImageBytes);
 
     if (arrayBuffer.byteLength > maxCoverImageBytes) {
       throw new Error('Please choose an image smaller than 6 MB.');
     }
-
-    const extension = getSafeExtension(asset, contentType);
     const randomSuffix = Math.random().toString(36).slice(2, 10);
     const path = `${userId}/${Date.now()}-${randomSuffix}.${extension}`;
     const { error: uploadError } = await supabase.storage.from(vehicleImagesBucket).upload(path, arrayBuffer, {
-      contentType,
+      contentType: uploadContentType,
       cacheControl: '3600',
       upsert: false,
     });
