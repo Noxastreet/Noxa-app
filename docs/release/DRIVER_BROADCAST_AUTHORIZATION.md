@@ -70,3 +70,52 @@ approval; do not run the earlier migration again or edit applied history.
 
 This PR changes backend SQL/test/docs only. It does not apply a migration, deploy
 a client, change signing, build a signed binary, or submit App Review.
+
+## Stronger test environments — November 11 follow-up
+
+`scripts/postgres/driver-broadcast-concurrency.mjs` uses independent real psql
+connections and observes pg_stat_activity lock waits. It tests publication before
+block/Stop, publication behind a key rotation, and expiry while waiting for a
+row lock. All four passed on disposable local PostgreSQL 16.2. A negative control
+using transaction time instead of clock_timestamp failed the expiry scenario as
+expected. PostgreSQL 17 CI is configured separately; record its actual result.
+
+`scripts/supabase/driver-broadcast-websocket.mjs` is a separate real-transport
+acceptance test using three synthetic accounts in disposable local Supabase.
+It tests positive private delivery, raw-send denial, outsider/impersonation,
+revocation with an already-joined channel, Stop and expiry. Unlike SQL captures,
+it preserves real Auth, PostgREST and realtime.send. It is pending until the
+dedicated CI workflow actually passes. This is a narrow social/location fixture,
+not proof of the full production schema, native app or all privacy policies.
+
+Both workflows use only ephemeral runner resources and no production credentials.
+The concurrency test refuses hosted connections/non-test databases; the transport
+test refuses non-loopback API URLs. The full Supabase workflow does not print or
+upload its generated local API credential file. Its containers are removed at end.
+
+The existing hosted staging project could not be resumed: Supabase rejected the
+request because the account already has two active free projects. No hosted
+project was paused/deleted/upgraded, and no production migration was applied.
+
+## Read-probe compatibility defect found by the real transport test
+
+The first two real-Supabase runs failed for an authorized friend: the canonical
+visibility helper returned true and the authenticated publication RPC succeeded,
+but joining the private channel returned Unauthorized. Supabase's authorization
+implementation inserts a topic/extension probe without the messages.private flag.
+NOXA's existing SELECT policy required private IS TRUE, so the probe was invisible.
+Upstream implementation inspected:
+https://api.github.com/repos/supabase/realtime/contents/lib/realtime/tenants/authorization.ex
+
+The new append-only `fix_driver_broadcast_read_probe` migration removes that
+probe-incompatible flag condition, explicitly matches the row topic to the
+requested topic, and retains the existing helper for audience, rotating key,
+blocking, freshness and expiry. It grants no anonymous access and no direct
+client driver publication; #394's restrictive send policy remains.
+
+`test-driver-broadcast-read-probe.mjs` reproduces the original denial with a real
+RLS-filtered probe, then verifies authorized reads and outsider/topic/block/stale/
+expiry denial after the fix. Real WebSocket acceptance must pass on the fixed
+candidate before this gate can be treated as closed. The migration is NOT APPLIED
+to production. Fail-closed rollback is to remove the new driver read policy and
+pause private driver Broadcast reads pending review, leaving send restrictions.
