@@ -39,14 +39,19 @@ function subscribe(client, topic) {
   const channel = client.channel(topic, { config: { private: true, broadcast: { ack: true } } });
   channel.on('broadcast', { event: 'location' }, ({ payload }) => messages.push(payload));
   const ready = new Promise((resolve) => {
-    channel.subscribe((state) => {
-      if (['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(state)) resolve(state);
+    channel.subscribe((state, error) => {
+      if (['SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(state)) {
+        const detail = String(error?.message ?? '').replace(/eyJ[\w.-]+/g, '[redacted]')
+          .replace(/sb_(secret|publishable)_[\w-]+/g, '[redacted]').slice(0, 300);
+        resolve({ state, detail });
+      }
     });
   });
   return { channel, messages, ready };
 }
 async function ready(subscription) {
-  assert.equal(await Promise.race([subscription.ready, delay(12000, 'WAIT_TIMEOUT')]), 'SUBSCRIBED');
+  const result = await Promise.race([subscription.ready, delay(12000, { state: 'WAIT_TIMEOUT' })]);
+  assert.equal(result.state, 'SUBSCRIBED', `Private subscription: ${result.detail ?? ''}`);
 }
 const hasSample = (subscription, latitude) => subscription.messages.some((point) => point.latitude === latitude);
 
@@ -69,6 +74,11 @@ try {
   });
 
   const oldTopic = await topic();
+  for (const [label, actor, expected] of [['owner', a, true], ['friend', b, true], ['outsider', outsider, false]]) {
+    const access = checked(await actor.client.rpc('noxa_test_broadcast_access', { test_topic: oldTopic }), 'local access diagnostic');
+    assert.equal(access, expected, `${label}: canonical visibility function`);
+  }
+  assert.equal(checked(await rpc(39.001), 'pre-subscription RPC control'), true);
   const viewer = subscribe(b.client, oldTopic); const sender = subscribe(a.client, oldTopic);
   await Promise.all([ready(viewer), ready(sender)]);
   assert.equal(checked(await rpc(40.101), 'authorized smooth publication'), true);
@@ -84,8 +94,8 @@ try {
   console.log('PASS: direct raw client Broadcast is denied while normal private delivery works');
 
   const denied = subscribe(outsider.client, oldTopic);
-  const deniedState = await Promise.race([denied.ready, delay(12000, 'WAIT_TIMEOUT')]);
-  assert.ok(['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(deniedState), 'An outsider must not join the known private topic');
+  const deniedResult = await Promise.race([denied.ready, delay(12000, { state: 'WAIT_TIMEOUT' })]);
+  assert.ok(['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(deniedResult.state), 'An outsider must not join the known private topic');
   await outsider.client.removeChannel(denied.channel);
   const spoof = await outsider.client.rpc('noxa_broadcast_my_driver_location', {
     expected_user_id: a.id, sample_latitude: 42.303, sample_longitude: 23.02,

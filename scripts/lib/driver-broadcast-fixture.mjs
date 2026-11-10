@@ -60,6 +60,15 @@ export function driverBroadcastFixtureSql({ realRealtime = false } = {}) {
     definition('supabase/migrations/20260715131402_add_moderation_and_blocks.sql', 'noxa_users_blocked'),
     fs.readFileSync('supabase/migrations/20261007112000_add_private_driver_broadcast.sql', 'utf8'),
     fs.readFileSync(`supabase/migrations/${migrations[0]}`, 'utf8'),
-    realRealtime ? "notify pgrst, 'reload schema';" : '',
+    realRealtime ? `
+      -- Local diagnostic only. Does not replace real Auth/Realtime internals.
+      create function public.noxa_test_broadcast_access(test_topic text)
+      returns boolean language sql security invoker set search_path='' as $$
+        select private.noxa_can_read_driver_broadcast(test_topic);
+      $$;
+      revoke all on function public.noxa_test_broadcast_access(text) from public,anon;
+      grant execute on function public.noxa_test_broadcast_access(text) to authenticated;
+      notify pgrst, 'reload schema';
+    ` : '',
   ].join('\n');
 }
