@@ -153,6 +153,9 @@ jobs:
       - name: Owned media cleanup contract
         run: node ./scripts/verify-media-cleanup.mjs
 
+      - name: Image upload privacy boundary
+        run: node ./scripts/test-image-upload-privacy.mjs
+
       - name: Crew lifecycle UX contract
         run: node ./scripts/verify-crew-lifecycle-ux.mjs
 
