@@ -47,6 +47,34 @@ jobs:
             > "$RUNNER_TEMP/noxa-local-status.json"
       - name: Exercise real private WebSocket revocation
         run: node scripts/supabase/driver-broadcast-websocket.mjs "$RUNNER_TEMP/noxa-local-status.json"
+      - name: Safe local transport diagnostics
+        if: failure()
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          psql -X -qAt -v ON_ERROR_STOP=1 <<'SQL'
+          select 'postgres_role',rolsuper,rolbypassrls from pg_roles where rolname='postgres';
+          select 'send_function',pg_get_userbyid(proowner),prosecdef from pg_proc where pronamespace='realtime'::regnamespace and proname='send';
+          select 'rpc_function',pg_get_userbyid(proowner),prosecdef from pg_proc where pronamespace='private'::regnamespace and proname='noxa_broadcast_my_driver_location';
+          select 'message_counts',extension,event,private,count(*) from realtime.messages group by extension,event,private;
+          select 'replication_slot',slot_name,active from pg_replication_slots;
+          SQL
+          python - <<'PY'
+          import subprocess,re
+          names=subprocess.check_output(['docker','ps','-a','--format','{{.Names}}'],text=True).splitlines()
+          for name in names:
+            if not name.startswith('supabase_realtime_'): continue
+            raw=subprocess.run(['docker','logs','--tail','150',name],text=True,capture_output=True)
+            for line in (raw.stdout+raw.stderr).splitlines():
+              match=re.search(r'(?:Warn|Error)SendingBroadcastMessage: ([^"\n]+)',line)
+              if match:
+                detail=re.sub(r'eyJ[\w.-]+|sb_(?:secret|publishable)_[\w-]+','[redacted]',match.group(1))
+                print('Local transport warning:',detail[:250])
+          PY
       - name: Stop disposable local stack
         if: always()
         run: npx --yes supabase@3.1.0 stop --workdir "$RUNNER_TEMP/noxa-ws" --no-backup

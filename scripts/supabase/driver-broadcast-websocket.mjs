@@ -72,6 +72,20 @@ try {
   const rpc = (latitude) => a.client.rpc('noxa_broadcast_my_driver_location', {
     expected_user_id: a.id, sample_latitude: latitude, sample_longitude: 23.02,
   });
+  const deliver = async (subscription, latitude, label) => {
+    // Local Realtime starts its database replication connection lazily. Joining
+    // a channel need not make the first database packet observable immediately.
+    // Repeated positive controls establish delivery before any negative check.
+    let lastSend = 0;
+    await until(async () => {
+      if (hasSample(subscription, latitude)) return true;
+      if (Date.now() - lastSend >= 1000) {
+        assert.equal(checked(await rpc(latitude), label), true);
+        lastSend = Date.now();
+      }
+      return hasSample(subscription, latitude);
+    }, label, 15000);
+  };
 
   const oldTopic = await topic();
   for (const [label, actor, expected] of [['owner', a, true], ['friend', b, true], ['outsider', outsider, false]]) {
@@ -81,8 +95,7 @@ try {
   assert.equal(checked(await rpc(39.001), 'pre-subscription RPC control'), true);
   const viewer = subscribe(b.client, oldTopic); const sender = subscribe(a.client, oldTopic);
   await Promise.all([ready(viewer), ready(sender)]);
-  assert.equal(checked(await rpc(40.101), 'authorized smooth publication'), true);
-  await until(() => hasSample(viewer, 40.101), 'positive-control private Broadcast delivery');
+  await deliver(viewer, 40.101, 'positive-control private Broadcast delivery');
   console.log('PASS: signed-in mutual friend receives a real private WebSocket message from the RPC');
 
   // Even an authorized reader/owner cannot bypass the RPC with raw GPS sends.
@@ -107,8 +120,7 @@ try {
   const newTopic = await topic(); assert.notEqual(newTopic, oldTopic);
   assert.equal(viewer.channel.state, 'joined', 'Revoked peer stays subscribed to model cached channel permissions');
   const currentOwner = subscribe(a.client, newTopic); await ready(currentOwner);
-  assert.equal(checked(await rpc(43.404), 'publication after block'), true);
-  await until(() => hasSample(currentOwner, 43.404), 'positive-control current-topic delivery after block');
+  await deliver(currentOwner, 43.404, 'positive-control current-topic delivery after block');
   await delay(1200);
   assert.equal(hasSample(viewer, 43.404), false, 'Already-connected revoked peer receives no new coordinate');
   console.log('PASS: blocking rotates the topic; cached old WebSocket receives no subsequent coordinate');
