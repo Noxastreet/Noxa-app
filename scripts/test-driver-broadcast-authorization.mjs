@@ -1,20 +1,11 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
+import { driverBroadcastFixtureSql } from './lib/driver-broadcast-fixture.mjs';
 import { PGlite } from '@electric-sql/pglite';
 
-const migration = fs.readdirSync('supabase/migrations').find((name) => name.endsWith('_authorize_driver_broadcast_per_message.sql'));
-assert.ok(migration);
 const db = await PGlite.create();
 const owner = '11111111-1111-4111-8111-111111111111';
 const viewer = '22222222-2222-4222-8222-222222222222';
 const outsider = '33333333-3333-4333-8333-333333333333';
-const baseBroadcast = 'supabase/migrations/20261007112000_add_private_driver_broadcast.sql';
-function definition(file, name) {
-  const source = fs.readFileSync(file, 'utf8');
-  const start = source.indexOf(`create or replace function private.${name}(`);
-  assert.ok(start >= 0);
-  return source.slice(start, source.indexOf('$$;', start) + 3);
-}
 async function scalar(sql, params = []) {
   return Object.values((await db.query(sql, params)).rows[0])[0];
 }
@@ -30,39 +21,7 @@ const currentTopic = () => scalar(`select private.noxa_driver_broadcast_topic(us
 const canRead = (topic, user = viewer) => as('authenticated', user, () => scalar('select private.noxa_can_read_driver_broadcast($1)', [topic]));
 
 try {
-  await db.exec(`
-    create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
-    create schema auth; create schema private; create schema realtime;
-    create function auth.uid() returns uuid language sql stable as $$
-      select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;
-    $$;
-    grant usage on schema auth, private, realtime to authenticated, anon;
-    create table public.driver_locations (
-      user_id uuid primary key, latitude float8, longitude float8, heading float8,
-      speed_mps float8, accuracy_meters float8, visibility_mode text,
-      share_started_at timestamptz, share_expires_at timestamptz, updated_at timestamptz
-    );
-    alter table public.driver_locations enable row level security;
-    -- No client table privileges: the actor-bound private function is the only send route.
-    create table public.follows (follower_id uuid,following_id uuid);
-    create table public.user_blocks (blocker_id uuid,blocked_id uuid);
-    create table public.crew_members (crew_id uuid,user_id uuid);
-    create table realtime.messages (extension text,private boolean,event text,payload jsonb);
-    alter table realtime.messages enable row level security;
-    grant insert,select on realtime.messages to authenticated;
-    create function realtime.topic() returns text language sql stable as $$
-      select current_setting('realtime.topic',true);
-    $$;
-    -- Transport stub only. This test does not run a Realtime server or WebSocket.
-    create table public.test_sent (id serial primary key,payload jsonb,event text,topic text,private boolean);
-    create function realtime.send(jsonb,text,text,boolean) returns void language sql as $$
-      insert into public.test_sent(payload,event,topic,private) values ($1,$2,$3,$4);
-    $$;
-  `);
-  await db.exec(definition('supabase/migrations/20260718103233_add_live_drive_background_sharing.sql', 'noxa_can_view_driver_location'));
-  await db.exec(definition('supabase/migrations/20260715131402_add_moderation_and_blocks.sql', 'noxa_users_blocked'));
-  await db.exec(fs.readFileSync(baseBroadcast, 'utf8'));
-  await db.exec(fs.readFileSync(`supabase/migrations/${migration}`, 'utf8'));
+  await db.exec(driverBroadcastFixtureSql());
 
   for (const schema of ['public', 'private']) {
     const acl = (await db.query(`select prosecdef,proconfig,
@@ -137,9 +96,9 @@ try {
   // A future broad send policy cannot accidentally reopen the driver channel.
   await db.exec('create policy test_generic_send on realtime.messages for insert to authenticated with check (true)');
   await db.query("select set_config('realtime.topic',$1,false)", [oldTopic]);
-  await assert.rejects(as('authenticated',owner,()=>db.exec("insert into realtime.messages values ('broadcast',true,'location','{}')")), /row-level security/);
+  await assert.rejects(as('authenticated',owner,()=>db.exec("insert into realtime.messages(extension,private,event,payload) values ('broadcast',true,'location','{}')")), /row-level security/);
   await db.query("select set_config('realtime.topic','other-topic',false)");
-  await as('authenticated',owner,()=>db.exec("insert into realtime.messages values ('broadcast',true,'other','{}')"));
+  await as('authenticated',owner,()=>db.exec("insert into realtime.messages(extension,private,event,payload) values ('broadcast',true,'other','{}')"));
   console.log('Driver Broadcast SQL: PASS (real migration/rotation triggers, ACL, actor isolation, block/friend/crew revocation, expiry/Stop, malformed input, restrictive send policy; transport stubbed)');
 } finally {
   await db.close();
