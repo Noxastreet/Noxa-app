@@ -1,0 +1,47 @@
+name: Driver Broadcast PostgreSQL Concurrency
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/broadcast-concurrency.yml'
+      - 'scripts/lib/driver-broadcast-fixture.mjs'
+      - 'scripts/postgres/driver-broadcast-concurrency.mjs'
+      - 'supabase/migrations/**'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-17-lock-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: noxa_broadcast_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d noxa_broadcast_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NOXA_BROADCAST_TEST_ISOLATED: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: noxa_broadcast_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check PostgreSQL client
+        run: psql --version
+      - name: Exercise real PostgreSQL lock ordering
+        run: node scripts/postgres/driver-broadcast-concurrency.mjs

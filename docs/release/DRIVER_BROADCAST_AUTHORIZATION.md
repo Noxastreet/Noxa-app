@@ -70,3 +70,29 @@ approval; do not run the earlier migration again or edit applied history.
 
 This PR changes backend SQL/test/docs only. It does not apply a migration, deploy
 a client, change signing, build a signed binary, or submit App Review.
+
+## Stronger test environments — November 11 follow-up
+
+`scripts/postgres/driver-broadcast-concurrency.mjs` uses independent real psql
+connections and observes pg_stat_activity lock waits. It tests publication before
+block/Stop, publication behind a key rotation, and expiry while waiting for a
+row lock. All four passed on disposable local PostgreSQL 16.2. A negative control
+using transaction time instead of clock_timestamp failed the expiry scenario as
+expected. PostgreSQL 17 CI is configured separately; record its actual result.
+
+`scripts/supabase/driver-broadcast-websocket.mjs` is a separate real-transport
+acceptance test using three synthetic accounts in disposable local Supabase.
+It tests positive private delivery, raw-send denial, outsider/impersonation,
+revocation with an already-joined channel, Stop and expiry. Unlike SQL captures,
+it preserves real Auth, PostgREST and realtime.send. It is pending until the
+dedicated CI workflow actually passes. This is a narrow social/location fixture,
+not proof of the full production schema, native app or all privacy policies.
+
+Both workflows use only ephemeral runner resources and no production credentials.
+The concurrency test refuses hosted connections/non-test databases; the transport
+test refuses non-loopback API URLs. The full Supabase workflow does not print or
+upload its generated local API credential file. Its containers are removed at end.
+
+The existing hosted staging project could not be resumed: Supabase rejected the
+request because the account already has two active free projects. No hosted
+project was paused/deleted/upgraded, and no production migration was applied.
