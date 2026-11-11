@@ -28,7 +28,7 @@ import {
 } from "@/src/features/crews-events/CanonicalPrimitives";
 import { getEventLifecycle } from "@/src/lib/eventExperience";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
-import { colors, radius, spacing, typography } from "@/src/theme";
+import { bottomNavigationHeight, colors, radius, spacing, typography } from "@/src/theme";
 
 type EventCategory = "meet" | "drive" | "track" | "drift" | "drag" | "rally" | "offroad" | "show" | "social";
 
@@ -264,7 +264,7 @@ function NearbyStrip({ count }: { count: number }) {
 }
 
 export default function CanonicalEventsScreen() {
-  const { gutter } = useResponsive();
+  const { gutter, fontScale } = useResponsive();
   const [events, setEvents] = useState<EventCardModel[]>([]);
   const [heroAttendees, setHeroAttendees] = useState<CanonicalProfile[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -574,7 +574,7 @@ export default function CanonicalEventsScreen() {
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter, paddingBottom: Math.max(144, bottomNavigationHeight(fontScale) + 24) }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

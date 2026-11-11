@@ -108,6 +108,7 @@ export default function TabLayout() {
     <>
       <PushNotificationBridge />
       <Tabs
+        initialRouteName="index"
         tabBar={(props) => <NoxaBottomTabBar {...props} />}
         screenOptions={{
           headerShown: false,
@@ -118,25 +119,16 @@ export default function TabLayout() {
           animation: 'none',
         }}>
         <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Map',
-            tabBarAccessibilityLabel: 'Map',
-          }}
-        />
-        <Tabs.Screen
           name="crews"
-          options={{
-            title: 'Crew',
-            tabBarAccessibilityLabel: 'Crew',
-          }}
+          options={{ title: 'Crews', tabBarAccessibilityLabel: 'Crews' }}
         />
         <Tabs.Screen
           name="events"
-          options={{
-            title: 'Events',
-            tabBarAccessibilityLabel: 'Events',
-          }}
+          options={{ title: 'Events', tabBarAccessibilityLabel: 'Events' }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{ title: 'Map', tabBarAccessibilityLabel: 'Map' }}
         />
         <Tabs.Screen
           name="garage"
