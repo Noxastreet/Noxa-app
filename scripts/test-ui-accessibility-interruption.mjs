@@ -43,7 +43,7 @@ function harness(path, privateName) {
         interpolate: (v, input, output) => output[0] + v * (output[1] - output[0]),
       };
       if (module === 'react-native-safe-area-context') return { useSafeAreaInsets: () => ({ bottom: 0 }) };
-      if (module === '@/src/theme') return { colors: token, geometry: { cut: token, controlHeight: token }, spacing: token, radius: token, shadows: token, typography: { v2: { label: token } }, animations: { spring: { press: {}, tab: {}, surface: {} }, press: 80, pressOpacity: 0.88, pressedScale: 0.98, iconPressedScale: 0.92 } };
+      if (module === '@/src/theme') return { colors: token, geometry: { cut: token, controlHeight: token }, spacing: token, radius: token, shadows: token, typography: { lineHeight: token, v2: { label: token } }, animations: { spring: { press: {}, tab: {}, surface: {} }, press: 80, pressOpacity: 0.88, pressedScale: 0.98, iconPressedScale: 0.92 } };
       return {};
     },
   });

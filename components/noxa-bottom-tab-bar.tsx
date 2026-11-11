@@ -7,6 +7,8 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Text,
+  useWindowDimensions,
   View,
   type StyleProp,
   type ViewStyle,
@@ -18,12 +20,11 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NoxaSurface } from '@/src/components/ui';
-import { animations, colors, geometry, spacing } from '@/src/theme';
+import { animations, bottomNavigationHeight, colors, geometry, spacing, typography } from '@/src/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -113,6 +114,7 @@ function MotionTabItem({
           size={23}
         />
       </Animated.View>
+      <Text numberOfLines={2} style={[styles.label, focused && styles.labelSelected]}>{label}</Text>
       <Animated.View style={[styles.indicator, indicatorMotion]} />
     </Pressable>
   );
@@ -124,6 +126,7 @@ export function NoxaBottomTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
   const [keyboardVisible, setKeyboardVisible] = useState(Keyboard.isVisible());
   useEffect(() => {
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
@@ -146,10 +149,13 @@ export function NoxaBottomTabBar({
       style={[
         styles.positioner,
         {
-          bottom: insets.bottom + spacing.xs,
+          bottom: 0,
+          height: bottomNavigationHeight(fontScale) + insets.bottom,
+          paddingBottom: insets.bottom,
         },
       ]}>
       <NoxaSurface
+        corners="none"
         cut={geometry.cut.lg}
         level="overlay"
         style={styles.bar}>
@@ -200,9 +206,9 @@ export function NoxaBottomTabBar({
 const styles = StyleSheet.create({
   positioner: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    height: 58,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.surfaceBase,
   },
   bar: {
     flex: 1,
@@ -212,11 +218,22 @@ const styles = StyleSheet.create({
   },
   item: {
     flex: 1,
-    height: 50,
+    minHeight: 56,
+    alignSelf: 'stretch',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xxs,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: spacing.xxs,
   },
+  label: {
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  labelSelected: { color: colors.text, fontWeight: '700' },
   indicator: {
     width: 18,
     height: 2,
