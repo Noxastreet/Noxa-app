@@ -969,7 +969,7 @@ export default function LiveMapScreen() {
   const [visibilityMenuOpen, setVisibilityMenuOpen] = useState(false);
   const { fontScale, height: windowHeight } = useWindowDimensions();
   const TAB_BAR_HEIGHT = bottomNavigationHeight(fontScale);
-  const [mapHeaderHeight, setMapHeaderHeight] = useState(64);
+  const [mapHeaderHeight, setMapHeaderHeight] = useState(84);
   useFocusEffect(useCallback(() => {
     if (!visibilityMenuOpen) return;
     const listener = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -1781,7 +1781,9 @@ export default function LiveMapScreen() {
     activeDriversRefreshInFlightRef.current = true;
     const requestId = activeDriversRequestIdRef.current + 1;
     activeDriversRequestIdRef.current = requestId;
-    if (isMountedRef.current) setActiveDriversRequestState("loading");
+    if (isMountedRef.current) {
+      setActiveDriversRequestState((current) => current === "error" ? "loading" : current);
+    }
 
     try {
       const { data: sessionData, error: sessionError } =
@@ -2585,7 +2587,6 @@ export default function LiveMapScreen() {
       return;
     }
 
-    mapRef.current?.animateToRegion(pointRegion(point), 250);
     setIsCameraAwayFromUser(false);
     setIsRouteFocusMode(true);
     setIsRouteFollowing(true);
@@ -2602,7 +2603,6 @@ export default function LiveMapScreen() {
     const point = driverLocationRef.current;
     if (!point || !hasValidLatLng(point.latitude, point.longitude)) return;
     setIsCameraAwayFromUser(false);
-    mapRef.current?.animateToRegion(pointRegion(point), 220);
     setIsRouteFollowing(true);
   }, []);
 
@@ -2610,7 +2610,6 @@ export default function LiveMapScreen() {
     const point = driverLocationRef.current;
     if (!point || !hasValidLatLng(point.latitude, point.longitude)) return;
     setIsCameraAwayFromUser(false);
-    mapRef.current?.animateToRegion(pointRegion(point), 220);
     setIsDriveTogetherFollowing(true);
   }, []);
 
@@ -2977,11 +2976,6 @@ export default function LiveMapScreen() {
         isRouteMode={effectiveRouteMode}
         followUserLocation={effectiveFollowing}
         mapFilter="all"
-        onFollowUserLocationChange={
-          driveTogetherOwnsNavigation
-            ? setIsDriveTogetherFollowing
-            : setIsRouteFollowing
-        }
         onMapPress={handleDriveTogetherMapPress}
         onUserLocationChange={handleMapboxUserLocation}
         onUserPan={handleUserPan}
@@ -2995,87 +2989,86 @@ export default function LiveMapScreen() {
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
         {!isRouteFocusMode && !driveTogetherNavigation ? (
-          <NoxaSurface
-            level="overlay"
+          <View
             onLayout={({ nativeEvent }) => setMapHeaderHeight(nativeEvent.layout.height)}
+            pointerEvents="box-none"
             style={[styles.header, { top: headerTop }]}>
-            <TouchableOpacity
-              accessibilityLabel={`${
-                currentProfile?.display_name?.trim() ||
-                currentProfile?.username?.trim() ||
-                "Your identity"
-              }. Visibility: ${activeVisibilityMode.label}${
-                liveDriveRemaining ? `, ${liveDriveRemaining} remaining` : ""
-              }`}
-              accessibilityHint="Manage who can see your temporary live location"
-              accessibilityRole="button"
-              accessibilityState={{ expanded: visibilityMenuOpen }}
-              activeOpacity={0.8}
-              onPress={() => setVisibilityMenuOpen((current) => !current)}
-              style={[
-                styles.identityControl,
-                isVisibleOnMap && styles.identityControlLive,
-              ]}
-            >
-              {currentProfile?.avatar_url ? (
-                <Image
-                  contentFit="cover"
-                  source={{ uri: currentProfile.avatar_url }}
-                  style={styles.identityAvatar}
-                />
-              ) : (
-                <Ionicons name={activeVisibilityMode.icon} size={20} color={colors.text} />
-              )}
-              <Text style={styles.identityLabel}>{activeVisibilityMode.label}</Text>
-              {isVisibleOnMap && liveDriveRemaining ? (
-                <Text style={styles.identityLabel}>{liveDriveRemaining}</Text>
-              ) : null}
-              <View
+            <View pointerEvents="box-none" style={styles.headerControls}>
+              <TouchableOpacity
+                accessibilityLabel={`${
+                  currentProfile?.display_name?.trim() ||
+                  currentProfile?.username?.trim() ||
+                  "Your identity"
+                }. Visibility: ${activeVisibilityMode.label}${
+                  liveDriveRemaining ? `, ${liveDriveRemaining} remaining` : ""
+                }`}
+                accessibilityHint="Manage who can see your temporary live location"
+                accessibilityRole="button"
+                accessibilityState={{ expanded: visibilityMenuOpen }}
+                activeOpacity={0.8}
+                onPress={() => setVisibilityMenuOpen((current) => !current)}
                 style={[
-                  styles.identityStatusDot,
-                  isVisibleOnMap && styles.identityStatusDotLive,
+                  styles.identityControl,
+                  visibilityMenuOpen && styles.identityControlExpanded,
                 ]}
-              />
-            </TouchableOpacity>
-
-            <View pointerEvents="none" style={styles.livingPulse}>
-              <View style={styles.livingPulseRow}>
-                {activeDriversRequestState === "loading" ? (
-                  <ActivityIndicator color={colors.textMuted} size="small" />
+              >
+                {currentProfile?.avatar_url ? (
+                  <Image
+                    contentFit="cover"
+                    source={{ uri: currentProfile.avatar_url }}
+                    style={styles.identityAvatar}
+                  />
                 ) : (
-                  <Text style={styles.livingPulseNumber}>
-                    {activeDriversRequestState === "error" ? "—" : nearbyDrivers.length}
-                  </Text>
+                  <Ionicons name={activeVisibilityMode.icon} size={20} color={colors.text} />
                 )}
+                <View style={styles.identityCopy}>
+                  <Text style={styles.identityLabel}>{activeVisibilityMode.label}</Text>
+                  {isVisibleOnMap && liveDriveRemaining ? (
+                    <Text style={styles.identityRemaining}>{liveDriveRemaining} left</Text>
+                  ) : null}
+                </View>
+                <Ionicons
+                  color={colors.textMuted}
+                  name={visibilityMenuOpen ? "chevron-up" : "chevron-down"}
+                  size={13}
+                />
+              </TouchableOpacity>
+
+              <View style={styles.headerActions}>
+                <NoxaIconButton
+                  accessibilityHint="Find people, Crews and Events"
+                  accessibilityLabel="Search NOXA"
+                  icon="search-outline"
+                  iconSize={19}
+                  onPress={() => router.push("/search")}
+                  size={44}
+                  variant="ghost"
+                />
+                <NoxaIconButton
+                  accessibilityHint="Open notifications and invitations"
+                  accessibilityLabel="Notifications"
+                  icon="notifications-outline"
+                  iconSize={19}
+                  onPress={() => router.push("/notifications")}
+                  size={44}
+                  variant="ghost"
+                />
               </View>
+            </View>
+
+            <View accessibilityLiveRegion="polite" pointerEvents="none" style={styles.livingPulse}>
+              <Ionicons
+                color={colors.textMuted}
+                name={activeDriversRequestState === "error" ? "cloud-offline-outline" : "people-outline"}
+                size={14}
+              />
               <Text style={styles.livingPulseLabel}>
-                {activeDriversRequestState === "loading" ? "Updating"
-                  : activeDriversRequestState === "error" ? "Unavailable"
-                  : driverLocation ? "nearby now" : "active now"}
+                {activeDriversRequestState === "loading" ? "Finding drivers…"
+                  : activeDriversRequestState === "error" ? "Drivers unavailable"
+                  : driverLocation ? `${nearbyDrivers.length} nearby` : `${nearbyDrivers.length} active`}
               </Text>
             </View>
-
-            <View style={styles.headerActions}>
-              <NoxaIconButton
-                accessibilityHint="Find people, Crews and Events"
-                accessibilityLabel="Search NOXA"
-                icon="search-outline"
-                iconSize={19}
-                onPress={() => router.push("/search")}
-                size={44}
-                variant="overlay"
-              />
-              <NoxaIconButton
-                accessibilityHint="Open notifications and invitations"
-                accessibilityLabel="Notifications"
-                icon="notifications-outline"
-                iconSize={19}
-                onPress={() => router.push("/notifications")}
-                size={44}
-                variant="overlay"
-              />
-            </View>
-        </NoxaSurface>
+          </View>
         ) : null}
 
         {!isRouteFocusMode && !driveTogetherNavigation && visibilityMenuOpen ? (
@@ -3392,85 +3385,70 @@ const styles = StyleSheet.create({
     elevation: 40,
     left: spacing.md,
     right: spacing.md,
-    minHeight: 64,
-    padding: spacing.xs,
     gap: spacing.xs,
+  },
+  headerControls: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: spacing.xs,
   },
   identityControl: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
-    minHeight: geometry.controlHeight.compact,
-    paddingVertical: spacing.xxs,
-    gap: spacing.xxs,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: "rgba(12,12,16,0.88)",
-    ...shadows.control,
-  },
-  identityControlLive: {
-    borderColor: colors.borderAccent,
-  },
-  identityLabel: {
-    color: colors.text,
-    fontSize: typography.caption,
-    lineHeight: typography.lineHeight.caption,
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  identityAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.pill,
-  },
-  identityStatusDot: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    width: 10,
-    height: 10,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: colors.surface,
-    backgroundColor: colors.textQuiet,
-  },
-  identityStatusDotLive: {
-    backgroundColor: colors.success,
-  },
-  livingPulse: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  livingPulseRow: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
-  livingPulseNumber: {
+  identityControlExpanded: { borderColor: colors.textMuted },
+  identityCopy: { flexShrink: 1, minWidth: 0 },
+  identityLabel: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: -0.4,
+    fontSize: typography.body,
+    fontWeight: "700",
   },
-  livingPulseLabel: {
+  identityRemaining: {
     color: colors.textMuted,
     fontSize: typography.caption,
-    lineHeight: typography.lineHeight.caption,
-    textAlign: "center",
-    fontWeight: "700",
-    letterSpacing: 0.2,
+  },
+  identityAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+  },
+  livingPulse: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  livingPulseLabel: {
+    flexShrink: 1,
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    fontWeight: "600",
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
+    minHeight: 48,
+    paddingHorizontal: spacing.xxs,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
   driverMarker: {
     width: 36,

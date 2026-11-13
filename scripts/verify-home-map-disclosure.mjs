@@ -43,7 +43,7 @@ if (!failures.length) {
     failures.push('Canonical MapDriverCard must receive masked stranger identity and explicit relevance state');
   }
 
-  if (!/driverLocation \? "nearby now" : "active now"/.test(home)) {
+  if (!/driverLocation \? `\$\{nearbyDrivers\.length\} nearby` : `\$\{nearbyDrivers\.length\} active`/.test(home)) {
     failures.push('Home Living Pulse must not label all active drivers as nearby when own location is unknown');
   }
   if (!/myDriverIds\.has\(driver\.user_id\)/.test(home)) {

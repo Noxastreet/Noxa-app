@@ -263,7 +263,8 @@ assert(
   'Drive Together must expose navigation chrome and restore follow mode after a manual map pan.',
 );
 assert(
-  /followPadding=\{\{[\s\S]{0,180}paddingTop: 110[\s\S]{0,180}paddingBottom: 260/.test(mapRuntime)
+  /paddingTop: Math\.round\(viewportHeight \* 0\.36\)[\s\S]{0,130}paddingBottom: Math\.round\(viewportHeight \* 0\.12\)/.test(mapRuntime)
+    && /followPadding=\{followPadding\}/.test(mapRuntime)
     && /followUserMode=\{UserTrackingMode\.FollowWithCourse\}/.test(mapRuntime),
   'Driving camera must keep forward-looking screen space and follow the user course.',
 );
