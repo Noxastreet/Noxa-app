@@ -35,8 +35,8 @@ assert(
 assert(
   /COURSE_BEARING_ENTER_SPEED_MPS = 1\.5/.test(mapRuntime)
     && /COURSE_BEARING_EXIT_SPEED_MPS = 0\.8/.test(mapRuntime)
-    && /puckBearing=\{isRouteMode && useCourseBearing \? "course" : "heading"\}/.test(mapRuntime),
-  'The user arrow must use stable adaptive heading/course bearing.',
+    && /puckBearing=\{following \|\| \(isRouteMode && useCourseBearing\) \? "course" : "heading"\}/.test(mapRuntime),
+  'The arrow must match the course-follow camera and retain adaptive bearing in route preview.',
 );
 
 assert(

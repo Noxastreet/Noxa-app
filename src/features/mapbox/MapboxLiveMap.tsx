@@ -29,6 +29,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Svg, { Path as SvgPath } from "react-native-svg";
@@ -172,7 +173,6 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
       mapFilter,
       isRouteMode,
       followUserLocation,
-      onFollowUserLocationChange,
       onUserPan,
       onUserLocationChange,
       onDriverPress,
@@ -184,6 +184,20 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
     const [isLoaded, setIsLoaded] = useState(false);
     const [hasError, setHasError] = useState(false);
     const [useCourseBearing, setUseCourseBearing] = useState(false);
+    const { height: viewportHeight } = useWindowDimensions();
+    const following = followUserLocation && Boolean(driverLocation) && isRouteMode;
+    const followPadding = useMemo(() => ({
+      // A larger top inset anchors the puck lower and leaves room to see the road ahead.
+      paddingTop: Math.round(viewportHeight * 0.36),
+      paddingRight: spacing.xl,
+      paddingBottom: Math.round(viewportHeight * 0.12),
+      paddingLeft: spacing.xl,
+    }), [viewportHeight]);
+    const initialCamera = useMemo(() => ({
+      centerCoordinate: toPosition(initialRegion),
+      zoomLevel: DEFAULT_ZOOM,
+      pitch: isRouteMode ? ROUTE_MODE_PITCH : 28,
+    }), [initialRegion, isRouteMode]);
 
     const driverFeatures = useMemo(
       () => createDriverFeatureCollection(activeDrivers, selectedDriverId),
@@ -236,10 +250,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
 
     const animateToRegion = useCallback(
       (region: MapRegion, duration = 550) => {
-        if (followUserLocation) {
-          onFollowUserLocationChange(false);
-          return;
-        }
+        if (following) return;
         cameraRef.current?.setCamera({
           centerCoordinate: toPosition(region),
           zoomLevel: DEFAULT_ZOOM,
@@ -248,15 +259,12 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: "easeTo",
         });
       },
-      [followUserLocation, isRouteMode, onFollowUserLocationChange],
+      [following, isRouteMode],
     );
 
     const fitToCoordinates: LiveMapHandle["fitToCoordinates"] = useCallback(
       (points, options) => {
-        if (followUserLocation) {
-          onFollowUserLocationChange(false);
-          return;
-        }
+        if (following) return;
         const validPoints = points.filter(
           (point) =>
             Number.isFinite(point.latitude) &&
@@ -285,7 +293,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
           animationMode: options?.animated === false ? "none" : "easeTo",
         });
       },
-      [followUserLocation, isRouteMode, onFollowUserLocationChange],
+      [following, isRouteMode],
     );
 
     useImperativeHandle(
@@ -393,12 +401,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             onUserLocationChange({ latitude, longitude });
           }}
           onCameraChanged={(state) => {
-            if (state.gestures.isGestureActive) {
-              onUserPan();
-              if (followUserLocation) {
-                onFollowUserLocationChange(false);
-              }
-            }
+            if (state.gestures.isGestureActive) onUserPan();
           }}
           pitchEnabled
           projection="mercator"
@@ -435,36 +438,17 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             ref={cameraRef}
             animationDuration={650}
             animationMode="easeTo"
-            defaultSettings={{
-              centerCoordinate: toPosition(initialRegion),
-              zoomLevel: DEFAULT_ZOOM,
-              pitch: isRouteMode ? ROUTE_MODE_PITCH : 28,
-            }}
-            followPadding={{
-              paddingTop: 110,
-              paddingRight: spacing.xl,
-              paddingBottom: 260,
-              paddingLeft: spacing.xl,
-            }}
+            defaultSettings={initialCamera}
+            followPadding={followPadding}
             followPitch={ROUTE_FOLLOW_PITCH}
-            followUserLocation={
-              followUserLocation && Boolean(driverLocation) && isRouteMode
-            }
+            followUserLocation={following}
             followUserMode={UserTrackingMode.FollowWithCourse}
             followZoomLevel={ROUTE_FOLLOW_ZOOM}
-            onUserTrackingModeChange={(event) => {
-              if (
-                followUserLocation &&
-                !event.nativeEvent.payload.followUserLocation
-              ) {
-                onFollowUserLocationChange(false);
-              }
-            }}
           />
 
           <LocationPuck
             bearingImage={NOXA_LOCATION_ARROW_IMAGE}
-            puckBearing={isRouteMode && useCourseBearing ? "course" : "heading"}
+            puckBearing={following || (isRouteMode && useCourseBearing) ? "course" : "heading"}
             puckBearingEnabled
             pulsing={{ color: colors.primary, isEnabled: true, radius: 34 }}
             scale={isRouteMode ? 0.84 : 0.74}

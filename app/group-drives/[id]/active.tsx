@@ -96,6 +96,7 @@ export default function ActiveDriveScreen() {
   const [connection, setConnection] = useState<ActiveDriveRealtimeConnection>('connecting');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [followUser, setFollowUser] = useState(true);
+  const pendingParticipantFocus = useRef<MapRegion | null>(null);
   const [localNavigationLocation, setLocalNavigationLocation] = useState<LocalNavigationLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -349,15 +350,24 @@ export default function ActiveDriveScreen() {
       Alert.alert('Location unavailable', 'This participant does not have a current location to focus.');
       return;
     }
-    setSelectedUserId(userId);
-    setFollowUser(false);
-    mapRef.current?.animateToRegion({
+    const region = {
       latitude: location.latitude,
       longitude: location.longitude,
       latitudeDelta: 0.012,
       longitudeDelta: 0.012,
-    }, 450);
-  }, [locationByUserId]);
+    };
+    if (followUser) pendingParticipantFocus.current = region;
+    else mapRef.current?.animateToRegion(region, 450);
+    setFollowUser(false);
+    setSelectedUserId(userId);
+  }, [followUser, locationByUserId]);
+
+  useEffect(() => {
+    if (followUser || !selectedUserId || !pendingParticipantFocus.current) return;
+    const region = pendingParticipantFocus.current;
+    pendingParticipantFocus.current = null;
+    mapRef.current?.animateToRegion(region, 450);
+  }, [followUser, selectedUserId]);
 
   const recenter = useCallback(async () => {
     let location = cameraLocation;
@@ -376,14 +386,9 @@ export default function ActiveDriveScreen() {
       );
       return;
     }
+    pendingParticipantFocus.current = null;
     setSelectedUserId(null);
     setFollowUser(true);
-    mapRef.current?.animateToRegion({
-      latitude: location.latitude,
-      longitude: location.longitude,
-      latitudeDelta: 0.012,
-      longitudeDelta: 0.012,
-    }, 350);
   }, [cameraLocation]);
 
   if (loading) {
@@ -426,8 +431,8 @@ export default function ActiveDriveScreen() {
         mapFilter="drivers"
         isRouteMode
         followUserLocation={followUser}
-        onFollowUserLocationChange={setFollowUser}
         onUserPan={() => {
+          pendingParticipantFocus.current = null;
           setFollowUser(false);
           setSelectedUserId(null);
         }}

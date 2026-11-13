@@ -54,7 +54,7 @@ assert(
 );
 
 assert(
-  /onCameraChanged=\{\(state\) => \{[\s\S]{0,180}state\.gestures\.isGestureActive[\s\S]{0,120}onUserPan\(\)[\s\S]{0,140}onFollowUserLocationChange\(false\)/.test(runtime),
+  /onCameraChanged=\{\(state\) => \{[\s\S]{0,180}state\.gestures\.isGestureActive[\s\S]{0,120}onUserPan\(\)/.test(runtime),
   'Native Mapbox user gestures must remain authoritative over programmatic follow.',
 );
 
@@ -68,8 +68,31 @@ assert(
   /COURSE_BEARING_ENTER_SPEED_MPS = 1\.5/.test(runtime)
     && /COURSE_BEARING_EXIT_SPEED_MPS = 0\.8/.test(runtime)
     && /setUseCourseBearing[\s\S]{0,260}COURSE_BEARING_EXIT_SPEED_MPS[\s\S]{0,140}COURSE_BEARING_ENTER_SPEED_MPS/.test(runtime)
-    && /puckBearing=\{isRouteMode && useCourseBearing \? "course" : "heading"\}/.test(runtime),
-  'The NOXA location arrow must use heading while stationary and course while moving, with hysteresis.',
+    && /puckBearing=\{following \|\| \(isRouteMode && useCourseBearing\) \? "course" : "heading"\}/.test(runtime),
+  'The arrow must use course during follow and retain adaptive bearing in route preview.',
+);
+
+const activeDrive = read('app/group-drives/[id]/active.tsx');
+
+assert(
+  !/onFollowUserLocationChange|onUserTrackingModeChange/.test(runtime)
+    && /const following = followUserLocation && Boolean\(driverLocation\) && isRouteMode/.test(runtime)
+    && /followUserLocation=\{following\}/.test(runtime)
+    && (runtime.match(/if \(following\) return;/g) ?? []).length === 2,
+  'Native follow must survive automatic preview/recenter camera requests and transient tracking events.',
+);
+
+for (const name of ['toggleRouteFollow', 'recenterRouteFocus', 'recenterDriveTogether']) {
+  const start = home.indexOf(`const ${name} = useCallback`);
+  const end = home.indexOf('\n  const ', start + 1);
+  assert(start >= 0 && !/animateToRegion/.test(home.slice(start, end)),
+    `${name} must give camera ownership directly to the native follow viewport.`);
+}
+
+assert(
+  /if \(followUser\) pendingParticipantFocus\.current = region/.test(activeDrive)
+    && /if \(followUser \|\| !selectedUserId \|\| !pendingParticipantFocus\.current\) return;/.test(activeDrive),
+  'Active Drive participant focus must wait for native follow to be released.',
 );
 
 console.log('PASS: NOXA Map camera ownership contract');

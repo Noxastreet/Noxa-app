@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - release/testflight-qa-20261113
+      - codex/noxa-product-ux-qa-20261113
       - main
     types: [opened, synchronize, reopened]
 
@@ -12,7 +13,7 @@ permissions:
 
 jobs:
   android:
-    if: github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'audit/native-qa-build' || github.head_ref == 'codex/noxa-product-ux-qa-20261113')
+    if: github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'audit/native-qa-build' || github.head_ref == 'codex/noxa-product-ux-qa-20261113' || github.head_ref == 'codex/noxa-map-header-follow-20261113')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -54,7 +55,7 @@ jobs:
           retention-days: 7
 
   ios-simulator:
-    if: github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'audit/native-qa-build' || github.head_ref == 'codex/noxa-product-ux-qa-20261113')
+    if: github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'audit/native-qa-build' || github.head_ref == 'codex/noxa-product-ux-qa-20261113' || github.head_ref == 'codex/noxa-map-header-follow-20261113')
     runs-on: macos-15
     timeout-minutes: 40
     steps:
