@@ -135,6 +135,8 @@ const realtime = compile('src/features/group-drive/runtime/realtime.ts', {
 });
 const originalSetInterval = globalThis.setInterval;
 const originalClearInterval = globalThis.clearInterval;
+const originalNow = Date.now;
+Date.now = () => Date.parse('2026-08-20T12:00:20.000Z');
 globalThis.setInterval = (callback) => {
   lifecycleTick = callback;
   return Symbol('test-interval');
@@ -175,10 +177,21 @@ try {
   assert.equal(tableReads.drive_sessions, sessionReadsBeforeHeartbeat + 1);
   assert.equal(tableReads.drive_participants, participantReadsBeforeHeartbeat + 1);
 
+  Date.now = () => Date.parse('2026-08-20T12:03:00.000Z');
+  // User A is the viewer, so add a foreign cached coordinate before expiry.
+  handlers.UPDATE({ new: {
+    id: 'opaque-foreign', drive_session_id: 'drive-a', user_id: 'user-b',
+    latitude: 35, longitude: 33, heading: null, status: 'moving',
+    updated_at: '2026-08-20T12:00:15.000Z',
+  } });
+  assert.equal(published.at(-1).locations.byOpaqueId['opaque-foreign'], undefined,
+    'An unauthorized or stale foreign event must not reappear in the cache');
+
   await teardown();
 } finally {
   globalThis.setInterval = originalSetInterval;
   globalThis.clearInterval = originalClearInterval;
+  Date.now = originalNow;
 }
 
 console.log('Group Drive Phase 3A simulation/state smoke: PASS (15 checks)');

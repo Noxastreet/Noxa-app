@@ -21,3 +21,8 @@ export const geometry = {
     preferred: 24,
   },
 } as const;
+
+/** Shared by navigation and map overlays so scaled labels never cover controls. */
+export function bottomNavigationHeight(fontScale = 1): number {
+  return fontScale <= 1.2 ? 72 : Math.ceil(52 + 32 * fontScale);
+}

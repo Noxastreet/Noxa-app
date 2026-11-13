@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { prepareImageUpload } from '@/src/lib/prepareImageUpload';
 import { NoxaAvatar, NoxaButton, NoxaHeader, NoxaInput, NoxaScreen } from "@/src/components/ui";
 import { isValidCountryCode } from "@/src/data/countryCatalog";
 import { CityField } from "@/src/features/city-picker";
@@ -100,22 +101,6 @@ function normalizeMimeType(mimeType?: string | null) {
   if (!mimeType) return null;
   const normalized = mimeType.toLowerCase();
   return normalized === "image/jpg" ? "image/jpeg" : normalized;
-}
-
-function getAvatarExtension(mimeType: string, fileName?: string) {
-  const fileExtension = fileName?.split(".").pop()?.toLowerCase();
-
-  if (fileExtension && ["jpg", "jpeg", "png", "webp", "heic", "heif"].includes(fileExtension)) {
-    return fileExtension === "jpg" ? "jpg" : fileExtension;
-  }
-
-  switch (mimeType) {
-    case "image/png": return "png";
-    case "image/webp": return "webp";
-    case "image/heic": return "heic";
-    case "image/heif": return "heif";
-    default: return "jpg";
-  }
 }
 
 function getOwnedAvatarPath(avatarUrl: string | null, userId: string) {
@@ -299,14 +284,12 @@ export default function EditProfileScreen() {
   };
 
   const uploadAvatar = async (userId: string, avatar: SelectedAvatar) => {
-    const arrayBuffer = await fetch(avatar.uri).then((response) => response.arrayBuffer());
+    const { arrayBuffer, contentType: uploadContentType, extension } = await prepareImageUpload(avatar, maxAvatarBytes);
     if (arrayBuffer.byteLength > maxAvatarBytes) throw new Error("Avatar must be 5 MB or less.");
-
-    const extension = getAvatarExtension(avatar.mimeType, avatar.fileName);
     const random = Math.random().toString(36).slice(2, 10);
     const path = `${userId}/${Date.now()}-${random}.${extension}`;
     const { error } = await supabase.storage.from(avatarBucket).upload(path, arrayBuffer, {
-      contentType: avatar.mimeType,
+      contentType: uploadContentType,
       upsert: false,
     });
 

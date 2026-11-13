@@ -1,0 +1,91 @@
+name: NOXA Native QA
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/native-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'audit/native-qa-build'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      - run: npx expo prebuild --platform android --no-install
+      - name: Compile Android debug APK for ARM64
+        working-directory: android
+        run: ./gradlew :app:assembleDebug --no-daemon -PreactNativeArchitectures=arm64-v8a
+      - name: Verify APK identity and architecture
+        run: |
+          python - <<'PY'
+          import os, pathlib, subprocess, zipfile
+          apk = pathlib.Path('android/app/build/outputs/apk/debug/app-debug.apk')
+          sdk = pathlib.Path(os.environ['ANDROID_HOME'])
+          aapt = sorted(sdk.glob('build-tools/*/aapt'))[-1]
+          badging = subprocess.check_output([str(aapt), 'dump', 'badging', str(apk)], text=True)
+          assert "package: name='com.karaketidis.noxa'" in badging
+          with zipfile.ZipFile(apk) as archive:
+              assert any(path.startswith('lib/arm64-v8a/') for path in archive.namelist())
+          print('Verified Android package and ARM64 native libraries')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NOXA-Android-ARM64-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  ios-simulator:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'audit/native-qa-build'
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx expo prebuild --platform ios --no-install
+      - run: pod install --project-directory=ios
+      - name: Compile for iOS Simulator
+        run: |
+          xcodebuild -version
+          xcodebuild -workspace ios/Noxa.xcworkspace -scheme Noxa \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/noxa-ios" \
+            CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/noxa-xcode.log" 2>&1 || {
+              tail -120 "$RUNNER_TEMP/noxa-xcode.log"
+              exit 1
+            }
+      - name: Package simulator application
+        run: |
+          app="$RUNNER_TEMP/noxa-ios/Build/Products/Debug-iphonesimulator/Noxa.app"
+          test "$(plutil -extract CFBundleIdentifier raw "$app/Info.plist")" = com.karaketidis.noxa
+          tar -czf "$RUNNER_TEMP/NOXA-iOS-simulator-debug.tar.gz" -C "$(dirname "$app")" Noxa.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NOXA-iOS-simulator-debug
+          path: ${{ runner.temp }}/NOXA-iOS-simulator-debug.tar.gz
+          if-no-files-found: error
+          retention-days: 7

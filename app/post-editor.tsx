@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 
+import { prepareImageUpload } from '@/src/lib/prepareImageUpload';
 import { NoxaButton, NoxaInput, NoxaScreen } from "@/src/components/ui";
 import { supabase } from "@/src/lib/supabase";
 import { geometry, colors, radius, shadows, spacing, typography } from "@/src/theme";
@@ -35,17 +36,7 @@ function normalizeMimeType(mimeType?: string | null) {
     : mimeType?.toLowerCase();
 }
 
-function safeExtension(asset: ImagePicker.ImagePickerAsset, contentType: string) {
-  const fileExtension = asset.fileName?.split(".").pop()?.toLowerCase();
-  const uriExtension = asset.uri.split("?")[0]?.split(".").pop()?.toLowerCase();
-  const candidate = fileExtension || uriExtension;
 
-  if (candidate && ["jpg", "jpeg", "png", "webp", "heic", "heif"].includes(candidate)) {
-    return candidate === "jpg" ? "jpeg" : candidate;
-  }
-
-  return contentType.split("/")[1] ?? "jpeg";
-}
 
 export default function PostEditorScreen() {
   const navigation = useNavigation();
@@ -131,18 +122,16 @@ export default function PostEditorScreen() {
         throw new Error("Choose a JPEG, PNG, WEBP, HEIC, or HEIF image.");
       }
 
-      const arrayBuffer = await fetch(imageAsset.uri).then((response) => response.arrayBuffer());
+      const { arrayBuffer, contentType: uploadContentType, extension } = await prepareImageUpload(imageAsset, maxPostImageBytes);
       if (arrayBuffer.byteLength > maxPostImageBytes) {
         throw new Error("Choose an image smaller than 10 MB.");
       }
-
-      const extension = safeExtension(imageAsset, contentType);
       const suffix = Math.random().toString(36).slice(2, 10);
       uploadedPath = `${userId}/${Date.now()}-${suffix}.${extension}`;
       const { error: uploadError } = await supabase.storage
         .from(postImagesBucket)
         .upload(uploadedPath, arrayBuffer, {
-          contentType,
+          contentType: uploadContentType,
           cacheControl: "3600",
           upsert: false,
         });

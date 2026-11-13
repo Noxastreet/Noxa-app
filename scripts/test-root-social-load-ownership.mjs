@@ -3,6 +3,11 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
+const themeGeometry = {};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/theme/geometry.ts', 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS },
+}).outputText, { exports: themeGeometry });
+
 const flush = async () => { for (let i = 0; i < 16; i += 1) await Promise.resolve(); };
 function subject(path, privateName) {
   const states = [], refs = [], callbacks = [], queries = [];
@@ -45,8 +50,8 @@ function subject(path, privateName) {
       if (module === 'react-native') return { View: 'View', Text: 'Text', StyleSheet: { create: (s) => s }, Platform: { OS: 'ios' } };
       if (module === 'expo-router') return { useFocusEffect: (fn) => { focus = fn; }, router: { push() {} } };
       if (module === '@/src/lib/supabase') return { supabase, getCurrentSessionUser: async () => ({ id: 'current' }) };
-      if (module === '@/src/hooks/useResponsive') return { useResponsive: () => ({ gutter: 16 }) };
-      if (module === '@/src/theme') return { colors: token, spacing: token, radius: token, geometry: token, typography: token };
+      if (module === '@/src/hooks/useResponsive') return { useResponsive: () => ({ gutter: 16, fontScale: 1 }) };
+      if (module === '@/src/theme') return { ...themeGeometry, colors: token, spacing: token, radius: token, typography: token };
       // Existing date/lifecycle helpers are irrelevant to response ownership.
       return new Proxy({}, { get: (_t, key) => key === 'getEventLifecycle' ? () => 'scheduled' : token });
     },

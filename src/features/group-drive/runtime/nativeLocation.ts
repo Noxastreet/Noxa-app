@@ -8,6 +8,7 @@ import { loadActiveDriveRealtimeSnapshot } from './realtime';
 export const GROUP_DRIVE_LOCATION_TASK_NAME = 'noxa-group-drive-location-v1';
 
 const GROUP_DRIVE_LOCATION_SESSION_KEY = 'noxa.group-drive-location-session.v1';
+const GROUP_DRIVE_SIGNOUT_CLEANUP_KEY = 'noxa.group-drive-signout-cleanup.v1';
 const GROUP_DRIVE_CONSENT_SCOPE = 'group-drive-precise-location-v1' as const;
 const CONSENT_MAX_AGE_MS = 10 * 60 * 1000;
 const PRECISE_LOCATION_MAX_ACCURACY_METERS = 1000;
@@ -31,9 +32,23 @@ export type GroupDriveLocationSession = {
 
 export type GroupDriveLocationPublishResult = 'published' | 'retry' | 'revoked';
 
-function readStoredSession(): GroupDriveLocationSession | null {
+let runtimeGeneration = 0;
+let locationPublishQueue: Promise<unknown> = Promise.resolve();
+let locationStartInProgress = false;
+let signOutCleanupInProgress = false;
+
+function ownsSession(session: GroupDriveLocationSession, generation: number) {
+  const current = readStoredSession();
+  return generation === runtimeGeneration
+    && current?.userId === session.userId
+    && current.driveSessionId === session.driveSessionId
+    && current.consentedAt === session.consentedAt
+    && current.activeExpiresAt === session.activeExpiresAt;
+}
+
+function readStoredSession(storageKey = GROUP_DRIVE_LOCATION_SESSION_KEY): GroupDriveLocationSession | null {
   try {
-    const raw = localStorage.getItem(GROUP_DRIVE_LOCATION_SESSION_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<GroupDriveLocationSession>;
     if (
@@ -44,21 +59,21 @@ function readStoredSession(): GroupDriveLocationSession | null {
       || !Number.isFinite(Date.parse(parsed.activeExpiresAt))
       || !Number.isFinite(Date.parse(parsed.consentedAt))
     ) {
-      localStorage.removeItem(GROUP_DRIVE_LOCATION_SESSION_KEY);
+      localStorage.removeItem(storageKey);
       return null;
     }
     return parsed as GroupDriveLocationSession;
   } catch {
-    localStorage.removeItem(GROUP_DRIVE_LOCATION_SESSION_KEY);
+    localStorage.removeItem(storageKey);
     return null;
   }
 }
 
-function storeSession(session: GroupDriveLocationSession | null) {
+function storeSession(session: GroupDriveLocationSession | null, storageKey = GROUP_DRIVE_LOCATION_SESSION_KEY) {
   if (session) {
-    localStorage.setItem(GROUP_DRIVE_LOCATION_SESSION_KEY, JSON.stringify(session));
+    localStorage.setItem(storageKey, JSON.stringify(session));
   } else {
-    localStorage.removeItem(GROUP_DRIVE_LOCATION_SESSION_KEY);
+    localStorage.removeItem(storageKey);
   }
 }
 
@@ -106,6 +121,7 @@ async function stopNativeLocationUpdates() {
 }
 
 async function clearLocalRuntime() {
+  runtimeGeneration += 1;
   storeSession(null);
   await stopNativeLocationUpdates().catch(() => undefined);
 }
@@ -121,10 +137,12 @@ async function clearRemoteLocationAndRuntime(
   return true;
 }
 
-async function publishLocation(
+async function publishLocationNow(
   session: GroupDriveLocationSession,
   location: Location.LocationObject,
+  generation: number,
 ): Promise<GroupDriveLocationPublishResult> {
+  if (!ownsSession(session, generation)) return 'revoked';
   if (Date.now() >= Date.parse(session.activeExpiresAt)) {
     await clearLocalRuntime();
     return 'revoked';
@@ -133,6 +151,8 @@ async function publishLocation(
   if (!hasPreciseLocationSample(location.coords)) return 'retry';
 
   const { data: authData, error: authError } = await supabase.auth.getSession();
+  // Stop or a newer consent can invalidate this callback while auth is pending.
+  if (!ownsSession(session, generation)) return 'revoked';
   if (authError) return 'retry';
   if (authData.session?.user.id !== session.userId) {
     await clearLocalRuntime();
@@ -171,6 +191,16 @@ async function publishLocation(
     return 'revoked';
   }
   return 'retry';
+}
+
+function publishLocation(
+  session: GroupDriveLocationSession,
+  location: Location.LocationObject,
+): Promise<GroupDriveLocationPublishResult> {
+  const generation = runtimeGeneration;
+  const publish = locationPublishQueue.then(() => publishLocationNow(session, location, generation));
+  locationPublishQueue = publish.catch(() => undefined);
+  return publish;
 }
 
 if (!TaskManager.isTaskDefined(GROUP_DRIVE_LOCATION_TASK_NAME)) {
@@ -272,17 +302,28 @@ async function assertPermissionsAlreadyGranted() {
   }
 }
 
-export async function startGroupDriveLocationSession(consent: GroupDriveLocationConsent) {
+async function beginGroupDriveLocationSession(consent: GroupDriveLocationConsent) {
+  const generation = runtimeGeneration;
+  const assertCurrentStart = () => {
+    if (generation !== runtimeGeneration) {
+      throw new Error('Group Drive location sharing was cancelled.');
+    }
+  };
   if (!validConsent(consent)) {
     throw new Error('Confirm Group Drive location sharing before starting it.');
   }
   await assertPermissionsAlreadyGranted();
+  assertCurrentStart();
 
   const [{ data: authData, error: authError }, snapshot] = await Promise.all([
     supabase.auth.getUser(),
     loadActiveDriveRealtimeSnapshot(consent.driveSessionId),
   ]);
+  assertCurrentStart();
   if (authError || !authData.user) throw new Error('Sign in again to share Group Drive location.');
+  if (readStoredSession(`${GROUP_DRIVE_SIGNOUT_CLEANUP_KEY}:${authData.user.id}`)) {
+    throw new Error('Retry Group Drive sign out to finish location cleanup before sharing again.');
+  }
   if (!snapshot.activeExpiresAt || Date.now() >= Date.parse(snapshot.activeExpiresAt)) {
     throw new Error('This Group Drive is no longer active.');
   }
@@ -298,6 +339,7 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
     const current = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
     });
+    assertCurrentStart();
     if (!hasPreciseLocationSample(current.coords)) {
       throw new Error('Group Drive needs a precise GPS fix before location sharing can start.');
     }
@@ -306,11 +348,13 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
     if (await Location.hasStartedLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME)) {
       await Location.stopLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME);
     }
+    assertCurrentStart();
 
     const initialPublish = await publishLocation(session, current);
     if (initialPublish === 'revoked') {
       throw new Error('Group Drive location access is no longer available.');
     }
+    assertCurrentStart();
 
     await Location.startLocationUpdatesAsync(GROUP_DRIVE_LOCATION_TASK_NAME, {
       accuracy: Location.Accuracy.High,
@@ -328,36 +372,65 @@ export async function startGroupDriveLocationSession(consent: GroupDriveLocation
         killServiceOnDestroy: true,
       },
     });
+    if (generation !== runtimeGeneration) {
+      await stopNativeLocationUpdates().catch(() => undefined);
+      assertCurrentStart();
+    }
     return session;
   } catch (error) {
-    await clearLocalRuntime();
+    if (generation === runtimeGeneration) await clearLocalRuntime();
     throw error;
+  }
+}
+
+export async function startGroupDriveLocationSession(consent: GroupDriveLocationConsent) {
+  if (signOutCleanupInProgress) throw new Error('Group Drive sign out is still finishing. Retry shortly.');
+  if (locationStartInProgress) throw new Error('Group Drive location startup is still finishing. Retry shortly.');
+  locationStartInProgress = true;
+  try {
+    return await beginGroupDriveLocationSession(consent);
+  } finally {
+    locationStartInProgress = false;
   }
 }
 
 export async function stopGroupDriveLocationSession() {
   await clearLocalRuntime();
+  // An issued request cannot be unsent. Final server cleanup must run after it.
+  await locationPublishQueue;
 }
 
 export async function clearGroupDriveLocationBeforeSignOut() {
+  if (signOutCleanupInProgress) throw new Error('Group Drive sign out is still finishing. Retry shortly.');
+  signOutCleanupInProgress = true;
   const storedSession = readStoredSession();
-  if (!storedSession) {
-    await clearLocalRuntime();
-    return;
+  const stopping = stopGroupDriveLocationSession();
+  try {
+    // Retry information is not consent: a failed logout must never restore the
+    // writer's session. Scope it to the account, including across app restarts.
+    if (storedSession) {
+      storeSession(storedSession, `${GROUP_DRIVE_SIGNOUT_CLEANUP_KEY}:${storedSession.userId}`);
+    }
+    // Also cancel a startup which has not stored its session yet.
+    await stopping;
+    const { data: authData, error: authError } = await supabase.auth.getSession();
+    if (authError) throw authError;
+    const userId = authData.session?.user.id;
+    if (!userId) {
+      if (storedSession) throw new Error('Sign in again to clear Group Drive location.');
+      return;
+    }
+    const cleanupKey = `${GROUP_DRIVE_SIGNOUT_CLEANUP_KEY}:${userId}`;
+    const pending = readStoredSession(cleanupKey);
+    if (!pending || pending.userId !== userId) return;
+    const { data, error } = await supabase.rpc('noxa_clear_my_drive_location', {
+      target_drive_session_id: pending.driveSessionId,
+    });
+    if (error || data !== true) {
+      throw new Error('Group Drive location could not be cleared before sign out.');
+    }
+    storeSession(null, cleanupKey);
+  } finally {
+    signOutCleanupInProgress = false;
   }
-
-  // Pause native publishing without forgetting the session id. If the server
-  // cannot confirm deletion, the id remains available for an explicit retry.
-  await stopNativeLocationUpdates().catch(() => undefined);
-
-  const { data, error } = await supabase.rpc('noxa_clear_my_drive_location', {
-    target_drive_session_id: storedSession.driveSessionId,
-  });
-
-  if (error || data !== true) {
-    storeSession(storedSession);
-    throw new Error('Group Drive location could not be cleared before sign out.');
-  }
-
-  storeSession(null);
 }

@@ -22,7 +22,7 @@ import {
 } from '@/src/components/ui';
 import { useResponsive } from '@/src/hooks/useResponsive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { bottomNavigationHeight, colors, radius, spacing, typography } from '@/src/theme';
 
 type GarageVehicle = {
   id: string;
@@ -214,7 +214,7 @@ function GarageState({ error, isLoading, onRetry }: { error: boolean; isLoading:
 }
 
 export default function GarageScreen() {
-  const { gutter } = useResponsive();
+  const { gutter, fontScale } = useResponsive();
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
   const [hasVehicleError, setHasVehicleError] = useState(false);
@@ -279,7 +279,7 @@ export default function GarageScreen() {
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}>
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter, paddingBottom: Math.max(144, bottomNavigationHeight(fontScale) + 24) }]}>
         <NoxaRootHeader
           actions={
             <NoxaButton

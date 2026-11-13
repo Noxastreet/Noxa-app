@@ -7,9 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
+  BackHandler,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -25,7 +28,6 @@ import {
   NoxaButton,
   NoxaConfirmationSheet,
   NoxaIconButton,
-  NoxaPressableSurface,
   NoxaSurface,
 } from "@/src/components/ui";
 import { LiveDrivePermissionRecoverySheet } from "@/src/features/map/LiveDrivePermissionRecoverySheet";
@@ -64,6 +66,7 @@ import type {
   MapboxEvent,
 } from "@/src/features/mapbox/types";
 import {
+  broadcastLiveDriverLocation,
   getLiveDriveSession,
   hasLiveDriveRuntimeAccess,
   isLiveDriveSessionOwnedByCurrentProcess,
@@ -85,7 +88,7 @@ import {
   refreshSupabaseSessionOnce,
   supabase,
 } from "@/src/lib/supabase";
-import { geometry, animations, colors, radius, shadows, spacing, typography } from "@/src/theme";
+import { bottomNavigationHeight, geometry, animations, colors, radius, shadows, spacing, typography } from "@/src/theme";
 
 type ProfileMarkerRow = {
   id: string;
@@ -184,7 +187,6 @@ const MAX_MAP_DRIVERS = 200;
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const TAB_BAR_HEIGHT = 64;
 const TAB_BAR_BOTTOM_GAP = 0;
 const FLOATING_GAP = spacing.sm;
 const VISIBILITY_MODES: {
@@ -956,9 +958,6 @@ export default function LiveMapScreen() {
   const activeDriversRef = useRef<ActiveDriver[]>([]);
   const mapFocusedRef = useRef(false);
   const [isMapFocused, setIsMapFocused] = useState(false);
-  const [ownDriverBroadcastKey, setOwnDriverBroadcastKey] =
-    useState<string | null>(null);
-  const ownDriverBroadcastChannelRef = useRef<RealtimeChannel | null>(null);
   const lastDriverBroadcastSentRef = useRef(0);
   const driverBroadcastTargetsRef = useRef<
     Map<string, DriverBroadcastAnimationTarget>
@@ -968,6 +967,17 @@ export default function LiveMapScreen() {
     useState<LocationVisibilityMode>("ghost");
   const [showGhostToast, setShowGhostToast] = useState(false);
   const [visibilityMenuOpen, setVisibilityMenuOpen] = useState(false);
+  const { fontScale, height: windowHeight } = useWindowDimensions();
+  const TAB_BAR_HEIGHT = bottomNavigationHeight(fontScale);
+  const [mapHeaderHeight, setMapHeaderHeight] = useState(64);
+  useFocusEffect(useCallback(() => {
+    if (!visibilityMenuOpen) return;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => {
+      setVisibilityMenuOpen(false);
+      return true;
+    });
+    return () => listener.remove();
+  }, [visibilityMenuOpen]));
   const [pendingVisibilityMode, setPendingVisibilityMode] =
     useState<LiveDriveVisibilityMode | null>(null);
   const [
@@ -1126,7 +1136,7 @@ export default function LiveMapScreen() {
         },
       });
     },
-    [insets.bottom, insets.top],
+    [TAB_BAR_HEIGHT, insets.bottom, insets.top],
   );
 
   const handleMapboxUserLocation = useCallback((point: LatLng) => {
@@ -1261,7 +1271,6 @@ export default function LiveMapScreen() {
       lastDriverBroadcastSentRef.current = 0;
       latestPresencePayloadRef.current = null;
       driverBroadcastTargetsRef.current.clear();
-      setOwnDriverBroadcastKey(null);
       const userId = sharingUserIdRef.current;
       sharingUserIdRef.current = null;
       visibilityModeRef.current = "ghost";
@@ -1275,6 +1284,9 @@ export default function LiveMapScreen() {
         setSharingError(null);
       }
       await stopLiveDriveSession(deleteRow).catch(() => undefined);
+      // Finish any foreground write already issued before the final delete.
+      // Queued writes see the cleared sharing owner and cannot start again.
+      await presenceWriteQueueRef.current.catch(() => undefined);
       if (deleteRow && userId) await deletePresence(userId).catch(() => undefined);
     },
     [deletePresence],
@@ -1293,7 +1305,7 @@ export default function LiveMapScreen() {
       const write = presenceWriteQueueRef.current.then(async () => {
         if (!isMountedRef.current || sharingUserIdRef.current !== userId)
           return;
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("driver_locations")
           .upsert(
             {
@@ -1302,23 +1314,12 @@ export default function LiveMapScreen() {
               updated_at: new Date().toISOString(),
             },
             { onConflict: "user_id" },
-          )
-          .select("broadcast_key")
-          .maybeSingle();
+          );
         if (error) {
           lastPresenceWriteRef.current = 0;
           if (isMountedRef.current)
             setSharingError("Could not update visibility. Retrying soon.");
           return;
-        }
-        const broadcastKey = (data as { broadcast_key?: string } | null)
-          ?.broadcast_key;
-        if (
-          broadcastKey &&
-          uuidPattern.test(broadcastKey) &&
-          isMountedRef.current
-        ) {
-          setOwnDriverBroadcastKey(broadcastKey);
         }
         if (isMountedRef.current) setSharingError(null);
       });
@@ -1388,82 +1389,17 @@ export default function LiveMapScreen() {
 
   useEffect(() => {
     const userId = sharingUserIdRef.current;
-    const topic =
-      userId && ownDriverBroadcastKey
-        ? createDriverBroadcastTopic(userId, ownDriverBroadcastKey)
-        : null;
-
-    if (
-      !topic ||
-      !isVisibleOnMap ||
-      !isAppForeground
-    ) {
-      return;
-    }
-
-    const channel = supabase.channel(topic, {
-      config: { private: true },
-    });
-    ownDriverBroadcastChannelRef.current = channel;
-    lastDriverBroadcastSentRef.current = 0;
-    channel.subscribe();
-
-    return () => {
-      if (ownDriverBroadcastChannelRef.current === channel) {
-        ownDriverBroadcastChannelRef.current = null;
-      }
-      void supabase.removeChannel(channel);
-    };
-  }, [
-    isAppForeground,
-    isVisibleOnMap,
-    ownDriverBroadcastKey,
-  ]);
-
-  useEffect(() => {
-    const userId = sharingUserIdRef.current;
-    const channel = ownDriverBroadcastChannelRef.current;
-    if (
-      !driverLocation ||
-      !userId ||
-      !channel ||
-      !ownDriverBroadcastKey ||
-      !isVisibleOnMap ||
-      !isAppForeground ||
-      !getLiveDriveSession()
-    ) {
-      return;
-    }
-
+    if (!driverLocation || !userId || !isVisibleOnMap || !isAppForeground
+      || audienceChangeInFlightRef.current || !getLiveDriveSession()) return;
     const now = Date.now();
-    if (now - lastDriverBroadcastSentRef.current < DRIVER_BROADCAST_SEND_MS) {
-      return;
-    }
+    if (now - lastDriverBroadcastSentRef.current < DRIVER_BROADCAST_SEND_MS) return;
     lastDriverBroadcastSentRef.current = now;
-
-    void channel
-      .send({
-        type: "broadcast",
-        event: DRIVER_BROADCAST_EVENT,
-        payload: {
-          user_id: userId,
-          latitude: driverLocation.latitude,
-          longitude: driverLocation.longitude,
-          updated_at: new Date(now).toISOString(),
-        },
-      })
-      .then((status) => {
-        if (status !== "ok") lastDriverBroadcastSentRef.current = 0;
-      })
-      .catch(() => {
-        lastDriverBroadcastSentRef.current = 0;
-      });
-  }, [
-    driverLocation,
-    isAppForeground,
-    isVisibleOnMap,
-    ownDriverBroadcastKey,
-  ]);
+    // Server chooses the current audience topic per message. No GPS is sent on
+    // a client channel whose old authorization can survive a block/rotation.
+    void broadcastLiveDriverLocation(userId, driverLocation)
+      .then((sent) => { if (!sent) lastDriverBroadcastSentRef.current = 0; })
+      .catch(() => { lastDriverBroadcastSentRef.current = 0; });
+  }, [driverLocation, isAppForeground, isVisibleOnMap]);
 
   const startSharing = useCallback(
     async (mode: LiveDriveVisibilityMode) => {
@@ -1592,21 +1528,10 @@ export default function LiveMapScreen() {
           latestPresencePayloadRef.current = nextPayload;
           await writePresencePayload(userId, nextPayload, true);
         } else {
-          const { data } = await supabase
+          await supabase
             .from("driver_locations")
             .update({ visibility_mode: mode })
-            .eq("user_id", userId)
-            .select("broadcast_key")
-            .maybeSingle();
-          const broadcastKey = (data as { broadcast_key?: string } | null)
-            ?.broadcast_key;
-          if (
-            broadcastKey &&
-            uuidPattern.test(broadcastKey) &&
-            isMountedRef.current
-          ) {
-            setOwnDriverBroadcastKey(broadcastKey);
-          }
+            .eq("user_id", userId);
         }
       } finally {
         audienceChangeInFlightRef.current = false;
@@ -2008,7 +1933,6 @@ export default function LiveMapScreen() {
           activeDriversRef.current = [];
           driverBroadcastTargetsRef.current.clear();
           setActiveDrivers([]);
-          setOwnDriverBroadcastKey(null);
           setCurrentProfile(null);
           setMyDriverIds(new Set());
           setPrimaryVehicleByUserId(new Map());
@@ -2961,7 +2885,7 @@ export default function LiveMapScreen() {
   }, []);
 
   const headerTop = insets.top + spacing.sm;
-  const headerBottom = headerTop + 44;
+  const headerBottom = headerTop + mapHeaderHeight;
   const activeVisibilityMode =
     VISIBILITY_MODES.find((mode) => mode.id === visibilityMode) ??
     VISIBILITY_MODES[VISIBILITY_MODES.length - 1];
@@ -3066,73 +2990,87 @@ export default function LiveMapScreen() {
 
       <View pointerEvents="box-none" style={StyleSheet.absoluteFillObject}>
         {!isRouteFocusMode && !driveTogetherNavigation ? (
-          <View style={[styles.header, { top: headerTop }]}>
-          <TouchableOpacity
-            accessibilityLabel={`${
-              currentProfile?.display_name?.trim() ||
-              currentProfile?.username?.trim() ||
-              "Your identity"
-            }. Visibility: ${activeVisibilityMode.label}${
-              liveDriveRemaining ? `, ${liveDriveRemaining} remaining` : ""
-            }`}
-            accessibilityHint="Manage who can see your temporary live location"
-            accessibilityRole="button"
-            accessibilityState={{ expanded: visibilityMenuOpen }}
-            activeOpacity={0.8}
-            onPress={() => setVisibilityMenuOpen((current) => !current)}
-            style={[
-              styles.identityControl,
-              isVisibleOnMap && styles.identityControlLive,
-            ]}
-          >
-            {currentProfile?.avatar_url ? (
-              <Image
-                contentFit="cover"
-                source={{ uri: currentProfile.avatar_url }}
-                style={styles.identityAvatar}
-              />
-            ) : (
-              <Ionicons name="person" size={17} color={colors.text} />
-            )}
-            <View
+          <NoxaSurface
+            level="overlay"
+            onLayout={({ nativeEvent }) => setMapHeaderHeight(nativeEvent.layout.height)}
+            style={[styles.header, { top: headerTop }]}>
+            <TouchableOpacity
+              accessibilityLabel={`${
+                currentProfile?.display_name?.trim() ||
+                currentProfile?.username?.trim() ||
+                "Your identity"
+              }. Visibility: ${activeVisibilityMode.label}${
+                liveDriveRemaining ? `, ${liveDriveRemaining} remaining` : ""
+              }`}
+              accessibilityHint="Manage who can see your temporary live location"
+              accessibilityRole="button"
+              accessibilityState={{ expanded: visibilityMenuOpen }}
+              activeOpacity={0.8}
+              onPress={() => setVisibilityMenuOpen((current) => !current)}
               style={[
-                styles.identityStatusDot,
-                isVisibleOnMap && styles.identityStatusDotLive,
+                styles.identityControl,
+                isVisibleOnMap && styles.identityControlLive,
               ]}
-            />
-          </TouchableOpacity>
+            >
+              {currentProfile?.avatar_url ? (
+                <Image
+                  contentFit="cover"
+                  source={{ uri: currentProfile.avatar_url }}
+                  style={styles.identityAvatar}
+                />
+              ) : (
+                <Ionicons name={activeVisibilityMode.icon} size={20} color={colors.text} />
+              )}
+              <Text style={styles.identityLabel}>{activeVisibilityMode.label}</Text>
+              {isVisibleOnMap && liveDriveRemaining ? (
+                <Text style={styles.identityLabel}>{liveDriveRemaining}</Text>
+              ) : null}
+              <View
+                style={[
+                  styles.identityStatusDot,
+                  isVisibleOnMap && styles.identityStatusDotLive,
+                ]}
+              />
+            </TouchableOpacity>
 
-          <View pointerEvents="none" style={styles.livingPulse}>
-            <View style={styles.livingPulseRow}>
-              <View style={styles.livingPulseDot} />
-              <Text style={styles.livingPulseNumber}>{nearbyDrivers.length}</Text>
+            <View pointerEvents="none" style={styles.livingPulse}>
+              <View style={styles.livingPulseRow}>
+                {activeDriversRequestState === "loading" ? (
+                  <ActivityIndicator color={colors.textMuted} size="small" />
+                ) : (
+                  <Text style={styles.livingPulseNumber}>
+                    {activeDriversRequestState === "error" ? "—" : nearbyDrivers.length}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.livingPulseLabel}>
+                {activeDriversRequestState === "loading" ? "Updating"
+                  : activeDriversRequestState === "error" ? "Unavailable"
+                  : driverLocation ? "nearby now" : "active now"}
+              </Text>
             </View>
-            <Text style={styles.livingPulseLabel}>
-              {driverLocation ? "nearby now" : "active now"}
-            </Text>
-          </View>
 
-          <View style={styles.headerActions}>
-            <NoxaIconButton
-              accessibilityHint="Find people, Crews and Events"
-              accessibilityLabel="Search NOXA"
-              icon="search-outline"
-              iconSize={19}
-              onPress={() => router.push("/search")}
-              size={44}
-              variant="overlay"
-            />
-            <NoxaIconButton
-              accessibilityHint="Open notifications and invitations"
-              accessibilityLabel="Notifications"
-              icon="notifications-outline"
-              iconSize={19}
-              onPress={() => router.push("/notifications")}
-              size={44}
-              variant="overlay"
-            />
-          </View>
-        </View>
+            <View style={styles.headerActions}>
+              <NoxaIconButton
+                accessibilityHint="Find people, Crews and Events"
+                accessibilityLabel="Search NOXA"
+                icon="search-outline"
+                iconSize={19}
+                onPress={() => router.push("/search")}
+                size={44}
+                variant="overlay"
+              />
+              <NoxaIconButton
+                accessibilityHint="Open notifications and invitations"
+                accessibilityLabel="Notifications"
+                icon="notifications-outline"
+                iconSize={19}
+                onPress={() => router.push("/notifications")}
+                size={44}
+                variant="overlay"
+              />
+            </View>
+        </NoxaSurface>
         ) : null}
 
         {!isRouteFocusMode && !driveTogetherNavigation && visibilityMenuOpen ? (
@@ -3144,6 +3082,10 @@ export default function LiveMapScreen() {
               { top: headerBottom + spacing.xs },
             ]}>
             <NoxaSurface level="overlay" style={styles.visibilityMenu}>
+              <ScrollView
+                style={{ maxHeight: Math.max(88, windowHeight - headerBottom - insets.bottom - TAB_BAR_HEIGHT - spacing.xl) }}
+                keyboardShouldPersistTaps="handled"
+                onAccessibilityEscape={() => setVisibilityMenuOpen(false)}>
               <Text style={styles.visibilityMenuEyebrow}>WHO CAN SEE YOU</Text>
               {VISIBILITY_MODES.map((mode) => {
                 const selected = visibilityMode === mode.id;
@@ -3195,6 +3137,7 @@ export default function LiveMapScreen() {
                   </TouchableOpacity>
                 );
               })}
+              </ScrollView>
             </NoxaSurface>
           </Animated.View>
         ) : null}
@@ -3444,14 +3387,19 @@ const styles = StyleSheet.create({
     elevation: 40,
     left: spacing.md,
     right: spacing.md,
-    height: 44,
+    minHeight: 64,
+    padding: spacing.xs,
+    gap: spacing.xs,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   identityControl: {
-    width: geometry.controlHeight.compact,
-    height: geometry.controlHeight.compact,
+    flex: 1,
+    minWidth: 0,
+    minHeight: geometry.controlHeight.compact,
+    paddingVertical: spacing.xxs,
+    gap: spacing.xxs,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
@@ -3463,9 +3411,16 @@ const styles = StyleSheet.create({
   identityControlLive: {
     borderColor: colors.borderAccent,
   },
+  identityLabel: {
+    color: colors.text,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
+    textAlign: "center",
+    fontWeight: "600",
+  },
   identityAvatar: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 28,
     borderRadius: radius.pill,
   },
   identityStatusDot: {
@@ -3483,9 +3438,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   livingPulse: {
-    position: "absolute",
-    left: 72,
-    right: 112,
+    flex: 1,
+    minWidth: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3494,12 +3448,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  livingPulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-  },
   livingPulseNumber: {
     color: colors.text,
     fontSize: 18,
@@ -3507,9 +3455,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   livingPulseLabel: {
-    marginTop: -1,
     color: colors.textMuted,
-    fontSize: 9,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
+    textAlign: "center",
     fontWeight: "700",
     letterSpacing: 0.2,
   },
@@ -3609,7 +3558,8 @@ const styles = StyleSheet.create({
     zIndex: 60,
     elevation: 60,
     left: spacing.md,
-    width: 264,
+    right: spacing.md,
+    maxWidth: 360,
   },
   visibilityMenu: {
     width: "100%",
@@ -3622,12 +3572,14 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     paddingBottom: 6,
     color: colors.textQuiet,
-    fontSize: 8,
-    fontWeight: "900",
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: "700",
     letterSpacing: 1.2,
   },
   visibilityOption: {
-    minHeight: 47,
+    minHeight: geometry.rowHeight,
+    paddingVertical: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -3649,16 +3601,18 @@ const styles = StyleSheet.create({
   },
   visibilityOptionCopy: { flex: 1, minWidth: 0 },
   visibilityOptionLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
+    color: colors.text,
+    fontSize: typography.body,
+    lineHeight: typography.lineHeight.body,
     fontWeight: "800",
   },
   visibilityOptionLabelSelected: { color: colors.text },
   visibilityOptionDescription: {
     marginTop: 1,
-    color: colors.textQuiet,
-    fontSize: 8,
-    fontWeight: "600",
+    color: colors.textMuted,
+    fontSize: typography.caption,
+    lineHeight: typography.lineHeight.caption,
+    fontWeight: "500",
   },
   ghostToastWrap: {
     position: "absolute",

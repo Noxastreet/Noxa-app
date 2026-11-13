@@ -58,3 +58,19 @@ export function reduceGroupDriveLocationState(
 export function groupDriveLocations(snapshot: GroupDriveLocationSnapshot) {
   return Object.values(snapshot.byOpaqueId);
 }
+
+export function retainVisibleGroupDriveLocations(
+  snapshot: GroupDriveLocationSnapshot,
+  activeUserIds: ReadonlySet<string>,
+  currentUserId: string,
+  nowMs = Date.now(),
+): GroupDriveLocationSnapshot {
+  const visible = groupDriveLocations(snapshot).filter((row) => {
+    if (!activeUserIds.has(row.userId)) return false;
+    if (row.userId === currentUserId) return true;
+    const updatedAt = Date.parse(row.updatedAt);
+    return Number.isFinite(updatedAt) && updatedAt >= nowMs - 2 * 60 * 1000;
+  });
+  if (visible.length === Object.keys(snapshot.byOpaqueId).length) return snapshot;
+  return reduceGroupDriveLocationState(snapshot, { type: 'snapshot', rows: visible });
+}

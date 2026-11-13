@@ -30,7 +30,7 @@ import { formatProfileLocation } from '@/src/features/profile/formatProfileLocat
 import { stopLiveDriveSession } from '@/src/lib/liveDrive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { resetToSignedOutHome } from '@/src/navigation/authNavigation';
-import { colors, radius, spacing, typography } from '@/src/theme';
+import { bottomNavigationHeight, colors, radius, spacing, typography } from '@/src/theme';
 
 type CurrentUserProfile = {
   id: string;
@@ -358,7 +358,7 @@ function AccountActions({ isSigningOut, onSignOut }: { isSigningOut: boolean; on
 }
 
 export default function ProfileScreen() {
-  const { gutter } = useResponsive();
+  const { gutter, fontScale } = useResponsive();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [profileData, setProfileData] = useState<CurrentUserProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -483,7 +483,7 @@ export default function ProfileScreen() {
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}>
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter, paddingBottom: Math.max(144, bottomNavigationHeight(fontScale) + 24) }]}>
         <TopBar />
         <Identity profile={profileData} isLoading={isProfileLoading} errorMessage={profileError} onRetry={loadProfile} />
         <GarageFeature vehicle={featuredVehicle} vehiclesCount={vehiclesCount} />

@@ -35,7 +35,7 @@ import {
   type CanonicalProfile,
 } from "@/src/features/crews-events/CanonicalPrimitives";
 import { getCurrentSessionUser, supabase } from "@/src/lib/supabase";
-import { geometry, colors, radius, spacing, typography } from "@/src/theme";
+import { bottomNavigationHeight, geometry, colors, radius, spacing, typography } from "@/src/theme";
 
 type CrewRole = "owner" | "admin" | "member";
 type JoinPolicy = "open" | "approval" | "invite_only";
@@ -541,7 +541,7 @@ function CreateCrewModal({
 }
 
 export default function CanonicalCrewsScreen() {
-  const { gutter } = useResponsive();
+  const { gutter, fontScale } = useResponsive();
   const [crews, setCrews] = useState<Crew[]>([]);
   const [events, setEvents] = useState<CrewEvent[]>([]);
   const [profiles, setProfiles] = useState<CanonicalProfile[]>([]);
@@ -910,7 +910,7 @@ export default function CanonicalCrewsScreen() {
     <NoxaScreen padded={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
+        contentContainerStyle={[styles.content, { paddingHorizontal: gutter, paddingBottom: Math.max(144, bottomNavigationHeight(fontScale) + 24) }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
