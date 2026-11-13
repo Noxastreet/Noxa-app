@@ -9,7 +9,12 @@ export function MapboxStateView({ loading = false, title, message }: {
   message?: string;
 }) {
   if (loading) {
-    return <View style={styles.stateView}><ActivityIndicator color={colors.primary} size="small" /></View>;
+    return (
+      <View accessibilityLiveRegion="polite" style={styles.stateView}>
+        <ActivityIndicator color={colors.primary} size="small" />
+        {title ? <Text style={styles.body}>{title}</Text> : null}
+      </View>
+    );
   }
   return (
     <View style={styles.fallback}>

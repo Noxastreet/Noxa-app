@@ -20,6 +20,7 @@ import {
   NoxaScreen,
   NoxaSurface,
 } from '@/src/components/ui';
+import { formatTuningStage } from '@/src/features/garage/formatTuningStage';
 import { useResponsive } from '@/src/hooks/useResponsive';
 import { getCurrentSessionUser, supabase } from '@/src/lib/supabase';
 import { bottomNavigationHeight, colors, radius, spacing, typography } from '@/src/theme';
@@ -70,7 +71,7 @@ function vehicleMeta(vehicle: GarageVehicle) {
   const items = [
     vehicle.color?.trim() || null,
     vehicle.horsepower === null ? null : `${vehicle.horsepower} HP`,
-    vehicle.tuning_stage?.trim() || null,
+    formatTuningStage(vehicle.tuning_stage),
     vehicle.zero_to_hundred === null ? null : `${vehicle.zero_to_hundred}s 0–100`,
   ].filter((value): value is string => Boolean(value));
 
@@ -171,12 +172,7 @@ function VehicleCard({
             title="Make primary"
             variant="secondary"
           />
-        ) : (
-          <View style={styles.primaryLockedRow}>
-            <Ionicons name="star" size={15} color={colors.primaryHover} />
-            <Text style={styles.primaryLockedText}>PRIMARY VEHICLE</Text>
-          </View>
-        )}
+        ) : null}
       </NoxaSurface>
     </NoxaDetailReveal>
   );
@@ -281,16 +277,16 @@ export default function GarageScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingHorizontal: gutter, paddingBottom: Math.max(144, bottomNavigationHeight(fontScale) + 24) }]}>
         <NoxaRootHeader
-          actions={
+          actions={isLoadingVehicles || hasVehicleError || vehicles.length > 0 ? (
             <NoxaButton
               accessibilityLabel="Add Vehicle"
               leadingIcon={<Ionicons name="add" size={16} color={colors.text} />}
               onPress={() => router.push('/vehicle-picker')}
               size="sm"
-              title="ADD"
+              title="ADD VEHICLE"
               variant="secondary"
             />
-          }
+          ) : undefined}
           subtitle={
             isLoadingVehicles
               ? 'Loading vehicles…'
@@ -314,17 +310,6 @@ export default function GarageScreen() {
           </View>
         )}
 
-        {!isLoadingVehicles && !hasVehicleError && vehicles.length > 0 ? (
-          <NoxaButton
-            accessibilityLabel="Add another vehicle"
-            fullWidth
-            leadingIcon={<Ionicons name="add" size={16} color={colors.textMuted} />}
-            onPress={() => router.push('/vehicle-picker')}
-            size="md"
-            title="Add another vehicle"
-            variant="secondary"
-          />
-        ) : null}
       </ScrollView>
     </NoxaScreen>
   );
@@ -434,16 +419,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
   },
   primaryActionText: { color: colors.textAccent, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  primaryLockedRow: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
-  },
-  primaryLockedText: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
   collectionState: {
     minHeight: 280,
     alignItems: 'center',

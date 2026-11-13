@@ -564,11 +564,11 @@ function RouteCard({
           </Text>
         </View>
         <NoxaIconButton
-          accessibilityLabel="Exit route mode"
+          accessibilityLabel="Close route preview"
           icon="close"
           iconSize={18}
           onPress={onClose}
-          size={40}
+          size={44}
           variant="ghost"
         />
       </View>
@@ -605,7 +605,7 @@ function RouteCard({
       {route && canFollow ? (
         <NoxaButton
           accessibilityLabel={
-            following ? "Stop following current location" : "Follow route"
+            following ? "Stop following current location" : "Start navigation"
           }
           leadingIcon={
             <Ionicons
@@ -617,8 +617,8 @@ function RouteCard({
           onPress={onFollowToggle}
           size="md"
           style={styles.routeFollowButton}
-          title={following ? "Following" : "Follow"}
-          variant={following ? "primary" : "secondary"}
+          title={following ? "Following" : "Start navigation"}
+          variant="primary"
         />
       ) : null}
       {route ? (
@@ -628,7 +628,7 @@ function RouteCard({
           onPress={onAddDriver}
           size="md"
           style={styles.routeFollowButton}
-          title="Add driver"
+          title="Invite drivers"
           variant="secondary"
         />
       ) : null}
@@ -693,7 +693,7 @@ function RouteFocusOverlay({
     : nextManeuver?.maneuver.instruction || `Continue to ${event.title}`;
   const instructionDistance = arrived
     ? "ARRIVED"
-    : nextManeuver
+    : nextManeuver && nextManeuver.distanceMeters > 0
       ? formatDistance(nextManeuver.distanceMeters)
       : null;
 
@@ -1112,7 +1112,10 @@ export default function LiveMapScreen() {
   );
   const routeArrived =
     routeRemainingDistanceMeters !== null
-    && routeRemainingDistanceMeters <= ROUTE_ARRIVAL_METERS;
+    && routeRemainingDistanceMeters <= ROUTE_ARRIVAL_METERS
+    && driverLocation !== null
+    && hasValidCoordinates(selectedEvent)
+    && distanceBetweenMeters(driverLocation, selectedEvent) <= ROUTE_ARRIVAL_METERS;
 
   const initialRegion = useMemo(() => pointRegion(THESSALONIKI), []);
 
@@ -2614,6 +2617,7 @@ export default function LiveMapScreen() {
   const beginDriveTogetherMapPick = useCallback(
     (handler: (point: LatLng) => void) => {
       driveTogetherMapPickHandlerRef.current = handler;
+      setVisibilityMenuOpen(false);
       setIsDriveTogetherDestinationPicking(true);
       setIsDriveTogetherFollowing(false);
       setIsRouteFollowing(false);
@@ -2956,7 +2960,8 @@ export default function LiveMapScreen() {
         ? 196
         : spacing.sm);
   const showRecenter =
-    cameraOwner === "free"
+    !driveTogetherPanelVisible
+    && cameraOwner === "free"
     && !effectiveFollowing
     && (!driverLocation || isCameraAwayFromUser);
 
@@ -3150,13 +3155,13 @@ export default function LiveMapScreen() {
               { bottom: eventCardBottom + spacing.sm },
             ]}
           >
-            <NoxaIconButton
-              accessibilityHint="Invite a friend to drive together"
+            <NoxaButton
               accessibilityLabel="Drive Together"
-              icon="navigate-outline"
-              iconSize={19}
+              accessibilityHint="Choose a destination and invite friends"
+              leadingIcon={<Ionicons name="people-outline" size={18} color={colors.text} />}
               onPress={() => setDriveTogetherOpen(true)}
-              size={44}
+              size="md"
+              title="Drive Together"
               variant="overlay"
             />
           </View>

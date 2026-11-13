@@ -587,7 +587,7 @@ export default function CanonicalEventsScreen() {
         }
       >
         <NoxaRootHeader
-          actions={
+          actions={loading || error || hero ? (
             <NoxaButton
               accessibilityLabel="Create event"
               leadingIcon={<Ionicons name="add" size={16} color={colors.text} />}
@@ -596,8 +596,8 @@ export default function CanonicalEventsScreen() {
               title="CREATE"
               variant="secondary"
             />
-          }
-          subtitle="What is happening around you."
+          ) : undefined}
+          subtitle="Find upcoming meets and drives"
           title="EVENTS"
         />
 

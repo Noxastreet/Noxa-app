@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, type ImageStyle } from 'react-native';
 
 import { NoxaAvatar, NoxaBadge, NoxaButton, NoxaDetailReveal, NoxaIconButton, NoxaScreen, NoxaSurface } from '@/src/components/ui';
+import { formatTuningStage } from '@/src/features/garage/formatTuningStage';
 import { EntityActionSheet, type EntityAction } from '@/src/features/crews-events/EntityActionSheet';
 import { supabase } from '@/src/lib/supabase';
 import { colors, radius, spacing, typography } from '@/src/theme';
@@ -258,7 +259,7 @@ export default function VehicleDetailsScreen() {
       { label: 'Color', value: vehicle.color },
       { label: 'Transmission', value: vehicle.transmission },
       { label: 'Drivetrain', value: vehicle.drivetrain },
-      { label: 'Tuning', value: vehicle.tuning_stage },
+      { label: 'Tuning', value: formatTuningStage(vehicle.tuning_stage) },
       { label: 'Visibility', value: typeof vehicle.is_public === 'boolean' ? (vehicle.is_public ? 'Public' : 'Private') : null },
     ].filter((row) => isPresent(row.value));
   }, [vehicle]);

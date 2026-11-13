@@ -5,6 +5,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -75,7 +77,7 @@ import type {
   MapboxDriver,
   MapboxRoute,
 } from '@/src/features/mapbox/types';
-import { NoxaConfirmationSheet } from '@/src/components/ui';
+import { NoxaButton, NoxaConfirmationSheet, NoxaSurface } from '@/src/components/ui';
 import {
   geometry,
   animations,
@@ -343,7 +345,8 @@ export function DriveTogetherMapLayer({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<MapboxPlaceResult[]>([]);
   const [searchingPlaces, setSearchingPlaces] = useState(false);
-  const [mapPicking, setMapPicking] = useState(false);
+  const [mapPickState, setMapPickState] = useState<'idle' | 'picking' | 'resolving'>('idle');
+  const mapPickRequestRef = useRef(0);
   const [toast, setToast] = useState<string | null>(null);
 
   const [sharingLocation, setSharingLocation] = useState(false);
@@ -399,7 +402,14 @@ export function DriveTogetherMapLayer({
     }
   }, [friendsLoading]);
 
+  const resetMapPick = useCallback(() => {
+    mapPickRequestRef.current += 1;
+    setMapPickState('idle');
+    onEndMapPick();
+  }, [onEndMapPick]);
+
   const clearRoom = useCallback(() => {
+    resetMapPick();
     previousDestinationVersionRef.current = null;
     autoFollowDestinationVersionRef.current = null;
     setPanelOpen(false);
@@ -422,6 +432,7 @@ export function DriveTogetherMapLayer({
     onDriversChange,
     onFollowingChange,
     onNavigationChange,
+    resetMapPick,
   ]);
 
   const refreshDetails = useCallback(async (id: string) => {
@@ -879,6 +890,7 @@ export function DriveTogetherMapLayer({
         cancelAnimationFrame(stageTransitionFrameRef.current);
         stageTransitionFrameRef.current = null;
       }
+      mapPickRequestRef.current += 1;
       onEndMapPick();
     },
     [onEndMapPick],
@@ -1139,28 +1151,40 @@ export function DriveTogetherMapLayer({
   }, [selectDestination]);
 
   const beginMapPick = useCallback(() => {
-    setMapPicking(true);
-    setSheetSnap('collapsed');
+    Keyboard.dismiss();
+    const request = ++mapPickRequestRef.current;
+    setMapPickState('picking');
     setError(null);
     onBeginMapPick((point) => {
-      void (async () => {
-        const label = await resolveDestinationLabel(point);
-        setMapPicking(false);
-        onEndMapPick();
+      setMapPickState('resolving');
+      void resolveDestinationLabel(point).then(async (label) => {
+        if (mapPickRequestRef.current !== request) return;
+        resetMapPick();
+        setSheetSnap('medium');
         await selectDestination(point, label);
-      })();
+      });
     });
-  }, [
-    onBeginMapPick,
-    onEndMapPick,
-    selectDestination,
-  ]);
+  }, [onBeginMapPick, resetMapPick, selectDestination]);
 
   const cancelMapPick = useCallback(() => {
-    setMapPicking(false);
-    onEndMapPick();
+    resetMapPick();
     setSheetSnap('medium');
-  }, [onEndMapPick]);
+  }, [resetMapPick]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const back = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (mapPickState === 'idle') return false;
+        cancelMapPick();
+        return true;
+      });
+      return () => back.remove();
+    }, [cancelMapPick, mapPickState]),
+  );
+
+  useFocusEffect(
+    useCallback(() => cancelMapPick, [cancelMapPick]),
+  );
 
   const createRoom = useCallback(async () => {
     if (
@@ -1481,11 +1505,10 @@ export function DriveTogetherMapLayer({
     setPanelOpen(false);
     setComposerMode('room');
     setSheetSnap('medium');
-    setMapPicking(false);
+    resetMapPick();
     setError(null);
-    onEndMapPick();
     onOpenChange(false);
-  }, [onEndMapPick, onOpenChange]);
+  }, [onOpenChange, resetMapPick]);
 
   const sheetVisible = panelOpen;
 
@@ -1526,129 +1549,113 @@ export function DriveTogetherMapLayer({
           <Text style={styles.sheetTitle}>
             {composerMode === 'change-destination'
               ? 'Where should the room go next?'
-              : 'Choose the destination first.'}
+              : 'Choose a destination'}
           </Text>
         </View>
       </View>
 
-      {mapPicking ? (
-        <View style={styles.mapPickNotice}>
-          <Ionicons name="location-outline" size={20} color={colors.primaryHover} />
-          <View style={styles.flexCopy}>
-            <Text style={styles.mapPickTitle}>Tap anywhere on the map</Text>
-            <Text style={styles.mapPickBody}>
-              That point becomes the shared destination.
-            </Text>
-          </View>
-          <Pressable accessibilityRole="button" onPress={cancelMapPick} style={styles.smallGhostButton}>
-            <Text style={styles.smallGhostText}>Cancel</Text>
+      <View style={styles.searchBox}>
+        <Ionicons name="search" size={18} color={colors.textMuted} />
+        <TextInput
+          autoCapitalize="words"
+          autoCorrect={false}
+          onChangeText={setSearchQuery}
+          placeholder="Address, place or destination"
+          placeholderTextColor={colors.textQuiet}
+          returnKeyType="search"
+          style={styles.searchInput}
+          value={searchQuery}
+        />
+        {searchingPlaces ? (
+          <ActivityIndicator color={colors.primary} size="small" />
+        ) : searchQuery ? (
+          <Pressable accessibilityRole="button" style={styles.searchClear}
+            accessibilityLabel="Clear destination search"
+            onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
           </Pressable>
-        </View>
-      ) : (
-        <>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={colors.textMuted} />
-            <TextInput
-              autoCapitalize="words"
-              autoCorrect={false}
-              onChangeText={setSearchQuery}
-              placeholder="Address, place or destination"
-              placeholderTextColor={colors.textQuiet}
-              returnKeyType="search"
-              style={styles.searchInput}
-              value={searchQuery}
-            />
-            {searchingPlaces ? (
-              <ActivityIndicator color={colors.primary} size="small" />
-            ) : searchQuery ? (
-              <Pressable accessibilityRole="button" style={styles.searchClear}
-                accessibilityLabel="Clear destination search"
-                onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-              </Pressable>
-            ) : null}
-          </View>
+        ) : null}
+      </View>
 
-          <SecondaryAction
-            icon="map-outline"
-            onPress={beginMapPick}
-            title="Pick on map"
-          />
+      <SecondaryAction
+        icon="map-outline"
+        onPress={beginMapPick}
+        title="Pick on map"
+      />
 
-          <ScrollView
-            contentContainerStyle={styles.searchResults}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            style={styles.searchResultsViewport}>
-            {!searchQuery.trim() && eventDestinations.length ? (
-              <>
-                <Text style={styles.destinationSectionLabel}>EVENTS</Text>
-                {eventDestinations.slice(0, 6).map((eventDestination) => (
-                  <Pressable accessibilityRole="button"
-                    key={eventDestination.id ?? eventDestination.label}
-                    onPress={() =>
-                      void selectDestination(
-                        {
-                          latitude: eventDestination.latitude,
-                          longitude: eventDestination.longitude,
-                        },
-                        eventDestination.label,
-                      )
-                    }
-                    style={({ pressed }) => [
-                      styles.placeRow,
-                      pressed && styles.pressed,
-                    ]}>
-                    <View style={styles.placeIcon}>
-                      <Ionicons name="calendar-outline" size={16} color={colors.primaryHover} />
-                    </View>
-                    <View style={styles.flexCopy}>
-                      <Text numberOfLines={2} style={styles.placeTitle}>
-                        {eventDestination.label}
-                      </Text>
-                      {eventDestination.subtitle ? (
-                        <Text numberOfLines={1} style={styles.placeSubtitle}>
-                          {eventDestination.subtitle}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
-                  </Pressable>
-                ))}
-              </>
-            ) : null}
-            {searchResults.map((place) => (
+      <ScrollView
+        contentContainerStyle={styles.searchResults}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        style={styles.searchResultsViewport}>
+        {!searchQuery.trim() && eventDestinations.length ? (
+          <>
+            <Text style={styles.destinationSectionLabel}>EVENTS</Text>
+            {eventDestinations.slice(0, 6).map((eventDestination) => (
               <Pressable accessibilityRole="button"
-                key={place.id}
-                onPress={() => choosePlace(place)}
+                key={eventDestination.id ?? eventDestination.label}
+                onPress={() =>
+                  void selectDestination(
+                    {
+                      latitude: eventDestination.latitude,
+                      longitude: eventDestination.longitude,
+                    },
+                    eventDestination.label,
+                  )
+                }
                 style={({ pressed }) => [
                   styles.placeRow,
                   pressed && styles.pressed,
                 ]}>
                 <View style={styles.placeIcon}>
-                  <Ionicons name="location" size={16} color={colors.primaryHover} />
+                  <Ionicons name="calendar-outline" size={16} color={colors.primaryHover} />
                 </View>
                 <View style={styles.flexCopy}>
                   <Text numberOfLines={2} style={styles.placeTitle}>
-                    {place.label}
+                    {eventDestination.label}
                   </Text>
-                  {place.subtitle ? (
+                  {eventDestination.subtitle ? (
                     <Text numberOfLines={1} style={styles.placeSubtitle}>
-                      {place.subtitle}
+                      {eventDestination.subtitle}
                     </Text>
                   ) : null}
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
               </Pressable>
             ))}
-            {searchQuery.trim().length >= 2
-              && !searchingPlaces
-              && searchResults.length === 0 ? (
-              <Text style={styles.emptyText}>No matching destination found.</Text>
-            ) : null}
-          </ScrollView>
-        </>
-      )}
+          </>
+        ) : null}
+        {searchResults.map((place) => (
+          <Pressable accessibilityRole="button"
+            key={place.id}
+            onPress={() => choosePlace(place)}
+            style={({ pressed }) => [
+              styles.placeRow,
+              pressed && styles.pressed,
+            ]}>
+            <View style={styles.placeIcon}>
+              <Ionicons name="location" size={16} color={colors.primaryHover} />
+            </View>
+            <View style={styles.flexCopy}>
+              <Text numberOfLines={2} style={styles.placeTitle}>
+                {place.label}
+              </Text>
+              {place.subtitle ? (
+                <Text numberOfLines={1} style={styles.placeSubtitle}>
+                  {place.subtitle}
+                </Text>
+              ) : null}
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textQuiet} />
+          </Pressable>
+        ))}
+        {searchQuery.trim().length >= 2
+          && !searchingPlaces
+          && searchResults.length === 0 ? (
+          <Text style={styles.emptyText}>No matching destination found.</Text>
+        ) : null}
+      </ScrollView>
+      {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     </View>
   );
 
@@ -2267,17 +2274,23 @@ export function DriveTogetherMapLayer({
         </View>
       ) : null}
 
-      {sheetVisible ? (
+      {sheetVisible && mapPickState !== 'idle' ? (
+        <NoxaSurface level="overlay" style={[styles.mapPickNotice, { top: topOffset }]}>
+          <Ionicons name="location-outline" size={22} color={colors.primaryHover} />
+          <Text accessibilityLiveRegion="polite" style={styles.mapPickTitle}>
+            {mapPickState === 'picking' ? 'Tap the map to choose a destination' : 'Finding the address…'}
+          </Text>
+          <NoxaButton onPress={cancelMapPick} size="sm" title="Cancel" variant="secondary" />
+        </NoxaSurface>
+      ) : null}
+
+      {sheetVisible && mapPickState === 'idle' ? (
         <DriveTogetherSheet
           bottomInset={bottomInset}
           bottomOffset={bottomOffset}
           onSnapChange={setSheetSnap}
           topOffset={topOffset}
-          snap={
-            mapPicking
-              ? 'collapsed'
-              : sheetSnap
-          }>
+          snap={sheetSnap}>
           <Animated.View
             entering={stageEntering}
             exiting={stageExiting}
@@ -2551,35 +2564,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   mapPickNotice: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 55,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceSoft,
   },
   mapPickTitle: {
+    flex: 1,
     color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  mapPickBody: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 11,
-  },
-  smallGhostButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-  },
-  smallGhostText: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: typography.body,
+    fontWeight: '700',
   },
   primaryAction: {
     minHeight: 46,

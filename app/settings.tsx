@@ -167,7 +167,7 @@ export default function SettingsScreen() {
   };
 
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-  const displayName = profile?.display_name ?? 'NOXA Guest';
+  const displayName = profile?.display_name ?? 'NOXA';
 
   return (
     <NoxaScreen padded={false}>
@@ -186,30 +186,27 @@ export default function SettingsScreen() {
         />
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Pressable
-            accessibilityRole={profile ? 'button' : undefined}
-            disabled={!profile}
-            onPress={() => router.push('/edit-profile')}
-            style={({ pressed }) => [styles.profileRow, pressed && profile && styles.pressed]}>
-            <View style={styles.avatarRing}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
-              ) : (
-                <NoxaAvatar initials={getInitials(displayName)} size={56} />
-              )}
-            </View>
-            <View style={styles.profileCopy}>
-              <Text numberOfLines={1} style={styles.profileName}>{displayName}</Text>
-              <Text numberOfLines={1} style={styles.profileMeta}>
-                {isLoading
-                  ? 'Loading account…'
-                  : profile
-                    ? `${formatHandle(profile.username)}${profile.city ? ` · ${profile.city}` : ''}`
-                    : 'Sign in to manage your account'}
-              </Text>
-            </View>
-            {profile ? <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} /> : null}
-          </Pressable>
+          {profile ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/edit-profile')}
+              style={({ pressed }) => [styles.profileRow, pressed && styles.pressed]}>
+              <View style={styles.avatarRing}>
+                {profile?.avatar_url ? (
+                  <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+                ) : (
+                  <NoxaAvatar initials={getInitials(displayName)} size={56} />
+                )}
+              </View>
+              <View style={styles.profileCopy}>
+                <Text numberOfLines={1} style={styles.profileName}>{displayName}</Text>
+                <Text numberOfLines={1} style={styles.profileMeta}>
+                  {formatHandle(profile.username)}{profile.city ? ` · ${profile.city}` : ''}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={17} color={colors.textQuiet} />
+            </Pressable>
+          ) : null}
 
           {errorMessage ? (
             <Pressable
@@ -221,7 +218,7 @@ export default function SettingsScreen() {
             </Pressable>
           ) : null}
 
-          {isLoading ? (
+          {isLoading && !profile ? (
             <NoxaLoadingState label="Loading account…" />
           ) : (
             <>
