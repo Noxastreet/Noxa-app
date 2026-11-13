@@ -83,7 +83,7 @@ function futureStart() {
   return date;
 }
 
-const initialForm: EventForm = {
+const initialForm = (): EventForm => ({
   title: "",
   description: "",
   category: "meet",
@@ -95,7 +95,7 @@ const initialForm: EventForm = {
   crewId: null,
   latitude: null,
   longitude: null,
-};
+});
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
   month: "short",
@@ -173,6 +173,7 @@ function prefillFromEvent(event: EventRow): EventForm {
 
 export default function EventEditorScreen() {
   const navigation = useNavigation();
+  const scrollRef = useRef<ScrollView>(null);
   const savingRef = useRef(false);
   const allowNavigationRef = useRef(false);
   const pendingCreateEventIdRef = useRef<string | null>(null);
@@ -184,7 +185,7 @@ export default function EventEditorScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [managedCrews, setManagedCrews] = useState<ManagedCrew[]>([]);
   const [crewLoadError, setCrewLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(Boolean(eventId));
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [mapModalVisible, setMapModalVisible] = useState(false);
@@ -192,6 +193,8 @@ export default function EventEditorScreen() {
     NOXA_FALLBACK_COORDINATE,
   );
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [titleError, setTitleError] = useState<string | undefined>();
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
   const [draftDate, setDraftDate] = useState<Date>(futureStart());
 
@@ -226,10 +229,11 @@ export default function EventEditorScreen() {
   );
 
   const loadEvent = useCallback(async () => {
-    setError(null);
+    setLoading(true);
+    setLoadError(null);
     const authUser = await getCurrentSessionUser();
     if (!authUser) {
-      setError("Sign in to manage events.");
+      setLoadError("Sign in to manage events.");
       setLoading(false);
       return;
     }
@@ -268,7 +272,7 @@ export default function EventEditorScreen() {
       return;
     }
     if (!uuidPattern.test(eventId)) {
-      setError("Invalid event id.");
+      setLoadError("Invalid event id.");
       setLoading(false);
       return;
     }
@@ -279,10 +283,10 @@ export default function EventEditorScreen() {
       )
       .eq("id", eventId)
       .maybeSingle();
-    if (eventError) setError(eventError.message);
-    else if (!data) setError("Event not found.");
+    if (eventError) setLoadError("The event could not be loaded.");
+    else if (!data) setLoadError("Event not found.");
     else if ((data as EventRow).creator_id !== authUser.id)
-      setError("Only the event host can edit this event.");
+      setLoadError("Only the event host can edit this event.");
     else setForm(prefillFromEvent(data as EventRow));
     setLoading(false);
   }, [eventId, requestedCrewId]);
@@ -432,10 +436,8 @@ export default function EventEditorScreen() {
   }, [resolveLocationName]);
 
   const validate = useCallback(() => {
-    const titleValue = form.title.trim();
     const locationValue = form.locationName.trim();
-    if (!titleValue) return "Title is required.";
-    if (titleValue.length > 100) return "Title must be 100 characters or less.";
+
     if (form.description.length > 2000)
       return "Description must be 2000 characters or less.";
     const capacityValue = form.capacity.trim();
@@ -460,7 +462,6 @@ export default function EventEditorScreen() {
         return "End time must be later than start time.";
     }
     return {
-      title: titleValue,
       location: locationValue,
       start: form.startAt,
       end: form.endAt,
@@ -469,8 +470,15 @@ export default function EventEditorScreen() {
   }, [coordinatesAttached, form, isEditing]);
 
   const saveEvent = useCallback(async () => {
-    if (saving) return;
+    if (savingRef.current || loading || loadError) return;
     setError(null);
+    setTitleError(undefined);
+    const titleValue = form.title.trim();
+    if (!titleValue || titleValue.length > 100) {
+      setTitleError(titleValue ? "Use 100 characters or fewer." : "Enter an event title.");
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      return;
+    }
     const valid = validate();
     if (typeof valid === "string") {
       setError(valid);
@@ -487,7 +495,7 @@ export default function EventEditorScreen() {
       return;
     }
     const payload = {
-      title: valid.title,
+      title: titleValue,
       description: form.description.trim() || null,
       category: form.category,
       capacity: valid.capacity,
@@ -549,7 +557,7 @@ export default function EventEditorScreen() {
       pathname: "/event-details",
       params: { id: savedEventId },
     });
-  }, [currentUserId, eventId, form, isEditing, saving, validate]);
+  }, [currentUserId, eventId, form, isEditing, loadError, loading, validate]);
 
   return (
     <NoxaScreen padded={false}>
@@ -575,81 +583,38 @@ export default function EventEditorScreen() {
           <View style={styles.headerSpacer} />
         </View>
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.previewCard}>
-            <View style={styles.previewGlow} />
-            <View style={styles.previewTopline}>
-              <View style={styles.previewBadge}>
-                <Ionicons name="flag" size={14} color={colors.primaryHover} />
-                <Text style={styles.previewBadgeText}>{form.category.toUpperCase()}</Text>
-              </View>
-              <Text style={styles.previewStatus}>
-                {form.isPublic ? "PUBLIC" : "PRIVATE"}
-              </Text>
-            </View>
-            <Text numberOfLines={2} style={styles.previewTitle}>
-              {form.title.trim() || "YOUR NEXT NOXA EVENT"}
-            </Text>
-            <View style={styles.previewMeta}>
-              <View style={styles.previewMetaItem}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={15}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.previewMetaText}>
-                  {dateFormatter.format(form.startAt)}
-                </Text>
-              </View>
-              <View style={styles.previewMetaItem}>
-                <Ionicons
-                  name="time-outline"
-                  size={15}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.previewMetaText}>
-                  {timeFormatter.format(form.startAt)}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.previewLocation}>
-              <Ionicons
-                name="location-outline"
-                size={15}
-                color={colors.primaryHover}
-              />
-              <Text numberOfLines={1} style={styles.previewLocationText}>
-                {form.locationName || "Choose an exact location"}
-              </Text>
-            </View>
-          </View>
-
           {loading ? (
             <View style={styles.stateCard}>
               <ActivityIndicator color={colors.primary} />
               <Text style={styles.stateText}>Loading event…</Text>
             </View>
           ) : null}
-          {error ? (
+          {loadError ? (
             <View style={styles.errorCard}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.errorText}>{loadError}</Text>
+              <NoxaButton onPress={() => void loadEvent()} size="md" title="Retry" variant="secondary" />
             </View>
           ) : null}
 
           <View style={[styles.sectionCard, styles.detailsCard]}>
             <View style={styles.sectionHeading}>
-              <Text style={styles.eyebrow}>01 / DETAILS</Text>
-              <Text style={styles.sectionTitle}>Make it unmistakable</Text>
+              <Text style={styles.sectionTitle}>Event details</Text>
             </View>
             <NoxaInput
               compact
-              label="Title"
+              error={titleError}
+              label="Event title"
               value={form.title}
-              onChangeText={(value) => updateField("title", value)}
-              placeholder="Night Drive Thessaloniki"
+              onChangeText={(value) => {
+                setTitleError(undefined);
+                updateField("title", value);
+              }}
+              placeholder="e.g. Night Drive Thessaloniki"
               maxLength={100}
             />
             <NoxaInput
@@ -880,11 +845,14 @@ export default function EventEditorScreen() {
           </View>
         </ScrollView>
         <View style={styles.fixedFooter}>
+          {error ? (
+            <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.errorText}>{error}</Text>
+          ) : null}
           <NoxaButton
-            title={isEditing ? "SAVE CHANGES" : "PUBLISH EVENT"}
+            title={isEditing ? "SAVE CHANGES" : form.isPublic ? "PUBLISH PUBLIC EVENT" : "CREATE PRIVATE EVENT"}
             fullWidth
             loading={saving}
-            disabled={loading || saving || Boolean(isEditing && error)}
+            disabled={loading || saving || Boolean(loadError)}
             onPress={saveEvent}
           />
         </View>
@@ -1085,96 +1053,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingTop: spacing.lg,
-    paddingBottom: 124,
     gap: spacing.lg,
-  },
-  previewCard: {
-    minHeight: 214,
-    justifyContent: "flex-end",
-    gap: spacing.sm,
-    overflow: "hidden",
-    padding: spacing.lg,
-    borderRadius: radius.hero,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  previewGlow: {
-    position: "absolute",
-    top: -82,
-    right: -54,
-    width: 220,
-    height: 220,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryMuted,
-  },
-  previewTopline: {
-    position: "absolute",
-    top: spacing.lg,
-    left: spacing.lg,
-    right: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  previewBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.primaryMuted,
-  },
-  previewBadgeText: {
-    color: colors.textAccent,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-  previewStatus: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-  },
-  previewTitle: {
-    maxWidth: "88%",
-    color: colors.text,
-    fontFamily: typography.fontFamily.display,
-    fontSize: typography.h2,
-    lineHeight: typography.lineHeight.h2,
-    fontWeight: "900",
-    letterSpacing: -0.3,
-  },
-  previewMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  previewMetaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xxs,
-  },
-  previewMetaText: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontWeight: "700",
-  },
-  previewLocation: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  previewLocationText: {
-    flex: 1,
-    color: colors.text,
-    fontSize: typography.caption,
-    fontWeight: "800",
   },
   sectionCard: {
     gap: spacing.md,
@@ -1462,10 +1341,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   fixedFooter: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
@@ -1488,6 +1364,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   errorCard: {
+    gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,

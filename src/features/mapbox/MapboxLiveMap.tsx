@@ -473,7 +473,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             visible={Boolean(driverLocation)}
           />
 
-          {mapFilter !== "events" ? (
+          {!isDestinationPicking && mapFilter !== "events" ? (
             <ShapeSource
               cluster={shouldClusterDrivers}
               clusterMaxZoomLevel={14}
@@ -542,7 +542,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             </ShapeSource>
           ) : null}
 
-          {mapFilter !== "events" && !shouldClusterDrivers
+          {!isDestinationPicking && mapFilter !== "events" && !shouldClusterDrivers
             ? activeDrivers.map((driver) => {
                 const distanceLabel = driverLocation
                   ? formatDriverDistance(distanceBetweenMeters(driverLocation, driver))
@@ -596,7 +596,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
               })
             : null}
 
-          {mapFilter !== "drivers" || isRouteMode ? (
+          {!isDestinationPicking && (mapFilter !== "drivers" || isRouteMode) ? (
             <ShapeSource
               hitbox={{ width: 48, height: 48 }}
               id="noxa-events-source"
@@ -626,7 +626,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
             </ShapeSource>
           ) : null}
 
-          {mapFilter !== "drivers" || isRouteMode
+          {!isDestinationPicking && (mapFilter !== "drivers" || isRouteMode)
             ? events.map((event) => (
                 <MarkerView
                   allowOverlap
@@ -693,6 +693,7 @@ export const MapboxLiveMap = forwardRef<LiveMapHandle, MapboxLiveMapProps>(
                 style={{
                   lineCap: "round",
                   lineColor: colors.routeActive,
+                  lineEmissiveStrength: 1,
                   lineJoin: "round",
                   lineOpacity: 1,
                   lineWidth: 7.5,

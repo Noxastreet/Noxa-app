@@ -769,18 +769,17 @@ export default function CanonicalEventDetailScreen() {
             )}
             <View style={styles.mapOverlayTop}>
               <Text style={styles.mapMeta}>
-                {validCoordinates(event) ? "NOXA MAP PREVIEW" : "LOCATION PREVIEW"}
+                MEETING POINT
               </Text>
               <NoxaButton
                 disabled={!validCoordinates(event)}
                 leadingIcon={<Ionicons name="navigate" size={15} color={colors.text} />}
                 size="sm"
-                title="Navigate"
+                title="View route"
                 variant="overlay"
                 onPress={navigate}
               />
             </View>
-            <Text style={styles.mapBrand}>NOXA NAVIGATION</Text>
           </View>
         </View>
 
@@ -928,7 +927,6 @@ const styles = StyleSheet.create({
   mapCard: { height: 176, overflow: "hidden", borderRadius: radius.lg, backgroundColor: "#0B1218" },
   mapOverlayTop: { position: "absolute", left: spacing.sm, right: spacing.sm, top: spacing.sm, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   mapMeta: { color: colors.text, fontSize: 9, lineHeight: 12, fontWeight: "900", letterSpacing: 0.5 },
-  mapBrand: { position: "absolute", left: spacing.sm, bottom: spacing.sm, color: colors.text, fontSize: 8, lineHeight: 10, fontWeight: "900", letterSpacing: 0.5 },
   goingCard: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: spacing.md },
   goingCopy: { flex: 1 },
   goingTitle: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800" },

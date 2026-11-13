@@ -184,9 +184,9 @@ export function MapboxEventLocationPicker({ confirmLabel = "Confirm Location", h
       >
         <Camera ref={cameraRef} defaultSettings={{ centerCoordinate: [initialCoordinate.longitude, initialCoordinate.latitude], zoomLevel: NOXA_MAPBOX_DEFAULT_ZOOM }} />
       </MapView>
-      {!isLoaded && !hasError ? <MapboxStateView loading /> : null}
+      {!isLoaded && !hasError ? <MapboxStateView loading title="Loading meeting point map…" /> : null}
       {hasError ? <MapboxStateView /> : null}
-      {!hasError ? (
+      {isLoaded && !hasError ? (
         <View pointerEvents="none" style={styles.centerPin}>
           <View style={styles.pinHalo} />
           <View style={styles.pinHead}><Ionicons name="location" size={21} color={colors.text} /></View>

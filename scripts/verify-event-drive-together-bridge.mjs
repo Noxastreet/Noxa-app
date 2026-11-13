@@ -16,9 +16,9 @@ const layer = read('src/features/group-drive/DriveTogetherMapLayer.tsx');
 const api = read('src/features/group-drive/api.ts');
 
 assert(
-  /title="Add driver"/.test(home)
+  /title="Invite drivers"/.test(home)
     && /onAddDriver=\{\(\) => startDriveTogetherForEvent\(selectedEvent\)\}/.test(home),
-  'A ready Event route must expose Add driver and hand the selected Event into Drive Together.',
+  'A ready Event route must expose Invite drivers and hand the selected Event into Drive Together.',
 );
 
 assert(
